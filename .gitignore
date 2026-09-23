@@ -10,3 +10,6 @@ dist
 # Local iiko credentials and generated import artifacts
 iiko-credentials.md
 .iiko-cache/
+
+# Generated POS employee PINs — plaintext, local only, never commit
+.sandyq-seed/
