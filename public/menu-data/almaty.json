@@ -1,0 +1,434 @@
+[
+  {
+    "price_kzt": 2990,
+    "name_kk": "Балғын көкөніс салаты",
+    "name_ru": "Салат из свежих овощей",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 4990,
+    "name_kk": "Ысталған жылқы етімен",
+    "name_ru": "Салат «Қостұра» с подкопченой",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 4990,
+    "name_kk": "Зімбір тұздығындағы «Сандық»",
+    "name_ru": "Салат «Сандық» в имбирном соусе",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 3990,
+    "name_kk": "Құрт тұздығындағы",
+    "name_ru": "Хрустящие баклажаны в соусе",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 4990,
+    "name_kk": "Құрт тұздығымен ұсынылатын",
+    "name_ru": "Ассорти из сезонных овощей",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 1990,
+    "name_kk": "Ысталған «Құйрық май»",
+    "name_ru": "Подкопченый «Құйрық май»",
+    "category": "KUMIZMURYNDYK"
+  },
+  {
+    "price_kzt": 5990,
+    "name_kk": "«Sheke»",
+    "name_ru": "«Sheke»",
+    "category": "KUMIZMURYNDYK"
+  },
+  {
+    "price_kzt": 6590,
+    "name_kk": "«Жілік май»",
+    "name_ru": "«Жілік май»",
+    "category": "KUMIZMURYNDYK"
+  },
+  {
+    "price_kzt": 5990,
+    "name_kk": "Аршада ысталған «Ұйқы ашар»",
+    "name_ru": "«Ұйқы ашар» копченая конина",
+    "category": "KUMIZMURYNDYK"
+  },
+  {
+    "price_kzt": 6590,
+    "name_kk": "«Құйрық бауыр»",
+    "name_ru": "«Кұйрык бауыр»",
+    "category": "KUMIZMURYNDYK"
+  },
+  {
+    "price_kzt": 6590,
+    "name_kk": "Кілегейде бұқтырылған",
+    "name_ru": "«Үлпершек» сердце барашка,",
+    "category": "KUMIZMURYNDYK"
+  },
+  {
+    "price_kzt": 2990,
+    "name_kk": "«Ми палау»",
+    "name_ru": "«Ми палау»",
+    "category": "KUMIZMURYNDYK"
+  },
+  {
+    "price_kzt": 6990,
+    "name_kk": "Сүзбе тұздығындағы",
+    "name_ru": "Осетровая икра",
+    "category": "KUMIZMURYNDYK"
+  },
+  {
+    "price_kzt": 3990,
+    "name_kk": "Ноқат пен көкөністен",
+    "name_ru": "Суп «Жібек жолы» с",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 4990,
+    "name_kk": "Сүрленген жылқы етімен",
+    "name_ru": "Көже «Nomad» с вяленой кониной",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 3990,
+    "name_kk": "Күркетауық етімен",
+    "name_ru": "Суп из индейки и белой кукурузы",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 4590,
+    "name_kk": "Бөдене сорпасы",
+    "name_ru": "Суп из перепелки",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 2990,
+    "name_kk": "Тұшытылған май қосылған",
+    "name_ru": "«Жарма көже»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 3990,
+    "name_kk": "Ысталған жылқы етімен",
+    "name_ru": "«Қол кеспе»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 7990,
+    "name_kk": "«Қазақ ет»",
+    "name_ru": "«Қазақ ет»",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 25990,
+    "name_kk": "«Борша ет» (бас аспаздың",
+    "name_ru": "«Борша ет» (шоу-программа",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 6990,
+    "name_kk": "Жылқының етінен",
+    "name_ru": "«Бал қуырдақ» из конины",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 6990,
+    "name_kk": "«Ши қуырдақ»",
+    "name_ru": "«Ши қуырдақ»",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 7990,
+    "name_kk": "Отқа піскен көкөністері",
+    "name_ru": "«Бұкпа» из говядины с овощами",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 7990,
+    "name_kk": "«Қымыз қабырға» қымызда",
+    "name_ru": "«Қымыз қабырға»",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 7990,
+    "name_kk": "Таста әзірленген сиыр етінен",
+    "name_ru": "«Борша ет»",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 25990,
+    "name_kk": "Бұқтырылған қойдың мойыны",
+    "name_ru": "Томленая баранья шея",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 7990,
+    "name_kk": "Құрт тұздығымен жылқы етінен",
+    "name_ru": "«Қақталган қазы»",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 6590,
+    "name_kk": "Таудың бахтак балығы",
+    "name_ru": "Горная форель",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 5990,
+    "name_kk": "Үй көкөніс тұздығымен",
+    "name_ru": "«Нан салма»",
+    "category": "ESIK KORU"
+  },
+  {
+    "price_kzt": 1590,
+    "name_kk": "Кус-кус",
+    "name_ru": "Кус-кус",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 1590,
+    "name_kk": "Бұлгур бидайы",
+    "name_ru": "Булгур",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 1590,
+    "name_kk": "Жас картоп",
+    "name_ru": "Молодой картофель",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 1590,
+    "name_kk": "Ақ жүгері",
+    "name_ru": "Белая кукуруза",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 1590,
+    "name_kk": "Сары май қосылған бидай",
+    "name_ru": "Бидай со сливочным маслом",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 1590,
+    "name_kk": "Отқа піскен көкөністер",
+    "name_ru": "Овощи на гриле",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Дала шөптерінен әзірленген тұздық",
+    "name_ru": "Соус со степными травами",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Айран тұздығы",
+    "name_ru": "Кефирный соус",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Көкөніс тұздығы",
+    "name_ru": "Соус на основе овощей",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Ащы көкөніс тұздығы",
+    "name_ru": "Острый соус на основе овощей",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Қаймақ",
+    "name_ru": "Сметана",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Зімбір тұздығы",
+    "name_ru": "Имбирный соус",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Құрт тұздығы",
+    "name_ru": "Соус из курта",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Анар тұздығы",
+    "name_ru": "Гранатовый соус",
+    "category": "MOIYN TASTAR"
+  },
+  {
+    "price_kzt": 1990,
+    "name_kk": "Тәтті тосаппен",
+    "name_ru": "Бауырсаки со сладким вареньем",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 1990,
+    "name_kk": "Қолдың ірімшігі қосылған",
+    "name_ru": "Бауырсаки с начинкой",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 1990,
+    "name_kk": "«Мыжыма»",
+    "name_ru": "«Мыжыма»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 1990,
+    "name_kk": "Етпен «Бәрәміш»",
+    "name_ru": "«Бәрәміш» с мясом",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 2590,
+    "name_kk": "Тау балы мен қолдың сары",
+    "name_ru": "«Таба нан» с горным мёдом и",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 2590,
+    "name_kk": "«Қаттама»",
+    "name_ru": "«Қаттама»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 8990,
+    "name_kk": "«Нан астау»",
+    "name_ru": "«Нан астау»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 3590,
+    "name_kk": "Балқаймақпен ұсынылатын қуы-",
+    "name_ru": "Фаршированный финик с обжа-",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 4990,
+    "name_kk": "«Сандық» тәттілері",
+    "name_ru": "Сладости «Сандық»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 3990,
+    "name_kk": "Ұлы дала тәттісі «Сүмесүт»",
+    "name_ru": "Степной десерт «Сүмесүт»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 3590,
+    "name_kk": "Алма тосабы қосылған",
+    "name_ru": "Хрустящий домашний пирог",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 2990,
+    "name_kk": "Қуырылған бидайдан әзірленген",
+    "name_ru": "«Төңкерме» из обжаренной пщеницы",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 2990,
+    "name_kk": "Мусс пен ұсынылатын «Майсөк»",
+    "name_ru": "«Майсөк» с муссом",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 3590,
+    "name_kk": "«Алматы апорты» десерті",
+    "name_ru": "Десерт «Алматинский апорт»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 1990,
+    "name_kk": "Балмұздақ",
+    "name_ru": "Мороженое",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 6990,
+    "name_kk": "Шәй сеті",
+    "name_ru": "Чайный сет",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 990,
+    "name_kk": "Құрма",
+    "name_ru": "Финики",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Тосап",
+    "name_ru": "Варенье",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Бал",
+    "name_ru": "Мед",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Лимон",
+    "name_ru": "Лимон",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Сүт",
+    "name_ru": "Молоко",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 590,
+    "name_kk": "Жалбыз",
+    "name_ru": "Мята",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 65990,
+    "name_kk": "Балғын қой етінен",
+    "name_ru": "«Сый табақ»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 95990,
+    "name_kk": "«Хан сырбаз» құйқасымен",
+    "name_ru": "«Хан сырбаз»",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 89990,
+    "name_kk": "Қарында нығыздалған",
+    "name_ru": "«Қарын көмбе» из запеченной",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 65990,
+    "name_kk": "Жылқы етінен «Той табақ»",
+    "name_ru": "«Той табақ» из конины",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 89990,
+    "name_kk": "Сиыр етінен «Бел көтерер»",
+    "name_ru": "«Бел көтерер» из говядины",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  },
+  {
+    "price_kzt": 95990,
+    "name_kk": "Көкөністер және кілегей",
+    "name_ru": "«Бекіре» с овощами",
+    "category": "DALA AŊYZYN JAŊĞYRTU"
+  }
+]

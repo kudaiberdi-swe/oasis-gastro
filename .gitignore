@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+*.local
+*.log
+.vercel
+.env
+.env.local
+
+# Local iiko credentials and generated import artifacts
+iiko-credentials.md
+.iiko-cache/
