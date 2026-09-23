@@ -30,6 +30,7 @@ import type * as domains_office_queries from "../domains/office/queries.js";
 import type * as domains_orders_mutations from "../domains/orders/mutations.js";
 import type * as domains_orders_queries from "../domains/orders/queries.js";
 import type * as domains_orders_types from "../domains/orders/types.js";
+import type * as domains_reports_queries from "../domains/reports/queries.js";
 import type * as domains_seed_mutations from "../domains/seed/mutations.js";
 import type * as domains_shifts_mutations from "../domains/shifts/mutations.js";
 import type * as domains_shifts_queries from "../domains/shifts/queries.js";
@@ -78,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   "domains/orders/mutations": typeof domains_orders_mutations;
   "domains/orders/queries": typeof domains_orders_queries;
   "domains/orders/types": typeof domains_orders_types;
+  "domains/reports/queries": typeof domains_reports_queries;
   "domains/seed/mutations": typeof domains_seed_mutations;
   "domains/shifts/mutations": typeof domains_shifts_mutations;
   "domains/shifts/queries": typeof domains_shifts_queries;

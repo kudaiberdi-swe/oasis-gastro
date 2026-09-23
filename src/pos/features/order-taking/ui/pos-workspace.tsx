@@ -43,7 +43,7 @@ function AuthenticatedPos({
   terminalExternalId: string
 }) {
   const shift = useCurrentShift(sessionToken)
-  const { open: openShift, close: closeShift } = useShiftMutations()
+  const { open: openShift, close: closeShift, createXReport } = useShiftMutations()
   const { hold, checkout } = useOrderMutations()
   const { requestApproval, dialog: managerDialog } = useManagerApproval(terminalExternalId)
   const { attachGuest, detachGuest } = useLoyaltyMutations()
@@ -58,6 +58,8 @@ function AuthenticatedPos({
   const [closeShiftOpen, setCloseShiftOpen] = useState(false)
   const [showKitchen, setShowKitchen] = useState(false)
   const [guestOpen, setGuestOpen] = useState(false)
+  const [xReportSubmitting, setXReportSubmitting] = useState(false)
+  const [xReportError, setXReportError] = useState<string | null>(null)
 
   const openChecks = useOpenChecks(sessionToken)
   const hydrated = useCheck(sessionToken, selectedOrderId)
@@ -93,6 +95,24 @@ function AuthenticatedPos({
     if (!draft.orderId) return
     await hold({ sessionToken, orderId: draft.orderId })
     selectCheck(null)
+  }
+
+  async function handleXReport() {
+    setXReportSubmitting(true)
+    setXReportError(null)
+    try {
+      let managerApprovalToken: string | undefined
+      if (access.employee.role === "cashier") {
+        const token = await requestApproval("Формирование X-отчёта требует подтверждения менеджера")
+        if (!token) return
+        managerApprovalToken = token
+      }
+      await createXReport({ sessionToken, idempotencyKey: crypto.randomUUID(), managerApprovalToken })
+    } catch (caught) {
+      setXReportError(errorMessage(caught, "Не удалось сформировать отчёт"))
+    } finally {
+      setXReportSubmitting(false)
+    }
   }
 
   async function handleCheckoutSubmit(payments: Array<{ method: "cash" | "card" | "qr"; amount: number; tendered?: number }>) {
@@ -136,6 +156,10 @@ function AuthenticatedPos({
         <Button variant="ghost" size="sm" onClick={() => setCloseShiftOpen(true)}>
           Закрыть смену
         </Button>
+        <Button variant="outline" size="sm" onClick={handleXReport} disabled={xReportSubmitting}>
+          {xReportSubmitting ? "Формирование…" : "X-отчёт"}
+        </Button>
+        {xReportError && <span className="text-xs font-semibold text-destructive">{xReportError}</span>}
         <Button variant="outline" size="sm" onClick={() => setGuestOpen(true)} disabled={!draft.orderId}>
           {guest ? `${guest.name || guest.phone} · ${guest.points} б.` : "Гость"}
         </Button>

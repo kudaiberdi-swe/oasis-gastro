@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 
 import { cn } from "@/shared/lib/utils"
 
-export type OfficeDestination = "catalog" | "stock" | "finance" | "workforce" | "loyalty"
+export type OfficeDestination = "catalog" | "stock" | "finance" | "workforce" | "loyalty" | "reports"
 
 const NAV: { id: OfficeDestination; label: string }[] = [
   { id: "catalog", label: "Меню и цены" },
@@ -11,6 +11,7 @@ const NAV: { id: OfficeDestination; label: string }[] = [
   { id: "finance", label: "Финансы" },
   { id: "workforce", label: "Кадры" },
   { id: "loyalty", label: "Лояльность" },
+  { id: "reports", label: "Отчёты" },
 ]
 
 export function OfficeLayout({
