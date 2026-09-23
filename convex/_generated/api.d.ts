@@ -16,6 +16,8 @@ import type * as domains_auth_mutations from "../domains/auth/mutations.js";
 import type * as domains_auth_queries from "../domains/auth/queries.js";
 import type * as domains_catalog_queries from "../domains/catalog/queries.js";
 import type * as domains_catalog_types from "../domains/catalog/types.js";
+import type * as domains_iiko_mutations from "../domains/iiko/mutations.js";
+import type * as domains_iiko_queries from "../domains/iiko/queries.js";
 import type * as domains_kitchen_mutations from "../domains/kitchen/mutations.js";
 import type * as domains_kitchen_queries from "../domains/kitchen/queries.js";
 import type * as domains_orders_mutations from "../domains/orders/mutations.js";
@@ -47,6 +49,8 @@ declare const fullApi: ApiFromModules<{
   "domains/auth/queries": typeof domains_auth_queries;
   "domains/catalog/queries": typeof domains_catalog_queries;
   "domains/catalog/types": typeof domains_catalog_types;
+  "domains/iiko/mutations": typeof domains_iiko_mutations;
+  "domains/iiko/queries": typeof domains_iiko_queries;
   "domains/kitchen/mutations": typeof domains_kitchen_mutations;
   "domains/kitchen/queries": typeof domains_kitchen_queries;
   "domains/orders/mutations": typeof domains_orders_mutations;

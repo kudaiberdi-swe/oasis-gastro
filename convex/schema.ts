@@ -34,6 +34,9 @@ export default defineSchema({
     currency: v.string(),
     timezone: v.string(),
     active: v.boolean(),
+    sourceSystem: v.optional(v.string()), // "iiko-server" when this row was created/updated by the iiko sync
+    sourceHash: v.optional(v.string()),
+    importedAt: v.optional(v.number()),
   }).index("by_external_id", ["externalId"]),
 
   restaurants: defineTable({
@@ -45,6 +48,9 @@ export default defineSchema({
     city: v.optional(v.string()),
     currency: v.optional(v.string()),
     active: v.boolean(),
+    sourceSystem: v.optional(v.string()),
+    sourceHash: v.optional(v.string()),
+    importedAt: v.optional(v.number()),
   })
     .index("by_external_id", ["externalId"])
     .index("by_active_and_name", ["active", "name"])
@@ -73,9 +79,14 @@ export default defineSchema({
     active: v.boolean(),
     failedAttempts: v.number(),
     lockedUntil: v.optional(v.number()),
+    // Set when this POS login was provisioned for a real iiko-imported person — the PIN itself
+    // is always generated locally (see domains/iiko/mutations.ts provisionPosAccess); iiko never
+    // supplies or sees a credential.
+    iikoEmployeeExternalId: v.optional(v.string()),
   })
     .index("by_code", ["code"])
-    .index("by_role_name", ["role", "displayName"]),
+    .index("by_role_name", ["role", "displayName"])
+    .index("by_iiko_employee_external_id", ["iikoEmployeeExternalId"]),
 
   posSessions: defineTable({
     tokenHash: v.string(),
@@ -372,4 +383,75 @@ export default defineSchema({
     .index("by_occurred_at", ["occurredAt"])
     .index("by_order_created", ["orderId", "occurredAt"])
     .index("by_shift_created", ["shiftId", "occurredAt"]),
+
+  // --- iiko sync (read-only mirror — Phase 3) --------------------------------
+  // Master-data only: organization structure + workforce. No sales/order/document
+  // history is imported — see docs/ARCHITECTURE.md and plans/README.md in the
+  // reference implementation for why that stays out of scope here.
+
+  iikoImportRuns: defineTable({
+    runExternalId: v.string(),
+    status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    counts: v.optional(v.object({ departments: v.number(), employees: v.number() })),
+    error: v.optional(v.string()),
+  }).index("by_external_id", ["runExternalId"]),
+
+  iikoEndpointStates: defineTable({
+    endpointKey: v.string(),
+    lastStatus: v.union(v.literal("ok"), v.literal("error"), v.literal("unsupported")),
+    lastRunAt: v.number(),
+    message: v.optional(v.string()),
+  }).index("by_endpoint_key", ["endpointKey"]),
+
+  // Read-only mirror of iiko's organization structure (corporation/departments).
+  // Only the fields we actually allowlisted out of the source response — see
+  // scripts/iiko/lib.mjs sanitizeDepartment. No PII; department/company records only.
+  iikoDepartments: defineTable({
+    externalId: v.string(),
+    parentExternalId: v.optional(v.string()),
+    code: v.optional(v.string()),
+    name: v.string(),
+    type: v.string(), // "DEPARTMENT" | "JURPERSON" | ...
+    sourceHash: v.string(),
+    importedAt: v.number(),
+  }).index("by_external_id", ["externalId"]),
+
+  // Read-only mirror of iiko employees — allowlisted fields only (see
+  // scripts/iiko/lib.mjs sanitizeEmployee). Never carries a login, phone, email,
+  // IIN, or any other credential/contact PII — those keys are never even read out
+  // of the source response.
+  iikoEmployees: defineTable({
+    externalId: v.string(),
+    code: v.optional(v.string()),
+    displayName: v.string(),
+    mainRoleCode: v.optional(v.string()),
+    departmentCodes: v.array(v.string()),
+    active: v.boolean(),
+    sourceHash: v.string(),
+    importedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_active_and_display_name", ["active", "displayName"]),
+
+  // Generic audit trail of every imported record, keyed by "<endpointKey>:<recordExternalId>" —
+  // lets a re-import detect "nothing changed" via sourceHash without re-touching canonical tables.
+  iikoMirrorRecords: defineTable({
+    mirrorKey: v.string(),
+    endpointKey: v.string(),
+    recordExternalId: v.string(),
+    payloadHash: v.string(),
+    importedAt: v.number(),
+  }).index("by_mirror_key", ["mirrorKey"]),
+
+  // Sandyq-owned fields layered on top of a read-only iiko entity, so a re-import
+  // never clobbers a local edit. Not deeply used yet in Phase 3 — reserved for
+  // Phase 4 (e.g. a preferred display name or role override for an imported employee).
+  iikoEntityOverlays: defineTable({
+    overlayKey: v.string(), // "<entityType>:<sourceExternalId>"
+    entityType: v.string(),
+    sourceExternalId: v.string(),
+    data: v.any(),
+  }).index("by_overlay_key", ["overlayKey"]),
 })

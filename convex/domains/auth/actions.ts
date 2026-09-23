@@ -4,6 +4,7 @@ import { v } from "convex/values"
 
 import { action } from "../../_generated/server"
 import { internal } from "../../_generated/api"
+import { constantTimeEqual, derivePinHash, sha256 } from "../../lib/auth"
 import { APPROVAL_TTL_MS, SESSION_TTL_MS } from "../../lib/policy"
 import { sessionPurpose } from "../../lib/validators"
 
@@ -80,34 +81,7 @@ export const login = action({
   },
 })
 
-async function derivePinHash(pin: string, salt: string) {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey("raw", encoder.encode(pin), "PBKDF2", false, ["deriveBits"])
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: encoder.encode(salt), iterations: 120_000 },
-    key,
-    256,
-  )
-  return bytesToHex(new Uint8Array(bits))
-}
-
-async function sha256(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
-  return bytesToHex(new Uint8Array(digest))
-}
-
 function randomToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "")
-}
-
-function bytesToHex(bytes: Uint8Array) {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
-}
-
-function constantTimeEqual(left: string, right: string) {
-  if (left.length !== right.length) return false
-  let mismatch = 0
-  for (let index = 0; index < left.length; index += 1) mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index)
-  return mismatch === 0
 }

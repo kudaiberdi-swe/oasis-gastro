@@ -8,7 +8,35 @@ type AnyCtx = QueryCtx | MutationCtx
 export async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value)
   const digest = await crypto.subtle.digest("SHA-256", bytes)
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+  return bytesToHex(new Uint8Array(digest))
+}
+
+export function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
+/**
+ * PBKDF2-SHA256/120k/256-bit, salted per employee. Shared by the login action
+ * (domains/auth/actions.ts) and provisionPosAccess (domains/iiko/mutations.ts) so a PIN
+ * created either way verifies identically. Plain Web Crypto — works in both the Node
+ * action runtime and the regular mutation runtime, no "use node" required here.
+ */
+export async function derivePinHash(pin: string, salt: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey("raw", encoder.encode(pin), "PBKDF2", false, ["deriveBits"])
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: encoder.encode(salt), iterations: 120_000 }, key, 256)
+  return bytesToHex(new Uint8Array(bits))
+}
+
+export function randomPinSalt(): string {
+  return bytesToHex(crypto.getRandomValues(new Uint8Array(16)))
+}
+
+export function constantTimeEqual(left: string, right: string): boolean {
+  if (left.length !== right.length) return false
+  let mismatch = 0
+  for (let index = 0; index < left.length; index += 1) mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index)
+  return mismatch === 0
 }
 
 async function requireSession(ctx: AnyCtx, sessionToken: string, purpose: "operator" | "manager-approval") {
