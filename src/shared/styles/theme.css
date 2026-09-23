@@ -1,0 +1,121 @@
+/*
+ * Sandyq POS design tokens
+ * ------------------------
+ * Update this file to reskin the entire product. Components only consume
+ * semantic tokens (primary, surface, muted, spacing and radii).
+ *
+ * Palette sourced from sandyqgroup.com's own site CSS + public/branding/
+ * sandyq-group-logo.svg (#b28f6f) — reverse-engineered pending an official
+ * brand guide from the client (see ARCHITECTURE.md risk #4).
+ */
+
+:root,
+[data-theme="day"] {
+  color-scheme: light;
+
+  /* Brand */
+  --brand-50: #fdf3ea;
+  --brand-100: #f3e3d0;
+  --brand-500: #a73921; /* terracotta — matches the SANDYQ wordmark on the printed menus */
+  --brand-600: #8f2f1b;
+  --brand-700: #6f2415;
+  --tan-500: #b28f6f; /* accent — the Sandyq Group mark colour */
+  --brown-700: #331f15; /* deep brown — nav / primary text */
+  --bronze-500: #b5893d;
+
+  /* Semantic color */
+  --background: #fff7ec;
+  --foreground: #331f15;
+  --card: #ffffff;
+  --card-foreground: #331f15;
+  --popover: #ffffff;
+  --popover-foreground: #331f15;
+  --primary: var(--brand-500);
+  --primary-foreground: #ffffff;
+  --secondary: #f3e3d0;
+  --secondary-foreground: #331f15;
+  --muted: #f6ece0;
+  --muted-foreground: #8a6b53;
+  --accent: var(--tan-500);
+  --accent-foreground: #ffffff;
+  --border: #e8d7c3;
+  --input: #ddc8ae;
+  --ring: var(--brand-500);
+  --success: #3f7d4a;
+  --warning: var(--bronze-500);
+  --warning-foreground: #7a5a25;
+  --destructive: #b3261e;
+  --nav: var(--brown-700);
+  --nav-foreground: #fff7ec;
+  --canvas-dot: rgb(51 31 21 / 0.045);
+
+  /* Product swatches */
+  --product-sunset: #f3d9c4;
+  --product-sun: #f6e3b0;
+  --product-mint: #dcead9;
+  --product-sky: #dbe7ea;
+  --product-berry: #ecdbe0;
+  --product-lilac: #e3ded0;
+
+  /* Typography — Manrope covers Kazakh Cyrillic (ә ғ қ ң ө ұ ү һ і); a few
+     kerning pairs (лғ, қт) are imperfect but acceptable for Phase 1. */
+  --font-ui: "Manrope Variable", "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, monospace;
+  --tracking-tight: -0.028em;
+
+  /* Shape */
+  --radius-control: 10px;
+  --radius-card: 12px;
+  --radius-panel: 12px;
+
+  /* Layout / density */
+  --space-page: 10px;
+  --space-panel: 12px;
+  --space-grid: 10px;
+  --control-height: 42px;
+
+  /* Effects */
+  --shadow-panel: 0 1px 2px rgb(51 31 21 / 0.05), 0 10px 26px rgb(51 31 21 / 0.06);
+  --shadow-float: 0 22px 48px rgb(51 31 21 / 0.18);
+}
+
+[data-theme="night"] {
+  color-scheme: dark;
+  --background: #1c130d;
+  --foreground: #f6ece0;
+  --card: #241a13;
+  --card-foreground: #f6ece0;
+  --popover: #291d15;
+  --popover-foreground: #f6ece0;
+  --primary: #d1552f;
+  --primary-foreground: #ffffff;
+  --secondary: #332419;
+  --secondary-foreground: #f6ece0;
+  --muted: #2b1f16;
+  --muted-foreground: #b6a08c;
+  --accent: #c7a37e;
+  --accent-foreground: #241a13;
+  --border: #3d2c1f;
+  --input: #453421;
+  --ring: #d1552f;
+  --nav: #140d08;
+  --nav-foreground: #f6ece0;
+  --canvas-dot: rgb(255 255 255 / 0.04);
+  --product-sunset: #5a3320;
+  --product-sun: #55471f;
+  --product-mint: #284a3a;
+  --product-sky: #28434c;
+  --product-berry: #523544;
+  --product-lilac: #453b2e;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.2), 0 16px 34px rgb(0 0 0 / 0.14);
+}
+
+[data-density="compact"] {
+  --space-page: 10px;
+  --space-panel: 13px;
+  --space-grid: 8px;
+  --control-height: 38px;
+  --radius-control: 10px;
+  --radius-card: 13px;
+  --radius-panel: 17px;
+}

@@ -1,7 +1,7 @@
+import { OfficeRouter } from "@/office/router"
+import { PosRouter } from "@/pos/router"
+
 export default function App() {
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-white text-neutral-500">
-      Sandyq — scaffold ready
-    </div>
-  )
+  const isOffice = window.location.pathname.startsWith("/office")
+  return <div className="pos-canvas h-full w-full">{isOffice ? <OfficeRouter /> : <PosRouter />}</div>
 }
