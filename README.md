@@ -68,6 +68,8 @@ Frontend is hosted on an Azure Static Web App (`sandyq-frontend`, resource group
 
 The bare root URL (no `?terminal=`) currently throws — the POS has no branch context to render without one. `.github/workflows/deploy-frontend.yml` and `deploy-backend.yml` redeploy frontend/backend independently on every push to `main` that touches their respective paths; see [CI/CD](#ci-cd) below.
 
+**Test office account** (created via the real sign-up flow, then bootstrapped as administrator — not a raw DB insert): `test@sandyq.local` / `TestPass123`. Synthetic, not a real staff member — rotate or delete before any real handoff. `OFFICE_BOOTSTRAP_EMAIL` on prod is currently set to this address.
+
 ## CI/CD
 
 Two independent GitHub Actions workflows on `goecho-ai/sandyq`, both push-triggered on `main`:
