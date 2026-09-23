@@ -22,8 +22,13 @@ function readDeploymentFromEnv() {
   }
 }
 
+// --prod is a deliberate, explicit override — it targets whatever CONVEX_DEPLOY_KEY points at
+// (never .env.local's dev deployment) and, as a hard safety rail, never creates employee PIN
+// credentials: production catalog/org data only, until the business is actually ready to
+// provision real staff logins (see domains/workforce/mutations.ts:provisionPosAccess for that).
+const targetProd = process.argv.includes("--prod")
 const deployment = process.env.CONVEX_DEPLOYMENT ?? readDeploymentFromEnv()
-if (!deployment.startsWith("dev:")) fail(`Refusing to seed a non-development deployment: ${deployment || "not configured"}`)
+if (!targetProd && !deployment.startsWith("dev:")) fail(`Refusing to seed a non-development deployment: ${deployment || "not configured"}. Pass --prod to seed production catalog data explicitly.`)
 
 // --- Canonical taxonomy: Shymkent/Turkistan share real bilingual section headers.
 // Almaty's headers are Latin-transliterated legend names, useless as POS categories,
@@ -180,13 +185,15 @@ const roles = [
 
 const plaintextCredentials = []
 const employeePayload = []
-for (const { role, displayName, codePrefix } of roles) {
-  const code = randomCode(codePrefix)
-  const pin = randomPin()
-  const pinSalt = randomBytes(16).toString("hex")
-  const pinHash = derivePinHash(pin, pinSalt)
-  employeePayload.push({ code, displayName, role, restaurantExternalIds, pinSalt, pinHash })
-  plaintextCredentials.push({ role, code, pin })
+if (!targetProd) {
+  for (const { role, displayName, codePrefix } of roles) {
+    const code = randomCode(codePrefix)
+    const pin = randomPin()
+    const pinSalt = randomBytes(16).toString("hex")
+    const pinHash = derivePinHash(pin, pinSalt)
+    employeePayload.push({ code, displayName, role, restaurantExternalIds, pinSalt, pinHash })
+    plaintextCredentials.push({ role, code, pin })
+  }
 }
 
 const payload = {
@@ -199,20 +206,24 @@ const payload = {
   employees: employeePayload,
 }
 
-console.log(`Seeding ${deployment}: ${payload.restaurants.length} restaurants, ${payload.categories.length} categories, ${payload.products.length} products, ${payload.prices.length} prices, ${payload.employees.length} employees…`)
+console.log(`Seeding ${targetProd ? "production (catalog only)" : deployment}: ${payload.restaurants.length} restaurants, ${payload.categories.length} categories, ${payload.products.length} products, ${payload.prices.length} prices, ${payload.employees.length} employees…`)
 
 const result = spawnSync("npx", ["convex", "run", "domains/seed/mutations:seedAll", JSON.stringify(payload), "--typecheck", "disable"], { stdio: "inherit" })
 if (result.status !== 0) fail("convex run failed")
 
-const outDir = path.resolve(".sandyq-seed")
-await mkdir(outDir, { recursive: true })
-const credentialsPath = path.join(outDir, `credentials-${Date.now()}.json`)
-await writeFile(
-  credentialsPath,
-  JSON.stringify({ deployment, generatedAt: new Date().toISOString(), warning: "Development POS access. Keep local, never commit.", credentials: plaintextCredentials }, null, 2),
-  { mode: 0o600 },
-)
-await chmod(credentialsPath, 0o600)
+if (targetProd) {
+  console.log("\n✔ Done. No employee PINs were created (production run) — use the office Кадры screen to provision real staff logins when ready.")
+} else {
+  const outDir = path.resolve(".sandyq-seed")
+  await mkdir(outDir, { recursive: true })
+  const credentialsPath = path.join(outDir, `credentials-${Date.now()}.json`)
+  await writeFile(
+    credentialsPath,
+    JSON.stringify({ deployment, generatedAt: new Date().toISOString(), warning: "Development POS access. Keep local, never commit.", credentials: plaintextCredentials }, null, 2),
+    { mode: 0o600 },
+  )
+  await chmod(credentialsPath, 0o600)
 
-console.log(`\n✔ Done. PIN credentials written to ${credentialsPath}:`)
-for (const cred of plaintextCredentials) console.log(`  ${cred.role.padEnd(14)} code=${cred.code}  pin=${cred.pin}`)
+  console.log(`\n✔ Done. PIN credentials written to ${credentialsPath}:`)
+  for (const cred of plaintextCredentials) console.log(`  ${cred.role.padEnd(14)} code=${cred.code}  pin=${cred.pin}`)
+}
