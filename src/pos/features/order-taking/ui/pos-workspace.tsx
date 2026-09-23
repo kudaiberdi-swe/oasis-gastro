@@ -50,6 +50,7 @@ function AuthenticatedPos({
 
   const [selectedOrderId, setSelectedOrderId] = useState<Id<"orders"> | null>(null)
   const [pendingTableLabel, setPendingTableLabel] = useState("")
+  const [selectionNonce, setSelectionNonce] = useState(0)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [paymentSubmitting, setPaymentSubmitting] = useState(false)
@@ -70,6 +71,7 @@ function AuthenticatedPos({
     hydrated: hydrated ?? undefined,
     initialOrderId: selectedOrderId,
     initialTableLabel: pendingTableLabel,
+    selectionKey: selectionNonce,
   })
   const guest = useOrderGuest(sessionToken, draft.orderId)
 
@@ -84,6 +86,7 @@ function AuthenticatedPos({
   function selectCheck(orderId: string | null, tableLabel = "") {
     setSelectedOrderId(orderId as Id<"orders"> | null)
     setPendingTableLabel(tableLabel)
+    setSelectionNonce((current) => current + 1)
   }
 
   async function handleHold() {

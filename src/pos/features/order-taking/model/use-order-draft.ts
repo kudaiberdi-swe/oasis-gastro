@@ -14,8 +14,25 @@ type HydratedCheck = {
   lines: Array<{ productId: Id<"products">; productName: string; unitPrice: number; quantity: number; modifiers: string[]; product: { nameKk: string } | null }>
 }
 
-/** Owns the cart for one open check — local-first, persisted to the server on every change. */
-export function useOrderDraft(args: { sessionToken: string; terminalExternalId: string; orderType: "dine-in" | "takeaway"; hydrated: HydratedCheck | null | undefined; initialOrderId: Id<"orders"> | null; initialTableLabel?: string }) {
+/**
+ * Owns the cart for one open check — local-first, persisted to the server on every change.
+ *
+ * `selectionKey` must change every time the caller makes a new explicit selection (picking a
+ * different check, or starting a new one) — including reselecting "new" twice in a row. Syncing
+ * off `initialOrderId` alone isn't enough: it stays `null` across two consecutive "new check"
+ * selections, so a second "Новый стол" wouldn't otherwise clear whatever the cashier was still
+ * mid-editing on the first one. The caller (pos-workspace.tsx) bumps a counter on every
+ * selectCheck() call and passes it through as this key.
+ */
+export function useOrderDraft(args: {
+  sessionToken: string
+  terminalExternalId: string
+  orderType: "dine-in" | "takeaway"
+  hydrated: HydratedCheck | null | undefined
+  initialOrderId: Id<"orders"> | null
+  initialTableLabel?: string
+  selectionKey: number
+}) {
   const { saveDraft } = useOrderMutations()
   const [orderId, setOrderId] = useState<Id<"orders"> | null>(args.initialOrderId)
   const [lines, setLines] = useState<DraftLine[]>([])
@@ -27,11 +44,29 @@ export function useOrderDraft(args: { sessionToken: string; terminalExternalId: 
   const [saving, setSaving] = useState(false)
   const version = useRef<number | undefined>(undefined)
   const clientOrderId = useRef(crypto.randomUUID())
-  const hydratedOnce = useRef(false)
+  const syncedSelectionKey = useRef<number | null>(null)
 
   useEffect(() => {
-    if (!args.hydrated || hydratedOnce.current) return
-    hydratedOnce.current = true
+    if (syncedSelectionKey.current === args.selectionKey) return
+
+    if (args.initialOrderId === null) {
+      syncedSelectionKey.current = args.selectionKey
+      clientOrderId.current = crypto.randomUUID()
+      setOrderId(null)
+      version.current = undefined
+      setTableLabel(args.initialTableLabel ?? "")
+      setDiscountPercent(0)
+      setDiscountReason("")
+      setComment("")
+      setLines([])
+      return
+    }
+
+    // A real check was selected — wait for its hydrated data to actually arrive before syncing,
+    // so we never flash the previous check's contents under the new check's id.
+    if (!args.hydrated || args.hydrated._id !== args.initialOrderId) return
+    syncedSelectionKey.current = args.selectionKey
+    setOrderId(args.hydrated._id)
     version.current = args.hydrated.version
     setTableLabel(args.hydrated.tableLabel ?? "")
     setDiscountPercent(args.hydrated.discountPercent)
@@ -48,7 +83,7 @@ export function useOrderDraft(args: { sessionToken: string; terminalExternalId: 
         modifiers: line.modifiers,
       })),
     )
-  }, [args.hydrated])
+  }, [args.selectionKey, args.initialOrderId, args.hydrated, args.initialTableLabel])
 
   const persist = useCallback(
     async (next: { lines: DraftLine[]; tableLabel: string; discountPercent: number; discountReason: string; comment: string }, managerApprovalToken?: string) => {
@@ -85,6 +120,14 @@ export function useOrderDraft(args: { sessionToken: string; terminalExternalId: 
     [args.orderType, args.sessionToken, orderId, saveDraft],
   )
 
+  // addItem/setQuantity compute the next lines AND call persist(next) from inside the setLines
+  // updater — that's a side effect in a functional updater, which looks like a code smell (and is
+  // exactly what React 18 StrictMode's dev-only double-invoke is designed to flag), but reading
+  // the computed value back out of the updater into an outer variable is worse: setState updaters
+  // aren't guaranteed to run synchronously, so persist() would read that variable before the
+  // updater ever populated it and silently save an empty order. The functional-updater form is
+  // required here specifically so a rapid double-click always builds on the latest pending
+  // `current`, not a stale `lines` closure — don't "clean up" this shape without solving that.
   const addItem = useCallback(
     (product: { productId: string; name: string; nameKk: string; price: number }) => {
       setLines((current) => {
