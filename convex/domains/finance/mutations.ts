@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 
 import { internalMutation, mutation } from "../../_generated/server"
 import { postLedgerEntry } from "../../lib/finance"
@@ -9,8 +9,8 @@ export const recordExpense = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.finance.*")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
-    if (args.amount <= 0) throw new Error("Сумма должна быть больше нуля")
-    if (!args.category.trim()) throw new Error("Укажите статью расхода")
+    if (args.amount <= 0) throw new ConvexError("Сумма должна быть больше нуля")
+    if (!args.category.trim()) throw new ConvexError("Укажите статью расхода")
     const email = await getOfficeAuthEmail(ctx)
     const now = Date.now()
     await postLedgerEntry(ctx, {

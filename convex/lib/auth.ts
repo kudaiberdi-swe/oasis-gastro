@@ -1,3 +1,5 @@
+import { ConvexError } from "convex/values"
+
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server"
 import type { DataModel, Id } from "../_generated/dataModel"
 
@@ -40,7 +42,7 @@ export function constantTimeEqual(left: string, right: string): boolean {
 }
 
 async function requireSession(ctx: AnyCtx, sessionToken: string, purpose: "operator" | "manager-approval") {
-  if (!sessionToken) throw new Error("Касса заблокирована")
+  if (!sessionToken) throw new ConvexError("Касса заблокирована")
   const tokenHash = await sha256(sessionToken)
   const session = await ctx.db
     .query("posSessions")
@@ -48,16 +50,16 @@ async function requireSession(ctx: AnyCtx, sessionToken: string, purpose: "opera
     .unique()
   const now = Date.now()
   if (!session || session.revokedAt || session.expiresAt <= now || session.purpose !== purpose) {
-    throw new Error("Сессия истекла. Войдите снова")
+    throw new ConvexError("Сессия истекла. Войдите снова")
   }
   const [employee, terminal] = await Promise.all([ctx.db.get(session.employeeId), ctx.db.get(session.terminalId)])
-  if (!employee?.active || !terminal?.active) throw new Error("Доступ к кассе отключён")
+  if (!employee?.active || !terminal?.active) throw new ConvexError("Доступ к кассе отключён")
   const restaurant = await ctx.db.get(terminal.restaurantId)
   if (!restaurant?.active || !employee.restaurantIds.includes(restaurant._id)) {
-    throw new Error("Нет доступа к ресторану")
+    throw new ConvexError("Нет доступа к ресторану")
   }
   if (employee.terminalIds?.length && !employee.terminalIds.includes(terminal._id)) {
-    throw new Error("Нет доступа к терминалу")
+    throw new ConvexError("Нет доступа к терминалу")
   }
   return { session, employee, terminal, restaurant }
 }
@@ -77,13 +79,13 @@ export async function requireManagerApproval(
   approvalToken: string | undefined,
   restaurantId: Id<"restaurants">,
 ) {
-  if (!approvalToken) throw new Error("Требуется подтверждение менеджера")
+  if (!approvalToken) throw new ConvexError("Требуется подтверждение менеджера")
   const access = await requireSession(ctx, approvalToken, "manager-approval")
   if (access.employee.role !== "manager" && access.employee.role !== "administrator") {
-    throw new Error("Недостаточно прав для подтверждения")
+    throw new ConvexError("Недостаточно прав для подтверждения")
   }
   if (access.terminal.restaurantId !== restaurantId) {
-    throw new Error("Менеджер должен работать в том же ресторане")
+    throw new ConvexError("Менеджер должен работать в том же ресторане")
   }
   await ctx.db.patch(access.session._id, { revokedAt: Date.now() })
   return access.employee
@@ -102,6 +104,6 @@ export async function getOpenShift(ctx: AnyCtx, terminalId: Id<"posTerminals">) 
 
 export async function requireOpenShift(ctx: AnyCtx, terminalId: Id<"posTerminals">) {
   const shift = await getOpenShift(ctx, terminalId)
-  if (!shift) throw new Error("Сначала откройте кассовую смену")
+  if (!shift) throw new ConvexError("Сначала откройте кассовую смену")
   return shift
 }

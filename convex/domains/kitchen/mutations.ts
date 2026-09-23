@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 
 import { mutation } from "../../_generated/server"
 import { requireOperator } from "../../lib/auth"
@@ -15,8 +15,8 @@ export const setStatus = mutation({
   handler: async (ctx, args) => {
     await requireOperator(ctx, args.sessionToken)
     const ticket = await ctx.db.get(args.ticketId)
-    if (!ticket) throw new Error("Тикет не найден")
-    if (NEXT_STATUS[ticket.status] !== args.status) throw new Error("Недопустимый переход статуса")
+    if (!ticket) throw new ConvexError("Тикет не найден")
+    if (NEXT_STATUS[ticket.status] !== args.status) throw new ConvexError("Недопустимый переход статуса")
     await ctx.db.patch(ticket._id, { status: args.status, updatedAt: Date.now() })
   },
 })

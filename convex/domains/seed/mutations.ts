@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 
 import { internalMutation } from "../../_generated/server"
 import { employeeRole } from "../../lib/validators"
@@ -62,7 +62,7 @@ export const seedAll = internalMutation({
 
     for (const terminal of args.terminals) {
       const restaurantId = restaurantIds.get(terminal.restaurantExternalId)
-      if (!restaurantId) throw new Error(`Unknown restaurant for terminal ${terminal.externalId}`)
+      if (!restaurantId) throw new ConvexError(`Unknown restaurant for terminal ${terminal.externalId}`)
       const existing = await ctx.db.query("posTerminals").withIndex("by_external_id", (q) => q.eq("externalId", terminal.externalId)).unique()
       const value = { externalId: terminal.externalId, restaurantId, name: terminal.name, terminalNumber: terminal.terminalNumber, nextOrderNumber: existing?.nextOrderNumber ?? 1, active: true }
       if (existing) await ctx.db.patch(existing._id, value)

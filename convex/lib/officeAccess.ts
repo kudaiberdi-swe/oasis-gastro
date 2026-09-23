@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server"
+import { ConvexError } from "convex/values"
 
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server"
 import type { DataModel } from "../_generated/dataModel"
@@ -27,17 +28,17 @@ export function hasScope(scopes: string[], value: string): boolean {
 
 export async function requireOfficeCapability(ctx: AnyCtx, capability: string) {
   const email = await getOfficeAuthEmail(ctx)
-  if (!email) throw new Error("Требуется вход в Office")
+  if (!email) throw new ConvexError("Требуется вход в Office")
   const user = await ctx.db.query("officeUsers").withIndex("by_email", (q) => q.eq("email", email)).unique()
-  if (!user) throw new Error("Офисный пользователь не настроен")
-  if (!user.active) throw new Error("Учётная запись отключена")
+  if (!user) throw new ConvexError("Офисный пользователь не настроен")
+  if (!user.active) throw new ConvexError("Учётная запись отключена")
   const role = await ctx.db.query("officeRoles").withIndex("by_external_id", (q) => q.eq("externalId", user.roleExternalId)).unique()
-  if (!role || !allowsCapability(role.capabilities, capability)) throw new Error("Недостаточно прав")
+  if (!role || !allowsCapability(role.capabilities, capability)) throw new ConvexError("Недостаточно прав")
   return { user, role }
 }
 
 export async function requireRestaurantScope(ctx: AnyCtx, user: { restaurantScopes: string[] }, restaurantExternalId: string) {
-  if (!hasScope(user.restaurantScopes, restaurantExternalId)) throw new Error("Нет доступа к ресторану")
+  if (!hasScope(user.restaurantScopes, restaurantExternalId)) throw new ConvexError("Нет доступа к ресторану")
 }
 
 export async function writeOfficeAudit(
@@ -64,6 +65,6 @@ async function resolveOrganizationExternalId(ctx: MutationCtx, restaurantExterna
     if (restaurant) return restaurant.organizationExternalId
   }
   const organization = (await ctx.db.query("organizations").take(10)).find((candidate) => candidate.active)
-  if (!organization) throw new Error("Активная организация не найдена")
+  if (!organization) throw new ConvexError("Активная организация не найдена")
   return organization.externalId
 }

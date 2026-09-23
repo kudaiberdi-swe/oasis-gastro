@@ -1,6 +1,6 @@
 "use node"
 
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 
 import { action } from "../../_generated/server"
 import { internal } from "../../_generated/api"
@@ -28,14 +28,14 @@ export const login = action({
       terminalExternalId: args.terminalExternalId,
     })
     if (!record?.employee.active || !record.terminal.active || !record.restaurant.active) {
-      throw new Error("Неверный код сотрудника или PIN")
+      throw new ConvexError("Неверный код сотрудника или PIN")
     }
     if (record.employee.lockedUntil && record.employee.lockedUntil > now) {
       const minutes = Math.max(1, Math.ceil((record.employee.lockedUntil - now) / 60_000))
-      throw new Error(`Слишком много попыток. Повторите через ${minutes} мин.`)
+      throw new ConvexError(`Слишком много попыток. Повторите через ${minutes} мин.`)
     }
     if (args.purpose === "manager-approval" && record.employee.role !== "manager" && record.employee.role !== "administrator") {
-      throw new Error("Требуется PIN менеджера")
+      throw new ConvexError("Требуется PIN менеджера")
     }
     const calculated = await derivePinHash(args.pin, record.employee.pinSalt)
     if (!constantTimeEqual(calculated, record.employee.pinHash)) {
@@ -43,7 +43,7 @@ export const login = action({
         employeeId: record.employee._id,
         now,
       })
-      throw new Error("Неверный код сотрудника или PIN")
+      throw new ConvexError("Неверный код сотрудника или PIN")
     }
     const sessionToken = randomToken()
     const tokenHash = await sha256(sessionToken)

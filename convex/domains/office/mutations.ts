@@ -1,3 +1,5 @@
+import { ConvexError } from "convex/values"
+
 import { mutation } from "../../_generated/server"
 import { getOfficeAuthEmail } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
@@ -17,10 +19,10 @@ export const bootstrap = mutation({
   handler: async (ctx) => {
     const email = await getOfficeAuthEmail(ctx)
     const bootstrapEmail = process.env.OFFICE_BOOTSTRAP_EMAIL?.trim().toLocaleLowerCase("en-US")
-    if (!email || !bootstrapEmail || email !== bootstrapEmail) throw new Error("Инициализация Office не разрешена для этой учётной записи")
+    if (!email || !bootstrapEmail || email !== bootstrapEmail) throw new ConvexError("Инициализация Office не разрешена для этой учётной записи")
 
     const restaurants = await listOperationalRestaurants(ctx)
-    if (!restaurants.length) throw new Error("Сначала должен быть хотя бы один активный ресторан с терминалом")
+    if (!restaurants.length) throw new ConvexError("Сначала должен быть хотя бы один активный ресторан с терминалом")
 
     const existingRole = await ctx.db.query("officeRoles").withIndex("by_external_id", (q) => q.eq("externalId", "administrator")).unique()
     const roleValue = { externalId: "administrator", name: "Администратор", capabilities: ["*"], system: true }

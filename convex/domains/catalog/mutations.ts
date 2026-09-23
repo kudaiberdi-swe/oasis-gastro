@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 
 import { mutation } from "../../_generated/server"
 import { getOfficeAuthEmail, requireOfficeCapability, writeOfficeAudit } from "../../lib/officeAccess"
@@ -26,7 +26,7 @@ export const updateCategory = mutation({
     await requireOfficeCapability(ctx, "office.catalog.*")
     const email = await getOfficeAuthEmail(ctx)
     const category = await ctx.db.get(args.categoryId)
-    if (!category) throw new Error("Категория не найдена")
+    if (!category) throw new ConvexError("Категория не найдена")
     await ctx.db.patch(args.categoryId, { label: args.label, shortLabel: args.shortLabel, sortOrder: args.sortOrder, active: args.active })
     await writeOfficeAudit(ctx, email!, { action: "catalog.category.update", summary: `Изменена категория «${args.label}»`, resourceType: "category", resourceExternalId: category.externalId })
   },
@@ -80,7 +80,7 @@ export const updateProduct = mutation({
     const email = await getOfficeAuthEmail(ctx)
     const { productId, ...rest } = args
     const product = await ctx.db.get(productId)
-    if (!product) throw new Error("Блюдо не найдено")
+    if (!product) throw new ConvexError("Блюдо не найдено")
     await ctx.db.patch(productId, { ...rest, ...deriveNameSort(rest.name, rest.nameKk) })
     await writeOfficeAudit(ctx, email!, { action: "catalog.product.update", summary: `Изменено блюдо «${rest.name}»`, resourceType: "product", resourceExternalId: product.externalId })
   },
@@ -92,10 +92,10 @@ export const setProductPrice = mutation({
     const { user } = await requireOfficeCapability(ctx, "office.catalog.*")
     const email = await getOfficeAuthEmail(ctx)
     const product = await ctx.db.get(args.productId)
-    if (!product) throw new Error("Блюдо не найдено")
+    if (!product) throw new ConvexError("Блюдо не найдено")
     const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", args.restaurantExternalId)).unique()
-    if (!restaurant) throw new Error("Ресторан не найден")
-    if (!user.restaurantScopes.includes("*") && !user.restaurantScopes.includes(args.restaurantExternalId)) throw new Error("Нет доступа к ресторану")
+    if (!restaurant) throw new ConvexError("Ресторан не найден")
+    if (!user.restaurantScopes.includes("*") && !user.restaurantScopes.includes(args.restaurantExternalId)) throw new ConvexError("Нет доступа к ресторану")
 
     const existing = await ctx.db
       .query("productPrices")

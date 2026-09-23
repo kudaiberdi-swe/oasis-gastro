@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 
 import { mutation } from "../../_generated/server"
 import { getOpenShift, requireManagerApproval, requireOperator, touchSession } from "../../lib/auth"
@@ -12,8 +12,8 @@ export const open = mutation({
   args: { sessionToken: v.string(), openingCash: v.number(), note: v.string() },
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
-    if (!Number.isFinite(args.openingCash) || args.openingCash < 0) throw new Error("Начальный остаток не может быть отрицательным")
-    if (await getOpenShift(ctx, access.terminal._id)) throw new Error("На этой кассе уже открыта смена")
+    if (!Number.isFinite(args.openingCash) || args.openingCash < 0) throw new ConvexError("Начальный остаток не может быть отрицательным")
+    if (await getOpenShift(ctx, access.terminal._id)) throw new ConvexError("На этой кассе уже открыта смена")
     const latest = await ctx.db.query("shifts").withIndex("by_terminal_opened", (q) => q.eq("terminalId", access.terminal._id)).order("desc").first()
     const now = Date.now()
     const number = (latest?.number ?? 0) + 1
@@ -47,22 +47,22 @@ export const recordCashMovement = mutation({
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const shift = await getOpenShift(ctx, access.terminal._id)
-    if (!shift) throw new Error("Смена не открыта")
+    if (!shift) throw new ConvexError("Смена не открыта")
     const existing = await ctx.db.query("shiftEvents").withIndex("by_idempotency_key", (q) => q.eq("idempotencyKey", args.idempotencyKey)).unique()
     if (existing) {
       if (existing.shiftId !== shift._id || existing.type !== args.direction || existing.amount !== roundKzt(args.amount) || existing.reason !== args.reason.trim()) {
-        throw new Error("Ключ кассовой операции уже использован")
+        throw new ConvexError("Ключ кассовой операции уже использован")
       }
       return existing._id
     }
-    if (!Number.isFinite(args.amount) || args.amount <= 0) throw new Error("Введите сумму больше нуля")
-    if (args.reason.trim().length < 3) throw new Error("Укажите причину кассовой операции")
+    if (!Number.isFinite(args.amount) || args.amount <= 0) throw new ConvexError("Введите сумму больше нуля")
+    if (args.reason.trim().length < 3) throw new ConvexError("Укажите причину кассовой операции")
     const amount = roundKzt(args.amount)
     // Every cash-out requires manager approval — Sandyq has no versioned cash-operation-type catalog yet.
     const manager = args.direction === "cash-out" ? await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id) : null
     if (args.direction === "cash-out") {
       const summary = await calculateSummary(ctx, shift)
-      if (amount > summary.expectedCash) throw new Error("В кассе недостаточно учтённой наличности")
+      if (amount > summary.expectedCash) throw new ConvexError("В кассе недостаточно учтённой наличности")
     }
     const eventId = await ctx.db.insert("shiftEvents", {
       shiftId: shift._id,
@@ -89,13 +89,13 @@ export const close = mutation({
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const shift = await getOpenShift(ctx, access.terminal._id)
-    if (!shift) throw new Error("Смена уже закрыта")
-    if (!Number.isFinite(args.countedCash) || args.countedCash < 0) throw new Error("Фактическая наличность не может быть отрицательной")
+    if (!shift) throw new ConvexError("Смена уже закрыта")
+    if (!Number.isFinite(args.countedCash) || args.countedCash < 0) throw new ConvexError("Фактическая наличность не может быть отрицательной")
     const preview = await buildClosePreview(ctx, shift)
-    if (preview.blockers.length) throw new Error("Закройте или отложите все открытые заказы")
+    if (preview.blockers.length) throw new ConvexError("Закройте или отложите все открытые заказы")
     const countedCash = roundKzt(args.countedCash)
     const variance = countedCash - preview.expectedCash
-    if (variance !== 0 && args.note.trim().length < 3) throw new Error("При расхождении обязательно укажите комментарий")
+    if (variance !== 0 && args.note.trim().length < 3) throw new ConvexError("При расхождении обязательно укажите комментарий")
     const manager = Math.abs(variance) >= VARIANCE_APPROVAL_KZT ? await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id) : null
     const now = Date.now()
     const zReportNumber = `Z-${shift.businessDate.replaceAll("-", "")}-${String(access.terminal.terminalNumber).padStart(2, "0")}-${String(shift.number).padStart(3, "0")}`
@@ -125,10 +125,10 @@ export const createXReport = mutation({
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const shift = await getOpenShift(ctx, access.terminal._id)
-    if (!shift) throw new Error("Смена не открыта")
+    if (!shift) throw new ConvexError("Смена не открыта")
     const existing = await ctx.db.query("xReports").withIndex("by_idempotency_key", (q) => q.eq("idempotencyKey", args.idempotencyKey)).unique()
     if (existing) {
-      if (existing.shiftId !== shift._id || existing.terminalId !== access.terminal._id) throw new Error("Ключ X-отчёта уже использован")
+      if (existing.shiftId !== shift._id || existing.terminalId !== access.terminal._id) throw new ConvexError("Ключ X-отчёта уже использован")
       return existing
     }
     // A cashier can't self-authorize an X-report — a manager PIN must witness it.

@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 
 import { mutation } from "../../_generated/server"
 import type { MutationCtx } from "../../_generated/server"
@@ -15,18 +15,18 @@ import { hydrateOrder } from "./queries"
 async function requireOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess, statuses: string[]) {
   const order = await ctx.db.get(orderId)
   if (!order || order.restaurantId !== access.restaurant._id || order.terminalId !== access.terminal._id) {
-    throw new Error("Заказ не найден на этой кассе")
+    throw new ConvexError("Заказ не найден на этой кассе")
   }
-  if (!statuses.includes(order.status)) throw new Error("Операция недоступна для текущего статуса заказа")
+  if (!statuses.includes(order.status)) throw new ConvexError("Операция недоступна для текущего статуса заказа")
   return order
 }
 
 async function priceLines(ctx: MutationCtx, restaurantExternalId: string, lines: Array<{ clientLineId?: string; productId: Id<"products">; quantity: number; modifiers?: string[] }>) {
   const result = []
   for (const input of lines) {
-    if (!Number.isInteger(input.quantity) || input.quantity <= 0 || input.quantity > 99) throw new Error("Некорректное количество")
+    if (!Number.isInteger(input.quantity) || input.quantity <= 0 || input.quantity > 99) throw new ConvexError("Некорректное количество")
     const product = await ctx.db.get(input.productId)
-    if (!product?.enabled) throw new Error("Позиция недоступна")
+    if (!product?.enabled) throw new ConvexError("Позиция недоступна")
     const override = await ctx.db
       .query("productPrices")
       .withIndex("by_product_restaurant", (q) => q.eq("productId", product._id).eq("restaurantExternalId", restaurantExternalId))
@@ -109,13 +109,13 @@ export const saveDraft = mutation({
     if (!order) {
       order = await ctx.db.query("orders").withIndex("by_client_order_id", (q) => q.eq("clientOrderId", args.clientOrderId)).unique()
     }
-    if (order && order.terminalId !== access.terminal._id) throw new Error("Этот заказ нельзя редактировать")
+    if (order && order.terminalId !== access.terminal._id) throw new ConvexError("Этот заказ нельзя редактировать")
     if (order && !["draft", "held"].includes(order.status)) return { outcome: "not-editable" as const }
     if (order && args.expectedVersion != null && (order.version ?? 1) !== args.expectedVersion) {
-      throw new Error("Заказ изменён на другой кассе. Обновите данные")
+      throw new ConvexError("Заказ изменён на другой кассе. Обновите данные")
     }
-    if (args.discountPercent < 0 || args.discountPercent > 100) throw new Error("Некорректная скидка")
-    if (args.discountPercent > 0 && (args.discountReason?.trim().length ?? 0) < 3) throw new Error("Для скидки укажите причину")
+    if (args.discountPercent < 0 || args.discountPercent > 100) throw new ConvexError("Некорректная скидка")
+    if (args.discountPercent > 0 && (args.discountReason?.trim().length ?? 0) < 3) throw new ConvexError("Для скидки укажите причину")
 
     const needsApproval = args.discountPercent > DISCOUNT_APPROVAL_PERCENT || Boolean(args.serviceChargeWaived)
     const alreadyApproved = order?.discountApprovedBy && order.discountPercent === args.discountPercent && Boolean(order.serviceChargeWaived) === Boolean(args.serviceChargeWaived)
@@ -204,7 +204,7 @@ export const hold = mutation({
     const shift = await requireOpenShift(ctx, access.terminal._id)
     const order = await requireOrder(ctx, args.orderId, access, ["draft"])
     const lines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(100)
-    if (!lines.length) throw new Error("Заказ не содержит позиций")
+    if (!lines.length) throw new ConvexError("Заказ не содержит позиций")
     const now = Date.now()
     await ctx.db.patch(order._id, { status: "held", heldAt: now, updatedAt: now, updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
     await writeAudit(ctx, access, { action: "order.hold", summary: `Отложен заказ №${order.number}`, shiftId: shift._id, orderId: order._id })
@@ -218,7 +218,7 @@ export const resume = mutation({
     const access = await requireOperator(ctx, args.sessionToken)
     const shift = await requireOpenShift(ctx, access.terminal._id)
     const order = await requireOrder(ctx, args.orderId, access, ["held"])
-    if (order.currentShiftId !== shift._id) throw new Error("Заказ принадлежит другой смене")
+    if (order.currentShiftId !== shift._id) throw new ConvexError("Заказ принадлежит другой смене")
     await ctx.db.patch(order._id, { status: "draft", heldAt: undefined, updatedAt: Date.now(), updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
     await writeAudit(ctx, access, { action: "order.resume", summary: `Возобновлён заказ №${order.number}`, shiftId: shift._id, orderId: order._id })
     return order._id
@@ -235,7 +235,7 @@ export const cancel = mutation({
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const order = await requireOrder(ctx, args.orderId, access, ["draft", "held"])
-    if (args.reason.trim().length < 3) throw new Error("Укажите причину отмены")
+    if (args.reason.trim().length < 3) throw new ConvexError("Укажите причину отмены")
     const manager = await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id)
     await ctx.db.patch(order._id, { status: "cancelled", cancelledAt: Date.now(), updatedAt: Date.now(), updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
     await ctx.db.insert("orderDeletionEvents", {
@@ -263,28 +263,28 @@ export const checkout = mutation({
     const shift = await requireOpenShift(ctx, access.terminal._id)
     const persistedOrder = await ctx.db.get(args.orderId)
     if (!persistedOrder || persistedOrder.restaurantId !== access.restaurant._id || persistedOrder.terminalId !== access.terminal._id) {
-      throw new Error("Заказ не найден на этой кассе")
+      throw new ConvexError("Заказ не найден на этой кассе")
     }
     if (persistedOrder.checkoutIdempotencyKey === args.idempotencyKey) {
       return await buildCheckoutResult(ctx, persistedOrder, true)
     }
     const existingPayment = await ctx.db.query("payments").withIndex("by_idempotency_key", (q) => q.eq("idempotencyKey", args.idempotencyKey)).first()
     if (existingPayment) {
-      if (existingPayment.orderId !== persistedOrder._id) throw new Error("Ключ оплаты уже использован")
+      if (existingPayment.orderId !== persistedOrder._id) throw new ConvexError("Ключ оплаты уже использован")
       return await buildCheckoutResult(ctx, persistedOrder, true)
     }
     const order = await requireOrder(ctx, args.orderId, access, ["draft", "held"])
-    if (order.currentShiftId !== shift._id) throw new Error("Заказ принадлежит другой смене")
-    if (!args.payments.length) throw new Error("Добавьте оплату")
+    if (order.currentShiftId !== shift._id) throw new ConvexError("Заказ принадлежит другой смене")
+    if (!args.payments.length) throw new ConvexError("Добавьте оплату")
 
     const paymentTotal = args.payments.reduce((sum, payment) => sum + payment.amount, 0)
-    if (paymentTotal !== order.total) throw new Error("Сумма оплат не равна сумме заказа")
+    if (paymentTotal !== order.total) throw new ConvexError("Сумма оплат не равна сумме заказа")
 
     const now = Date.now()
     for (const [index, payment] of args.payments.entries()) {
-      if (!Number.isInteger(payment.amount) || payment.amount <= 0) throw new Error("Сумма оплаты должна быть указана в целых тенге")
-      if (payment.tendered != null && !Number.isInteger(payment.tendered)) throw new Error("Полученная сумма должна быть указана в целых тенге")
-      if (payment.method === "cash" && (payment.tendered ?? payment.amount) < payment.amount) throw new Error("Полученной наличности недостаточно")
+      if (!Number.isInteger(payment.amount) || payment.amount <= 0) throw new ConvexError("Сумма оплаты должна быть указана в целых тенге")
+      if (payment.tendered != null && !Number.isInteger(payment.tendered)) throw new ConvexError("Полученная сумма должна быть указана в целых тенге")
+      if (payment.method === "cash" && (payment.tendered ?? payment.amount) < payment.amount) throw new ConvexError("Полученной наличности недостаточно")
       const paymentKey = args.payments.length === 1 ? args.idempotencyKey : `${args.idempotencyKey}:${index}`
       await ctx.db.insert("payments", {
         orderId: order._id,
@@ -343,24 +343,24 @@ export const refund = mutation({
     const shift = await requireOpenShift(ctx, access.terminal._id)
     const persistedOrder = await ctx.db.get(args.orderId)
     if (!persistedOrder || persistedOrder.restaurantId !== access.restaurant._id || persistedOrder.terminalId !== access.terminal._id) {
-      throw new Error("Заказ не найден на этой кассе")
+      throw new ConvexError("Заказ не найден на этой кассе")
     }
     const existing = await ctx.db.query("payments").withIndex("by_idempotency_key", (q) => q.eq("idempotencyKey", args.idempotencyKey)).unique()
     if (existing) {
-      if (existing.orderId !== persistedOrder._id || existing.type !== "refund") throw new Error("Ключ возврата уже использован")
+      if (existing.orderId !== persistedOrder._id || existing.type !== "refund") throw new ConvexError("Ключ возврата уже использован")
       return existing._id
     }
     const order = await requireOrder(ctx, args.orderId, access, ["paid", "partially_refunded"])
     const manager = await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id)
-    if (args.reason.trim().length < 3 || !Number.isInteger(args.amount) || args.amount <= 0) throw new Error("Укажите сумму в целых тенге и причину возврата")
+    if (args.reason.trim().length < 3 || !Number.isInteger(args.amount) || args.amount <= 0) throw new ConvexError("Укажите сумму в целых тенге и причину возврата")
 
     const payments = await ctx.db.query("payments").withIndex("by_order_created", (q) => q.eq("orderId", order._id)).take(100)
     const paid = payments.filter((p) => p.type === "sale").reduce((sum, p) => sum + p.amount, 0)
     const refunded = payments.filter((p) => p.type === "refund").reduce((sum, p) => sum + p.amount, 0)
-    if (args.amount > paid - refunded) throw new Error("Сумма возврата превышает доступный остаток")
+    if (args.amount > paid - refunded) throw new ConvexError("Сумма возврата превышает доступный остаток")
     const paidByMethod = payments.filter((p) => p.type === "sale" && p.method === args.method).reduce((sum, p) => sum + p.amount, 0)
     const refundedByMethod = payments.filter((p) => p.type === "refund" && p.method === args.method).reduce((sum, p) => sum + p.amount, 0)
-    if (args.amount > paidByMethod - refundedByMethod) throw new Error("Возврат должен использовать исходный способ оплаты")
+    if (args.amount > paidByMethod - refundedByMethod) throw new ConvexError("Возврат должен использовать исходный способ оплаты")
 
     const now = Date.now()
     const paymentId = await ctx.db.insert("payments", {
@@ -405,7 +405,7 @@ export const transfer = mutation({
     const manager = await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id)
     const order = await requireOrder(ctx, args.orderId, access, ["held"])
     const target = await ctx.db.query("posTerminals").withIndex("by_external_id", (q) => q.eq("externalId", args.targetTerminalExternalId)).unique()
-    if (!target?.active || target.restaurantId !== access.restaurant._id || target._id === access.terminal._id) throw new Error("Целевая касса недоступна")
+    if (!target?.active || target.restaurantId !== access.restaurant._id || target._id === access.terminal._id) throw new ConvexError("Целевая касса недоступна")
     const targetShift = await requireOpenShift(ctx, target._id)
     const now = Date.now()
     await ctx.db.patch(order._id, { terminalId: target._id, currentShiftId: targetShift._id, updatedAt: now, updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })

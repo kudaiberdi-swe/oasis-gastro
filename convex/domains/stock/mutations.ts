@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, ConvexError } from "convex/values"
 
 import { mutation } from "../../_generated/server"
 import type { Id } from "../../_generated/dataModel"
@@ -42,11 +42,11 @@ export const receiveStock = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.stock.*")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
-    if (args.quantity <= 0) throw new Error("Количество должно быть больше нуля")
-    if (args.unitCost < 0) throw new Error("Цена не может быть отрицательной")
+    if (args.quantity <= 0) throw new ConvexError("Количество должно быть больше нуля")
+    if (args.unitCost < 0) throw new ConvexError("Цена не может быть отрицательной")
     const email = await getOfficeAuthEmail(ctx)
     const item = await ctx.db.get(args.inventoryItemId)
-    if (!item) throw new Error("Товар не найден")
+    if (!item) throw new ConvexError("Товар не найден")
 
     const balance = await getOrCreateBalance(ctx, args.restaurantExternalId, args.inventoryItemId)
     const newQuantity = balance.quantity + args.quantity
@@ -90,14 +90,14 @@ export const writeOffStock = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.stock.*")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
-    if (args.quantity <= 0) throw new Error("Количество должно быть больше нуля")
-    if (!args.reason.trim()) throw new Error("Укажите причину списания")
+    if (args.quantity <= 0) throw new ConvexError("Количество должно быть больше нуля")
+    if (!args.reason.trim()) throw new ConvexError("Укажите причину списания")
     const email = await getOfficeAuthEmail(ctx)
     const item = await ctx.db.get(args.inventoryItemId)
-    if (!item) throw new Error("Товар не найден")
+    if (!item) throw new ConvexError("Товар не найден")
 
     const balance = await getOrCreateBalance(ctx, args.restaurantExternalId, args.inventoryItemId)
-    if (balance.quantity < args.quantity) throw new Error(`Недостаточно остатка: на складе ${balance.quantity} ${item.unit}`)
+    if (balance.quantity < args.quantity) throw new ConvexError(`Недостаточно остатка: на складе ${balance.quantity} ${item.unit}`)
     const newQuantity = balance.quantity - args.quantity
     const now = Date.now()
     await ctx.db.patch(balance._id, { quantity: newQuantity, updatedAt: now })
@@ -128,11 +128,11 @@ export const adjustStock = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.stock.*")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
-    if (args.actualQuantity < 0) throw new Error("Остаток не может быть отрицательным")
-    if (!args.reason.trim()) throw new Error("Укажите причину корректировки")
+    if (args.actualQuantity < 0) throw new ConvexError("Остаток не может быть отрицательным")
+    if (!args.reason.trim()) throw new ConvexError("Укажите причину корректировки")
     const email = await getOfficeAuthEmail(ctx)
     const item = await ctx.db.get(args.inventoryItemId)
-    if (!item) throw new Error("Товар не найден")
+    if (!item) throw new ConvexError("Товар не найден")
 
     const balance = await getOrCreateBalance(ctx, args.restaurantExternalId, args.inventoryItemId)
     const delta = args.actualQuantity - balance.quantity
