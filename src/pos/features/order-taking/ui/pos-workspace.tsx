@@ -13,6 +13,7 @@ import { useOrderDraft } from "@/pos/features/order-taking/model/use-order-draft
 import { OrderPanel } from "@/pos/components/order-panel"
 import { useLoyaltyMutations, useOrderGuest } from "@/pos/features/loyalty/data/use-loyalty"
 import { GuestDialog } from "@/pos/features/loyalty/ui/guest-dialog"
+import { BranchPicker } from "@/pos/features/session/ui/branch-picker"
 import { LoginScreen } from "@/pos/features/session/ui/login-screen"
 import { useManagerApproval } from "@/pos/features/session/ui/manager-approval-dialog"
 import { usePosSession } from "@/pos/features/session/model/use-pos-session"
@@ -23,6 +24,10 @@ import { errorMessage } from "@/shared/lib/error-message"
 
 export function PosWorkspace() {
   const session = usePosSession()
+
+  if (!session.terminalExternalId) {
+    return <BranchPicker />
+  }
 
   if (!session.access) {
     return <LoginScreen onLogin={session.signIn} />

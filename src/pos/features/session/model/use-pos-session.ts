@@ -7,7 +7,7 @@ import type { PosAccessSession } from "@/shared/types/pos"
 
 const STORAGE_KEY = "sandyq-pos-session"
 
-function resolveTerminalExternalId(): string {
+function resolveTerminalExternalId(): string | null {
   const fromQuery = new URLSearchParams(window.location.search).get("terminal")
   if (fromQuery) {
     window.localStorage.setItem("sandyq-pos-terminal", fromQuery)
@@ -17,7 +17,7 @@ function resolveTerminalExternalId(): string {
   if (stored) return stored
   const fromEnv = import.meta.env.VITE_POS_TERMINAL_ID
   if (fromEnv) return fromEnv
-  throw new Error("Не задан терминал: передайте ?terminal=<externalId> или VITE_POS_TERMINAL_ID")
+  return null
 }
 
 function readStoredAccess(): PosAccessSession | null {
@@ -54,6 +54,7 @@ export function usePosSession() {
 
   const signIn = useCallback(
     async (employeeCode: string, pin: string) => {
+      if (!terminalExternalId) throw new Error("Не задан терминал")
       const result = await login({ employeeCode, pin, terminalExternalId, purpose: "operator" })
       const session = { sessionToken: result.sessionToken, expiresAt: result.expiresAt, employee: result.employee, terminal: result.terminal, restaurant: result.restaurant } as PosAccessSession
       persist(session)
