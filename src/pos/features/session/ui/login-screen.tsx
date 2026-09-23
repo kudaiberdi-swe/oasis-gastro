@@ -4,6 +4,21 @@ import { PinPad } from "@/pos/components/pin-pad"
 import { Button } from "@/shared/components/ui/button"
 import { errorMessage } from "@/shared/lib/error-message"
 
+function Ornament({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 120 40" width="72" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={className}>
+      <path d="M60 6 L66 20 L60 34 L54 20 Z" />
+      <path d="M66 20 C76 20 82 12 90 12 C98 12 102 18 100 23 C98 28 91 28 90 23 C89 19 94 18 95 21" />
+      <path d="M54 20 C44 20 38 12 30 12 C22 12 18 18 20 23 C22 28 29 28 30 23 C31 19 26 18 25 21" />
+      <path d="M66 20 C76 20 82 28 90 28" />
+      <path d="M54 20 C44 20 38 28 30 28" />
+      <path d="M104 20 H118" />
+      <path d="M16 20 H2" />
+      <circle cx="60" cy="20" r="2" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 export function LoginScreen({ onLogin, restaurantHint }: { onLogin: (code: string, pin: string) => Promise<unknown>; restaurantHint?: string }) {
   const [code, setCode] = useState("")
   const [pin, setPin] = useState("")
@@ -45,21 +60,19 @@ export function LoginScreen({ onLogin, restaurantHint }: { onLogin: (code: strin
   }
 
   return (
-    <div className="relative flex h-full items-center justify-center overflow-hidden bg-nav">
-      <img src="/images/decor-ozen.svg" alt="" aria-hidden className="pointer-events-none absolute -left-24 top-1/2 h-[140%] -translate-y-1/2 opacity-[0.07]" />
-      <img src="/images/decor-turanga.svg" alt="" aria-hidden className="pointer-events-none absolute -right-16 bottom-[-10%] h-[70%] opacity-[0.08]" />
-      <div className="relative w-full max-w-sm rounded-[var(--radius-panel)] bg-card p-8 shadow-[var(--shadow-float)]">
-        <div className="mb-7 flex flex-col items-center gap-3">
-          <img
-            src="/branding/sandyq-kz-logo.svg"
-            alt="Sandyq"
-            className="h-14"
-            style={{ filter: "invert(14%) sepia(28%) saturate(1400%) hue-rotate(340deg)" }}
-          />
-          {restaurantHint && <p className="text-sm text-muted-foreground">{restaurantHint}</p>}
+    <div className="flex h-full flex-col items-center justify-center gap-8 bg-nav px-6">
+      <div className="flex flex-col items-center gap-3 text-nav-foreground">
+        <img src="/branding/sandyq-kz-logo.svg" alt="Sandyq" className="h-12" />
+        <div className="flex items-center gap-3 text-[color:var(--brass)]">
+          <Ornament />
+          <Ornament className="-scale-x-100" />
         </div>
+        <p className="text-sm text-nav-foreground/65">{restaurantHint ?? "Касса"}</p>
+      </div>
+
+      <div className="w-full max-w-sm rounded-[var(--radius-panel)] bg-card p-8 shadow-[var(--shadow-float)]">
         <p className="mb-2 text-sm text-muted-foreground">{stage === "code" ? "Код сотрудника" : "PIN-код"}</p>
-        <div className="mb-4 flex h-14 items-center justify-center rounded-[var(--radius-control)] border border-border bg-muted text-2xl font-bold tracking-[0.3em]">
+        <div className="mb-4 flex h-14 items-center justify-center rounded-[var(--radius-control)] border border-border bg-muted text-2xl font-semibold tracking-[0.3em]">
           {stage === "pin" ? "•".repeat(pin.length) || " " : code || " "}
         </div>
         {error && <p className="mb-3 text-center text-sm font-semibold text-destructive">{error}</p>}

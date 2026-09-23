@@ -4,69 +4,75 @@
  * Update this file to reskin the entire product. Components only consume
  * semantic tokens (primary, surface, muted, spacing and radii).
  *
- * Palette sourced from sandyqgroup.com's own site CSS + public/branding/
- * sandyq-group-logo.svg (#b28f6f) — reverse-engineered pending an official
- * brand guide from the client (see ARCHITECTURE.md risk #4).
+ * Palette and type sourced from the project's design system package
+ * (.claude/sandyq-design.skill — sandyqgroup.com, sandyq.kz, the printed
+ * menus). Walnut/ink dark grounds, felt/bone light grounds, kilim red as
+ * the single primary action, brass for ornament/prices/accents.
  */
 
 :root,
 [data-theme="day"] {
   color-scheme: light;
 
-  /* Brand */
-  --brand-50: #fdf3ea;
-  --brand-100: #f3e3d0;
-  --brand-500: #a73921; /* terracotta — matches the SANDYQ wordmark on the printed menus */
-  --brand-600: #8f2f1b;
-  --brand-700: #6f2415;
-  --tan-500: #b28f6f; /* accent — the Sandyq Group mark colour */
-  --brown-700: #331f15; /* deep brown — nav / primary text */
-  --bronze-500: #b5893d;
+  /* Brand — from the Sandyq design system */
+  --walnut: #3a2419; /* dark sections: hero, booking, nav */
+  --walnut-2: #53362a; /* raised surfaces on dark */
+  --ink: #1c1511; /* deepest: footer, overlays */
+  --felt: #ede3d1; /* light reading ground */
+  --felt-2: #e0d2ba; /* cards/rows on light */
+  --bone: #faf6ee; /* highest light surface: inputs, elevated cards */
+  --kilim: #8c2b20; /* primary action — one per screen */
+  --kilim-hi: #a83a2c;
+  --brass: #b88b45; /* ornament, dividers, prices ON DARK grounds */
+  --brass-lo: #8a6530; /* brass text on LIGHT grounds — contrast-safe */
+  --sage: #6b7654; /* farm / seasonal / herbal marks */
+  --tile: #2e6a6e; /* Turkistan-only accent, used sparingly */
 
   /* Semantic color */
-  --background: #fff7ec;
-  --foreground: #331f15;
-  --card: #ffffff;
-  --card-foreground: #331f15;
-  --popover: #ffffff;
-  --popover-foreground: #331f15;
-  --primary: var(--brand-500);
+  --background: var(--felt);
+  --foreground: #2a1d16;
+  --card: var(--bone);
+  --card-foreground: #2a1d16;
+  --popover: var(--bone);
+  --popover-foreground: #2a1d16;
+  --primary: var(--kilim);
   --primary-foreground: #ffffff;
-  --secondary: #f3e3d0;
-  --secondary-foreground: #331f15;
-  --muted: #f6ece0;
-  --muted-foreground: #8a6b53;
-  --accent: var(--tan-500);
+  --secondary: var(--felt-2);
+  --secondary-foreground: #2a1d16;
+  --muted: var(--felt-2);
+  --muted-foreground: #6e5a4a;
+  --accent: var(--brass-lo);
   --accent-foreground: #ffffff;
-  --border: #e8d7c3;
-  --input: #ddc8ae;
-  --ring: var(--brand-500);
-  --success: #3f7d4a;
-  --warning: var(--bronze-500);
-  --warning-foreground: #7a5a25;
-  --destructive: #b3261e;
-  --nav: var(--brown-700);
-  --nav-foreground: #fff7ec;
-  --canvas-dot: rgb(51 31 21 / 0.045);
+  --border: #d9c7a9;
+  --input: #d9c7a9;
+  --ring: var(--brass);
+  --success: var(--sage);
+  --warning: var(--brass-lo);
+  --warning-foreground: #6e4c1f;
+  --destructive: #6e2419;
+  --nav: var(--walnut);
+  --nav-foreground: #f1e7d6;
+  --canvas-dot: rgb(184 139 69 / 0.08);
 
-  /* Product swatches */
-  --product-sunset: #f3d9c4;
-  --product-sun: #f6e3b0;
-  --product-mint: #dcead9;
-  --product-sky: #dbe7ea;
-  --product-berry: #ecdbe0;
-  --product-lilac: #e3ded0;
+  /* Product swatches (category accents) */
+  --product-sunset: #ecd2b4;
+  --product-sun: #e8d79a;
+  --product-mint: #c7d2b6;
+  --product-sky: #bcd0d1;
+  --product-berry: #ddbcbb;
+  --product-lilac: #cbb9a6;
 
-  /* Typography — Manrope covers Kazakh Cyrillic (ә ғ қ ң ө ұ ү һ і); a few
-     kerning pairs (лғ, қт) are imperfect but acceptable for Phase 1. */
-  --font-ui: "Manrope Variable", "Segoe UI", sans-serif;
+  /* Typography — Cormorant (display) + Golos Text (body), both cover
+     Kazakh Cyrillic-extended (ә ғ қ ң ө ұ ү һ і). Loaded in index.html. */
+  --font-display: "Cormorant", "PT Serif", Georgia, "Times New Roman", serif;
+  --font-ui: "Golos Text", "PT Sans", "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, monospace;
-  --tracking-tight: -0.028em;
+  --tracking-tight: -0.01em;
 
-  /* Shape */
-  --radius-control: 10px;
-  --radius-card: 12px;
-  --radius-panel: 12px;
+  /* Shape — carved, almost square; never a generic rounded-SaaS radius */
+  --radius-control: 2px;
+  --radius-card: 6px;
+  --radius-panel: 8px;
 
   /* Layout / density */
   --space-page: 10px;
@@ -75,39 +81,39 @@
   --control-height: 42px;
 
   /* Effects */
-  --shadow-panel: 0 1px 2px rgb(51 31 21 / 0.05), 0 10px 26px rgb(51 31 21 / 0.06);
-  --shadow-float: 0 22px 48px rgb(51 31 21 / 0.18);
+  --shadow-panel: 0 1px 2px rgb(28 21 17 / 0.08), 0 10px 26px rgb(28 21 17 / 0.1);
+  --shadow-float: 0 22px 48px rgb(28 21 17 / 0.28);
 }
 
 [data-theme="night"] {
   color-scheme: dark;
-  --background: #1c130d;
-  --foreground: #f6ece0;
-  --card: #241a13;
-  --card-foreground: #f6ece0;
-  --popover: #291d15;
-  --popover-foreground: #f6ece0;
-  --primary: #d1552f;
+  --background: var(--ink);
+  --foreground: #f1e7d6;
+  --card: var(--walnut);
+  --card-foreground: #f1e7d6;
+  --popover: var(--walnut-2);
+  --popover-foreground: #f1e7d6;
+  --primary: var(--kilim-hi);
   --primary-foreground: #ffffff;
-  --secondary: #332419;
-  --secondary-foreground: #f6ece0;
-  --muted: #2b1f16;
-  --muted-foreground: #b6a08c;
-  --accent: #c7a37e;
-  --accent-foreground: #241a13;
-  --border: #3d2c1f;
-  --input: #453421;
-  --ring: #d1552f;
-  --nav: #140d08;
-  --nav-foreground: #f6ece0;
-  --canvas-dot: rgb(255 255 255 / 0.04);
-  --product-sunset: #5a3320;
-  --product-sun: #55471f;
-  --product-mint: #284a3a;
-  --product-sky: #28434c;
-  --product-berry: #523544;
-  --product-lilac: #453b2e;
-  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.2), 0 16px 34px rgb(0 0 0 / 0.14);
+  --secondary: var(--walnut-2);
+  --secondary-foreground: #f1e7d6;
+  --muted: #2b1f18;
+  --muted-foreground: #bfaf97;
+  --accent: var(--brass);
+  --accent-foreground: var(--ink);
+  --border: #4a382c;
+  --input: #4a382c;
+  --ring: var(--brass);
+  --nav: #120d0a;
+  --nav-foreground: #f1e7d6;
+  --canvas-dot: rgb(184 139 69 / 0.06);
+  --product-sunset: #5a3a22;
+  --product-sun: #564a26;
+  --product-mint: #3a4732;
+  --product-sky: #2f4547;
+  --product-berry: #4a3130;
+  --product-lilac: #3c3226;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 34px rgb(0 0 0 / 0.2);
 }
 
 [data-density="compact"] {
@@ -115,7 +121,7 @@
   --space-panel: 13px;
   --space-grid: 8px;
   --control-height: 38px;
-  --radius-control: 10px;
-  --radius-card: 13px;
-  --radius-panel: 17px;
+  --radius-control: 2px;
+  --radius-card: 6px;
+  --radius-panel: 10px;
 }

@@ -61,7 +61,9 @@ export function PaymentDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Оплата — {formatTenge(total)}</DialogTitle>
+          <DialogTitle className="font-display font-semibold">
+            Оплата — <span className="tabular-nums text-accent">{formatTenge(total)}</span>
+          </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           {rows.map((row, index) => (
@@ -113,7 +115,9 @@ export function PaymentDialog({
                       </button>
                     ))}
                   </div>
-                  {(row.tendered ?? row.amount) > row.amount && <p className="mt-2 text-sm font-bold text-success">Сдача: {formatTenge((row.tendered ?? row.amount) - row.amount)}</p>}
+                  {(row.tendered ?? row.amount) > row.amount && (
+                    <p className="font-display mt-2 text-sm font-semibold tabular-nums text-success">Сдача: {formatTenge((row.tendered ?? row.amount) - row.amount)}</p>
+                  )}
                 </>
               )}
             </div>

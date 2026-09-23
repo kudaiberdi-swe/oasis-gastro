@@ -32,12 +32,12 @@ export function OpenChecksList({ checks, activeOrderId, onSelect, onNew }: { che
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">{check.tableLabel || "Без стола"}</span>
+            <span className="font-display text-[15px] font-semibold">{check.tableLabel || "Без стола"}</span>
             {check.status === "held" && <span className="text-xs font-semibold text-warning-foreground">отложен</span>}
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{check.itemCount} поз.</span>
-            <span className="font-semibold text-foreground">{formatTenge(check.total)}</span>
+            <span className="font-display font-semibold tabular-nums text-accent">{formatTenge(check.total)}</span>
           </div>
         </button>
       ))}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" width="120" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <!-- Original qoshqar muiz (ram horn) motif. Color comes from CSS: color: var(--sq-brass) -->
+  <path d="M60 6 L66 20 L60 34 L54 20 Z"/>
+  <path d="M66 20 C76 20 82 12 90 12 C98 12 102 18 100 23 C98 28 91 28 90 23 C89 19 94 18 95 21"/>
+  <path d="M54 20 C44 20 38 12 30 12 C22 12 18 18 20 23 C22 28 29 28 30 23 C31 19 26 18 25 21"/>
+  <path d="M66 20 C76 20 82 28 90 28"/>
+  <path d="M54 20 C44 20 38 28 30 28"/>
+  <path d="M104 20 H118"/>
+  <path d="M16 20 H2"/>
+  <circle cx="60" cy="20" r="2" fill="currentColor" stroke="none"/>
+</svg>

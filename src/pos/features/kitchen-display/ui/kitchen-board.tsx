@@ -30,7 +30,7 @@ export function KitchenBoard({ sessionToken }: { sessionToken: string }) {
                   onClick={() => column.next && void setStatus({ sessionToken, ticketId: ticket._id, status: column.next })}
                   className={cn("rounded-[var(--radius-card)] border p-3 text-left", column.status === "ready" ? "border-success bg-success/10" : "border-border bg-background")}
                 >
-                  <p className="text-sm font-extrabold">№{ticket.orderNumber}</p>
+                  <p className="font-display text-base font-semibold">№{ticket.orderNumber}</p>
                   <ul className="mt-1 space-y-0.5">
                     {ticket.lines.map((line) => (
                       <li key={line._id} className="text-sm text-foreground">
