@@ -1,8 +1,8 @@
 import { useAuthActions } from "@convex-dev/auth/react"
 import { useState } from "react"
+import { ConvexError } from "convex/values"
 
 import { Button } from "@/shared/components/ui/button"
-import { errorMessage } from "@/shared/lib/error-message"
 
 export function OfficeSignIn() {
   const { signIn } = useAuthActions()
@@ -20,7 +20,17 @@ export function OfficeSignIn() {
     try {
       await signIn("password", { email, password, name, flow })
     } catch (caught) {
-      setError(errorMessage(caught, flow === "signIn" ? "Не удалось войти" : "Не удалось создать учётную запись"))
+      // @convex-dev/auth's Password provider throws a plain Error("Invalid credentials") for
+      // wrong email/password, which Convex always masks to a generic "Server Error" client-side —
+      // show a real reason only when we get one (our own ConvexError validation), otherwise a
+      // flow-specific fallback instead of the confusing masked text.
+      setError(
+        caught instanceof ConvexError && typeof caught.data === "string"
+          ? caught.data
+          : flow === "signIn"
+            ? "Неверный email или пароль"
+            : "Не удалось создать учётную запись",
+      )
     } finally {
       setSubmitting(false)
     }
