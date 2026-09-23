@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { useOrderMutations } from "../data/use-orders"
+import { errorMessage } from "@/shared/lib/error-message"
 import type { DraftLine } from "@/shared/types/pos"
 
 type HydratedCheck = {
@@ -111,7 +112,7 @@ export function useOrderDraft(args: {
         version.current = result.version
         return result
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : "Не удалось сохранить заказ")
+        setError(errorMessage(caught, "Не удалось сохранить заказ"))
         throw caught
       } finally {
         setSaving(false)
