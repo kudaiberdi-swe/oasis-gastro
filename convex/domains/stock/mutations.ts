@@ -3,6 +3,7 @@ import { v } from "convex/values"
 import { mutation } from "../../_generated/server"
 import type { Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
+import { postLedgerEntry } from "../../lib/finance"
 import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
 import { unit } from "../../lib/validators"
 
@@ -52,7 +53,7 @@ export const receiveStock = mutation({
     const newAverageCost = newQuantity > 0 ? (balance.quantity * balance.averageUnitCost + args.quantity * args.unitCost) / newQuantity : 0
     const now = Date.now()
     await ctx.db.patch(balance._id, { quantity: newQuantity, averageUnitCost: newAverageCost, updatedAt: now })
-    await ctx.db.insert("stockMovements", {
+    const movementId = await ctx.db.insert("stockMovements", {
       restaurantExternalId: args.restaurantExternalId,
       inventoryItemId: args.inventoryItemId,
       kind: "receipt",
@@ -62,6 +63,17 @@ export const receiveStock = mutation({
       averageUnitCostAfter: newAverageCost,
       actorEmail: email!,
       occurredAt: now,
+    })
+    await postLedgerEntry(ctx, {
+      restaurantExternalId: args.restaurantExternalId,
+      occurredAt: now,
+      kind: "expense",
+      category: "Закупка сырья",
+      amount: args.quantity * args.unitCost,
+      sourceModuleId: "stock",
+      sourceExternalId: String(movementId),
+      description: `Приход «${item.name}»: ${args.quantity} ${item.unit}`,
+      createdByEmail: email!,
     })
     await writeOfficeAudit(ctx, email!, {
       action: "stock.receipt",

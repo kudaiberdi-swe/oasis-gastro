@@ -410,6 +410,29 @@ export default defineSchema({
     .index("by_order_created", ["orderId", "occurredAt"])
     .index("by_shift_created", ["shiftId", "occurredAt"]),
 
+  // --- Finance (Phase 4) -------------------------------------------------
+  // A flat P&L ledger, not double-entry — Sandyq has no chart of accounts yet, so
+  // `kind` (revenue/expense) plus a free-text `category` is enough to answer "how much
+  // did we make/spend, on what". Revenue posts itself from orders/mutations.ts:checkout
+  // (and refunds from :refund); cost of goods posts itself from stock/mutations.ts:receiveStock;
+  // everything else (rent, utilities, payroll…) is entered by hand via recordExpense.
+  ledgerEntries: defineTable({
+    restaurantExternalId: v.string(),
+    businessDate: v.string(), // Asia/Almaty "YYYY-MM-DD" — see lib/time.ts:almatyBusinessDate
+    occurredAt: v.number(),
+    kind: v.union(v.literal("revenue"), v.literal("expense")),
+    category: v.string(),
+    amount: v.number(), // always positive; `kind` carries the sign in P&L math
+    sourceModuleId: v.union(v.literal("orders"), v.literal("stock"), v.literal("manual")),
+    sourceExternalId: v.string(), // order/payment/stockMovement _id, or a generated id for manual entries — backfill idempotency key
+    description: v.string(),
+    createdByEmail: v.optional(v.string()), // office email for manual entries; absent for POS-sourced entries
+    createdAt: v.number(),
+  })
+    .index("by_source", ["sourceModuleId", "sourceExternalId"])
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
+    .index("by_occurred_at", ["occurredAt"]),
+
   // --- iiko sync (read-only mirror — Phase 3) --------------------------------
   // Master-data only: organization structure + workforce. No sales/order/document
   // history is imported — see docs/ARCHITECTURE.md and plans/README.md in the

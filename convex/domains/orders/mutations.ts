@@ -5,6 +5,7 @@ import type { MutationCtx } from "../../_generated/server"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { requireManagerApproval, requireOpenShift, requireOperator, touchSession, type PosAccess } from "../../lib/auth"
 import { writeAudit } from "../../lib/audit"
+import { postLedgerEntry } from "../../lib/finance"
 import { calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
 import { DISCOUNT_APPROVAL_PERCENT, SERVICE_CHARGE_PERCENT } from "../../lib/policy"
 import { draftLineInput, orderType as orderTypeValidator, paymentMethod as paymentMethodValidator } from "../../lib/validators"
@@ -309,6 +310,16 @@ export const checkout = mutation({
       version: (order.version ?? 1) + 1,
     })
     await ctx.db.insert("shiftEvents", { shiftId: shift._id, type: "order-paid", amount: order.total, reason: `Заказ №${order.number}`, actorId: access.employee._id, orderId: order._id, createdAt: now })
+    await postLedgerEntry(ctx, {
+      restaurantExternalId: access.restaurant.externalId,
+      occurredAt: now,
+      kind: "revenue",
+      category: "Продажи",
+      amount: order.total,
+      sourceModuleId: "orders",
+      sourceExternalId: String(order._id),
+      description: `Заказ №${order.number}`,
+    })
     await touchSession(ctx, access.session._id)
     await writeAudit(ctx, access, { action: "order.checkout", summary: `Оплачен заказ №${order.number} на ${order.total} ₸`, shiftId: shift._id, orderId: order._id })
     return await buildCheckoutResult(ctx, (await ctx.db.get(args.orderId))!, false)
@@ -364,6 +375,16 @@ export const refund = mutation({
     const totalRefunded = refunded + roundKzt(args.amount)
     await ctx.db.patch(order._id, { status: totalRefunded === paid ? "refunded" : "partially_refunded", updatedAt: now, updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
     await ctx.db.insert("shiftEvents", { shiftId: shift._id, type: "refund", amount: roundKzt(args.amount), reason: `${args.reason.trim()} · заказ №${order.number}`, actorId: access.employee._id, orderId: order._id, createdAt: now })
+    await postLedgerEntry(ctx, {
+      restaurantExternalId: access.restaurant.externalId,
+      occurredAt: now,
+      kind: "expense",
+      category: "Возврат",
+      amount: roundKzt(args.amount),
+      sourceModuleId: "orders",
+      sourceExternalId: String(paymentId),
+      description: `${args.reason.trim()} · заказ №${order.number}`,
+    })
     await writeAudit(ctx, access, { action: "order.refund", summary: `Возврат ${roundKzt(args.amount)} ₸ по заказу №${order.number}: ${args.reason.trim()}`, shiftId: shift._id, orderId: order._id, managerId: manager._id })
     return paymentId
   },

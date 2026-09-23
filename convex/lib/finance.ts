@@ -1,0 +1,40 @@
+import type { GenericMutationCtx } from "convex/server"
+import type { DataModel } from "../_generated/dataModel"
+import { almatyBusinessDate } from "./time"
+
+type MutationCtx = GenericMutationCtx<DataModel>
+
+/**
+ * Posts one line to the flat P&L ledger. Called directly from the domains that produce money
+ * events — orders/mutations.ts (checkout, refund) and stock/mutations.ts (receiveStock) — rather
+ * than routed through a separate finance mutation, so a sale or a stock receipt always posts
+ * atomically in the same transaction as the event that caused it.
+ */
+export async function postLedgerEntry(
+  ctx: MutationCtx,
+  entry: {
+    restaurantExternalId: string
+    occurredAt: number
+    kind: "revenue" | "expense"
+    category: string
+    amount: number
+    sourceModuleId: "orders" | "stock" | "manual"
+    sourceExternalId: string
+    description: string
+    createdByEmail?: string
+  },
+) {
+  await ctx.db.insert("ledgerEntries", {
+    restaurantExternalId: entry.restaurantExternalId,
+    businessDate: almatyBusinessDate(entry.occurredAt),
+    occurredAt: entry.occurredAt,
+    kind: entry.kind,
+    category: entry.category,
+    amount: entry.amount,
+    sourceModuleId: entry.sourceModuleId,
+    sourceExternalId: entry.sourceExternalId,
+    description: entry.description,
+    createdByEmail: entry.createdByEmail,
+    createdAt: Date.now(),
+  })
+}
