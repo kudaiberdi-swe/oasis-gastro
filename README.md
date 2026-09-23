@@ -59,7 +59,23 @@ CONVEX_DEPLOY_KEY=<key> npx convex deploy                        # or npx convex
 npx convex deployment token delete some-name --deployment prod   # never leave a standing prod key around
 ```
 
-No frontend hosting is set up yet (no Vercel/Netlify project, no domain chosen).
+Frontend is hosted on an Azure Static Web App (`sandyq-frontend`, resource group `sandyq-prod`, Free tier, East US 2) — no custom domain yet:
+
+- Office (sign-in/sign-up): https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/office
+- POS — Алматы: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-almaty-01
+- POS — Шымкент: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-shymkent-01
+- POS — Түркістан: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-turkistan-01
+
+The bare root URL (no `?terminal=`) currently throws — the POS has no branch context to render without one. `.github/workflows/deploy-frontend.yml` and `deploy-backend.yml` redeploy frontend/backend independently on every push to `main` that touches their respective paths; see [CI/CD](#ci-cd) below.
+
+## CI/CD
+
+Two independent GitHub Actions workflows on `goecho-ai/sandyq`, both push-triggered on `main`:
+
+- **`deploy-frontend.yml`** — path-filtered to `src/**`, `public/**`, and other frontend files. Builds with `VITE_CONVEX_URL` pointed at prod, deploys `dist/` to the Azure Static Web App above via `Azure/static-web-apps-deploy@v1`.
+- **`deploy-backend.yml`** — path-filtered to `convex/**`. Runs `npx convex deploy` against prod.
+
+Secrets (`goecho-ai/sandyq` repo settings): `AZURE_STATIC_WEB_APPS_API_TOKEN` and `CONVEX_DEPLOY_KEY`. The latter is a deliberate exception to the mint-use-delete rule above — CI needs a standing credential. Rotate it with `scripts/rotate-ci-deploy-key.sh` (writes the key to a local file via `--save-env`, never prints it, feeds it straight to `gh secret set -f`, then deletes the file).
 
 ## Testing
 

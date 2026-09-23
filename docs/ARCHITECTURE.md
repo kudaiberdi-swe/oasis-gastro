@@ -398,7 +398,7 @@ scripts/iiko/
 
 **Production is infrastructure-ready, not live.** `scripts/seed-sandyq.mjs --prod` is a deliberate, explicit override of the script's default dev-only guard — and as its own hard safety rail, it never generates employee PIN credentials, only catalog/org data. Nobody can sign into `/pos` or `/office` on prod until PINs are provisioned (via the office Кадры screen) and the office is bootstrapped — both need an explicit go-ahead, not an assumption. Every prod deploy key used to set this up was minted one-off (`npx convex deployment token create … --deployment prod`), used inline as `CONVEX_DEPLOY_KEY`, and revoked immediately after (`deployment token delete`) — never leave a standing prod credential around.
 
-No frontend hosting is configured yet — `VITE_CONVEX_URL` would need to point at `https://clear-flamingo-97.convex.cloud` for a production frontend build, and prod's `SITE_URL` (used by Convex Auth) is currently still a placeholder (`https://sandyq-office.example`) pending a real domain decision.
+Frontend is hosted on an Azure Static Web App (`sandyq-frontend`, resource group `sandyq-prod`) at `https://thankful-moss-04c3d4a0f.4.azurestaticapps.net` — see [README § Environments](../README.md#environments) for the per-branch POS/office links and the CI/CD workflows that deploy it. `VITE_CONVEX_URL` is baked in at build time pointing at `https://clear-flamingo-97.convex.cloud`, and prod's `SITE_URL` (used by Convex Auth) now points at the real Static Web App hostname above.
 
 ## Testing
 
@@ -417,4 +417,4 @@ Real gaps, not oversights — each was a deliberate call given what data actuall
 - **`iikoEntityOverlays` and `domains/iiko/mutations.ts:saveOverlay`** exist in the schema/API but nothing writes to them — reserved for a future "office edits a field on an iiko-imported entity without a re-import clobbering it" flow.
 - **`orderDeletionEvents`** table exists, nothing writes to it yet — reserved for a "remove a line item with a reason" flow distinct from cancelling the whole order.
 - **Fiscalization is unresolved.** Every `xReports` row is `nonFiscal: true` by design — this is a non-fiscal pilot running alongside iiko, not a registered-cash-register replacement, until that's explicitly confirmed with the business (see the BRD).
-- **No frontend hosting.** See [Environments](#environments).
+- **Bare root URL has no branch picker.** `/` without `?terminal=<externalId>` throws an unhandled error (blank screen) — the POS has no way to guess which of the three branches to load. Each branch needs its own direct link (see [README § Environments](../README.md#environments)) until a picker screen is built.
