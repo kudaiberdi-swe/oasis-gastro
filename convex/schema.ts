@@ -480,4 +480,52 @@ export default defineSchema({
     sourceExternalId: v.string(),
     data: v.any(),
   }).index("by_overlay_key", ["overlayKey"]),
+
+  // --- Stock (Phase 4) --------------------------------------------------------
+  // Raw-material inventory, tracked per branch. No `warehouses` table — Sandyq runs one stockroom
+  // per restaurant today, so stock is keyed directly by restaurants.externalId; a dedicated
+  // warehouses table (bar vs. kitchen, etc.) is easy to add later without touching this shape.
+  // No recipes/BOM yet either (the seeded menu has no ingredient data), so checkout doesn't
+  // auto-consume stock — receipts and write-offs are entered by office staff by hand for now.
+
+  inventoryItems: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    nameSort: v.string(),
+    searchText: v.string(),
+    unit,
+    minimumStock: v.optional(v.number()),
+    active: v.boolean(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_active_and_name", ["active", "nameSort"])
+    .searchIndex("search_inventory_items", { searchField: "searchText", filterFields: ["active"] }),
+
+  // Denormalized current quantity + weighted-average cost per (branch, item) — avoids summing
+  // the full stockMovements history on every read. stockMovements is the source of truth/audit
+  // trail; this is a cache kept in sync by every mutation that touches it.
+  stockBalances: defineTable({
+    restaurantExternalId: v.string(),
+    inventoryItemId: v.id("inventoryItems"),
+    quantity: v.number(),
+    averageUnitCost: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_restaurant_item", ["restaurantExternalId", "inventoryItemId"])
+    .index("by_restaurant", ["restaurantExternalId"]),
+
+  stockMovements: defineTable({
+    restaurantExternalId: v.string(),
+    inventoryItemId: v.id("inventoryItems"),
+    kind: v.union(v.literal("receipt"), v.literal("writeoff"), v.literal("adjustment")),
+    quantityDelta: v.number(), // positive for receipt/upward adjustment, negative for writeoff/downward adjustment
+    unitCost: v.number(), // receipt: the price paid; writeoff/adjustment: the balance's averageUnitCost at the time (for COGS reporting)
+    balanceAfter: v.number(),
+    averageUnitCostAfter: v.number(),
+    reason: v.optional(v.string()), // required for writeoff/adjustment
+    actorEmail: v.string(),
+    occurredAt: v.number(),
+  })
+    .index("by_restaurant_item_occurred", ["restaurantExternalId", "inventoryItemId", "occurredAt"])
+    .index("by_occurred_at", ["occurredAt"]),
 })

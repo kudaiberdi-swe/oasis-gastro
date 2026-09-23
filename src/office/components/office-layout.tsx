@@ -3,10 +3,11 @@ import type { ReactNode } from "react"
 
 import { cn } from "@/shared/lib/utils"
 
-export type OfficeDestination = "catalog"
+export type OfficeDestination = "catalog" | "stock"
 
 const NAV: { id: OfficeDestination; label: string }[] = [
   { id: "catalog", label: "Меню и цены" },
+  { id: "stock", label: "Склад" },
 ]
 
 export function OfficeLayout({

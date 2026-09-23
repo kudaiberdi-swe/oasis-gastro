@@ -7,6 +7,7 @@ import { CatalogWorkspace } from "@/office/features/catalog/ui/catalog-workspace
 import { useOfficeContext } from "@/office/features/session/data/use-office-context"
 import { OfficeSignIn } from "@/office/features/session/ui/office-sign-in"
 import { OfficeBootstrap } from "@/office/features/session/ui/office-bootstrap"
+import { StockWorkspace } from "@/office/features/stock/ui/stock-workspace"
 
 export function OfficeRouter() {
   const auth = useConvexAuth()
@@ -25,6 +26,7 @@ export function OfficeRouter() {
   return (
     <OfficeLayout active={destination} onNavigate={setDestination} userName={context.user?.name} onSignOut={() => void signOut()}>
       {destination === "catalog" ? <CatalogWorkspace /> : null}
+      {destination === "stock" ? <StockWorkspace /> : null}
     </OfficeLayout>
   )
 }

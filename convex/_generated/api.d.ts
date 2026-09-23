@@ -29,6 +29,8 @@ import type * as domains_orders_types from "../domains/orders/types.js";
 import type * as domains_seed_mutations from "../domains/seed/mutations.js";
 import type * as domains_shifts_mutations from "../domains/shifts/mutations.js";
 import type * as domains_shifts_queries from "../domains/shifts/queries.js";
+import type * as domains_stock_mutations from "../domains/stock/mutations.js";
+import type * as domains_stock_queries from "../domains/stock/queries.js";
 import type * as http from "../http.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -67,6 +69,8 @@ declare const fullApi: ApiFromModules<{
   "domains/seed/mutations": typeof domains_seed_mutations;
   "domains/shifts/mutations": typeof domains_shifts_mutations;
   "domains/shifts/queries": typeof domains_shifts_queries;
+  "domains/stock/mutations": typeof domains_stock_mutations;
+  "domains/stock/queries": typeof domains_stock_queries;
   http: typeof http;
   "lib/audit": typeof lib_audit;
   "lib/auth": typeof lib_auth;
