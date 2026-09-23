@@ -19,3 +19,8 @@ export const LOCKOUT_DURATION_MS = 10 * 60 * 1000
 
 /** Idle-lock timeout applied client-side after the last POS interaction. */
 export const IDLE_LOCK_MS = 5 * 60 * 1000
+
+/** Loyalty accrual — 1 point earned per this many tenge on a paid order's total. Redemption isn't
+ *  wired into checkout yet (it would change the payment-total math the same way a discount does,
+ *  and deserves the same manager-approval treatment) — points only accrue for now. */
+export const LOYALTY_ACCRUAL_PER_TENGE = 100

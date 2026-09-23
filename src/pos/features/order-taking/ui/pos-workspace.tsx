@@ -11,6 +11,8 @@ import { DiscountDialog } from "@/pos/features/order-taking/ui/discount-dialog"
 import { OpenChecksList } from "@/pos/features/order-taking/ui/open-checks-list"
 import { useOrderDraft } from "@/pos/features/order-taking/model/use-order-draft"
 import { OrderPanel } from "@/pos/components/order-panel"
+import { useLoyaltyMutations, useOrderGuest } from "@/pos/features/loyalty/data/use-loyalty"
+import { GuestDialog } from "@/pos/features/loyalty/ui/guest-dialog"
 import { LoginScreen } from "@/pos/features/session/ui/login-screen"
 import { useManagerApproval } from "@/pos/features/session/ui/manager-approval-dialog"
 import { usePosSession } from "@/pos/features/session/model/use-pos-session"
@@ -44,6 +46,7 @@ function AuthenticatedPos({
   const { open: openShift, close: closeShift } = useShiftMutations()
   const { hold, checkout } = useOrderMutations()
   const { requestApproval, dialog: managerDialog } = useManagerApproval(terminalExternalId)
+  const { attachGuest, detachGuest } = useLoyaltyMutations()
 
   const [selectedOrderId, setSelectedOrderId] = useState<Id<"orders"> | null>(null)
   const [pendingTableLabel, setPendingTableLabel] = useState("")
@@ -53,6 +56,7 @@ function AuthenticatedPos({
   const [discountOpen, setDiscountOpen] = useState(false)
   const [closeShiftOpen, setCloseShiftOpen] = useState(false)
   const [showKitchen, setShowKitchen] = useState(false)
+  const [guestOpen, setGuestOpen] = useState(false)
 
   const openChecks = useOpenChecks(sessionToken)
   const hydrated = useCheck(sessionToken, selectedOrderId)
@@ -67,6 +71,7 @@ function AuthenticatedPos({
     initialOrderId: selectedOrderId,
     initialTableLabel: pendingTableLabel,
   })
+  const guest = useOrderGuest(sessionToken, draft.orderId)
 
   if (shift === undefined) {
     return <div className="flex h-full items-center justify-center text-muted-foreground">Загрузка…</div>
@@ -128,6 +133,9 @@ function AuthenticatedPos({
         <Button variant="ghost" size="sm" onClick={() => setCloseShiftOpen(true)}>
           Закрыть смену
         </Button>
+        <Button variant="outline" size="sm" onClick={() => setGuestOpen(true)} disabled={!draft.orderId}>
+          {guest ? `${guest.name || guest.phone} · ${guest.points} б.` : "Гость"}
+        </Button>
       </div>
       <div className="flex min-h-0 flex-1 gap-3">
         <OpenChecksList
@@ -159,6 +167,20 @@ function AuthenticatedPos({
       </div>
 
       <PaymentDialog open={paymentOpen} onOpenChange={setPaymentOpen} total={draft.total} submitting={paymentSubmitting} error={paymentError} onSubmit={handleCheckoutSubmit} />
+      <GuestDialog
+        open={guestOpen}
+        onOpenChange={setGuestOpen}
+        currentGuest={guest}
+        sessionToken={sessionToken}
+        onAttach={(phone, name) => {
+          if (!draft.orderId) return Promise.resolve()
+          return attachGuest({ sessionToken, orderId: draft.orderId, phone, name })
+        }}
+        onDetach={() => {
+          if (!draft.orderId) return Promise.resolve()
+          return detachGuest({ sessionToken, orderId: draft.orderId })
+        }}
+      />
       <DiscountDialog
         open={discountOpen}
         onOpenChange={setDiscountOpen}

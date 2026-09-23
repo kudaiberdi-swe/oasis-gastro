@@ -10,6 +10,7 @@ import { OfficeBootstrap } from "@/office/features/session/ui/office-bootstrap"
 import { StockWorkspace } from "@/office/features/stock/ui/stock-workspace"
 import { FinanceWorkspace } from "@/office/features/finance/ui/finance-workspace"
 import { WorkforceWorkspace } from "@/office/features/workforce/ui/workforce-workspace"
+import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
 
 export function OfficeRouter() {
   const auth = useConvexAuth()
@@ -31,6 +32,7 @@ export function OfficeRouter() {
       {destination === "stock" ? <StockWorkspace /> : null}
       {destination === "finance" ? <FinanceWorkspace /> : null}
       {destination === "workforce" ? <WorkforceWorkspace /> : null}
+      {destination === "loyalty" ? <LoyaltyWorkspace /> : null}
     </OfficeLayout>
   )
 }

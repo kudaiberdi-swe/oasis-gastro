@@ -198,6 +198,7 @@ export default defineSchema({
     createdBy: v.optional(v.id("employees")),
     updatedBy: v.optional(v.id("employees")),
     comment: v.optional(v.string()),
+    guestId: v.optional(v.id("guests")), // attached during order-taking — see domains/loyalty
     version: v.optional(v.number()), // optimistic concurrency — bumped on every write
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
@@ -409,6 +410,32 @@ export default defineSchema({
     .index("by_occurred_at", ["occurredAt"])
     .index("by_order_created", ["orderId", "occurredAt"])
     .index("by_shift_created", ["shiftId", "occurredAt"]),
+
+  // --- Loyalty (Phase 4) --------------------------------------------------
+  // A local guest directory — never imported from iiko (iiko sync stays master-data-only, see
+  // domains/iiko). A guest is identified by phone, attached to an order during order-taking, and
+  // earns points on checkout (lib/loyalty.ts:accrueLoyaltyPoints). No redemption yet — see
+  // lib/policy.ts:LOYALTY_ACCRUAL_PER_TENGE for why.
+
+  guests: defineTable({
+    phone: v.string(), // normalized: digits only
+    name: v.optional(v.string()),
+    points: v.number(), // denormalized current balance — loyaltyTransactions is the audit trail
+    createdAt: v.number(),
+  }).index("by_phone", ["phone"]),
+
+  loyaltyTransactions: defineTable({
+    guestId: v.id("guests"),
+    kind: v.union(v.literal("accrual"), v.literal("redemption"), v.literal("adjustment")),
+    points: v.number(), // signed: + for accrual/upward adjustment, - for redemption/downward adjustment
+    orderId: v.optional(v.id("orders")),
+    reason: v.optional(v.string()), // required for a manual office adjustment
+    balanceAfter: v.number(),
+    actorEmail: v.optional(v.string()), // office email for a manual adjustment; absent for POS-sourced accrual
+    occurredAt: v.number(),
+  })
+    .index("by_guest_occurred", ["guestId", "occurredAt"])
+    .index("by_occurred_at", ["occurredAt"]),
 
   // --- Finance (Phase 4) -------------------------------------------------
   // A flat P&L ledger, not double-entry — Sandyq has no chart of accounts yet, so
