@@ -1,652 +1,420 @@
 # Architecture — Sandyq
 
+This is the technical reference for the implemented system — every table, every API function, every cross-domain side effect, both deployments. For the product framing and open business questions, see [BRD.md](BRD.md). For the iiko side specifically, see [iiko-connection-runbook.md](iiko-connection-runbook.md).
+
+This document describes what's actually built, not a plan. Where something is intentionally deferred or incomplete, it's called out explicitly rather than omitted — see [Known gaps and deferred work](#known-gaps-and-deferred-work) at the end.
+
 ## Stack
 
-- **Frontend**: React + Vite + TypeScript, Tailwind CSS for styling, a shared token-based theme file for brand color/typography/spacing so restyling never touches individual components.
-- **Backend**: a serverless application backend (functions + database + realtime sync in one system, no separate REST server to run or host). The frontend subscribes to backend functions and receives live updates automatically whenever underlying data changes — no manual polling or cache invalidation.
-- **Hosting**: static frontend build deployable to any static host; backend runs on its own managed cloud deployment, independent per environment (dev / production).
-
-## Backend function model
-
-Three function kinds, enforced by the platform itself:
-
-- **Query** — read-only, reactive. The frontend subscribes via a query hook and re-renders automatically when the underlying data changes.
-- **Mutation** — writes, executed transactionally (atomic, all-or-nothing).
-- **Action** — the only function kind allowed to make outbound network calls (e.g. to the iiko API); has no direct database access and must call queries/mutations for that.
-
-A single schema file (`convex/schema.ts` — its location is fixed by the platform, cannot be moved into a subfolder) defines every table, its validated field types, and its indexes, including full-text search indexes for register/list views.
-
-### Folder structure
-
-Domain-first, with responsibility (query/mutation/action) as the split inside each domain — mirrors the frontend's `feature/data|model|ui` layout, so a given business capability has one predictable home on both sides of the stack:
-
-```
-convex/
-  schema.ts
-  domains/
-    catalog/
-      queries.ts
-      mutations.ts
-      types.ts
-    pos/
-      queries.ts
-      mutations.ts
-      actions.ts
-    inventory/
-      queries.ts
-      mutations.ts
-    production/
-      queries.ts
-      mutations.ts
-    finance/
-      queries.ts
-      mutations.ts
-    workforce/
-      queries.ts
-      mutations.ts
-    loyalty/
-      queries.ts
-      mutations.ts
-    delivery/
-      queries.ts
-      mutations.ts
-    office/
-      queries.ts        # platformContext, register listings
-      mutations.ts       # bootstrap, user/role management
-    reports/
-      queries.ts
-    iiko/
-      actions.ts          # network calls to the iiko API (discover/extract/import)
-      mutations.ts        # internal writes into the mirror tables, called by actions.ts
-  lib/
-    auth.ts               # shared PIN/session + office-capability checks
-    validators.ts          # shared v.* validators reused across domains
-  _generated/              # Convex-generated, never hand-edited
-```
-
-Convex mirrors this layout in the generated `api` object, so a function's call site matches its file: `api.domains.catalog.queries.listProducts`, `api.domains.pos.mutations.checkout`, `api.domains.iiko.actions.runImport`. `types.ts` files are optional per domain, added where a domain's shared TypeScript types (not Convex validators) are large enough to warrant their own file rather than living at the top of `queries.ts`.
-
-`lib/` holds plain TypeScript helpers only — no file in it calls `query`/`mutation`/`action`, so nothing in `lib/` appears in the generated `api` object.
-
-## Frontend structure
-
-Role-first, not feature-first: the top-level split is the application **surface** (`pos` vs `office`), matching the two distinct auth models and routes described above — a cashier and a back-office admin are effectively using two different apps that happen to share one codebase and one backend. Inside each role, capabilities are still organized feature-first (`data/model/ui`), and true cross-role concerns live in `shared/`.
-
-```
-src/
-  pos/
-    features/
-      catalog/               # menu browsing for the cashier (read-only over the shared catalog data)
-        ui/
-      order-taking/
-        data/
-        model/
-        ui/
-      checkout/
-        data/
-        model/
-        ui/
-      shifts/
-        data/
-        model/
-        ui/
-      kitchen-display/
-        data/
-        ui/
-    components/               # POS-only chrome: numpad, order panel, PIN pad
-    router.tsx                 # routes under /pos
-
-  office/
-    features/
-      catalog-management/
-      inventory-costing/
-      production/
-      finance-management/
-      workforce-management/
-      loyalty-management/
-      delivery-management/
-      retail-management/
-      stock-management/
-      pricing-management/
-      modifier-management/
-      size-scales/
-      office-platform/         # navigation shell, access control, integration status, report catalog
-      <each with data/model/ui>
-    components/                 # office-only chrome: register/list layout, page headers
-    router.tsx                   # routes under /office
-
-  shared/
-    components/ui/               # design-system primitives (buttons, dialogs, inputs, tables)
-    api/                          # thin data hooks for domains genuinely read by both roles (e.g. catalog reads)
-    auth/                          # session/identity context providers for both auth models
-    types/                          # cross-cutting domain types
-    styles/theme.css                # single design-token source
-    lib/                             # Convex client bootstrap, formatting/date utilities
-
-  App.tsx                            # top-level switch between /pos and /office
-  main.tsx
-```
-
-Rule of thumb for where code lives: if it's business logic or UI that only cashiers or only back-office staff ever see, it belongs inside `pos/` or `office/`. If two roles both need it — a read-only catalog lookup, the design-system button, the Convex client — it belongs in `shared/`, owned once, imported by both. A capability that both roles touch (catalog is the clearest example: cashiers read it, office edits it) still gets **separate UI** per role, but shares the same `shared/api/` read hooks rather than each role re-implementing its own catalog query.
-
-This mirrors the backend's domain-first-then-responsibility layout (`convex/domains/<domain>/{queries,mutations,actions}`) with the equivalent split flipped to role-first-then-feature-then-responsibility on the frontend — intentional, since the backend has one shape serving both surfaces, while the frontend is genuinely two different apps.
+- **Backend**: Convex (queries/mutations/actions, realtime subscriptions, its own document database with indexes and search indexes). No separate API server.
+- **Frontend**: React 19 + Vite 8 + Tailwind 4, hand-rolled routing (no router library — `pathname` + `pushState`/`popstate`, see `App.tsx`).
+- **Auth**: two independent systems on purpose — POS PIN sessions (custom) and office email/password (`@convex-dev/auth`). See [Two application surfaces, two auth models](#two-application-surfaces-two-auth-models).
+- **External integration**: iiko Server API (XML/REST), read-only, for the chain's real branch/employee data.
 
 ## Two application surfaces, two auth models
 
-- **Cashier surface**: PIN-based login scoped to a fixed terminal. Session tokens are short-lived, stored server-side as a hash (never the raw token), with automatic lockout after repeated failed attempts. A short-lived, single-use elevated session (manager PIN) authorizes specific sensitive actions (void, refund, cash withdrawal, exceptional discount) without granting a full manager login.
-- **Back-office surface**: email-based authentication for staff, with role-based capabilities and per-user scoping to specific branches/warehouses. An administrator bootstrap path exists for the very first account on a fresh environment; every subsequent account is provisioned by an existing administrator.
+| | `/pos` | `/office` |
+|---|---|---|
+| Who | Cashiers, managers, on a physical terminal | Administrators, on any device |
+| Auth | 4–12 digit PIN → `posSessions` row, `sha256(token)` stored, never the raw token | Email + password via Convex Auth (`authTables`) → `officeUsers` row links the account to a role |
+| Session lifetime | 12h operator / 5min single-use manager-approval (`lib/policy.ts`) | Convex Auth's own session handling |
+| Identity table | `employees` (`code` + PIN hash) | `officeUsers` (`email`) + `officeRoles` (capability strings) |
 
-The two are intentionally decoupled — cashier PIN access is never derived from or dependent on back-office login state, and vice versa.
+These are deliberately never merged. A POS PIN never grants office access and vice versa — an `employees` row and an `officeUsers` row for the same real person are two separate, unlinked records. The one bridge between them is one-directional: `domains/workforce/mutations.ts:provisionPosAccess` lets an office user turn a real (`iikoEmployees`-mirrored) person into a POS login, generating the code+PIN locally — iiko never supplies a credential, and no office identity is created from that action.
 
-## Core domain invariants
+Office capability strings are `"*"` (full access) or `"office.<module>.*"` (all six modules currently gate at module granularity — `office.catalog.*`, `office.stock.*`, `office.finance.*`, `office.workforce.*`, `office.loyalty.*`, `office.reports.*`; see `lib/officeAccess.ts:allowsCapability` for the matching rule, which also accepts an exact leaf like `office.catalog.view` if that granularity is ever needed). `domains/office/mutations.ts:bootstrap` is the only way to create the first `officeRoles`/`officeUsers` rows — it's gated on an exact match against the `OFFICE_BOOTSTRAP_EMAIL` deployment env var, set once via `npx convex env set` (never in code, never in the dashboard by convention — see [Environments](#environments)).
 
-- **Append-only accounting.** Stock movements and financial ledger entries are immutable once created. The only supported correction is a reversal — an inverse entry owned by the same source document — never an edit or delete of the original fact.
-- **Weighted-average costing.** Ingredient cost is the total lot value divided by total lot quantity per warehouse; recipe cost and sale write-off cost are both derived from it, not hardcoded.
-- **Document lifecycle.** Operational documents (production, purchasing, price changes, HR/payroll, loyalty) move through a fixed state machine (draft → approval/posting → published/completed → optionally reversed) shared across domains, with every state transition audited.
-- **Idempotency at the edges.** Payment attempts, loyalty transactions, and outbound integration jobs all carry idempotency keys so a network retry can never double-record a financial event.
+## Backend structure
 
-## External data: iiko integration
-
-The business's day-to-day operations already run on iiko (POS + back office). This system treats iiko as a **read-only upstream data source**, not a system it writes to:
-
-- A set of standalone scripts authenticate against the iiko Server REST API, extract data (organization structure, menu/products, employees, stock, historical documents), sanitize and stage it locally, then import it into the backend as canonical, source-attributed records.
-- Only GET / semantically read-only iiko operations are ever called. No sales, orders, or documents are ever written back to iiko.
-- Imported records are owned by iiko (re-importing updates them); anything created directly in this system (new POS transactions, overlays on imported catalog items) is owned locally and never pushed upstream.
-- POS employee login (code + PIN) is provisioned separately inside this system and is never sourced from or written to iiko — imported employee records carry no credentials.
-- Sync is manual/on-demand, not a live subscription — run explicitly to discover the API surface, pull a fresh snapshot, or resume an interrupted import.
-
-## Environments
-
-Each environment (a developer's local setup, and eventually a shared production instance) gets its own fully isolated backend deployment — its own database, its own functions, its own environment-variable store. Nothing is shared by default; promoting code to production is an explicit, separate deploy step, never implicit in day-to-day development.
-
-## Secrets
-
-Three distinct places, never conflated:
-1. **Client-exposed config** (e.g. the backend connection URL) — safe to be public, bundled into the frontend build.
-2. **Backend environment variables** — managed by the backend platform itself, readable only from server-side functions, never shipped to the client.
-3. **Local integration credentials** (iiko login) — used only by the standalone sync scripts running on a developer's machine, kept in a gitignored local file, never sent to or stored by the backend.
-
-## System flow
-
-```mermaid
-flowchart LR
-    subgraph EXT["External"]
-        IIKO[(iiko Server API<br/>read-only)]
-    end
-
-    subgraph SYNC["Sync scripts — local, on-demand"]
-        DISC[discover]
-        EXTR[extract]
-        IMP[import]
-        REC[reconcile]
-    end
-
-    subgraph BACKEND["Application backend"]
-        subgraph ACT["Actions — network-capable"]
-            A1[iiko import action]
-            A2[POS PIN login action]
-        end
-        subgraph MUT["Mutations — transactional writes"]
-            M1[checkout / payment]
-            M2[shift open / close]
-            M3[stock document post / reverse]
-            M4[office record lifecycle]
-            M5[loyalty transaction]
-            M6[POS access provisioning]
-        end
-        subgraph QRY["Queries — reactive reads"]
-            Q1[catalog / menu]
-            Q2[kitchen board]
-            Q3[reports / registers]
-            Q4[platform context]
-        end
-        DB[(Database)]
-    end
-
-    subgraph FE["Frontend"]
-        POS[Cashier UI]
-        KDS[Kitchen display]
-        OFC[Back-office UI]
-    end
-
-    IIKO -->|GET only| DISC --> EXTR --> IMP --> DB
-    IMP --> REC --> DB
-
-    POS --> A2 --> DB
-    POS --> M1 --> DB
-    POS --> M2 --> DB
-    POS --> Q1 --> DB
-    KDS --> Q2 --> DB
-    OFC --> M3 --> DB
-    OFC --> M4 --> DB
-    OFC --> M5 --> DB
-    OFC --> M6 --> DB
-    OFC --> Q3 --> DB
-    OFC --> Q4 --> DB
-    OFC -.triggers.-> A1 --> EXTR
+```
+convex/
+  schema.ts              single source of truth for every table
+  auth.ts / auth.config.ts / http.ts    Convex Auth wiring (office only)
+  crons.ts                              hourly posSessions cleanup
+  lib/                                  shared, no business-domain ownership
+    auth.ts             PIN hashing (PBKDF2-SHA256/120k/256-bit), requireOperator,
+                        requireManagerApproval, session helpers — POS side
+    officeAccess.ts     getOfficeAuthEmail, requireOfficeCapability, writeOfficeAudit — office side
+    audit.ts            writeAudit — POS-side auditEvents helper (paired with officeAccess's
+                        writeOfficeAudit for the office side)
+    finance.ts           postLedgerEntry — called directly from orders/stock mutations
+    loyalty.ts           normalizePhone, findOrCreateGuest, accrueLoyaltyPoints
+    restaurants.ts       listOperationalRestaurants — see note below
+    money.ts             integer-tenge rounding, service-charge/total/cash-reconciliation math
+    time.ts               almatyBusinessDate (fixed UTC+5 offset, no DST)
+    policy.ts             every tunable business constant (see table below)
+    validators.ts         shared v.* unions/objects
+  domains/
+    auth/        actions.ts (login, "use node")  internal.ts  mutations.ts  queries.ts
+    catalog/     queries.ts  mutations.ts  types.ts
+    orders/      queries.ts  mutations.ts  types.ts
+    shifts/      queries.ts  mutations.ts
+    kitchen/     queries.ts  mutations.ts
+    office/      queries.ts  mutations.ts            (office auth/bootstrap only)
+    stock/       queries.ts  mutations.ts
+    finance/     queries.ts  mutations.ts
+    workforce/   queries.ts  mutations.ts
+    loyalty/     queries.ts  mutations.ts
+    reports/     queries.ts                          (read-only — no mutations)
+    iiko/        queries.ts  mutations.ts             (read-only sync, see below)
+    seed/        mutations.ts                         (internal — scripts/seed-sandyq.mjs)
 ```
 
-## API surface — what needs to exist, by domain
+**Domain-first, not layer-first** (locked decision from the original planning pass): a business concept owns one folder with its own `queries.ts`/`mutations.ts`, rather than one giant `queries.ts` for the whole app. A domain's mutations *are allowed* to write directly into another domain's tables when that's the natural side effect of an event — `orders/mutations.ts:checkout` posts into `ledgerEntries` (finance's table) and `guests`/`loyaltyTransactions` (loyalty's tables) in the same transaction, rather than routing through a separate finance/loyalty mutation call. This keeps money-and-points events atomic with the event that caused them. See [How mutations talk across domains](#how-mutations-talk-across-domains-real-side-effects).
 
-Every entry below is a backend function (query = read/reactive, mutation = transactional write, action = network-capable, no direct DB access).
-
-| Domain | Queries | Mutations | Actions |
-|---|---|---|---|
-| **Auth — cashier** | current session | — | PIN login, manager-approval login, logout |
-| **Auth — back office** | current user / platform context | bootstrap first admin, provision/edit office users | — |
-| **Catalog & menu** | list categories, list products (paginated/search), product detail, kiosk menu, modifier groups | create/update product, create/update recipe, manage modifier groups & rules, manage size scales | — |
-| **Pricing** | active price orders, price schedule for a product | create/publish/expire price order | — |
-| **Inventory & stock** | stock balances by warehouse, stock lots, receipts register, stock documents register | post/reverse stock document, post/reverse receipt, create production act | — |
-| **Cashier / orders** | active draft order, held orders, order detail, employee favorites | create/update/hold/resume draft order, add/remove order line, apply discount, void line | — |
-| **Checkout & payments** | payment history for order/shift | checkout (record payment, close order), refund | — |
-| **Shifts** | open shift for terminal, X-report preview | open shift, cash-in/cash-out, close shift (generate Z-report) | — |
-| **Kitchen** | kitchen board (by status) | advance ticket status (queued → preparing → ready → completed) | — |
-| **Finance** | ledger by account/date, finance records register | post finance record, reverse ledger entry | — |
-| **Workforce** | employee register, attendance, payroll runs | provision POS access (code + PIN), edit employee, run payroll | — |
-| **Loyalty** | guest loyalty account, transaction history | accrue/redeem loyalty, guest consent event | — |
-| **Delivery** | delivery orders register, courier locations | assign courier, update delivery status | — |
-| **Reporting** | report catalog, saved report views, scheduled reports | save report view, schedule report | — |
-| **iiko integration** | endpoint/sync status, reconciliation checks | write imported/mirrored records (internal, called by the action) | run discovery, run extraction, run import, run reconciliation |
+**`lib/restaurants.ts:listOperationalRestaurants`** is worth calling out specifically: Phase 3's iiko import writes its own `restaurants` row per iiko department (see [iiko integration](#iiko-integration)), so a city that already has a seeded, terminal-bound restaurant ends up with **two** rows sharing a city but not an `externalId`. A cashier can only ever be assigned to the seeded one (it's the only one with a `posTerminals` row), so every office-facing restaurant list goes through this helper, which filters to restaurants that actually have an active terminal. `domains/workforce/queries.ts` additionally resolves an iiko department code to the *operational* restaurant by city-name match when the two diverge (see the `CITY_ALIASES` table there) — without that, the "assign to branch" checkbox in the office Кадры screen would silently fail to pre-check anything for Алматы/Шымкент/Түркістан candidates.
 
 ## Database schema
 
-Grouped by domain for legibility (the full schema has ~85 tables). Relationships shown are `v.id("table")` references — Convex's foreign-key equivalent, resolved at read time, not enforced at the database level (validity is the calling function's responsibility).
+All tables live in `convex/schema.ts`. Grouped by domain below; every table's real fields, not a summary — this is the part meant to save someone a `Read` of the file.
 
-### Organization & access
+### Office identity
 
-```mermaid
-erDiagram
-    organizations ||--o{ restaurants : "organizationExternalId"
-    restaurants ||--o{ warehouses : "restaurantExternalId"
-    restaurants ||--o{ posTerminals : "restaurantId"
-    officeRoles ||--o{ officeUsers : "roleExternalId"
-    restaurants ||--o{ employees : "restaurantIds[]"
-    posTerminals ||--o{ employees : "terminalIds[]"
-    employees ||--o{ posSessions : "employeeId"
-    posTerminals ||--o{ posSessions : "terminalId"
+- **`officeRoles`** `{externalId, name, capabilities: string[], system}` — `capabilities` is `["*"]` or a list of `"office.<module>.*"` strings.
+- **`officeUsers`** `{externalId, email, name, roleExternalId, restaurantScopes: string[], active}` — `restaurantScopes` is `restaurants.externalId[]` or `["*"]`.
+- Convex Auth's own tables (`authTables` spread into the schema — accounts, sessions, users, etc.) back the email/password login itself.
 
-    organizations {
-        string externalId
-        string name
-        string currency
-        string timezone
-        bool active
-    }
-    restaurants {
-        string externalId
-        string organizationExternalId
-        string name
-        string address
-        string city
-        bool active
-    }
-    officeRoles {
-        string externalId
-        string name
-        string[] capabilities
-    }
-    officeUsers {
-        string externalId
-        string email
-        string roleExternalId
-        string[] organizationScopes
-        string[] restaurantScopes
-        string[] warehouseScopes
-    }
-    employees {
-        string code
-        string displayName
-        enum role "cashier|manager|administrator"
-        id[] restaurantIds
-        string pinSalt
-        string pinHash
-        int failedAttempts
-    }
-    posSessions {
-        string tokenHash
-        enum purpose "operator|manager-approval"
-        id employeeId
-        id terminalId
-        int expiresAt
-    }
-    posTerminals {
-        string name
-        int terminalNumber
-        int nextOrderNumber
-        bool active
-    }
-```
+### Identity & org (POS)
 
-### Catalog & menu
+- **`organizations`** `{externalId, name, currency, timezone, active, sourceSystem?, sourceHash?, importedAt?}` — `sourceSystem: "iiko-server"` marks a row written by the iiko sync.
+- **`restaurants`** `{externalId, organizationExternalId, name, address, timezone, city?, currency?, active, sourceSystem?, sourceHash?, importedAt?}`.
+- **`posTerminals`** `{externalId, restaurantId, name, terminalNumber, nextOrderNumber, active}` — `nextOrderNumber` is the human-facing order-number source, incremented on every new draft.
+- **`employees`** `{code, displayName, role: cashier|manager|administrator, restaurantIds: Id<restaurants>[], terminalIds?, pinSalt, pinHash, active, failedAttempts, lockedUntil?, iikoEmployeeExternalId?}` — the last field is set only when this login was created via `provisionPosAccess`.
+- **`posSessions`** `{tokenHash, purpose: operator|manager-approval, employeeId, terminalId, createdAt, lastActivityAt, expiresAt, revokedAt?}` — the raw session token is never stored, only its SHA-256.
 
-```mermaid
-erDiagram
-    categories ||--o{ products : "category"
-    products ||--o| recipes : "productId"
-    recipes ||--o{ recipeLines : "recipeId"
-    products ||--o{ productModifierGroups : "productId"
-    modifierGroups ||--o{ productModifierGroups : "groupId"
-    productModifierGroups ||--o{ productModifierRules : "productModifierGroupId"
-    modifiers ||--o{ productModifierRules : "modifierId"
-    modifierGroups ||--o{ modifiers : "groupId"
-    sizeScales ||--o{ sizeOptions : "scaleId"
-    sizeScales ||--o{ products : "sizeScaleId"
-    priceOrders ||--o{ priceOrderLines : "priceOrderId"
-    priceOrders ||--o{ priceSchedules : "priceOrderId"
+### Catalog
 
-    categories {
-        string externalId
-        string label
-        int sortOrder
-    }
-    products {
-        string externalId
-        string name
-        number price
-        string category
-        enum itemType "dish|good|preparation"
-        enum writeOffMethod "ingredients|finished-product"
-        bool enabled
-        id sizeScaleId
-    }
-    recipes {
-        id productId
-        number batchYield
-        int effectiveFrom
-    }
-    recipeLines {
-        id recipeId
-        enum kind "Товар|Заготовка"
-        number quantity
-        number coldLossPercent
-        number hotLossPercent
-        number unitCost
-    }
-    sizeScales { string name }
-    sizeOptions {
-        id scaleId
-        string label
-        number coefficient
-        bool isDefault
-    }
-    modifierGroups { string name }
-    modifiers {
-        id groupId
-        number price
-        string ingredientName
-    }
-    productModifierGroups {
-        id productId
-        id groupId
-        bool required
-        number minQuantity
-        number maxQuantity
-    }
-    productModifierRules {
-        id productModifierGroupId
-        id modifierId
-        number minQuantity
-        number maxQuantity
-    }
-    priceOrders {
-        string externalId
-        enum status "draft|scheduled|active|expired"
-        int effectiveFrom
-    }
-```
+- **`categories`** `{externalId, label, shortLabel, sortOrder, active?}`.
+- **`products`** `{externalId, name, nameKk, nameSort, searchText, description, category, categorySort, basePrice, popular, badge?, sku, baseUnit, enabled}` — bilingual (`name` Russian primary, `nameKk` Kazakh secondary); `basePrice` is the fallback when no `productPrices` row matches the requesting restaurant.
+- **`productPrices`** `{productId, restaurantExternalId, priceKzt}` — per-branch price override. Sandyq's real menu prices genuinely differ by city for the same dish.
 
-### Cashier / POS operations
+### Orders & checkout
 
-```mermaid
-erDiagram
-    posTerminals ||--o{ shifts : "terminalId"
-    employees ||--o{ shifts : "openedBy"
-    shifts ||--o{ shiftEvents : "shiftId"
-    shifts ||--o{ xReports : "shiftId"
-    shifts ||--o{ orders : "currentShiftId"
-    posTerminals ||--o{ orders : "terminalId"
-    orders ||--o{ orderLines : "orderId"
-    orders ||--o{ orderDeletionEvents : "orderId"
-    orders ||--o{ payments : "orderId"
-    orders ||--o| kitchenTickets : "orderId"
-    kitchenTickets ||--o{ kitchenTicketLines : "ticketId"
-    products ||--o{ orderLines : "productId"
-    employees ||--o{ employeeFavorites : "employeeId"
+- **`orders`** — the big one: `{number, orderType: dine-in|takeaway, tableLabel?, status, discountPercent, discountReason?, discountApprovedBy?, subtotal, serviceChargePercent, serviceChargeAmount, serviceChargeWaived?, total, paymentMethod?, checkoutIdempotencyKey?, clientOrderId?, restaurantId?, terminalId?, originatingShiftId?, currentShiftId?, createdBy?, updatedBy?, comment?, guestId?, version?, createdAt, updatedAt?, heldAt?, paidAt?, cancelledAt?, searchText}`. `status` is `draft|held|paid|cancelled|partially_refunded|refunded`. **No single-draft-per-terminal constraint** — Sandyq is full-service, several tables stay open at once, each its own `orders` row keyed by `tableLabel`. `version` is the optimistic-concurrency field every content-editing mutation bumps (see [invariants](#invariants-that-matter)).
+- **`orderLines`** `{orderId, clientLineId?, productId, productExternalId?, productName, quantity, unitPrice, sizeLabel?, modifiers: string[]}` — `modifiers` is free-text kitchen notes; there's no modifier catalog (deferred, see Known gaps).
+- **`orderDeletionEvents`** `{orderId, orderLineId?, deletionReasonName, writeOff, comment, actorId, managerId?, createdAt}` — defined but not currently written by any mutation (reserved for a future "remove a line with a reason" flow).
 
-    shifts {
-        id terminalId
-        int number
-        string businessDate
-        enum status "open|closed"
-        number openingCash
-        number expectedCash
-        number countedCash
-    }
-    xReports {
-        string reportNumber
-        int sequence
-        number sales
-        number refunds
-        object payments "cash/card/qr breakdown"
-    }
-    shiftEvents {
-        id shiftId
-        enum type "open|cash-in|cash-out|order-paid|refund|close|..."
-        number amount
-        id actorId
-    }
-    orders {
-        int number
-        enum orderType "dine-in|takeaway|delivery"
-        enum status "draft|held|paid|cancelled|partially_refunded|refunded"
-        number subtotal
-        number total
-        enum paymentMethod "card|cash|qr"
-        int version
-    }
-    orderLines {
-        id orderId
-        id productId
-        number quantity
-        number unitPrice
-        string[] modifiers
-    }
-    kitchenTickets {
-        id orderId
-        enum status "queued|preparing|ready|completed"
-        enum source "kiosk|pos|delivery"
-    }
-    payments {
-        id orderId
-        id shiftId
-        enum type "sale|refund"
-        enum method "card|cash|qr"
-        number amount
-        string idempotencyKey
-    }
-```
+### Shifts & money
 
-### Inventory & stock
+- **`shifts`** `{restaurantId, terminalId, number, businessDate, status: open|closed, openedBy, openedAt, openingCash, openingNote, expectedCash?, countedCash?, variance?, closeNote?, closedBy?, closedAt?, managerApprovedBy?, zReportNumber?}`.
+- **`shiftEvents`** `{shiftId, type, amount, reason, actorId, orderId?, idempotencyKey?, createdAt}` — `type` is `open|cash-in|cash-out|order-paid|order-transfer-out|order-transfer-in|refund|manager-override|close`. This is the shift's own audit/reconstruction log; `shifts/queries.ts:calculateSummary` replays it (plus `payments`) to compute expected cash.
+- **`xReports`** — an immutable snapshot every time `createXReport` or `close` runs (`nonFiscal: true` on every row — see the fiscalization note in the BRD). Full shape: `{reportVersion, idempotencyKey, reportNumber, sequence, shiftId, shiftNumber, terminalId, terminalName, terminalNumber, restaurantId, restaurantName, restaurantAddress, businessDate, openedAt, generatedAt, openedByName, generatedByName, generatedByRole, openingCash, catalogGrossSales, discounts, serviceCharge, sales, refunds, netSales, averageCheck, expectedCash, payments: {cash|card|qr: {sales, refunds, net, saleCount, refundCount}}, cashMovements: {cashIn, cashOut, cashInCount, cashOutCount}, orderCounts: {paid, partiallyRefunded, refunded, cancelled, draft, held, discounted}, openOrders: {count, total}, heldOrders: {count, total}, cancelledAmount, saleOrderCount, refundOrderCount, nonFiscal}`.
+- **`payments`** `{orderId, shiftId, type: sale|refund, method: cash|card|qr, amount, tendered?, change?, idempotencyKey, status: "recorded", createdBy, createdAt}` — immutable, idempotency-keyed; a refund is a new row with `type: "refund"`, never an edit to the original.
 
-```mermaid
-erDiagram
-    warehouses ||--o{ stockLots : "warehouseId"
-    inventoryItems ||--o{ stockLots : "inventoryItemId"
-    inventoryItems ||--o{ stockBalances : "itemExternalId"
-    warehouses ||--o{ stockBalances : "warehouseId"
-    suppliers ||--o{ receipts : "supplierId"
-    warehouses ||--o{ receipts : "warehouseId"
-    receipts ||--o{ receiptLines : "receiptId"
-    inventoryItems ||--o{ receiptLines : "inventoryItemId"
-    warehouses ||--o{ stockDocuments : "sourceWarehouseId"
-    stockDocuments ||--o{ stockDocumentLines : "documentId"
-    inventoryItems ||--o{ stockDocumentLines : "inventoryItemId"
-    warehouses ||--o{ stockMovements : "warehouseId"
-    inventoryItems ||--o{ stockMovements : "inventoryItemId"
-    suppliers ||--o{ priceLists : "supplierId"
-    priceLists ||--o{ priceListLines : "priceListId"
+### Kitchen
 
-    warehouses {
-        string externalId
-        string name
-        bool allowNegativeStock
-        bool active
-    }
-    suppliers {
-        string name
-        string bin
-        enum priceDeviationPolicy "ignore|warn|block|block-higher"
-    }
-    inventoryItems {
-        string name
-        enum unit "кг|л|шт|порц."
-        number minimumStock
-    }
-    stockLots {
-        id inventoryItemId
-        id warehouseId
-        number quantity
-        number unitCost
-    }
-    receipts {
-        string number
-        int date
-        id supplierId
-        id warehouseId
-        enum status "draft|posted|..."
-        number total
-    }
-    stockDocuments {
-        enum type "outgoing-invoice|supplier-return|inventory|transfer|writeoff"
-        enum status "draft|posted|reversed"
-        id sourceWarehouseId
-        id destinationWarehouseId
-        number totalAmount
-    }
-    stockMovements {
-        id warehouseId
-        id inventoryItemId
-        number quantityDelta
-        number unitCost
-        number balanceAfter
-        number averageUnitCostAfter
-        id reversalOf
-    }
-    stockBalances {
-        id warehouseId
-        string itemExternalId
-        number quantity
-        number averageUnitCost
-    }
-```
+- **`kitchenTickets`** `{orderId, orderNumber, status: queued|preparing|ready|completed, fulfillment, source: "pos", createdAt, updatedAt}`.
+- **`kitchenTicketLines`** `{ticketId, productExternalId, productName, quantity, instructions: string[]}`.
 
-### Production, finance, workforce, loyalty, delivery — remaining domains
+### Audit
 
-Field-level detail omitted here for brevity; each follows the same pattern as above (an `externalId`-keyed header record, `v.id()` references to its parents, and immutable/append-only movement or ledger tables where money or stock changes hands).
+- **`auditEvents`** `{actorKey, action, summary, resourceType, resourceExternalId, organizationExternalId, restaurantExternalId?, occurredAt, terminalId?, actorId?, shiftId?, orderId?, managerId?}` — one shared table for both POS (`lib/audit.ts:writeAudit`) and office (`lib/officeAccess.ts:writeOfficeAudit`) actions. `restaurantExternalId` is optional specifically because office actions like a catalog edit aren't scoped to one branch.
 
-| Table | Domain | Purpose | Key references |
+### Loyalty (Phase 4)
+
+- **`guests`** `{phone (normalized digits), name?, points, createdAt}` — never imported from iiko; created only when a cashier attaches a phone number to an order, or an office user does a manual adjustment on an unrecognized phone.
+- **`loyaltyTransactions`** `{guestId, kind: accrual|redemption|adjustment, points (signed), orderId?, reason? (required for adjustment), balanceAfter, actorEmail? (office adjustments only), occurredAt}`.
+
+### Finance (Phase 4)
+
+- **`ledgerEntries`** `{restaurantExternalId, businessDate, occurredAt, kind: revenue|expense, category (free text), amount (always positive — kind carries the sign), sourceModuleId: orders|stock|manual, sourceExternalId, description, createdByEmail? (manual only), createdAt}` — a flat P&L, not double-entry; see [How mutations talk across domains](#how-mutations-talk-across-domains-real-side-effects) for what posts into it and when.
+
+### iiko sync mirror (Phase 3 — read-only)
+
+- **`iikoImportRuns`** `{runExternalId, status: running|completed|failed, startedAt, completedAt?, counts?, error?}`.
+- **`iikoEndpointStates`** `{endpointKey, lastStatus, lastRunAt, message?}`.
+- **`iikoDepartments`** `{externalId, parentExternalId?, code?, name, type ("DEPARTMENT"|"JURPERSON"|…), sourceHash, importedAt}` — allowlisted fields only.
+- **`iikoEmployees`** `{externalId, code?, displayName, mainRoleCode?, departmentCodes: string[], active, sourceHash, importedAt}` — **never carries phone/email/IIN/login** — those keys are never even read out of the source response (see `scripts/iiko/lib.mjs:sanitizeRecord`'s allowlist, not a blocklist).
+- **`iikoMirrorRecords`** `{mirrorKey, endpointKey, recordExternalId, payloadHash, importedAt}` — lets a re-import detect "nothing changed" without touching canonical tables.
+- **`iikoEntityOverlays`** `{overlayKey, entityType, sourceExternalId, data}` — reserved for local edits layered on an iiko entity that a re-import shouldn't clobber. Schema exists; not populated by any current mutation except `domains/iiko/mutations.ts:saveOverlay`, which nothing calls yet.
+
+### Stock (Phase 4)
+
+- **`inventoryItems`** `{externalId, name, nameSort, searchText, unit, minimumStock?, active}`.
+- **`stockBalances`** `{restaurantExternalId, inventoryItemId, quantity, averageUnitCost, updatedAt}` — denormalized cache; `stockMovements` is the source of truth.
+- **`stockMovements`** `{restaurantExternalId, inventoryItemId, kind: receipt|writeoff|adjustment, quantityDelta (signed), unitCost, balanceAfter, averageUnitCostAfter, reason? (required for writeoff/adjustment), actorEmail, occurredAt}`.
+
+No `warehouses` table — stock is keyed directly by `restaurants.externalId` because Sandyq runs one stockroom per branch today. No recipes/BOM either — see [Known gaps](#known-gaps-and-deferred-work).
+
+## Complete API surface
+
+Every exported `query`/`mutation`/`action` by domain. "Office" or "POS" in the Auth column means `requireOfficeCapability`/`requireOperator` respectively; "internal" means it's not callable from a client at all (internal-only, or a plain exported function other mutations call directly).
+
+### `domains/auth` — POS sign-in
+
+| Function | Kind | Auth | Purpose |
 |---|---|---|---|
-| `productionItems`, `productionMaterials`, `productionRecipes` | Production | Dishes/preparations produced in-house and their material recipe | `productionItems → productionRecipes → productionMaterials` |
-| `productionActs`, `productionActLines` | Production | Posted document that consumes materials and adds finished stock | `→ productionItems`, `→ warehouses` |
-| `productionRecords` | Production | Generic audited production workflow record (draft→posted→reversed) | `moduleId`, `restaurantExternalId` |
-| `ledgerEntries` | Finance | Immutable double-entry debit/credit fact | `sourceExternalId`, `restaurantExternalId` |
-| `financeRecords` | Finance | Accounts, journals, payments, obligations, budgets | `moduleId`, `businessDate` |
-| `officeRecords` | Finance/ops | Shared audited record shape used by several office modules | `moduleId`, `recordType` |
-| `periodLocks` | Finance | Prevents posting into a closed accounting period | `restaurantExternalId`, `lockedThrough` |
-| `auditEvents` | Ops | Append-only audit trail for sensitive actions | `resourceExternalId`, `orderId`, `shiftId`, `terminalId` |
-| `workforceRecords` | Workforce | Attendance, payroll runs, schedules, motivation | `employeeCode`, `moduleId`, `businessDate` |
-| `loyaltyRecords` | Loyalty | Programs, categories, campaigns, reservations | `moduleId`, `guestExternalId` |
-| `loyaltyAccounts` | Loyalty | Current bonus/deposit balance per guest+program | `guestExternalId`, `programExternalId` |
-| `loyaltyTransactions` | Loyalty | Immutable balance-changing event, idempotent | `→ loyaltyAccounts`, `→ orders` |
-| `deliveryOrders`, `deliveryZones`, `couriers`, `courierLocations`, `telephonyCalls`, `deliverySources` | Delivery | Dispatcher/call-center workflow | `restaurantExternalId`, `courierExternalId` |
-| `retailSettings` | Ops | Versioned payment/order/discount/deletion/cash-op types | `kind`, `effectiveFrom` |
-| `cashShiftAcceptances` | Ops | Manager acceptance record for a closed shift | `→ shifts` |
-| `reportViews`, `reportSchedules` | Reporting | Saved/scheduled report configurations | `ownerKey`, `reportId` |
-| `integrationJobs`, `outboxEvents` | Platform | Outbound integration queue, idempotent delivery jobs | `idempotencyKey`, `status` |
-| `platformRecords` | Platform | Corporation/replication/provider/terminal/equipment config | `moduleId` |
-| `datasetRuns`, `dailySalesFacts` | Platform | Seed/dataset run tracking and daily aggregate facts | `status`, `businessDate` |
-| `posNotifications` | Ops | Terminal-scoped alerts (info/warning/critical) | `→ posTerminals` |
-| `iikoImportRuns`, `iikoEndpointStates`, `iikoImportStaging` | iiko sync | Run tracking, discovered-endpoint state, staged rows pre-import | `externalId`, `endpointKey` |
-| `iikoMirrorRecords`, `iikoEntityOverlays` | iiko sync | Read-only mirror of source records; Sandyq-owned overlay on top of them | `sourceExternalId`, `overlayKey` |
-| `iikoDepartments`, `iikoEmployees`, `iikoEmployeeRoles` | iiko sync | Mirrored organization/workforce master data | `externalId` |
-| `iikoDocuments`, `iikoCashShifts`, `iikoOrders`, `iikoReportFacts` | iiko sync | Mirrored transactional history (read-only, never posted locally) | `externalId`, `businessDate` |
-| `iikoReconciliationChecks` | iiko sync | Sampled totals comparison between mirror and source | `checkKey`, `runExternalId` |
+| `actions.login` | action (`"use node"`) | none (this *is* login) | Verifies code+PIN (PBKDF2-SHA256/120k), returns a session token |
+| `internal.getLoginRecord` | internal query | — | Looks up the employee by code, for the login action |
+| `internal.recordFailedAttempt` | internal mutation | — | Increments `failedAttempts`, locks after `LOCKOUT_THRESHOLD` |
+| `internal.createSession` | internal mutation | — | Inserts the `posSessions` row after a successful PIN check |
+| `internal.cleanupExpiredSessions` | internal mutation | — | Hourly cron (`crons.ts`) |
+| `queries.current` | query | POS | Current session's employee/terminal/restaurant |
+| `mutations.logout` | mutation | POS | Revokes the current session |
+| `mutations.lock` | mutation | POS | Idle-lock — revokes without a full logout |
+| `mutations.revoke` | mutation | POS | Revoke a specific session (used for manager-approval cleanup) |
 
-## How the API layer talks to the database
+### `domains/catalog`
 
-Two representative flows — checkout (a mutation-driven write path) and iiko sync (an action-driven external-read path).
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.listCategories` | query | POS (implicit) | Active categories, sorted |
+| `queries.listProducts` | query | POS | Paginated, searchable, price resolved per restaurant |
+| `queries.getProduct` | query | POS | One product with resolved price |
+| `queries.listAllForOffice` | query | office `catalog.*` | Every category/product regardless of active/enabled, with all per-branch prices attached |
+| `queries.resolveProductPrice` / `resolveProductPrices` | plain functions | — | Shared price-resolution logic (also used by `orders/mutations.ts`) |
+| `mutations.createCategory` / `updateCategory` | mutation | office `catalog.*` | |
+| `mutations.createProduct` / `updateProduct` | mutation | office `catalog.*` | |
+| `mutations.setProductPrice` | mutation | office `catalog.*` | Upserts a `productPrices` row, checked against the caller's `restaurantScopes` |
 
-### Checkout
+### `domains/orders`
 
-```mermaid
-sequenceDiagram
-    actor Cashier
-    participant POS as Cashier UI
-    participant M as checkout mutation
-    participant DB as Database
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.listOpenChecks` | query | POS | Every draft/held order at this terminal (parallel tables) |
+| `queries.getCheck` | query | POS | One hydrated order (lines + payments) |
+| `queries.list` | query | POS | Paginated order history, searchable |
+| `queries.hydrateOrder` | plain function | — | Shared order→lines/payments hydration |
+| `mutations.saveDraft` | mutation | POS | Create-or-update a draft/held order; OCC via `expectedVersion`; re-prices every line server-side |
+| `mutations.hold` / `resume` | mutation | POS | Park a check / bring it back to draft |
+| `mutations.cancel` | mutation | POS | Requires manager approval |
+| `mutations.checkout` | mutation | POS | Records payment(s), marks paid, posts revenue to `ledgerEntries`, accrues loyalty points — see [side effects](#how-mutations-talk-across-domains-real-side-effects) |
+| `mutations.refund` | mutation | POS | Manager approval required; enforces original payment method; posts an expense ledger entry |
+| `mutations.transfer` | mutation | POS | Moves a held order to a different terminal's shift. **Implemented, not wired to any POS UI button yet** |
 
-    Cashier->>POS: tap "Pay" (cash / card / QR)
-    POS->>M: mutation(checkout, orderId, payment)
-    M->>DB: read order (check version, status = draft/held)
-    M->>DB: read shift (must be open)
-    M->>DB: insert payment (idempotencyKey guards retries)
-    M->>DB: patch order.status = paid, paidAt
-    M->>DB: for each recipe ingredient: insert stockMovement (weighted-avg cost update)
-    M->>DB: insert ledgerEntries (debit/credit pair)
-    M-->>POS: { status: "paid" }
-    DB-->>POS: reactive query pushes updated order + shift totals
-    DB-->>Kitchen: reactive query pushes new/updated kitchen ticket
+### `domains/shifts`
+
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.current` | query | POS | Open shift + live summary |
+| `queries.closePreview` | query | POS | What closing now would look like (expected cash, blockers) |
+| `queries.history` | query | POS | Paginated past shifts |
+| `queries.calculateSummary` / `buildClosePreview` / `buildXReportSnapshot` | plain functions | — | Shared math, replayed from `payments`/`shiftEvents`/`orders` |
+| `mutations.open` | mutation | POS | One open shift per terminal |
+| `mutations.recordCashMovement` | mutation | POS | Cash-in (free) / cash-out (manager approval required) |
+| `mutations.close` | mutation | POS | Blocked while any draft/held order remains; manager approval if `\|variance\| ≥ VARIANCE_APPROVAL_KZT` |
+| `mutations.createXReport` | mutation | POS | Manager approval required for a cashier; idempotent replay by key; doesn't close the shift |
+
+### `domains/kitchen`
+
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.board` | query | POS | Open tickets, gated on `requireOperator` (in the reference this was office-gated — Phase 1 has no office auth dependency for the POS-side kitchen display, so it's operator-gated instead) |
+| `mutations.setStatus` | mutation | POS | Advances a ticket's status |
+
+### `domains/office` — bootstrap only
+
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.context` | query | any signed-in office account | `{ready, user, capabilities, restaurants}` — drives the office shell's gating |
+| `mutations.bootstrap` | mutation | exact `OFFICE_BOOTSTRAP_EMAIL` match | One-shot: creates the `administrator` role (`["*"]`) and links the caller's email to it, scoped to every operational restaurant. Idempotent — safe to re-run |
+
+### `domains/stock`
+
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.listInventoryForOffice` | query | office `stock.*` | Items + balances across every operational branch |
+| `queries.listRecentMovements` | query | office `stock.*` | Flat audit log across all items/branches |
+| `mutations.createInventoryItem` | mutation | office `stock.*` | |
+| `mutations.receiveStock` | mutation | office `stock.*` | Updates weighted-average cost; posts a "Закупка сырья" expense to `ledgerEntries` |
+| `mutations.writeOffStock` | mutation | office `stock.*` | Requires a reason; blocked if it would go negative |
+| `mutations.adjustStock` | mutation | office `stock.*` | Sets an exact quantity (inventory count correction); doesn't touch average cost |
+
+### `domains/finance`
+
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.summary` | query | office `finance.*` | Revenue/expense/net + by-category breakdown, filterable by branch/date range |
+| `queries.listEntries` | query | office `finance.*` | Filterable ledger entry list |
+| `queries.restaurantsForFilter` | query | office `finance.*` | Operational restaurants, for the filter dropdown |
+| `mutations.recordExpense` | mutation | office `finance.*` | Manual ledger expense (rent, utilities, payroll — anything with no other source table) |
+| `mutations.backfillFromPayments` | internal mutation | — | One-off: posts ledger entries for `payments`/stock receipts that predate the ledger. Idempotent by `(sourceModuleId, sourceExternalId)`. Already run once against dev |
+
+### `domains/workforce`
+
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.listBranches` | query | office `workforce.*` | Operational restaurants |
+| `queries.listPosEmployees` | query | office `workforce.*` | Every `employees` row, with resolved branch names; **never returns `pinSalt`/`pinHash`** |
+| `queries.listUnprovisioned` | query | office `workforce.*` | Active `iikoEmployees` not yet linked to a POS login, each with its resolved branch (see the `listOperationalRestaurants` note above) |
+| `queries.suggestCredentials` | query | office `workforce.*` | Fresh random 6-digit code (checked for uniqueness) + 4-digit PIN, for prefilling the provision/reset-PIN forms |
+| `mutations.provisionPosAccess` | mutation | office `workforce.*` | Bridges an `iikoEmployees` row to a real `employees` login; code+PIN always chosen and hashed locally |
+| `mutations.setEmployeeActive` | mutation | office `workforce.*` | Toggle active; reactivating also clears `failedAttempts`/`lockedUntil` |
+| `mutations.updateEmployeeAssignment` | mutation | office `workforce.*` | Change role/branches, scope-checked against the caller |
+| `mutations.resetPin` | mutation | office `workforce.*` | Regenerates salt+hash for an existing login |
+
+### `domains/loyalty`
+
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.getOrderGuest` | query | POS | The guest currently attached to an order, if any |
+| `queries.findGuestByPhone` | query | POS | Live lookup while a cashier types a phone number |
+| `queries.listGuests` | query | office `loyalty.*` | Searchable guest directory |
+| `queries.guestHistory` | query | office `loyalty.*` | One guest's `loyaltyTransactions` |
+| `mutations.attachGuestToOrder` | mutation | POS | Find-or-create by phone; **deliberately doesn't bump `orders.version`** (see the comment in the file — it's not a content edit, and bumping it desyncs the POS draft hook's cached version) |
+| `mutations.detachGuestFromOrder` | mutation | POS | Same non-bump rule |
+| `mutations.adjustPoints` | mutation | office `loyalty.*` | Manual +/- correction with a required reason; blocked if it would go negative |
+
+### `domains/reports` — read-only
+
+| Function | Kind | Auth | Purpose |
+|---|---|---|---|
+| `queries.restaurantsForFilter` | query | office `reports.*` | |
+| `queries.salesSummary` | query | office `reports.*` | Revenue/order-count/average-check + by-date, top-products, by-payment-method, filterable — goes to line-item detail the finance P&L can't answer |
+| `queries.listShiftReports` | query | office `reports.*` | Browsable `xReports` history with full detail (this data existed since Phase 1 but had no office-side viewer until Phase 4) |
+
+### `domains/iiko` — read-only sync internals
+
+Called by `scripts/iiko/*.mjs` via `npx convex run`, not by any UI.
+
+| Function | Kind | Purpose |
+|---|---|---|
+| `mutations.beginRun` / `completeRun` / `failRun` | internal mutation | `iikoImportRuns` lifecycle |
+| `mutations.recordEndpointState` | internal mutation | `iikoEndpointStates` per-endpoint health |
+| `mutations.upsertDepartment` / `upsertEmployee` | internal mutation | Single-record upsert (thin wrappers) |
+| `mutations.importBatch` | internal mutation | Batched upsert — the script uses this instead of one `convex run` per record to stay under Convex's per-mutation operation budget |
+| `mutations.saveOverlay` | mutation | Writes an `iikoEntityOverlays` row. Nothing calls this yet |
+| `queries.importRun` | query | One run's status |
+| `queries.endpointStates` | query | All endpoints' last-known health |
+| `queries.mirrorCounts` | query | `{departments, employees}` counts, used by `scripts/iiko/reconcile.mjs` |
+
+### `domains/seed` — internal, dev-time only
+
+| Function | Kind | Purpose |
+|---|---|---|
+| `mutations.seedAll` | internal mutation | Idempotent upsert of org/restaurants/terminals/categories/products/prices/employees from `scripts/seed-sandyq.mjs`'s parsed payload |
+
+## How mutations talk across domains: real side effects
+
+These aren't documented anywhere else as a single list — this is exactly the kind of thing that's easy to lose track of:
+
+1. **`orders/mutations.ts:checkout`** → after marking the order paid:
+   - `lib/finance.ts:postLedgerEntry` — `kind: "revenue"`, category `"Продажи"`, `amount: order.total`.
+   - `lib/loyalty.ts:accrueLoyaltyPoints` — if `order.guestId` is set, `floor(order.total / LOYALTY_ACCRUAL_PER_TENGE)` points, no-ops otherwise.
+2. **`orders/mutations.ts:refund`** → `postLedgerEntry` with `kind: "expense"`, category `"Возврат"`.
+3. **`stock/mutations.ts:receiveStock`** → `postLedgerEntry` with `kind: "expense"`, category `"Закупка сырья"`, `amount: quantity × unitCost`.
+4. **`loyalty/mutations.ts:attachGuestToOrder` / `detachGuestFromOrder`** → patch `orders.guestId` directly, **without** bumping `orders.version` (see the table row above for why — this is a documented exception to invariant #2 below).
+
+Nothing auto-consumes `stockBalances` on checkout — there's no recipe/BOM data to drive it (see [Known gaps](#known-gaps-and-deferred-work)).
+
+## Invariants that matter
+
+Don't simplify these away without understanding why they're there:
+
+1. **Idempotency everywhere money moves.** `checkout`/`refund`/`recordCashMovement`/`createXReport` all take a caller-supplied `idempotencyKey` and short-circuit on replay — a network retry must never double-charge or double-post.
+2. **Optimistic concurrency on order content.** Every mutation that edits an order's lines/discount/table bumps `orders.version`; `saveDraft` rejects a stale `expectedVersion` with "Заказ изменён на другой кассе". This is what two cashiers editing the same table's order at once actually collide against — see the [check-switching bug](#a-fixed-bug-worth-understanding) below for what happens when a client's cached version drifts from the server's for an unrelated reason.
+3. **Manager approval is single-use by construction.** A `posSessions` row with `purpose: "manager-approval"` is revoked the instant `requireManagerApproval` validates it (`lib/auth.ts`) — reusing a token would silently turn a one-time approval into a standing one. Gated actions: discount >`DISCOUNT_APPROVAL_PERCENT`, service-charge waiver, cancel, refund, transfer, every cash-out, shift close with `|variance| ≥ VARIANCE_APPROVAL_KZT`, and an X-report generated by a `cashier` (not required for `manager`/`administrator`).
+4. **Session tokens are never stored raw** — only `sha256(token)`, on both the POS (`posSessions.tokenHash`) and (via Convex Auth) the office side.
+5. **PIN hashing**: PBKDF2-SHA256, 120,000 iterations, 256-bit output, salted per employee, constant-time comparison (`lib/auth.ts`). The same helpers back both `provisionPosAccess` and `resetPin` so a PIN set either way verifies identically.
+
+## Every policy constant (`convex/lib/policy.ts`)
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `SERVICE_CHARGE_PERCENT` | 15 | Printed on every Sandyq menu as «Қызмет ақысы» |
+| `DISCOUNT_APPROVAL_PERCENT` | 10 | Above this, a discount needs manager approval |
+| `VARIANCE_APPROVAL_KZT` | 1000 | Shift-close cash variance threshold for manager approval |
+| `SESSION_TTL_MS` | 12h | Operator PIN session lifetime |
+| `APPROVAL_TTL_MS` | 5min | Manager-approval session lifetime (single-use regardless) |
+| `LOCKOUT_THRESHOLD` / `LOCKOUT_DURATION_MS` | 5 / 10min | Failed-PIN lockout |
+| `IDLE_LOCK_MS` | 5min | Client-side POS idle lock |
+| `LOYALTY_ACCRUAL_PER_TENGE` | 100 | 1 point per 100 ₸ on a paid order's total |
+
+## Frontend structure
+
+Role-first, not layer-first — mirrors the backend's domain-first choice at the top level:
+
+```
+src/
+  main.tsx        ConvexAuthProvider → ThemeProvider → App
+  App.tsx          routes /office vs everything-else (POS) by pathname
+  pos/
+    router.tsx → PosWorkspace
+    components/      app-header, order-panel, product-card, pin-pad — presentational
+    features/<name>/{data,model,ui}
+      session/       PIN login, idle-lock, manager-approval dialog
+      catalog/        product browsing
+      order-taking/   pos-workspace.tsx (the main screen), useOrderDraft (the cart hook),
+                      open-checks-list, discount-dialog
+      checkout/       payment-dialog, receipt formatting
+      shifts/         open/close/X-report dialog
+      kitchen-display/
+      loyalty/        guest-dialog — attach/detach a guest during order-taking
+  office/
+    router.tsx        auth-gates → sign-in / bootstrap / shell
+    components/        office-layout.tsx — sidebar nav across all six modules
+    features/<name>/{data,ui}   catalog, stock, finance, workforce, loyalty, reports
+  shared/
+    components/ui/     button, dialog, badge, scroll-area (Radix-based)
+    components/theme-provider.tsx
+    lib/                cn, formatTenge, errorMessage, almaty-time
+    styles/{theme.css,index.css}   Sandyq brand tokens (see .claude/sandyq-design.skill),
+                                    bridged into Tailwind 4 via @theme inline
 ```
 
-Everything after the idempotency check happens inside **one mutation** — Convex mutations are transactional, so a partial failure (e.g. stock write succeeds but ledger write fails) can't happen; the whole mutation rolls back.
+**`useOrderDraft`** (`pos/features/order-taking/model/use-order-draft.ts`) owns one open check's cart, local-first with autosave-per-edit. It's the most subtle piece of frontend state in the app — every edit computes the next state inside a `setState` functional updater and calls `persist()` from inside that updater, which looks like a code smell but is load-bearing: see the comment directly above `addItem`/`setQuantity` in that file before touching it, and [the note below](#a-fixed-bug-worth-understanding).
 
-### iiko sync
+## A fixed bug worth understanding
 
-```mermaid
-sequenceDiagram
-    participant Dev as Developer (local script)
-    participant IIKO as iiko Server API
-    participant Stage as Local JSONL staging
-    participant Import as import mutation
-    participant DB as Database
+`useOrderDraft` only synced its internal `orderId` state from a `useState` *initializer*, which React only runs on mount — selecting a *different* already-open check via `OpenChecksList` never updated it. Depending on timing, editing the newly selected check either silently created a duplicate order or patched the wrong one, and the hydration effect had its own single-fire guard (`hydratedOnce`) that blocked it from ever re-syncing displayed lines/discount/guest after the first real check load in a session — so switching checks could show one check's data under another's id.
 
-    Dev->>IIKO: GET /auth?login&pass=sha1(password)
-    IIKO-->>Dev: session key
-    Dev->>IIKO: GET /corporation/departments, /products, /employees, ...
-    IIKO-->>Dev: XML payloads
-    Dev->>Stage: sanitize, checksum, write JSONL
-    Dev->>Import: run import per entity type
-    Import->>DB: lookup existing record by externalId
-    alt hash changed or new
-        Import->>DB: insert/patch record, sourceSystem="iiko-server", sourceHash
-    else unchanged
-        Import->>DB: skip (idempotent re-run)
-    end
-    Import->>DB: write iikoImportRuns entry (audit)
-    Dev->>IIKO: GET /logout
+Fixed (commit `a1ebcc9`) by threading a `selectionKey` (bumped by the caller on every explicit `selectCheck()`) through the hook, and resyncing only once hydration for the *newly selected* id actually arrives. Regression-tested in `use-order-draft.test.ts` — those three tests were verified to fail against the pre-fix hook before being trusted.
+
+A follow-up attempt to also clean up the "`persist()` inside a `setState` updater" pattern (to quiet a cosmetic, dev-only React 18 StrictMode double-invoke warning) turned out to be a real bug: reading the computed value back out of the updater into an outer variable assumes the updater runs synchronously, which React doesn't guarantee — `persist()` ran with the *old* (empty, on a new order) value and silently saved an empty order. Reverted; left as a comment in the code so it isn't attempted again without solving that.
+
+## iiko integration
+
+Read-only, forever — see the rule in [README.md](../README.md). `scripts/iiko/lib.mjs`'s `IikoClient` only ever exposes `.get()`.
+
+```
+scripts/iiko/
+  lib.mjs                IikoClient (session-key auth via GET /auth?login=&pass=sha1(password)),
+                          XML tokenizer/parser, sanitizeRecord allowlists, hashing
+  endpoint-registry.mjs   the only two endpoints ever called: corporation/departments, employees
+  extract.mjs             --discover-only maps the API surface (application.wadl) without
+                          pulling data; otherwise fetches, filters, sanitizes, stages to
+                          .iiko-cache/<run>/staging.jsonl
+  import-convex.mjs       reads the staged file, chunks into batches of 50 (Convex's
+                          per-mutation operation budget), calls domains/iiko/mutations
+  reconcile.mjs           compares staged vs mirrored counts, exits non-zero on mismatch
+  seed.mjs                orchestrates extract → import → reconcile
 ```
 
-No step in this flow ever issues a `POST`/`PUT`/`DELETE` against `IIKO` — only the initial `auth` and the read endpoints.
+**Brand scoping**: the iiko account is a holding of 8 brands sharing one corporate structure (~30 branches, ~2,700+ employees). `extract.mjs` filters department names by `["sandyq", "сандык"]` (case-insensitive substring — the Cyrillic alias exists because one real department, "Сандык Кайнар", has no Latin spelling) before anything reaches the local staging file, let alone Convex.
 
-## User story — step by step
+**PII-safe by allowlist, not blocklist**: `sanitizeRecord`'s field lists (`lib.mjs`) are the *only* fields ever read out of a source response. `iikoEmployees` structurally cannot carry a phone/email/IIN/login, because those keys are never selected in the first place — there's no PII-strip regex to keep in sync.
 
-### Cashier: a full shift
+**Idempotent re-import**: `mirrorKey = "<endpointKey>:<recordExternalId>"`; a record is only re-applied to canonical tables when its `payloadHash` actually changed since the last import.
 
-1. Cashier opens the terminal, enters their employee **code + PIN** → `posAuth` action validates against `employees.pinHash`, issues a session token (hashed, stored in `posSessions`).
-2. Cashier opens the shift, counting and entering the opening cash float → `shifts` row created with `status: "open"`, `openingCash` set.
-3. A guest orders. Cashier adds products to a draft order (`orders` + `orderLines`), applying any size/modifier selections.
-4. Cashier sends the order to the kitchen → a `kitchenTickets` row (+ `kitchenTicketLines`) is created; the kitchen display's reactive query updates instantly with no polling.
-5. Kitchen advances the ticket through `queued → preparing → ready → completed` as the dish is made; the cashier's UI reflects each state change live.
-6. Guest pays. Cashier records the payment (cash/card/QR) → the checkout mutation runs (see sequence diagram above): payment recorded, order marked `paid`, stock written off at weighted-average cost, ledger entries posted.
-7. A refund or void, if needed, requires a **manager's PIN** for a short-lived, single-use approval session before the mutation is allowed to run.
-8. At end of shift, cashier counts the cash drawer and closes the shift → the system computes `expectedCash` from opening float + cash sales − refunds + insertions − withdrawals, compares to the counted amount, and generates an immutable **Z-report** (`xReports`) recording any variance.
+## Environments
 
-### Office admin: bringing Sandyq's real data online
+| | dev | production |
+|---|---|---|
+| Deployment | `dapper-lobster-404` | `clear-flamingo-97` |
+| Reference | `echo-dev-echo:sandyq-9e7e9:dev/dapper-lobster-404` | `echo-dev-echo:sandyq-9e7e9:production` |
+| Data | Full of test data from building this project | Real catalog (135 products, 3 branches) + real iiko mirror (12 departments, 363 employees) |
+| `employees`/`officeRoles`/`officeUsers` | Has test rows | **Deliberately empty** — see below |
+| Reached by | `npx convex dev`, all `npm run iiko:*` / `npm run seed` by default | `npx convex deploy`, `npm run seed -- --prod`, any command with `CONVEX_DEPLOY_KEY` set |
 
-1. Admin signs in to the back office (email-based auth); the very first account is created via a one-time bootstrap tied to a pre-configured admin email.
-2. Admin (or a developer, from the command line) runs iiko discovery — confirms the API surface and credentials are valid, with nothing written yet.
-3. Admin runs a master-data sync — pulls organization structure, branches, menu/products, employees from the real Sandyq iiko account into the mirror tables (`iikoDepartments`, `iikoEmployees`, products/categories with `sourceSystem: "iiko-server"`).
-4. Admin reviews the imported catalog/branches in the back office and activates the ones in scope (e.g. only Sandyq's own branches, not the holding's other brands).
-5. Admin provisions POS access for real staff: picks an imported iiko employee, assigns a terminal, and sets a **new** cashier code + PIN — this credential is generated here, not imported from iiko.
-6. Cashiers can now log in at the terminal with their new code + PIN and start taking real orders against real menu data, following the cashier flow above.
-7. Admin periodically re-runs the sync to refresh master data (new/changed products, new employees); reconciliation checks sample recent totals against iiko to catch drift.
+**Production is infrastructure-ready, not live.** `scripts/seed-sandyq.mjs --prod` is a deliberate, explicit override of the script's default dev-only guard — and as its own hard safety rail, it never generates employee PIN credentials, only catalog/org data. Nobody can sign into `/pos` or `/office` on prod until PINs are provisioned (via the office Кадры screen) and the office is bootstrapped — both need an explicit go-ahead, not an assumption. Every prod deploy key used to set this up was minted one-off (`npx convex deployment token create … --deployment prod`), used inline as `CONVEX_DEPLOY_KEY`, and revoked immediately after (`deployment token delete`) — never leave a standing prod credential around.
+
+No frontend hosting is configured yet — `VITE_CONVEX_URL` would need to point at `https://clear-flamingo-97.convex.cloud` for a production frontend build, and prod's `SITE_URL` (used by Convex Auth) is currently still a placeholder (`https://sandyq-office.example`) pending a real domain decision.
+
+## Testing
+
+- **`convex/posFlows.test.ts`** (`convex-test`, backend, no DOM) — the core POS flow: two parallel table checks with independent service-charge math, checkout, shift close; a stale-`expectedVersion` rejection; loyalty accrual on checkout; refund method enforcement + ledger posting; X-report manager-approval + idempotent replay.
+- **`src/pos/features/order-taking/model/use-order-draft.test.ts`** (`@testing-library/react` + jsdom) — the check-selection-sync regression suite described above.
+
+Run both with `npm run test`. No component/UI tests beyond that — everything else in this project was verified by hand in the browser during development (see commit messages for what was actually clicked through).
+
+## Known gaps and deferred work
+
+Real gaps, not oversights — each was a deliberate call given what data actually exists:
+
+- **No recipes/BOM.** The seeded menu has no ingredient data, so checkout doesn't auto-consume `stockBalances` — stock receipts and write-offs are entered by office staff by hand. Adding recipes is the natural next step once that data exists (from the business or from a future iiko products/technical-cards sync).
+- **No loyalty redemption.** Points only accrue. Spending them at checkout would change the payment-total math the same way a discount does, and deserves the same manager-approval treatment `saveDraft`'s discount path already has — not something to bolt on casually.
+- **`orders/mutations.ts:transfer` exists and is tested-by-nothing-but-itself** — implemented (move a held order to another terminal's shift, manager-approved) but no POS UI button calls it yet.
+- **`iikoEntityOverlays` and `domains/iiko/mutations.ts:saveOverlay`** exist in the schema/API but nothing writes to them — reserved for a future "office edits a field on an iiko-imported entity without a re-import clobbering it" flow.
+- **`orderDeletionEvents`** table exists, nothing writes to it yet — reserved for a "remove a line item with a reason" flow distinct from cancelling the whole order.
+- **Fiscalization is unresolved.** Every `xReports` row is `nonFiscal: true` by design — this is a non-fiscal pilot running alongside iiko, not a registered-cash-register replacement, until that's explicitly confirmed with the business (see the BRD).
+- **No frontend hosting.** See [Environments](#environments).
