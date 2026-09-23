@@ -1,8 +1,6 @@
 import { v } from "convex/values"
 
 import { internalMutation, mutation } from "../../_generated/server"
-import { derivePinHash, randomPinSalt } from "../../lib/auth"
-import { employeeRole } from "../../lib/validators"
 
 // --- Run tracking (called from scripts/iiko/import-convex.mjs via `npx convex run`) -------
 
@@ -160,57 +158,8 @@ export const importBatch = internalMutation({
   },
 })
 
-// --- Bridging an imported iiko person to a real POS login ---------------------------------
-
-/**
- * Turns an imported iiko employee into a working cashier login. The code + PIN are always
- * chosen and hashed here, locally — iiko never supplies, sees, or influences a credential.
- */
-export const provisionPosAccess = mutation({
-  args: {
-    iikoEmployeeExternalId: v.string(),
-    employeeCode: v.string(),
-    pin: v.string(),
-    role: employeeRole,
-    restaurantExternalIds: v.array(v.string()),
-  },
-  handler: async (ctx, args) => {
-    if (!/^\d{4,12}$/.test(args.employeeCode)) throw new Error("Код сотрудника должен состоять из 4–12 цифр")
-    if (!/^\d{4,12}$/.test(args.pin)) throw new Error("PIN должен состоять из 4–12 цифр")
-    if (!args.restaurantExternalIds.length) throw new Error("Выберите хотя бы один ресторан")
-
-    const source = await ctx.db.query("iikoEmployees").withIndex("by_external_id", (q) => q.eq("externalId", args.iikoEmployeeExternalId)).unique()
-    if (!source?.active) throw new Error("Активный сотрудник iiko не найден")
-
-    const restaurantIds = []
-    for (const externalId of new Set(args.restaurantExternalIds)) {
-      const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()
-      if (!restaurant?.active) throw new Error(`Активный ресторан не найден: ${externalId}`)
-      restaurantIds.push(restaurant._id)
-    }
-
-    const byCode = await ctx.db.query("employees").withIndex("by_code", (q) => q.eq("code", args.employeeCode)).unique()
-    const bySource = await ctx.db.query("employees").withIndex("by_iiko_employee_external_id", (q) => q.eq("iikoEmployeeExternalId", args.iikoEmployeeExternalId)).unique()
-    if (byCode && byCode._id !== bySource?._id) throw new Error("Этот код сотрудника уже используется")
-
-    const pinSalt = randomPinSalt()
-    const pinHash = await derivePinHash(args.pin, pinSalt)
-    const value = {
-      code: args.employeeCode,
-      displayName: source.displayName,
-      role: args.role,
-      restaurantIds,
-      pinSalt,
-      pinHash,
-      active: true,
-      failedAttempts: 0,
-      iikoEmployeeExternalId: args.iikoEmployeeExternalId,
-    }
-    if (bySource) await ctx.db.patch(bySource._id, value)
-    else await ctx.db.insert("employees", value)
-    return { code: args.employeeCode }
-  },
-})
+// provisionPosAccess moved to domains/workforce/mutations.ts (office-gated, audited, and
+// restaurant-scope-checked) — this domain stays narrowly about read-only sync.
 
 export const saveOverlay = mutation({
   args: { entityType: v.string(), sourceExternalId: v.string(), data: v.any() },

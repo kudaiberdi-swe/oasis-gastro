@@ -14,18 +14,8 @@ export const endpointStates = query({
   handler: async (ctx) => ctx.db.query("iikoEndpointStates").collect(),
 })
 
-/** Candidates for provisionPosAccess — active iiko employees not yet linked to a POS login. */
-export const unprovisionedEmployees = query({
-  args: {},
-  handler: async (ctx) => {
-    const [iikoEmployees, posEmployees] = await Promise.all([
-      ctx.db.query("iikoEmployees").withIndex("by_active_and_display_name", (q) => q.eq("active", true)).take(500),
-      ctx.db.query("employees").collect(),
-    ])
-    const linked = new Set(posEmployees.map((e) => e.iikoEmployeeExternalId).filter(Boolean))
-    return iikoEmployees.filter((e) => !linked.has(e.externalId))
-  },
-})
+// unprovisionedEmployees moved to domains/workforce/queries.ts:listUnprovisioned (office-gated,
+// and enriched with resolved branch names) — this domain stays narrowly about read-only sync.
 
 export const mirrorCounts = query({
   args: {},
