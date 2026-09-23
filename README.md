@@ -70,6 +70,8 @@ The bare root URL (no `?terminal=`) currently throws — the POS has no branch c
 
 **Test office account** (created via the real sign-up flow, then bootstrapped as administrator — not a raw DB insert): `test@sandyq.local` / `TestPass123`. Synthetic, not a real staff member — rotate or delete before any real handoff. `OFFICE_BOOTSTRAP_EMAIL` on prod is currently set to this address.
 
+**Test POS PIN**: cashier code `338395` / PIN `5950`, terminal Sandyq Алматы. Provisioned via the office Кадры → «Из iiko» → «Подключить» flow (real `provisionPosAccess` mutation, not a raw DB insert) against the `iikosup` iiko account — a technical/support identity, not a real staff member. Revoke via Кадры → Сотрудники кассы before any real handoff.
+
 ## CI/CD
 
 Two independent GitHub Actions workflows on `goecho-ai/sandyq`, both push-triggered on `main`:
