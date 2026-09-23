@@ -2,6 +2,8 @@ import { v } from "convex/values"
 
 export const employeeRole = v.union(v.literal("cashier"), v.literal("manager"), v.literal("administrator"))
 
+export const unit = v.union(v.literal("кг"), v.literal("л"), v.literal("шт"), v.literal("порц."))
+
 export const orderStatus = v.union(
   v.literal("draft"),
   v.literal("held"),

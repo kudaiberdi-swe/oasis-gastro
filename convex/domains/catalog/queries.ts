@@ -4,6 +4,8 @@ import { v } from "convex/values"
 import type { QueryCtx } from "../../_generated/server"
 import { query } from "../../_generated/server"
 import type { Doc, Id } from "../../_generated/dataModel"
+import { requireOfficeCapability } from "../../lib/officeAccess"
+import { listOperationalRestaurants } from "../../lib/restaurants"
 import type { PosProduct } from "./types"
 
 export async function resolveProductPrice(ctx: QueryCtx, product: Doc<"products">, restaurantExternalId: string): Promise<number> {
@@ -65,6 +67,31 @@ export const getProduct = query({
     const product = await ctx.db.get(args.productId)
     if (!product) return null
     return withResolvedPrice(ctx, product, args.restaurantExternalId)
+  },
+})
+
+/** Office catalog management — every category/product regardless of `active`/`enabled`, with per-branch prices attached. */
+export const listAllForOffice = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireOfficeCapability(ctx, "office.catalog.*")
+    const [categories, products, prices, restaurants] = await Promise.all([
+      ctx.db.query("categories").withIndex("by_sort_order").collect(),
+      ctx.db.query("products").collect(),
+      ctx.db.query("productPrices").collect(),
+      listOperationalRestaurants(ctx),
+    ])
+    const pricesByProduct = new Map<Id<"products">, { restaurantExternalId: string; priceKzt: number }[]>()
+    for (const price of prices) {
+      const list = pricesByProduct.get(price.productId) ?? []
+      list.push({ restaurantExternalId: price.restaurantExternalId, priceKzt: price.priceKzt })
+      pricesByProduct.set(price.productId, list)
+    }
+    return {
+      categories,
+      restaurants,
+      products: products.map((product) => ({ ...product, prices: pricesByProduct.get(product._id) ?? [] })),
+    }
   },
 })
 

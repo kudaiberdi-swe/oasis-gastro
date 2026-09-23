@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
+import { authTables } from "@convex-dev/auth/server"
 
 const unit = v.union(v.literal("кг"), v.literal("л"), v.literal("шт"), v.literal("порц."))
 
@@ -26,6 +27,31 @@ const kitchenStatus = v.union(
 )
 
 export default defineSchema({
+  ...authTables,
+
+  // --- Office identity ----------------------------------------------------
+  // Office sign-in (Convex Auth, email+password) is entirely separate from POS PIN
+  // sessions — an authTables user only gets office access once bootstrap() or an
+  // administrator links their email to an officeUsers row.
+
+  officeRoles: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    capabilities: v.array(v.string()), // "*" or "office.<module>.*" or "office.<module>.<action>"
+    system: v.boolean(), // seeded by bootstrap(); not user-deletable
+  }).index("by_external_id", ["externalId"]),
+
+  officeUsers: defineTable({
+    externalId: v.string(),
+    email: v.string(),
+    name: v.string(),
+    roleExternalId: v.string(),
+    restaurantScopes: v.array(v.string()), // restaurants.externalId[], or ["*"] for all branches
+    active: v.boolean(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_email", ["email"]),
+
   // --- Identity & org ---------------------------------------------------
 
   organizations: defineTable({
@@ -372,7 +398,7 @@ export default defineSchema({
     resourceType: v.string(),
     resourceExternalId: v.string(),
     organizationExternalId: v.string(),
-    restaurantExternalId: v.string(),
+    restaurantExternalId: v.optional(v.string()), // absent for office actions that aren't scoped to one branch (e.g. catalog edits)
     occurredAt: v.number(),
     terminalId: v.optional(v.id("posTerminals")),
     actorId: v.optional(v.id("employees")),
