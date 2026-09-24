@@ -4,6 +4,10 @@ export function formatAlmatyDateTime(value: number) {
   return new Date(value).toLocaleString("ru-RU", { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
 }
 
+export function formatAlmatyDate(value: number) {
+  return new Date(value).toLocaleDateString("ru-RU", { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", year: "numeric" })
+}
+
 export function formatAlmatyTime(value: number) {
   return new Date(value).toLocaleString("ru-RU", { timeZone: "Asia/Almaty", hour: "2-digit", minute: "2-digit" })
 }

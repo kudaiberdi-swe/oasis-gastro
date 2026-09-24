@@ -1,9 +1,14 @@
-import type { ReactNode } from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { Menu } from "lucide-react"
+import { useEffect, useState, type ReactNode } from "react"
+import { useLocation } from "react-router"
 
 import { useSidebarCollapsed } from "@/office/data/use-office-navigation"
 import type { OfficeNavigationGroup } from "@/office/model/navigation"
 import { Breadcrumb, PageHeader } from "@/shared/components/ui"
-import { cn } from "@/shared/lib/utils"
+import { overlayClass } from "@/shared/components/ui/dialog"
+import { useBreakpoint } from "@/shared/hooks/use-breakpoint"
+import { cn, focusRingClass } from "@/shared/lib/utils"
 
 import { Sidebar } from "./sidebar"
 
@@ -19,6 +24,49 @@ export interface OfficeShellProps {
 /** Office frame: dark sidebar + content. No POS header here (L-7). */
 export function OfficeShell({ groups, activeItemId, userName, footerLine, onSignOut, children }: OfficeShellProps) {
   const { collapsed, canToggle, toggle } = useSidebarCollapsed()
+  const breakpoint = useBreakpoint()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const location = useLocation()
+  useEffect(() => setMenuOpen(false), [location.pathname])
+
+  // <1024: view mode — the sidebar slides in over the page from a top bar (OFFICE-DESIGN §8).
+  if (breakpoint === "mobile") {
+    return (
+      <div className="flex h-full min-h-0 flex-col bg-background">
+        <header className="flex h-14 shrink-0 items-center gap-3 bg-nav px-3 text-nav-foreground">
+          <button
+            type="button"
+            aria-label="Меню"
+            onClick={() => setMenuOpen(true)}
+            className={cn("grid size-11 place-items-center rounded-control hover:bg-nav-raised", focusRingClass, "focus-visible:outline-nav-accent")}
+          >
+            <Menu className="size-5" />
+          </button>
+          <span className="font-display text-title-sm font-semibold">Sandyq Office</span>
+        </header>
+        <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Overlay className={overlayClass} />
+            <DialogPrimitive.Content aria-describedby={undefined} className="fixed inset-y-0 left-0 z-50 flex data-[state=open]:animate-in data-[state=open]:slide-in-from-left">
+              <DialogPrimitive.Title className="sr-only">Навигация офиса</DialogPrimitive.Title>
+              <Sidebar
+                groups={groups}
+                activeItemId={activeItemId}
+                collapsed={false}
+                canToggleCollapsed={false}
+                onToggleCollapsed={toggle}
+                userName={userName}
+                footerLine={footerLine}
+                onSignOut={onSignOut}
+              />
+            </DialogPrimitive.Content>
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full min-h-0 bg-background">
       <Sidebar

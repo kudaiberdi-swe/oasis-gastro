@@ -1,6 +1,7 @@
 import * as React from "react"
 import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react"
 
+import { useBreakpoint } from "@/shared/hooks/use-breakpoint"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
 import { Banner } from "./banner"
@@ -93,6 +94,8 @@ export function DataTable<T>({
   }, [rows, columns, sort, serverSorted])
 
   const showSkeleton = loading || rows === undefined
+  // <1024 the office is view-only and rows become cards: first column as the title, the rest as label: value.
+  const cards = useBreakpoint() === "mobile"
 
   return (
     <div className={cn("flex min-w-0 flex-col overflow-hidden rounded-card border border-border bg-card", className)}>
@@ -103,31 +106,64 @@ export function DataTable<T>({
           </Banner>
         </div>
       ) : null}
+      {cards && !showSkeleton ? (
+        <ul className="flex flex-col divide-y divide-border">
+          {sortedRows!.map((row) => {
+            const id = getRowId(row)
+            const [first, ...rest] = columns
+            const content = (
+              <>
+                <div className="text-body-sm font-semibold text-foreground">{first.cell(row)}</div>
+                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-caption">
+                  {rest.map((column) => (
+                    <React.Fragment key={column.key}>
+                      <dt className="text-muted-foreground">{column.header}</dt>
+                      <dd className={cn("text-foreground", column.numeric && "tabular-nums")}>{column.cell(row)}</dd>
+                    </React.Fragment>
+                  ))}
+                </dl>
+              </>
+            )
+            return (
+              <li key={id} className={cn(selectedId === id && "bg-muted shadow-[inset_2px_0_0_var(--gold)]")}>
+                {onRowClick ? (
+                  <button type="button" onClick={() => onRowClick(row)} className={cn("block w-full px-4 py-3 text-left hover:bg-muted", focusRingClass)}>
+                    {content}
+                  </button>
+                ) : (
+                  <div className="px-4 py-3">{content}</div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
       <div className="min-w-0 overflow-x-auto">
-        <table className="w-full border-collapse text-body-sm">
-          {caption ? <caption className="sr-only">{caption}</caption> : null}
-          <thead>
-            <tr className="border-b border-border">
-              {columns.map((column) => {
-                const active = sort?.key === column.key
-                return (
-                  <th
-                    key={column.key}
-                    scope="col"
-                    aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : column.sortValue ? "none" : undefined}
-                    className={cn("h-10 px-4 text-caption font-semibold whitespace-nowrap text-muted-foreground", column.numeric ? "text-right" : "text-left", column.className)}
-                  >
-                    {column.sortValue ? (
-                      <button
-                        type="button"
-                        onClick={() => setSort(column.key)}
-                        className={cn("inline-flex items-center gap-1 rounded-control hover:text-foreground", active && "text-foreground", focusRingClass)}
-                      >
-                        {column.header}
-                        {active ? sort.direction === "asc" ? <ArrowUp aria-hidden className="size-3.5" /> : <ArrowDown aria-hidden className="size-3.5" /> : null}
-                      </button>
-                    ) : (
-                      column.header
+        {cards && !showSkeleton ? null : (
+          <table className="w-full border-collapse text-body-sm">
+            {caption ? <caption className="sr-only">{caption}</caption> : null}
+            <thead>
+              <tr className="border-b border-border">
+                {columns.map((column) => {
+                  const active = sort?.key === column.key
+                  return (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : column.sortValue ? "none" : undefined}
+                      className={cn("h-10 px-4 text-caption font-semibold whitespace-nowrap text-muted-foreground", column.numeric ? "text-right" : "text-left", column.className)}
+                    >
+                      {column.sortValue ? (
+                        <button
+                          type="button"
+                          onClick={() => setSort(column.key)}
+                          className={cn("inline-flex items-center gap-1 rounded-control hover:text-foreground", active && "text-foreground", focusRingClass)}
+                        >
+                          {column.header}
+                          {active ? sort.direction === "asc" ? <ArrowUp aria-hidden className="size-3.5" /> : <ArrowDown aria-hidden className="size-3.5" /> : null}
+                        </button>
+                      ) : (
+                        column.header
                     )}
                   </th>
                 )
@@ -178,6 +214,7 @@ export function DataTable<T>({
               })}
           </tbody>
         </table>
+        )}
         {showSkeleton ? <SkeletonRows className="p-3" /> : null}
         {!showSkeleton && sortedRows!.length === 0 && !error ? empty ?? <p className="px-4 py-10 text-center text-body-sm text-muted-foreground">Записей нет</p> : null}
       </div>

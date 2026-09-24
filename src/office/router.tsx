@@ -3,7 +3,9 @@ import { useConvexAuth } from "convex/react"
 import { useMemo, type ComponentType } from "react"
 import { Navigate, useParams } from "react-router"
 
+import { CapabilitiesProvider } from "@/office/components/can"
 import { OfficePage, OfficeShell } from "@/office/components/office-shell"
+import { OfficeStatePage } from "@/office/components/state-page"
 import { CatalogWorkspace } from "@/office/features/catalog/ui/catalog-workspace"
 import { FinanceWorkspace } from "@/office/features/finance/ui/finance-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
@@ -58,25 +60,27 @@ export function OfficeRouter() {
   const allowed = allowsCapability(context.capabilities, item.capability)
 
   return (
-    <OfficeShell groups={groups} activeItemId={item.id} userName={context.user?.name} footerLine={footerLine} onSignOut={() => void signOut()}>
-      {!allowed ? (
-        <OfficePage group={group} title={item.label}>
-          <EmptyState size="lg" title="Нет доступа" description="У вашей роли нет права на этот раздел. Обратитесь к администратору." />
-        </OfficePage>
-      ) : Workspace ? (
-        <OfficePage group={group} title={item.label} description={item.description} layout="fill">
-          <Workspace />
-        </OfficePage>
-      ) : (
-        <OfficePage group={group} title={item.label} description={item.description}>
-          <EmptyState
-            size="lg"
-            title={item.id === "integration-egais" ? "Недоступно для Казахстана" : "Раздел в разработке"}
-            description={item.id === "integration-egais" ? "ЕГАИС — российская система учёта алкоголя; в Казахстане она не применяется." : "Раздел появится в одной из следующих поставок плана."}
-          />
-        </OfficePage>
-      )}
-    </OfficeShell>
+    <CapabilitiesProvider capabilities={context.capabilities}>
+      <OfficeShell groups={groups} activeItemId={item.id} userName={context.user?.name} footerLine={footerLine} onSignOut={() => void signOut()}>
+        {!allowed ? (
+          <OfficePage group={group} title={item.label}>
+            <OfficeStatePage state={{ kind: "denied" }} />
+          </OfficePage>
+        ) : Workspace ? (
+          <OfficePage group={group} title={item.label} description={item.description} layout="fill">
+            <Workspace />
+          </OfficePage>
+        ) : (
+          <OfficePage group={group} title={item.label} description={item.description}>
+            <EmptyState
+              size="lg"
+              title={item.id === "integration-egais" ? "Недоступно для Казахстана" : "Раздел в разработке"}
+              description={item.id === "integration-egais" ? "ЕГАИС — российская система учёта алкоголя; в Казахстане она не применяется." : "Раздел появится в одной из следующих поставок плана."}
+            />
+          </OfficePage>
+        )}
+      </OfficeShell>
+    </CapabilitiesProvider>
   )
 }
 
