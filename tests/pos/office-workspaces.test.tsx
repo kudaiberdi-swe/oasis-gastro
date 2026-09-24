@@ -4,7 +4,6 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { CatalogWorkspace } from "@/office/features/catalog/ui/catalog-workspace"
-import { FinanceWorkspace } from "@/office/features/finance/ui/finance-workspace"
 import { StockWorkspace } from "@/office/features/stock/ui/stock-workspace"
 import { formatQuantity, formatTenge } from "@/shared/lib/format"
 
@@ -35,20 +34,6 @@ vi.mock("@/office/features/stock/data/use-office-stock", () => ({
   }),
 }))
 
-const summaryFilters: unknown[] = []
-vi.mock("@/office/features/finance/data/use-office-finance", () => ({
-  useFinanceRestaurants: () => restaurants,
-  useFinanceSummary: (filter: unknown) => {
-    summaryFilters.push(filter)
-    return { loading: false, summary: { revenue: 100_000, expense: 40_000, net: 60_000, byCategory: [{ category: "Аренда", kind: "expense", amount: 40_000 }] } }
-  },
-  useFinanceEntries: () => ({
-    loading: false,
-    entries: [{ _id: "e1", businessDate: "2026-09-01", restaurantExternalId: "r1", category: "Аренда", description: "Сентябрь", sourceModuleId: "manual", kind: "expense", amount: 40_000 }],
-  }),
-  useRecordExpense: () => vi.fn(),
-}))
-
 afterEach(cleanup)
 
 describe("office workspaces on the shared primitives (W0-FND-05)", () => {
@@ -68,12 +53,5 @@ describe("office workspaces on the shared primitives (W0-FND-05)", () => {
     expect(screen.getByText("Списание")).toBeTruthy()
     expect(screen.getByText(formatQuantity(-1.5, "кг"), exact)).toBeTruthy()
     expect(screen.queryByRole("button", { name: /Добавить товар/ })).toBeNull()
-  })
-
-  it("finance shows signed amounts and maps «Все филиалы» to no filter", () => {
-    render(<FinanceWorkspace />)
-    expect(summaryFilters.at(-1)).toEqual({ restaurantExternalId: undefined, from: undefined, to: undefined })
-    expect(screen.getAllByText(formatTenge(-40_000), exact).length).toBeGreaterThan(0)
-    expect(screen.getByRole("combobox", { name: "Филиал" }).textContent).toContain("Все филиалы")
   })
 })

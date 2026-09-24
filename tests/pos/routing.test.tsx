@@ -19,7 +19,7 @@ vi.mock("@/office/features/session/data/use-office-context", () => ({
 vi.mock("@/pos/router", () => ({ PosRouter: () => <p>POS screen</p> }))
 vi.mock("@/office/features/nomenclature/ui/nomenclature-workspace", () => ({ NomenclatureWorkspace: () => <p>NomenclatureWorkspace</p> }))
 vi.mock("@/office/features/stock/ui/balances-page", () => ({ BalancesPage: () => <p>BalancesPage</p> }))
-vi.mock("@/office/features/finance/ui/finance-workspace", () => ({ FinanceWorkspace: () => <p>FinanceWorkspace</p> }))
+vi.mock("@/office/features/finance/ui/journal-workspace", () => ({ TransactionsWorkspace: () => <p>TransactionsWorkspace</p> }))
 vi.mock("@/office/features/workforce/ui/workforce-workspace", () => ({ WorkforceWorkspace: () => <p>WorkforceWorkspace</p> }))
 vi.mock("@/office/features/loyalty/ui/loyalty-workspace", () => ({ LoyaltyWorkspace: () => <p>LoyaltyWorkspace</p> }))
 vi.mock("@/office/features/reports/ui/reports-workspace", () => ({ ReportsWorkspace: () => <p>ReportsWorkspace</p> }))

@@ -7,7 +7,10 @@ import { CapabilitiesProvider } from "@/office/components/can"
 import { AccessControlWorkspace } from "@/office/features/access-control/ui/access-control-workspace"
 import { OfficePage, OfficeShell } from "@/office/components/office-shell"
 import { OfficeStatePage } from "@/office/components/state-page"
-import { FinanceWorkspace } from "@/office/features/finance/ui/finance-workspace"
+import { CashflowCategoriesWorkspace } from "@/office/features/finance/ui/cashflow-categories-workspace"
+import { CounterpartiesWorkspace } from "@/office/features/finance/ui/counterparties-workspace"
+import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
+import { ShiftAcceptanceWorkspace } from "@/office/features/finance/ui/shift-acceptance-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
 import { ModifiersWorkspace } from "@/office/features/modifiers/ui/modifiers-workspace"
 import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomenclature-workspace"
@@ -59,7 +62,10 @@ const WORKSPACES: Record<string, ComponentType> = {
   writeoffs: WriteoffsWorkspace,
   "outgoing-invoices": OutgoingInvoicesWorkspace,
   "supplier-returns": SupplierReturnsWorkspace,
-  transactions: FinanceWorkspace,
+  "cashflow-categories": CashflowCategoriesWorkspace,
+  counterparties: CounterpartiesWorkspace,
+  transactions: TransactionsWorkspace,
+  "shift-acceptance": ShiftAcceptanceWorkspace,
   employees: WorkforceWorkspace,
   attendance: AttendanceWorkspace,
   guests: LoyaltyWorkspace,
