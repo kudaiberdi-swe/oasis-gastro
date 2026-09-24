@@ -40,7 +40,8 @@ npm run iiko:seed       # extract → import → reconcile, scoped to Sandyq onl
 | `npx convex dev` | Watches `convex/` and pushes to the dev deployment on save |
 | `npm run build` | Typecheck + production frontend build |
 | `npm run typecheck` | `tsc -b` across the whole repo (frontend + convex) |
-| `npm run test` | Runs `convex/posFlows.test.ts` (backend, `convex-test`) and any `*.test.ts` under `src/` |
+| `npm run test` | Runs every test under `tests/` (vitest): `tests/convex` (backend, `convex-test`), `tests/pos` (UI, jsdom), `tests/scripts` (guards) |
+| `npm run guards` | Static checks for the hard rules (auth on public functions, `ConvexError`, design tokens) against `scripts/guards/baseline.json` |
 | `npm run seed` | Idempotent — safe to re-run. Refuses to run against anything but a dev deployment unless `--prod` is passed (and `--prod` never creates PIN credentials — see below) |
 | `npm run iiko:discover` / `iiko:extract` / `iiko:import` / `iiko:reconcile` / `iiko:seed` | iiko sync pipeline stages — see the runbook |
 
@@ -89,9 +90,11 @@ Secrets (`goecho-ai/sandyq` repo settings): `AZURE_STATIC_WEB_APPS_API_TOKEN` an
 
 ## Testing
 
-`convex/posFlows.test.ts` exercises the core POS flow end-to-end against a real (in-memory) Convex instance via `convex-test`: two parallel table checks with independent service-charge math, checkout, optimistic-concurrency rejection, loyalty accrual, refund + ledger posting, and X-report manager-approval/idempotency.
+All tests live in `tests/` (vitest picks up only `tests/**/*.test.{ts,tsx,mjs}`; `npm run typecheck` also typechecks them via `tsconfig.test.json`):
 
-`src/pos/features/order-taking/model/use-order-draft.test.ts` is a frontend regression suite (`@testing-library/react` + jsdom) pinning down the check-selection-sync bug described in `git log` (commit `a1ebcc9`) — switching between two already-open checks must load the newly selected one's own data, not the previous check's under the new id.
+- `tests/convex/` — backend against an in-memory Convex (`convex-test`). `posFlows.test.ts`: parallel table checks and service-charge math, checkout, optimistic concurrency, loyalty accrual and reversal on refund, refund + ledger posting, X-report approval/idempotency and rounded discounts, sales report net of refunds, ledger backfill of split payments, kitchen isolation by restaurant, catalog and iiko access. `officeScope.test.ts`: a branch-scoped office user never sees or changes another branch.
+- `tests/pos/` — UI with `@testing-library/react` + jsdom. `use-order-draft.test.ts` pins the check-selection-sync bug (commit `a1ebcc9`); `pos-dialogs.test.tsx` covers the blind shift count, discount re-sync, guest-detach errors and payment rows/cash presets.
+- `tests/scripts/` — the guard script itself.
 
 ## Known gaps
 
