@@ -96,7 +96,7 @@ export function CatalogWorkspace() {
             <Plus />
           </Button>
         </div>
-        <button type="button" onClick={() => setActiveCategory("all")} aria-current={activeCategory === "all" ? "true" : undefined} className={cn(categoryItemClass, activeCategory === "all" && categoryActiveClass)}>
+        <button type="button" onClick={() => setActiveCategory("all")} aria-current={activeCategory === "all" ? "true" : undefined} className={cn(categoryItemClass, "flex-none", activeCategory === "all" && categoryActiveClass)}>
           Все блюда ({products.length})
         </button>
         {categories.map((category) => {
