@@ -30,7 +30,11 @@ describe("employees HR card (W1-HR-01)", () => {
     expect(listed.page.map((row) => [row.code, row.baseRate])).toEqual([["555", 2000]])
     expect(JSON.stringify(listed)).not.toContain("pinHash")
 
-    await hr.mutation(api.domains.workforce.mutations.updateEmployeeProfile, { employeeId, displayName: "Айгерім Серікова", admitted: true })
+    await hr.mutation(api.domains.workforce.mutations.updateEmployeeProfile, { employeeId, displayName: "Айгерім Серікова", admitted: true, iin: "••••••••0123" })
+    const kept = await admin.query(api.domains.workforce.queries.getEmployee, { employeeId })
+    expect(kept).toMatchObject({ iin: "900101300123", phone: "+7 701 123 45 67", baseRate: 2000, admitted: true }) // left out or masked → kept
+    await admin.mutation(api.domains.workforce.mutations.updateEmployeeProfile, { employeeId, displayName: "Айгерім Серікова", phone: "" })
+    expect((await admin.query(api.domains.workforce.queries.getEmployee, { employeeId }))?.phone).toBeUndefined() // empty string clears
     const audit = await t.run((ctx) => ctx.db.query("auditEvents").take(20))
     expect(audit.find((row) => row.action === "workforce.profile.update")?.summary).toContain("admitted")
     expect(audit.map((row) => row.summary).join(" ")).not.toContain("900101300123")

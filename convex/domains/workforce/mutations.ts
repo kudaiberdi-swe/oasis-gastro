@@ -2,6 +2,7 @@ import { v, ConvexError } from "convex/values"
 
 import { mutation } from "../../_generated/server"
 import type { MutationCtx } from "../../_generated/server"
+import type { Doc } from "../../_generated/dataModel"
 import { derivePinHash, randomPinSalt } from "../../lib/auth"
 import { getOfficeAuthEmail, requireEmployeeInScope, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
 import { employeeRole } from "../../lib/validators"
@@ -150,19 +151,31 @@ const hrFields = {
 
 type HrInput = { personnelNumber?: string; phone?: string; email?: string; iin?: string; positionExternalId?: string; employmentDate?: string; payType?: "hourly" | "salary" | "piecework"; baseRate?: number; applyBasicDeduction?: boolean; admitted?: boolean }
 
-/** Normalised HR fields; empty strings clear a field. */
+/**
+ * Normalised HR fields for a patch: a field left out (undefined) is kept, an empty string clears it, and a
+ * masked value («•…», what a user without office.employees.pii sees) is kept as stored.
+ */
 function checkHr(input: HrInput) {
-  const text = (value: string | undefined) => (value === undefined ? undefined : value.trim() || undefined)
-  const iin = text(input.iin)
+  const patch: Record<string, string | number | boolean | undefined> = {}
+  const text = (key: "personnelNumber" | "phone" | "email" | "iin" | "positionExternalId" | "employmentDate") => {
+    const value = input[key]
+    if (value === undefined || value.includes("•")) return undefined
+    patch[key] = value.trim() || undefined
+    return value.trim() || undefined
+  }
+  const iin = text("iin")
   if (iin && !/^\d{12}$/.test(iin)) throw new ConvexError("ИИН — 12 цифр")
-  const email = text(input.email)
+  const email = text("email")
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ConvexError("Некорректный email")
-  const phone = text(input.phone)
+  const phone = text("phone")
   if (phone && !/^\+?[\d\s()-]{10,18}$/.test(phone)) throw new ConvexError("Некорректный телефон")
-  const employmentDate = text(input.employmentDate)
+  const employmentDate = text("employmentDate")
   if (employmentDate && !/^\d{4}-\d{2}-\d{2}$/.test(employmentDate)) throw new ConvexError("Некорректная дата приёма")
+  text("personnelNumber")
+  text("positionExternalId")
   if (input.baseRate !== undefined && !(Number.isInteger(input.baseRate) && input.baseRate >= 0)) throw new ConvexError("Ставка — целое число тенге")
-  return { personnelNumber: text(input.personnelNumber), phone, email, iin, positionExternalId: text(input.positionExternalId), employmentDate, payType: input.payType, baseRate: input.baseRate, applyBasicDeduction: input.applyBasicDeduction, admitted: input.admitted }
+  for (const key of ["payType", "baseRate", "applyBasicDeduction", "admitted"] as const) if (input[key] !== undefined) patch[key] = input[key]
+  return patch as Partial<Pick<Doc<"employees">, "personnelNumber" | "phone" | "email" | "iin" | "positionExternalId" | "employmentDate" | "payType" | "baseRate" | "applyBasicDeduction" | "admitted">>
 }
 
 /** Names of the HR fields that changed — the audit never carries personal data values. */

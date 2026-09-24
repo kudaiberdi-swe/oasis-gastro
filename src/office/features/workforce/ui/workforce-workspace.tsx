@@ -1,141 +1,195 @@
-import { useState } from "react"
+import { Plus, Search } from "lucide-react"
+import { useId, useMemo, useState } from "react"
+import { useNavigate, useParams, useSearchParams } from "react-router"
 
+import { useCan } from "@/office/components/can"
+import { OfficeStatePage } from "@/office/components/state-page"
+import { columnsFromConfig } from "@/office/engine/register-page"
+import { statusTabs, type ColumnDef } from "@/office/engine/module-config"
+import { PlatformErrorBoundary } from "@/office/features/platform/data/use-platform"
+import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import {
   Banner,
   Button,
-  Checkbox,
   DataTable,
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   Field,
+  FilterTabs,
   Input,
-  NumericCodeInput,
+  loadMoreFromPaginated,
   SegmentedControl,
   Select,
-  Switch,
   type Column,
 } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 
 import {
+  useEmployeesList,
   useSuggestedCredentials,
   useUnprovisionedEmployees,
   useWorkforceBranches,
   useWorkforceMutations,
-  usePosEmployees,
-  type EmployeeId,
-  type PosEmployee,
+  WORKFORCE_PAGE_SIZE,
+  type EmployeeRow,
   type UnprovisionedCandidate,
 } from "../data/use-office-workforce"
+import { useRestaurantFilter } from "../data/use-restaurant-filter"
+import { EMPLOYEE_CODE_PATTERN, formatRate, PAY_TYPE_LABEL, PIN_PATTERN, ROLE_OPTIONS, roleLabel, type Role } from "../model/modules"
+import { CreateEmployeeDialog } from "./create-employee-dialog"
+import { CredentialsResult, EmployeeCodeInput, PinInput, RestaurantsField } from "./credentials"
+import { EmployeeEditor } from "./employee-editor"
 
-const ROLES = ["cashier", "manager", "administrator"] as const
-type Role = (typeof ROLES)[number]
-const ROLE_LABEL: Record<string, string> = { cashier: "Кассир", manager: "Менеджер", administrator: "Администратор", kitchen: "Кухня" }
-const ROLE_OPTIONS = ROLES.map((role) => ({ value: role, label: ROLE_LABEL[role] }))
+// «Сотрудники» (W1-HR-01): /office/employees — the register (§3.5, lifecycle master) with the POS staff and
+// the iiko candidates as a second level; /office/employees/:id — the HR card.
 
 const CANDIDATE_LIMIT = 200
 
+type View = "employees" | "iiko"
+
 export function WorkforceWorkspace() {
-  const [tab, setTab] = useState<"employees" | "candidates">("employees")
+  const { id } = useParams()
+  const [attempt, setAttempt] = useState(0)
+  return (
+    <PlatformErrorBoundary key={`${id ?? "list"}-${attempt}`} onRetry={() => setAttempt((value) => value + 1)}>
+      {id ? <EmployeeEditor employeeId={id} /> : <EmployeesWorkspace />}
+    </PlatformErrorBoundary>
+  )
+}
+
+function EmployeesWorkspace() {
+  const navigate = useNavigate()
+  const canEdit = useCan("office.employees.edit")
+  const [params, setParams] = useSearchParams()
+  const view: View = params.get("view") === "iiko" ? "iiko" : "employees"
   const { candidates } = useUnprovisionedEmployees()
+  const restaurants = useRestaurantFilter()
+  const [creating, setCreating] = useState(false)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex items-center gap-3 border-b border-border px-6 py-3 xl:px-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3 xl:px-8">
         <SegmentedControl
           aria-label="Список сотрудников"
-          value={tab}
-          onValueChange={setTab}
+          value={view}
+          onValueChange={(next) => setParams(next === "iiko" ? { view: "iiko" } : {}, { replace: true })}
           options={[
             { value: "employees", label: "Сотрудники кассы" },
-            { value: "candidates", label: `Из iiko${candidates.length ? ` (${candidates.length})` : ""}` },
+            { value: "iiko", label: `Из iiko${candidates.length ? ` (${candidates.length})` : ""}` },
           ]}
         />
+        {canEdit ? (
+          <Button onClick={() => setCreating(true)}>
+            <Plus aria-hidden />
+            Новый сотрудник
+          </Button>
+        ) : null}
       </div>
 
-      {tab === "employees" ? <EmployeesTab /> : <CandidatesTab />}
+      {view === "employees" ? <EmployeesRegister restaurants={restaurants} onCreate={canEdit ? () => setCreating(true) : undefined} /> : <CandidatesTab />}
+
+      {creating ? (
+        <CreateEmployeeDialog
+          defaultRestaurantExternalId={restaurants.restaurantExternalId}
+          onClose={() => setCreating(false)}
+          onOpenCard={(employeeId) => navigate(`/office/employees/${employeeId}`)}
+        />
+      ) : null}
     </div>
   )
 }
 
-function EmployeesTab() {
-  const { employees, loading } = usePosEmployees()
-  const branches = useWorkforceBranches()
-  const mutations = useWorkforceMutations()
-  const [editing, setEditing] = useState<PosEmployee | null>(null)
-  const [resetting, setResetting] = useState<PosEmployee | null>(null)
+/** Columns per OFFICE-DESIGN §5 plus the POS code and role; the rate carries its unit (L-10). */
+export const EMPLOYEE_COLUMNS: ColumnDef<EmployeeRow>[] = [
+  { key: "personnelNumber", label: "Табельный №", kind: "text" },
+  {
+    key: "displayName",
+    label: "ФИО",
+    kind: "ref",
+    display: (row) => (
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate font-semibold text-foreground">{row.displayName}</span>
+        {row.iikoEmployeeExternalId ? <span className="text-caption text-muted-foreground">из iiko</span> : null}
+      </div>
+    ),
+  },
+  { key: "positionExternalId", label: "Должность", kind: "text" },
+  { key: "restaurants", label: "Ресторан", kind: "text", value: (row) => row.restaurants.map((restaurant) => restaurant.name).join(", ") },
+  { key: "rate", label: "Ставка", kind: "text", value: (row) => formatRate(row.baseRate, row.payType) },
+  { key: "payType", label: "Тип оплаты", kind: "text", value: (row) => (row.payType ? PAY_TYPE_LABEL[row.payType] : undefined) },
+  { key: "code", label: "Код POS", kind: "text" },
+  { key: "role", label: "Роль POS", kind: "text", value: (row) => roleLabel(row.role) },
+  { key: "status", label: "Статус", kind: "status", value: (row) => (row.active ? "active" : "inactive") },
+]
 
-  const columns: Column<PosEmployee>[] = [
-    {
-      key: "name",
-      header: "Сотрудник",
-      sortValue: (employee) => employee.displayName,
-      cell: (employee) => (
-        <div>
-          <p className="font-semibold text-foreground">{employee.displayName}</p>
-          {employee.iikoEmployeeExternalId ? <p className="text-caption text-muted-foreground">из iiko</p> : null}
-        </div>
-      ),
-    },
-    { key: "code", header: "Код", cell: (employee) => <span className="text-muted-foreground tabular-nums">{employee.code}</span> },
-    { key: "role", header: "Роль", cell: (employee) => ROLE_LABEL[employee.role] ?? employee.role },
-    {
-      key: "branches",
-      header: "Филиалы",
-      cell: (employee) => <span className="text-muted-foreground">{employee.restaurants.map((restaurant) => restaurant.name).join(", ") || "—"}</span>,
-    },
-    {
-      key: "active",
-      header: "Активен",
-      cell: (employee) => (
-        <Switch
-          aria-label={`Активен: ${employee.displayName}`}
-          checked={employee.active}
-          onCheckedChange={() => mutations.setEmployeeActive({ employeeId: employee._id, active: !employee.active })}
-        />
-      ),
-    },
-    {
-      key: "actions",
-      header: <span className="sr-only">Действия</span>,
-      numeric: true,
-      cell: (employee) => (
-        <div className="flex justify-end gap-1">
-          <Button size="sm" variant="ghost" onClick={() => setEditing(employee)}>
-            Изменить
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setResetting(employee)}>
-            Сбросить PIN
-          </Button>
-        </div>
-      ),
-    },
-  ]
+const MASTER_TABS = statusTabs("master")
+
+function EmployeesRegister({ restaurants, onCreate }: { restaurants: ReturnType<typeof useRestaurantFilter>; onCreate?: () => void }) {
+  const navigate = useNavigate()
+  const panelId = useId()
+  const [tab, setTab] = useState(MASTER_TABS[0].key)
+  const [searchText, setSearchText] = useState("")
+  const search = useDebounced(searchText)
+  const status = tab === "active" || tab === "inactive" ? tab : undefined
+  const list = useEmployeesList({ status, search, restaurantExternalId: restaurants.restaurantExternalId, enabled: !restaurants.loading })
+  const columns = useMemo<Column<EmployeeRow>[]>(() => columnsFromConfig(EMPLOYEE_COLUMNS).map((column) => (column.key === "rate" || column.key === "code" ? { ...column, numeric: true } : column)), [])
+  const loading = list.status === "LoadingFirstPage"
+  const unfiltered = tab === "all" && !search.trim() && !restaurants.restaurantExternalId
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto px-6 py-4 xl:px-8">
-      <DataTable
-        caption="Сотрудники кассы"
-        columns={columns}
-        rows={loading ? undefined : employees}
-        getRowId={(employee) => employee._id}
-        empty={<p className="px-4 py-10 text-center text-body-sm text-muted-foreground">Сотрудников пока нет</p>}
-      />
-
-      {editing ? <AssignmentDialog employee={editing} branches={branches} onClose={() => setEditing(null)} onSave={mutations.updateEmployeeAssignment} /> : null}
-      {resetting ? <ResetPinDialog employee={resetting} onClose={() => setResetting(null)} onReset={mutations.resetPin} /> : null}
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5 xl:px-8">
+      <FilterTabs aria-label="Статус сотрудников" value={tab} onValueChange={setTab} panelId={panelId} items={MASTER_TABS.map((item) => ({ value: item.key, label: item.label }))} />
+      <div id={panelId} role="tabpanel" aria-label={MASTER_TABS.find((item) => item.key === tab)?.label} className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="relative w-full sm:w-[420px]">
+            <span className="sr-only">Поиск: сотрудники</span>
+            <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Поиск: ФИО, код или табельный №" className="pl-9" />
+          </label>
+          {restaurants.visible ? <Select aria-label="Ресторан" className="w-full sm:w-64" value={restaurants.value} onValueChange={restaurants.setValue} options={restaurants.options} /> : null}
+          <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : `${list.results.length} записей`}</span>
+        </div>
+        {loading ? (
+          <OfficeStatePage state={{ kind: "loading" }} />
+        ) : list.results.length === 0 && unfiltered && list.status === "Exhausted" ? (
+          <OfficeStatePage
+            state={{
+              kind: "empty",
+              title: "Сотрудников пока нет",
+              description: "Создайте сотрудника кассы или подключите его из iiko.",
+              action: onCreate ? (
+                <Button variant="secondary" onClick={onCreate}>
+                  Новый сотрудник
+                </Button>
+              ) : undefined,
+            }}
+          />
+        ) : (
+          <DataTable
+            caption="Сотрудники"
+            columns={columns}
+            rows={list.results}
+            getRowId={(row) => row._id}
+            onRowClick={(row) => navigate(`/office/employees/${row._id}`)}
+            empty={<p className="px-4 py-10 text-center text-body-sm text-muted-foreground">Ничего не найдено по выбранным фильтрам</p>}
+            loadMore={loadMoreFromPaginated(list, WORKFORCE_PAGE_SIZE)}
+          />
+        )}
+      </div>
     </div>
   )
 }
+
+// ── «Из iiko»: provisioning POS access for imported iiko employees (unchanged flow) ─────────────
 
 function CandidatesTab() {
   const { candidates, loading } = useUnprovisionedEmployees()
   const branches = useWorkforceBranches()
   const { provisionPosAccess } = useWorkforceMutations()
+  const canEdit = useCan("office.employees.edit")
   const [provisioning, setProvisioning] = useState<UnprovisionedCandidate | null>(null)
   const [query, setQuery] = useState("")
 
@@ -148,29 +202,26 @@ function CandidatesTab() {
     { key: "code", header: "Табельный №", cell: (candidate) => <span className="text-muted-foreground tabular-nums">{candidate.code ?? "—"}</span> },
     { key: "role", header: "Роль в iiko", cell: (candidate) => <span className="text-muted-foreground">{candidate.mainRoleCode ?? "—"}</span> },
     { key: "branch", header: "Филиал", cell: (candidate) => <span className="text-muted-foreground">{candidate.branches.map((branch) => branch.name).join(", ") || "—"}</span> },
-    {
-      key: "actions",
-      header: <span className="sr-only">Действия</span>,
-      numeric: true,
-      cell: (candidate) => (
-        <Button size="sm" variant="secondary" onClick={() => setProvisioning(candidate)}>
-          Подключить
-        </Button>
-      ),
-    },
+    ...(canEdit
+      ? [
+          {
+            key: "actions",
+            header: <span className="sr-only">Действия</span>,
+            numeric: true,
+            cell: (candidate: UnprovisionedCandidate) => (
+              <Button size="sm" variant="secondary" onClick={() => setProvisioning(candidate)}>
+                Подключить
+              </Button>
+            ),
+          },
+        ]
+      : []),
   ]
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="border-b border-border px-6 py-3 xl:px-8">
-        <Input
-          type="search"
-          aria-label="Поиск по имени"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Поиск по имени…"
-          className="w-72"
-        />
+        <Input type="search" aria-label="Поиск по имени" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по имени…" className="w-full sm:w-72" />
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-6 py-4 xl:px-8">
         <DataTable
@@ -192,44 +243,6 @@ function CandidatesTab() {
   )
 }
 
-function BranchCheckboxes({
-  branches,
-  selected,
-  onToggle,
-}: {
-  branches: { externalId: string; name: string }[]
-  selected: Set<string>
-  onToggle: (externalId: string) => void
-}) {
-  return (
-    <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1.5 text-body-sm font-medium text-muted-foreground">Филиалы</legend>
-      {branches.map((branch) => (
-        <label key={branch.externalId} className="flex items-center gap-2 text-body-sm text-foreground">
-          <Checkbox checked={selected.has(branch.externalId)} onCheckedChange={() => onToggle(branch.externalId)} />
-          {branch.name}
-        </label>
-      ))}
-    </fieldset>
-  )
-}
-
-function toggleIn(current: Set<string>, externalId: string) {
-  const next = new Set(current)
-  if (next.has(externalId)) next.delete(externalId)
-  else next.add(externalId)
-  return next
-}
-
-function CredentialValue({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-caption font-medium text-muted-foreground">{label}</p>
-      <p className="font-display text-display font-semibold tabular-nums text-foreground">{value}</p>
-    </div>
-  )
-}
-
 function ProvisionDialog({
   candidate,
   branches,
@@ -242,23 +255,26 @@ function ProvisionDialog({
   onProvision: (args: { iikoEmployeeExternalId: string; employeeCode: string; pin: string; role: Role; restaurantExternalIds: string[] }) => Promise<unknown>
 }) {
   const suggested = useSuggestedCredentials(true)
-  const [code, setCode] = useState("")
-  const [pin, setPin] = useState("")
+  const [code, setCode] = useState<string | null>(null)
+  const [pin, setPin] = useState<string | null>(null)
   const [role, setRole] = useState<Role>("cashier")
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(candidate.branches.map((branch) => branch.externalId)))
+  const [selected, setSelected] = useState<string[]>(() => candidate.branches.map((branch) => branch.externalId))
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ code: string; pin: string } | null>(null)
 
-  const effectiveCode = code || suggested?.code || ""
-  const effectivePin = pin || suggested?.pin || ""
+  const effectiveCode = code ?? suggested?.code ?? ""
+  const effectivePin = pin ?? suggested?.pin ?? ""
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    if (!EMPLOYEE_CODE_PATTERN.test(effectiveCode)) return setError("Код — от 3 до 12 цифр")
+    if (!PIN_PATTERN.test(effectivePin)) return setError("PIN — от 4 до 6 цифр")
+    if (selected.length === 0) return setError("Выберите хотя бы один ресторан")
     setSubmitting(true)
     setError(null)
     try {
-      await onProvision({ iikoEmployeeExternalId: candidate.externalId, employeeCode: effectiveCode, pin: effectivePin, role, restaurantExternalIds: [...selected] })
+      await onProvision({ iikoEmployeeExternalId: candidate.externalId, employeeCode: effectiveCode, pin: effectivePin, role, restaurantExternalIds: selected })
       setResult({ code: effectiveCode, pin: effectivePin })
     } catch (caught) {
       setError(errorMessage(caught, "Не удалось выдать доступ"))
@@ -267,162 +283,35 @@ function ProvisionDialog({
     }
   }
 
-  if (result) {
-    return (
-      <Dialog open onOpenChange={(open) => !open && onClose()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Доступ выдан: {candidate.displayName}</DialogTitle>
-            <DialogDescription>Сообщите сотруднику эти данные один раз — они больше нигде не показываются.</DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-6 rounded-card border border-border bg-muted p-4">
-            <CredentialValue label="Код" value={result.code} />
-            <CredentialValue label="PIN" value={result.pin} />
-          </div>
-          <DialogFooter>
-            <Button onClick={onClose}>Готово</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    )
-  }
-
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined}>
-        <DialogHeader>
-          <DialogTitle>Подключить: {candidate.displayName}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Код сотрудника">
-              {(control) => <NumericCodeInput {...control} name="employee-code" value={effectiveCode} onValueChange={setCode} maxLength={12} required pattern="\d{4,12}" />}
-            </Field>
-            <Field label="PIN">
-              {(control) => <NumericCodeInput {...control} name="employee-pin" value={effectivePin} onValueChange={setPin} maxLength={6} required pattern="\d{4,6}" />}
-            </Field>
-          </div>
-          <Field label="Роль">{(control) => <Select {...control} value={role} onValueChange={(value) => setRole(value as Role)} options={ROLE_OPTIONS} />}</Field>
-          <BranchCheckboxes branches={branches} selected={selected} onToggle={(externalId) => setSelected((current) => toggleIn(current, externalId))} />
-          {error && <Banner tone="danger" title={error} />}
-          <DialogFooter>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Сохранение…" : "Выдать доступ"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function AssignmentDialog({
-  employee,
-  branches,
-  onClose,
-  onSave,
-}: {
-  employee: PosEmployee
-  branches: { externalId: string; name: string }[]
-  onClose: () => void
-  onSave: (args: { employeeId: EmployeeId; role: Role; restaurantExternalIds: string[] }) => Promise<unknown>
-}) {
-  const [role, setRole] = useState<Role>(employee.role as Role)
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(employee.restaurants.map((restaurant) => restaurant.externalId)))
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      await onSave({ employeeId: employee._id, role, restaurantExternalIds: [...selected] })
-      onClose()
-    } catch (caught) {
-      setError(errorMessage(caught, "Не удалось сохранить"))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent aria-describedby={undefined}>
-        <DialogHeader>
-          <DialogTitle>Назначение: {employee.displayName}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Field label="Роль">{(control) => <Select {...control} value={role} onValueChange={(value) => setRole(value as Role)} options={ROLE_OPTIONS} />}</Field>
-          <BranchCheckboxes branches={branches} selected={selected} onToggle={(externalId) => setSelected((current) => toggleIn(current, externalId))} />
-          {error && <Banner tone="danger" title={error} />}
-          <DialogFooter>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Сохранение…" : "Сохранить"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function ResetPinDialog({ employee, onClose, onReset }: { employee: PosEmployee; onClose: () => void; onReset: (args: { employeeId: EmployeeId; pin: string }) => Promise<unknown> }) {
-  const suggested = useSuggestedCredentials(true)
-  const [pin, setPin] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
-  const effectivePin = pin || suggested?.pin || ""
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      await onReset({ employeeId: employee._id, pin: effectivePin })
-      setResult(effectivePin)
-    } catch (caught) {
-      setError(errorMessage(caught, "Не удалось сбросить PIN"))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  if (result) {
-    return (
-      <Dialog open onOpenChange={(open) => !open && onClose()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Новый PIN: {employee.displayName}</DialogTitle>
-            <DialogDescription>Сообщите сотруднику этот PIN один раз — он больше нигде не показывается.</DialogDescription>
-          </DialogHeader>
-          <p className="font-display text-display font-semibold tabular-nums text-foreground">{result}</p>
-          <DialogFooter>
-            <Button onClick={onClose}>Готово</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    )
-  }
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent aria-describedby={undefined}>
-        <DialogHeader>
-          <DialogTitle>Сбросить PIN: {employee.displayName}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Field label="Новый PIN">
-            {(control) => <NumericCodeInput {...control} name="employee-pin" value={effectivePin} onValueChange={setPin} maxLength={6} required pattern="\d{4,6}" />}
-          </Field>
-          {error && <Banner tone="danger" title={error} />}
-          <DialogFooter>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Сохранение…" : "Сбросить"}
-            </Button>
-          </DialogFooter>
-        </form>
+        {result ? (
+          <CredentialsResult title={`Доступ выдан: ${candidate.displayName}`} code={result.code} pin={result.pin} onClose={onClose} />
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Подключить: {candidate.displayName}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} autoComplete="off" className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Код сотрудника">{(control) => <EmployeeCodeInput control={control} value={effectiveCode} onValueChange={setCode} />}</Field>
+                <Field label="PIN">{(control) => <PinInput control={control} value={effectivePin} onValueChange={setPin} />}</Field>
+              </div>
+              <Field label="Роль">{(control) => <Select {...control} value={role} onValueChange={(value) => setRole(value as Role)} options={ROLE_OPTIONS} />}</Field>
+              <RestaurantsField options={[...branches, ...candidate.branches.filter((branch) => !branches.some((option) => option.externalId === branch.externalId))]} value={selected} onValueChange={setSelected} />
+              {error ? <Banner tone="danger" title={error} /> : null}
+              <DialogFooter>
+                <Button type="button" variant="secondary" onClick={onClose}>
+                  Отмена
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Сохранение…" : "Выдать доступ"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )
