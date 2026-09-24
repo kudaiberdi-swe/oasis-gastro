@@ -57,6 +57,10 @@ import type * as domains_purchasing_receipts from "../domains/purchasing/receipt
 import type * as domains_recipes_mutations from "../domains/recipes/mutations.js";
 import type * as domains_recipes_queries from "../domains/recipes/queries.js";
 import type * as domains_reports_queries from "../domains/reports/queries.js";
+import type * as domains_retail_internal from "../domains/retail/internal.js";
+import type * as domains_retail_mutations from "../domains/retail/mutations.js";
+import type * as domains_retail_queries from "../domains/retail/queries.js";
+import type * as domains_retail_validators from "../domains/retail/validators.js";
 import type * as domains_seed_mutations from "../domains/seed/mutations.js";
 import type * as domains_shifts_mutations from "../domains/shifts/mutations.js";
 import type * as domains_shifts_queries from "../domains/shifts/queries.js";
@@ -96,6 +100,7 @@ import type * as lib_recipeConsumption from "../lib/recipeConsumption.js";
 import type * as lib_recipeMath from "../lib/recipeMath.js";
 import type * as lib_recipes from "../lib/recipes.js";
 import type * as lib_restaurants from "../lib/restaurants.js";
+import type * as lib_retailSettings from "../lib/retailSettings.js";
 import type * as lib_stockAccounting from "../lib/stockAccounting.js";
 import type * as lib_stockPosting from "../lib/stockPosting.js";
 import type * as lib_systemRoles from "../lib/systemRoles.js";
@@ -159,6 +164,10 @@ declare const fullApi: ApiFromModules<{
   "domains/recipes/mutations": typeof domains_recipes_mutations;
   "domains/recipes/queries": typeof domains_recipes_queries;
   "domains/reports/queries": typeof domains_reports_queries;
+  "domains/retail/internal": typeof domains_retail_internal;
+  "domains/retail/mutations": typeof domains_retail_mutations;
+  "domains/retail/queries": typeof domains_retail_queries;
+  "domains/retail/validators": typeof domains_retail_validators;
   "domains/seed/mutations": typeof domains_seed_mutations;
   "domains/shifts/mutations": typeof domains_shifts_mutations;
   "domains/shifts/queries": typeof domains_shifts_queries;
@@ -198,6 +207,7 @@ declare const fullApi: ApiFromModules<{
   "lib/recipeMath": typeof lib_recipeMath;
   "lib/recipes": typeof lib_recipes;
   "lib/restaurants": typeof lib_restaurants;
+  "lib/retailSettings": typeof lib_retailSettings;
   "lib/stockAccounting": typeof lib_stockAccounting;
   "lib/stockPosting": typeof lib_stockPosting;
   "lib/systemRoles": typeof lib_systemRoles;

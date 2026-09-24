@@ -5,13 +5,15 @@
 export const ACTIONS = ["view", "edit", "post", "approve", "reverse", "cancel"] as const
 export type CapabilityAction = (typeof ACTIONS)[number]
 
-type SectionKind = "view" | "reference" | "versioned" | "document" | "approval"
+type SectionKind = "view" | "reference" | "versioned" | "published" | "document" | "approval"
 
 const KIND_ACTIONS: Record<SectionKind, CapabilityAction[]> = {
   view: ["view"],
   reference: ["view", "edit"],
   // Reference data with versions that go live separately (nomenclature: recipe versions, W1-RCP-01).
   versioned: ["view", "edit", "post"],
+  // Reference data whose versions are published by approval (retail settings, W1-RTL-01).
+  published: ["view", "edit", "approve"],
   document: ["view", "edit", "post", "reverse", "cancel"],
   approval: ["view", "edit", "approve", "post", "reverse", "cancel"],
 }
@@ -20,7 +22,7 @@ const GROUPS: { id: string; sections: [id: string, kind: SectionKind][] }[] = [
   { id: "home", sections: [["dashboard", "view"], ["favorites", "reference"]] },
   {
     id: "sales",
-    sections: [["pos", "view"], ["orders", "document"], ["cash-shifts", "document"], ["payment-types", "reference"], ["order-types", "reference"], ["discount-types", "reference"], ["deletion-reasons", "reference"], ["cash-operations", "document"]],
+    sections: [["pos", "view"], ["orders", "document"], ["cash-shifts", "document"], ["payment-types", "published"], ["order-types", "published"], ["discount-types", "published"], ["deletion-reasons", "published"], ["cash-operations", "approval"]],
   },
   {
     id: "stock",

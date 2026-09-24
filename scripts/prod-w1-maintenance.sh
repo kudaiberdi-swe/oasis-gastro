@@ -7,6 +7,7 @@
 #   5. M-1 catalog v2 fields    domains/catalog/migrations:m1BackfillProducts + m1bOverlays (paged)
 #   6. M-3 stock → warehouses   migrations/m3StockWarehouses: ensureMainWarehouses, backfillBalances,
 #                               backfillMovements (paged), then verify (read-only, must report no mismatches)
+#   7. retail defaults          domains/retail/internal:seedDefaults (payment/order types, reasons, cash ops)
 # Each step runs as a dry run first and prints what it would change; then asks before writing.
 #
 #   bash scripts/prod-w1-maintenance.sh          # production
@@ -53,6 +54,7 @@ paged domains/catalog/migrations:m1bOverlays true
 run migrations/m3StockWarehouses:ensureMainWarehouses '{"dryRun":true}'
 paged migrations/m3StockWarehouses:backfillBalances true
 paged migrations/m3StockWarehouses:backfillMovements true
+run domains/retail/internal:seedDefaults '{"dryRun":true}'
 
 read -r -p "Apply these changes to production? [y/N] " ANSWER
 [ "$ANSWER" = "y" ] || { echo "Nothing written."; exit 0; }
@@ -67,6 +69,7 @@ paged domains/catalog/migrations:m1bOverlays false
 run migrations/m3StockWarehouses:ensureMainWarehouses '{}'
 paged migrations/m3StockWarehouses:backfillBalances false
 paged migrations/m3StockWarehouses:backfillMovements false
+run domains/retail/internal:seedDefaults '{}'
 echo "── M-3 verify (expect no mismatches) ──"
 run migrations/m3StockWarehouses:verify '{"paginationOpts":{"numItems":200,"cursor":null}}'
 echo "Done."

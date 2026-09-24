@@ -57,6 +57,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "receipt.update": "Изменение приходной накладной",
   "receipt.post": "Проведение приходной накладной",
   "receipt.reverse": "Сторно приходной накладной",
+  "retail.setting.save": "Сохранение справочника розницы",
+  "retail.setting.publish": "Публикация справочника розницы",
   "recipe.activate": "Активация версии техкарты",
   "pos.favorite.add": "Добавлено в избранное кассира",
   "pos.favorite.remove": "Убрано из избранного кассира",

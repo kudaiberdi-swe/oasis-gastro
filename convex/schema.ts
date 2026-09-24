@@ -3,6 +3,7 @@ import { v } from "convex/values"
 import { authTables } from "@convex-dev/auth/server"
 import { financeModuleId, financeRecordData } from "./domains/finance/validators"
 import { officeDomainStatus } from "./lib/validators"
+import { retailKind, retailSettingData } from "./domains/retail/validators"
 
 const unit = v.union(v.literal("кг"), v.literal("л"), v.literal("шт"), v.literal("порц."))
 
@@ -1200,4 +1201,30 @@ export default defineSchema({
   })
     .index("by_order", ["orderId"])
     .index("by_restaurant_occurred", ["restaurantExternalId", "occurredAt"]),
+  // Retail settings with versions (W1-RTL-01): payment, order and discount types, deletion reasons,
+  // cash operation types. One row per version; the code groups versions.
+  retailSettings: defineTable({
+    externalId: v.string(),
+    kind: retailKind,
+    code: v.string(),
+    name: v.string(),
+    receiptName: v.optional(v.string()),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("expired")),
+    effectiveFrom: v.number(),
+    effectiveTo: v.optional(v.number()),
+    sortOrder: v.number(),
+    restaurantExternalIds: v.array(v.string()), // empty = every restaurant
+    data: retailSettingData,
+    version: v.number(),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    publishedAt: v.optional(v.number()),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_kind_order", ["kind", "sortOrder"])
+    .index("by_kind_status_start", ["kind", "status", "effectiveFrom"])
+    .index("by_kind_code_version", ["kind", "code", "version"])
+    .searchIndex("search_retail_settings", { searchField: "searchText", filterFields: ["kind", "status"] }),
 })

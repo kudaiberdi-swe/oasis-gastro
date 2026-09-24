@@ -3,6 +3,7 @@ import { v, ConvexError } from "convex/values"
 import { internalMutation } from "../../_generated/server"
 import { employeeRole } from "../../lib/validators"
 import { seedChartOfAccountsRows } from "../finance/seed"
+import { seedRetailDefaults } from "../retail/internal"
 import { categoryPrepArea } from "../catalog/migrations"
 
 async function upsertByExternalId<T extends { externalId: string }>(
@@ -55,6 +56,7 @@ export const seedAll = internalMutation({
   },
   handler: async (ctx, args) => {
     await seedChartOfAccountsRows(ctx)
+    await seedRetailDefaults(ctx)
     await upsertByExternalId(ctx, "organizations", { externalId: args.organization.externalId, name: args.organization.name, currency: args.organization.currency, timezone: args.organization.timezone, active: true })
 
     const restaurantIds = new Map<string, any>()
