@@ -2,6 +2,8 @@ import type { GenericQueryCtx } from "convex/server"
 
 import type { DataModel, Doc } from "../../_generated/dataModel"
 import type { ReportColumn, ReportConfig, ReportResult } from "../../lib/reportConfig"
+import { OPERATION_CALCULATORS } from "./calculators/operations"
+import { STOCK_CALCULATORS } from "./calculators/stock"
 
 type QueryCtx = GenericQueryCtx<DataModel>
 type FactType = Doc<"dailySalesFacts">["factType"]
@@ -78,6 +80,10 @@ const money = (key: Measure, label: string) => ({ key, label, unit: "money" as c
 const count = (key: Measure, label: string) => ({ key, label, unit: "count" as const })
 
 export const REPORT_REGISTRY: Record<string, { calculator: Calculator }> = {
+  ...Object.fromEntries(Object.entries({ ...STOCK_CALCULATORS, ...OPERATION_CALCULATORS }).map(([id, calculator]) => [id, { calculator }])),
+  "sales-11": { calculator: factReport({ factType: "branch", byDay: true, dimensionLabel: "Дата", measures: [count("orderCount", "Заказов"), count("guestCount", "Гостей"), money("netAmount", "Выручка")], average: true }) },
+  "sales-13": { calculator: factReport({ factType: "category", dimensionLabel: "Категория", measures: [{ key: "quantity", label: "Количество", unit: "quantity" }, money("grossAmount", "По меню"), money("netAmount", "Выручка")], sortBy: "netAmount" }) },
+  "sales-19": { calculator: factReport({ factType: "payment-type", dimensionLabel: "Тип оплаты", measures: [money("netAmount", "Оплачено"), money("refundAmount", "Возвращено"), count("refundCount", "Возвратов")], sortBy: "netAmount" }) },
   "sales-01": { calculator: factReport({ factType: "branch", byDay: true, dimensionLabel: "Дата", measures: [count("orderCount", "Заказов"), count("guestCount", "Гостей"), money("grossAmount", "По меню"), money("discountAmount", "Скидки"), money("serviceChargeAmount", "Сервисный сбор"), money("netAmount", "Выручка"), money("refundAmount", "Возвраты")], average: true }) },
   "sales-02": { calculator: factReport({ factType: "hour", dimensionLabel: "Час", measures: [count("orderCount", "Заказов"), money("netAmount", "Выручка")], average: true, sortBy: "netAmount" }) },
   "sales-04": { calculator: factReport({ factType: "employee", dimensionLabel: "Официант", measures: [count("orderCount", "Заказов"), count("guestCount", "Гостей"), money("netAmount", "Выручка")], average: true }) },

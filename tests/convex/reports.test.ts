@@ -89,3 +89,29 @@ describe("daily sales facts (W1-RPT-02)", () => {
     expect((await facts(t)).find((row) => row.factType === "branch")?.netAmount).toBe(2300)
   })
 })
+
+describe("W1 report calculators (W1-RPT-06/07/08)", () => {
+  it("every implemented report runs on real data; P&L, cash flow and timesheet add up", async () => {
+    const { t, productId } = await setup()
+    const { admin } = await office(t)
+    const one = await draft(t, productId)
+    await t.mutation(api.domains.orders.mutations.checkout, { sessionToken: cashier, orderId: one._id, idempotencyKey: "p1", payments: [{ method: "cash", amount: 2300 }] })
+    await t.mutation(api.domains.orders.mutations.refund, { sessionToken: cashier, orderId: one._id, idempotencyKey: "r1", amount: 300, method: "cash", reason: "Остыло", managerApprovalToken: "m1" })
+    await t.mutation(api.domains.shifts.mutations.close, { sessionToken: cashier, countedCash: 2000, note: "" })
+    const date = (await facts(t)).find((row) => row.factType === "branch")!.businessDate
+    const config = { dateFrom: date, dateTo: date, restaurantExternalIds: [] }
+    for (const reportId of Object.keys(REPORT_REGISTRY)) {
+      const result = await admin.query(api.domains.reports.queries.execute, { reportId, config })
+      expect(result.columns.length, reportId).toBeGreaterThan(0)
+    }
+    const pnl = await admin.query(api.domains.reports.queries.execute, { reportId: "finance-02", config })
+    expect(pnl.rows.find((row) => row.key === "net-revenue")?.cells.amount).toBe(2300 - 300)
+    const flow = await admin.query(api.domains.reports.queries.execute, { reportId: "finance-03", config })
+    expect(flow.rows[0].cells).toMatchObject({ incoming: 2300, outgoing: 300, net: 2000 })
+    const timesheet = await admin.query(api.domains.reports.queries.execute, { reportId: "employees-03", config })
+    expect(timesheet.rows).toHaveLength(1)
+    const shiftsReport = await admin.query(api.domains.reports.queries.execute, { reportId: "sales-27", config })
+    expect(shiftsReport.rows[0].cells).toMatchObject({ expected: 2000, counted: 2000, variance: 0, status: "Закрыта" })
+  })
+})
+
