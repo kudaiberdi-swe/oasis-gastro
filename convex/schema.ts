@@ -392,7 +392,8 @@ export default defineSchema({
   })
     .index("by_terminal_status", ["terminalId", "status"])
     .index("by_terminal_opened", ["terminalId", "openedAt"])
-    .index("by_restaurant_opened", ["restaurantId", "openedAt"]),
+    .index("by_restaurant_opened", ["restaurantId", "openedAt"])
+    .index("by_status_opened", ["status", "openedAt"]),
 
   shiftEvents: defineTable({
     shiftId: v.id("shifts"),
@@ -449,6 +450,19 @@ export default defineSchema({
     .index("by_shift_sequence", ["shiftId", "sequence"])
     .index("by_terminal_generated", ["terminalId", "generatedAt"])
     .index("by_idempotency_key", ["idempotencyKey"]),
+
+  // Terminal notifications (W1-POS-09): stock below minimum, office messages, a shift open over 24 h.
+  posNotifications: defineTable({
+    terminalId: v.id("posTerminals"),
+    title: v.string(),
+    message: v.string(),
+    severity: v.union(v.literal("info"), v.literal("warning"), v.literal("critical")),
+    dedupeKey: v.optional(v.string()), // one notification per key and terminal
+    createdAt: v.number(),
+    readBy: v.array(v.id("employees")),
+  })
+    .index("by_terminal_created", ["terminalId", "createdAt"])
+    .index("by_terminal_dedupe", ["terminalId", "dedupeKey"]),
 
   // Z-report as its own immutable record (W1-POS-08), written by shifts.close in the same transaction.
   zReports: defineTable({
