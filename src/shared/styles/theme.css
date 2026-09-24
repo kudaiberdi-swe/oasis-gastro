@@ -36,6 +36,7 @@
   --warning: #9a4408; /* derived: held, below minimum, 24h shift */
   --warning-foreground: #9a4408;
   --destructive: #b42318; /* derived: errors, negative amounts, dangerous actions */
+  --destructive-foreground: #ffffff;
   --nav: #121316; /* sidebar, POS header, sign-in */
   --nav-raised: #1e1e1e;
   --nav-foreground: #fff7ec;
@@ -107,7 +108,8 @@
   --success: #9fb07a;
   --warning: #f09a4c;
   --warning-foreground: #f09a4c;
-  --destructive: #e0685c;
+  --destructive: #e87468; /* 4.9 on a 10% destructive tint over card (status pills) */
+  --destructive-foreground: #121316; /* ink on coral: white would be 3.3 */
   --nav: #0b0c0e;
   --nav-raised: #1e1e1e;
   --nav-foreground: #fff7ec;

@@ -1,7 +1,7 @@
 import { Search } from "lucide-react"
-import { useMemo, useState, type ReactNode } from "react"
+import { useId, useMemo, useState, type ReactNode } from "react"
 
-import { DataTable, Input, KpiCard, Tabs, TabsList, TabsTrigger, type Column } from "@/shared/components/ui"
+import { DataTable, FilterTabs, Input, KpiCard, type Column } from "@/shared/components/ui"
 import { cn } from "@/shared/lib/utils"
 
 import type { ModuleApi } from "./define-module-api"
@@ -48,6 +48,7 @@ export function RegisterPage<Row>({ config, api, getRowId, onOpen, selectedId, t
   )
   const columns = useMemo(() => columnsFromConfig(config.columns, config.statusDomain), [config])
   const TopPanel = config.topPanel
+  const panelId = useId()
 
   return (
     <div className="flex flex-col gap-4">
@@ -59,39 +60,33 @@ export function RegisterPage<Row>({ config, api, getRowId, onOpen, selectedId, t
         </div>
       ) : null}
       {TopPanel ? <TopPanel /> : null}
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList aria-label="Статус">
-          {tabs.map((candidate) => (
-            <TabsTrigger key={candidate.key} value={candidate.key}>
-              {candidate.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="relative w-full max-w-[480px] min-w-[240px] flex-1 sm:flex-none sm:basis-[360px]">
-          <span className="sr-only">Поиск</span>
-          <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск" className="pl-9" />
-        </label>
-        {toolbar}
-        <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : `${rows.length} записей`}</span>
+      <FilterTabs aria-label="Статус" value={tab} onValueChange={setTab} panelId={panelId} items={tabs.map((candidate) => ({ value: candidate.key, label: candidate.label }))} />
+      <div id={panelId} role="tabpanel" aria-label={activeTab.label} className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="relative w-full max-w-[480px] min-w-[240px] flex-1 sm:flex-none sm:basis-[360px]">
+            <span className="sr-only">Поиск</span>
+            <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск" className="pl-9" />
+          </label>
+          {toolbar}
+          <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : `${rows.length} записей`}</span>
+        </div>
+        <DataTable
+          caption={config.entityLabel}
+          columns={columns}
+          rows={loading ? undefined : rows}
+          getRowId={getRowId}
+          onRowClick={onOpen}
+          selectedId={selectedId}
+          empty={empty}
+          loadMore={{
+            loaded: list.results.length,
+            canLoadMore: list.status === "CanLoadMore",
+            loadingMore: list.status === "LoadingMore",
+            onLoadMore: () => list.loadMore(PAGE_SIZE),
+          }}
+        />
       </div>
-      <DataTable
-        caption={config.entityLabel}
-        columns={columns}
-        rows={loading ? undefined : rows}
-        getRowId={getRowId}
-        onRowClick={onOpen}
-        selectedId={selectedId}
-        empty={empty}
-        loadMore={{
-          loaded: list.results.length,
-          canLoadMore: list.status === "CanLoadMore",
-          loadingMore: list.status === "LoadingMore",
-          onLoadMore: () => list.loadMore(PAGE_SIZE),
-        }}
-      />
     </div>
   )
 }

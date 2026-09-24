@@ -33,6 +33,7 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-nav: var(--nav);
   --color-nav-raised: var(--nav-raised);
   --color-nav-foreground: var(--nav-foreground);

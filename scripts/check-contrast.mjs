@@ -24,6 +24,7 @@ export const PAIRS = [
   ["warning", "card", 4.5],
   ["destructive", "card", 4.5],
   ["destructive", "background", 4.5],
+  ["destructive-foreground", "destructive", 4.5],
   ["nav-foreground", "nav", 4.5],
   ["nav-muted", "nav", 4.5],
   ["nav-accent", "nav", 4.5],

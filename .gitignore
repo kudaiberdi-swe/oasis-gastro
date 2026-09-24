@@ -17,3 +17,7 @@ iiko-credentials.md
 # Transient deploy-key file from scripts/rotate-ci-deploy-key.sh — deleted by the script,
 # ignored here as a safety net in case it's ever interrupted mid-run
 .ci-key.env
+
+# Playwright
+test-results/
+playwright-report/
