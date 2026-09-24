@@ -1,4 +1,4 @@
-import { Moon, Sun } from "lucide-react"
+import { Moon, Rows3, Sun } from "lucide-react"
 
 import { useTheme } from "@/shared/components/theme-provider"
 import { Button } from "@/shared/components/ui/button"
@@ -26,7 +26,7 @@ export function AppHeader({
   onOpenShiftInfo: () => void
   onLock: () => void
 }) {
-  const { mode, setMode } = useTheme()
+  const { mode, setMode, density, setDensity } = useTheme()
   return (
     <header className="flex h-14 shrink-0 items-center justify-between rounded-panel bg-nav px-4 text-nav-foreground">
       <div className="flex items-center gap-2">
@@ -45,6 +45,16 @@ export function AppHeader({
           onClick={() => setMode(mode === "day" ? "night" : "day")}
         >
           {mode === "day" ? <Moon className="size-4" /> : <Sun className="size-4" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={density === "compact" ? "Обычная плотность" : "Плотная раскладка"}
+          aria-pressed={density === "compact"}
+          className="text-nav-foreground hover:bg-nav-raised hover:text-nav-foreground aria-pressed:text-nav-accent"
+          onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
+        >
+          <Rows3 className="size-4" />
         </Button>
         <button type="button" onClick={onOpenShiftInfo} className={cn("rounded-control px-1 text-body-sm font-semibold text-nav-muted hover:text-nav-foreground", focusRingClass)}>
           {employeeName}

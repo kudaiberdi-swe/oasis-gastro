@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Search } from "lucide-react"
 
 import { useCategories, useProducts } from "@/pos/features/catalog/data/use-catalog"
@@ -27,6 +27,7 @@ export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: str
   const [activeCategory, setActiveCategory] = useState<string | undefined>(undefined)
   const [search, setSearch] = useState("")
   const { items, loading, canLoadMore, loadMore } = useProducts({ sessionToken, category: search ? undefined : activeCategory, search })
+  const toneByCategory = useMemo(() => new Map(categories.map((category) => [category.externalId, categoryTone(category.label)] as const)), [categories])
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col gap-3">
@@ -72,6 +73,7 @@ export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: str
                 name={product.name}
                 nameKk={product.nameKk}
                 price={product.price}
+                tone={toneByCategory.get(product.category)}
                 onClick={() => onAddProduct({ productId: product._id, name: product.name, nameKk: product.nameKk, price: product.price })}
               />
             ))}
