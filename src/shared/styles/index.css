@@ -47,6 +47,7 @@
   --radius-control: var(--radius-control);
   --radius-card: var(--radius-card);
   --radius-panel: var(--radius-panel);
+  --radius-round: var(--radius-round);
   --shadow-panel: var(--shadow-panel);
   --shadow-float: var(--shadow-float);
 }
@@ -69,40 +70,44 @@
   --text-hero--line-height: 48px;
 }
 
-* {
-  border-color: var(--border);
-}
+/* Base rules sit in the base layer so utilities (border-input, font-semibold, …) override them;
+   unlayered, `* { border-color }` and `button { font: inherit }` beat every utility. */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 
-html,
-body,
-#root {
-  width: 100%;
-  height: 100%;
-}
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+  }
 
-body {
-  margin: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-ui);
-  -webkit-font-smoothing: antialiased;
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 /* The POS and kitchen are fixed-size touch surfaces; the office scrolls its own content. */
 .pos-surface {
   min-width: 1024px;
   overflow: hidden;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-button {
-  -webkit-tap-highlight-color: transparent;
 }
 
 /* Tabular lining figures for prices and totals (design skill .sq-price). */

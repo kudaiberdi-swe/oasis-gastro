@@ -11,11 +11,11 @@ export function PinPad({ onDigit, onBackspace, disabled }: { onDigit: (digit: st
         key === "" ? (
           <div key={`spacer-${index}`} />
         ) : key === "backspace" ? (
-          <Button key={key} type="button" variant="outline" size="lg" disabled={disabled} onClick={onBackspace} aria-label="Стереть">
+          <Button key={key} type="button" variant="secondary" size="lg" disabled={disabled} onClick={onBackspace} aria-label="Стереть">
             <Delete />
           </Button>
         ) : (
-          <Button key={key} type="button" variant="outline" size="lg" disabled={disabled} onClick={() => onDigit(key)} className="text-lg">
+          <Button key={key} type="button" variant="secondary" size="lg" disabled={disabled} onClick={() => onDigit(key)} className="text-lg">
             {key}
           </Button>
         ),

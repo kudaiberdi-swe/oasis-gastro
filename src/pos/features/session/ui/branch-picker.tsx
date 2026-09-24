@@ -22,7 +22,7 @@ export function BranchPicker() {
             key={branch.externalId}
             type="button"
             size="lg"
-            variant="outline"
+            variant="secondary"
             className="w-full"
             onClick={() => {
               const url = new URL(window.location.href)

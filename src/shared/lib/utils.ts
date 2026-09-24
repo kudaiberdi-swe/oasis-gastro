@@ -1,5 +1,16 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
+
+// The theme's type scale (index.css @theme) and radii are custom names; without this twMerge reads
+// `text-body-sm` as a color and drops `text-foreground` next to it.
+const twMerge = extendTailwindMerge({
+  extend: {
+    theme: {
+      text: ["caption", "body-sm", "body", "title-sm", "title", "display", "hero"],
+      radius: ["control", "card", "panel", "round"],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

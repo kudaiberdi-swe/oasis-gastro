@@ -43,7 +43,7 @@ export function LoyaltyWorkspace() {
                   <td className="px-3 py-2 text-muted-foreground">{guest.name || "—"}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-accent">{guest.points}</td>
                   <td className="px-3 py-2 text-right">
-                    <Button size="sm" variant="outline" onClick={() => setSelected(guest)}>Открыть</Button>
+                    <Button size="sm" variant="secondary" onClick={() => setSelected(guest)}>Открыть</Button>
                   </td>
                 </tr>
               ))}
@@ -94,7 +94,7 @@ function GuestDetailDialog({ guest, onClose }: { guest: Guest; onClose: () => vo
             <p className="text-xs font-semibold text-muted-foreground">{guest.phone}</p>
             <p className="font-display text-2xl font-semibold tabular-nums text-accent">{guest.points} баллов</p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setAdjusting((current) => !current)}>Скорректировать</Button>
+          <Button size="sm" variant="secondary" onClick={() => setAdjusting((current) => !current)}>Скорректировать</Button>
         </div>
 
         {adjusting ? (

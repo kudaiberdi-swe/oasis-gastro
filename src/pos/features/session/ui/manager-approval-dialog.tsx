@@ -95,7 +95,7 @@ export function useManagerApproval(terminalExternalId: string) {
           disabled={submitting}
         />
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={cancel} disabled={submitting}>
+          <Button type="button" variant="secondary" size="lg" className="flex-1" onClick={cancel} disabled={submitting}>
             Отмена
           </Button>
           <Button type="button" size="lg" className="flex-1" onClick={submit} disabled={submitting || !active}>

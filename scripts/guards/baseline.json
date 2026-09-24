@@ -22,8 +22,7 @@
     "src/office/features/workforce/ui/workforce-workspace.tsx": 2
   },
   "fe/white-literal": {
-    "src/pos/components/app-header.tsx": 2,
-    "src/shared/components/ui/button.tsx": 1
+    "src/pos/components/app-header.tsx": 2
   },
   "fe/tiny-text": {
     "src/shared/components/ui/badge.tsx": 1

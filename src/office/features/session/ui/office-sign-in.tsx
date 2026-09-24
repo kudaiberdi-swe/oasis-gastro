@@ -85,7 +85,7 @@ export function OfficeAccessDenied({ onSignOut }: { onSignOut: () => void }) {
     <div className="flex h-full flex-col items-center justify-center gap-4 bg-background px-6 text-center">
       <p className="text-lg font-extrabold text-foreground">Доступ не настроен</p>
       <p className="max-w-sm text-sm text-muted-foreground">Эта учётная запись не привязана к офису Sandyq. Обратитесь к администратору.</p>
-      <Button variant="outline" onClick={onSignOut}>Выйти</Button>
+      <Button variant="secondary" onClick={onSignOut}>Выйти</Button>
     </div>
   )
 }

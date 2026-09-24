@@ -27,7 +27,7 @@ export function OfficeBootstrap({ email, onBootstrap, onSignOut }: { email: stri
       </p>
       {error && <p className="max-w-sm text-sm font-semibold text-destructive">{error}</p>}
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onSignOut}>Выйти</Button>
+        <Button variant="secondary" onClick={onSignOut}>Выйти</Button>
         <Button onClick={handleBootstrap} disabled={submitting}>{submitting ? "Инициализация…" : "Инициализировать офис"}</Button>
       </div>
     </div>

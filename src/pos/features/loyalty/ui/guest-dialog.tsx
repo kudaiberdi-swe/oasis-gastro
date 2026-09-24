@@ -68,7 +68,7 @@ export function GuestDialog({
             <p className="font-semibold text-foreground">{currentGuest.name || currentGuest.phone}</p>
             {currentGuest.name && <p className="text-sm text-muted-foreground">{currentGuest.phone}</p>}
             <p className="mt-1 text-sm text-accent">{currentGuest.points} баллов</p>
-            <Button variant="outline" size="sm" className="mt-2" onClick={handleDetach} disabled={submitting}>Убрать гостя</Button>
+            <Button variant="secondary" size="sm" className="mt-2" onClick={handleDetach} disabled={submitting}>Убрать гостя</Button>
             {error && <p className="mt-2 text-sm font-semibold text-destructive">{error}</p>}
           </div>
         ) : (

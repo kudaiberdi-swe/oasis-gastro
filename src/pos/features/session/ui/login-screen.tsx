@@ -82,7 +82,7 @@ export function LoginScreen({ onLogin, restaurantHint }: { onLogin: (code: strin
           {stage === "pin" && (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="lg"
               className="flex-1"
               onClick={() => {

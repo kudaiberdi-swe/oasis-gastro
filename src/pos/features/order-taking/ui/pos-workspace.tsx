@@ -144,7 +144,7 @@ function AuthenticatedPos({
         <div className="min-h-0 flex-1">
           <KitchenBoard sessionToken={sessionToken} />
         </div>
-        <Button variant="outline" onClick={() => setShowKitchen(false)}>
+        <Button variant="secondary" onClick={() => setShowKitchen(false)}>
           Назад к кассе
         </Button>
       </div>
@@ -155,17 +155,17 @@ function AuthenticatedPos({
     <div className="flex h-full flex-col gap-2 p-2">
       <AppHeader restaurantName={access.restaurant.name} employeeName={access.employee.displayName} shiftNumber={shift.number} onOpenShiftInfo={() => setCloseShiftOpen(true)} onLock={onLock} />
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setShowKitchen(true)}>
+        <Button variant="secondary" size="sm" onClick={() => setShowKitchen(true)}>
           Экран кухни {kitchenTickets.length > 0 && `(${kitchenTickets.length})`}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setCloseShiftOpen(true)}>
           Закрыть смену
         </Button>
-        <Button variant="outline" size="sm" onClick={handleXReport} disabled={xReportSubmitting}>
+        <Button variant="secondary" size="sm" onClick={handleXReport} disabled={xReportSubmitting}>
           {xReportSubmitting ? "Формирование…" : "X-отчёт"}
         </Button>
         {xReportError && <span className="text-xs font-semibold text-destructive">{xReportError}</span>}
-        <Button variant="outline" size="sm" onClick={() => setGuestOpen(true)} disabled={!draft.orderId}>
+        <Button variant="secondary" size="sm" onClick={() => setGuestOpen(true)} disabled={!draft.orderId}>
           {guest ? `${guest.name || guest.phone} · ${guest.points} б.` : "Гость"}
         </Button>
       </div>

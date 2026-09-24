@@ -146,7 +146,7 @@ function CandidatesTab() {
                 <td className="px-3 py-2 text-muted-foreground">{candidate.mainRoleCode ?? "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground">{candidate.branches.map((branch) => branch.name).join(", ") || "—"}</td>
                 <td className="px-3 py-2 text-right">
-                  <Button size="sm" variant="outline" onClick={() => setProvisioning(candidate)}>Подключить</Button>
+                  <Button size="sm" variant="secondary" onClick={() => setProvisioning(candidate)}>Подключить</Button>
                 </td>
               </tr>
             ))}

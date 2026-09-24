@@ -63,7 +63,7 @@ export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: str
         )}
         {canLoadMore && (
           <div className="pb-4 text-center">
-            <Button variant="outline" onClick={loadMore}>
+            <Button variant="secondary" onClick={loadMore}>
               Показать ещё
             </Button>
           </div>

@@ -96,7 +96,7 @@ export function OrderPanel({
         {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
       </div>
       <div className="flex gap-2 p-4 pt-0">
-        <Button variant="outline" size="lg" className="flex-1" onClick={onHold} disabled={disabled || lines.length === 0}>
+        <Button variant="secondary" size="lg" className="flex-1" onClick={onHold} disabled={disabled || lines.length === 0}>
           Отложить
         </Button>
         <Button size="lg" className="flex-1" onClick={onCheckout} disabled={disabled || lines.length === 0}>

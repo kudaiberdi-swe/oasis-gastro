@@ -94,7 +94,7 @@ export function DiscountDialog({
         )}
         {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="flex-1" onClick={() => setPercent(0)} disabled={submitting}>
+          <Button variant="secondary" size="lg" className="flex-1" onClick={() => setPercent(0)} disabled={submitting}>
             Убрать
           </Button>
           <Button size="lg" className="flex-1" onClick={submit} disabled={submitting}>
