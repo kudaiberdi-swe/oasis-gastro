@@ -173,6 +173,18 @@ export default defineSchema({
     // is always generated locally (see domains/workforce/mutations.ts provisionPosAccess); iiko never
     // supplies or sees a credential.
     iikoEmployeeExternalId: v.optional(v.string()),
+    // W1-HR-01: HR card on top of POS access; optional for good — a card may have no HR data.
+    personnelNumber: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+    iin: v.optional(v.string()), // 12 digits; masked without office.employees.pii
+    positionExternalId: v.optional(v.string()),
+    employmentDate: v.optional(v.string()), // YYYY-MM-DD
+    payType: v.optional(v.union(v.literal("hourly"), v.literal("salary"), v.literal("piecework"))),
+    baseRate: v.optional(v.number()), // ₸ per hour or per month by payType
+    applyBasicDeduction: v.optional(v.boolean()),
+    admitted: v.optional(v.boolean()),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_code", ["code"])
     .index("by_role_name", ["role", "displayName"])
@@ -450,6 +462,42 @@ export default defineSchema({
     .index("by_shift_sequence", ["shiftId", "sequence"])
     .index("by_terminal_generated", ["terminalId", "generatedAt"])
     .index("by_idempotency_key", ["idempotencyKey"]),
+
+  // Attendance log (W1-HR-05): POS clock-in/out and automatic attendance with a shift. A POS record is
+  // active while open and completed when closed; an office correction goes draft → pending-approval →
+  // approved and keeps the POS times in `original`. Payroll takes approved and completed records.
+  attendanceRecords: defineTable({
+    externalId: v.string(),
+    number: v.string(), // ЯВ-YYYY-NNNNN
+    employeeId: v.id("employees"),
+    employeeCode: v.string(),
+    employeeName: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    businessDate: v.string(),
+    status: v.union(v.literal("active"), v.literal("completed"), v.literal("draft"), v.literal("pending-approval"), v.literal("approved"), v.literal("cancelled")),
+    clockIn: v.number(),
+    clockOut: v.optional(v.number()),
+    breakMinutes: v.number(),
+    hours: v.optional(v.number()),
+    attendanceType: v.union(v.literal("worked"), v.literal("sick"), v.literal("vacation"), v.literal("absence")),
+    source: v.union(v.literal("pos"), v.literal("pos-shift"), v.literal("office")),
+    terminalExternalId: v.optional(v.string()),
+    shiftId: v.optional(v.id("shifts")),
+    correctionReason: v.optional(v.string()),
+    original: v.optional(v.object({ clockIn: v.number(), clockOut: v.optional(v.number()) })),
+    deviationMinutes: v.optional(v.number()), // against the schedule (W2-HR-04); empty until then
+    version: v.number(),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_employee_status", ["employeeId", "status", "clockIn"])
+    .index("by_shift", ["shiftId"])
+    .index("by_status_date", ["status", "businessDate"])
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
+    .searchIndex("search_attendance", { searchField: "searchText", filterFields: ["status", "restaurantExternalId"] }),
 
   // Terminal notifications (W1-POS-09): stock below minimum, office messages, a shift open over 24 h.
   posNotifications: defineTable({

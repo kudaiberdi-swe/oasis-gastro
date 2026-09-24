@@ -77,10 +77,12 @@ import type * as domains_stockDocuments_access from "../domains/stockDocuments/a
 import type * as domains_stockDocuments_mutations from "../domains/stockDocuments/mutations.js";
 import type * as domains_stockDocuments_queries from "../domains/stockDocuments/queries.js";
 import type * as domains_stockDocuments_validators from "../domains/stockDocuments/validators.js";
+import type * as domains_workforce_attendance from "../domains/workforce/attendance.js";
 import type * as domains_workforce_mutations from "../domains/workforce/mutations.js";
 import type * as domains_workforce_queries from "../domains/workforce/queries.js";
 import type * as http from "../http.js";
 import type * as lib_accounts from "../lib/accounts.js";
+import type * as lib_attendance from "../lib/attendance.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_availability from "../lib/availability.js";
@@ -192,10 +194,12 @@ declare const fullApi: ApiFromModules<{
   "domains/stockDocuments/mutations": typeof domains_stockDocuments_mutations;
   "domains/stockDocuments/queries": typeof domains_stockDocuments_queries;
   "domains/stockDocuments/validators": typeof domains_stockDocuments_validators;
+  "domains/workforce/attendance": typeof domains_workforce_attendance;
   "domains/workforce/mutations": typeof domains_workforce_mutations;
   "domains/workforce/queries": typeof domains_workforce_queries;
   http: typeof http;
   "lib/accounts": typeof lib_accounts;
+  "lib/attendance": typeof lib_attendance;
   "lib/audit": typeof lib_audit;
   "lib/auth": typeof lib_auth;
   "lib/availability": typeof lib_availability;

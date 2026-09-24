@@ -10,6 +10,7 @@ import { journalReady } from "../../lib/checkoutCore"
 import { postJournalEntry } from "../../lib/ledger"
 import { assertPeriodOpen } from "../../lib/periods"
 import { settingInForce } from "../../lib/retailSettings"
+import { closeShiftAttendance, openAttendance } from "../../lib/attendance"
 import { buildClosePreview, buildXReportSnapshot, calculateSummary } from "./queries"
 
 export const open = mutation({
@@ -34,6 +35,7 @@ export const open = mutation({
       openingNote: args.note.trim(),
     })
     await ctx.db.insert("shiftEvents", { shiftId, type: "open", amount: roundKzt(args.openingCash), reason: args.note.trim() || "Открытие смены", actorId: access.employee._id, createdAt: now })
+    await openAttendance(ctx, access, "pos-shift", shiftId) // W1-HR-05: attendance with the shift
     await touchSession(ctx, access.session._id)
     await writeAudit(ctx, access, { action: "shift.open", summary: `Открыта смена №${number} с остатком ${roundKzt(args.openingCash)} ₸`, shiftId })
     return shiftId
@@ -152,6 +154,7 @@ export const close = mutation({
       await ctx.db.insert("shiftEvents", { shiftId: shift._id, type: "manager-override", amount: Math.abs(variance), reason: `Подтверждено расхождение ${variance} ₸`, actorId: manager._id, createdAt: now })
     }
     await ctx.db.insert("shiftEvents", { shiftId: shift._id, type: "close", amount: countedCash, reason: args.note.trim() || "Закрытие смены", actorId: access.employee._id, createdAt: now })
+    await closeShiftAttendance(ctx, shift._id)
     const zReportId = await ctx.db.insert("zReports", {
       shiftId: shift._id,
       number: zReportNumber,

@@ -1,6 +1,10 @@
+import { paginationOptsValidator } from "convex/server"
+import { v } from "convex/values"
+
 import type { QueryCtx } from "../../_generated/server"
+import type { Doc } from "../../_generated/dataModel"
 import { query } from "../../_generated/server"
-import { hasNetworkScope, hasScope, requireOfficeCapability, restaurantScopeFilter } from "../../lib/officeAccess"
+import { getOfficeAuthEmail, hasNetworkScope, hasScope, requireOfficeCapability, restaurantScopeFilter } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 
 // Phase 3's iiko import writes its own restaurants row per department (see
@@ -124,3 +128,63 @@ export const suggestCredentials = query({
 function randomDigits(length: number): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(length)), (byte) => byte % 10).join("")
 }
+
+// ── HR card (W1-HR-01) ───────────────────────────────────────────────────────
+
+const mask = (value: string | undefined, visible: number) => (value ? `${"•".repeat(Math.max(0, value.length - visible))}${value.slice(-visible)}` : undefined)
+
+async function publicEmployee(ctx: QueryCtx, employee: Doc<"employees">, pii: boolean) {
+  const { pinSalt: _pinSalt, pinHash: _pinHash, ...rest } = employee
+  const restaurants = (await Promise.all(employee.restaurantIds.map((id) => ctx.db.get(id)))).filter((row): row is Doc<"restaurants"> => Boolean(row))
+  return {
+    ...rest,
+    iin: pii ? employee.iin : mask(employee.iin, 4),
+    phone: pii ? employee.phone : mask(employee.phone, 2),
+    restaurants: restaurants.map((row) => ({ externalId: row.externalId, name: row.name })),
+  }
+}
+
+async function canSeePii(ctx: QueryCtx) {
+  const identity = await getOfficeAuthEmail(ctx)
+  if (!identity) return false
+  try {
+    await requireOfficeCapability(ctx, "office.employees.pii")
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Employees of the user's restaurants, paged by role and name; phone and IIN masked without office.employees.pii. */
+export const listEmployees = query({
+  args: { restaurantExternalId: v.optional(v.string()), search: v.optional(v.string()), status: v.optional(v.union(v.literal("active"), v.literal("inactive"))), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.employees.view")
+    const pii = await canSeePii(ctx)
+    const restaurant = args.restaurantExternalId ? await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", args.restaurantExternalId!)).unique() : null
+    if (args.restaurantExternalId && !hasScope(user.restaurantScopes, args.restaurantExternalId)) return { page: [], isDone: true, continueCursor: "" }
+    const page = await ctx.db.query("employees").withIndex("by_role_name").paginate(args.paginationOpts)
+    const needle = args.search?.trim().toLocaleLowerCase("ru")
+    const scopedIds = hasNetworkScope(user) ? null : new Set((await Promise.all(user.restaurantScopes.map((externalId) => ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()))).filter(Boolean).map((row) => row!._id))
+    const visible = page.page.filter(
+      (employee) =>
+        (!scopedIds || employee.restaurantIds.some((id) => scopedIds.has(id))) &&
+        (!restaurant || employee.restaurantIds.includes(restaurant._id)) &&
+        (!args.status || employee.active === (args.status === "active")) &&
+        (!needle || `${employee.displayName} ${employee.code} ${employee.personnelNumber ?? ""}`.toLocaleLowerCase("ru").includes(needle)),
+    )
+    return { ...page, page: await Promise.all(visible.map((employee) => publicEmployee(ctx, employee, pii))) }
+  },
+})
+
+export const getEmployee = query({
+  args: { employeeId: v.id("employees") },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.employees.view")
+    const employee = await ctx.db.get(args.employeeId)
+    if (!employee) return null
+    const restaurants = (await Promise.all(employee.restaurantIds.map((id) => ctx.db.get(id)))).filter(Boolean)
+    if (!hasNetworkScope(user) && !restaurants.some((row) => hasScope(user.restaurantScopes, row!.externalId))) return null
+    return publicEmployee(ctx, employee, await canSeePii(ctx))
+  },
+})

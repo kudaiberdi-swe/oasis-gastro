@@ -66,7 +66,7 @@ export type CapabilitySection = { id: string; groupId: string; actions: Capabili
 export const CAPABILITY_CATALOG: CapabilitySection[] = GROUPS.flatMap((group) => group.sections.map(([id, kind]) => ({ id, groupId: group.id, actions: KIND_ACTIONS[kind] })))
 
 /** Special rights outside the section grammar. */
-export const SPECIAL_CAPABILITIES = ["office.guests.pii"] as const
+export const SPECIAL_CAPABILITIES = ["office.guests.pii", "office.employees.pii"] as const
 
 /** "*", office.<section>.*, office.<section>.<allowed action> or a special right. */
 export function isValidCapability(capability: string): boolean {

@@ -35,7 +35,7 @@ export const provisionPosAccess = mutation({
   },
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.employees.edit")
-    if (!/^\d{4,12}$/.test(args.employeeCode)) throw new ConvexError("Код сотрудника должен состоять из 4–12 цифр")
+    if (!/^\d{3,12}$/.test(args.employeeCode)) throw new ConvexError("Код сотрудника должен состоять из 3–12 цифр")
     if (!isValidPin(args.pin)) throw new ConvexError(`PIN должен состоять из ${PIN_MIN}–${PIN_MAX} цифр`)
     const email = await getOfficeAuthEmail(ctx)
 
@@ -130,5 +130,80 @@ export const resetPin = mutation({
       resourceType: "employee",
       resourceExternalId: employee.code,
     })
+  },
+})
+
+// ── HR card (W1-HR-01) ───────────────────────────────────────────────────────
+
+const hrFields = {
+  personnelNumber: v.optional(v.string()),
+  phone: v.optional(v.string()),
+  email: v.optional(v.string()),
+  iin: v.optional(v.string()),
+  positionExternalId: v.optional(v.string()),
+  employmentDate: v.optional(v.string()),
+  payType: v.optional(v.union(v.literal("hourly"), v.literal("salary"), v.literal("piecework"))),
+  baseRate: v.optional(v.number()),
+  applyBasicDeduction: v.optional(v.boolean()),
+  admitted: v.optional(v.boolean()),
+}
+
+type HrInput = { personnelNumber?: string; phone?: string; email?: string; iin?: string; positionExternalId?: string; employmentDate?: string; payType?: "hourly" | "salary" | "piecework"; baseRate?: number; applyBasicDeduction?: boolean; admitted?: boolean }
+
+/** Normalised HR fields; empty strings clear a field. */
+function checkHr(input: HrInput) {
+  const text = (value: string | undefined) => (value === undefined ? undefined : value.trim() || undefined)
+  const iin = text(input.iin)
+  if (iin && !/^\d{12}$/.test(iin)) throw new ConvexError("ИИН — 12 цифр")
+  const email = text(input.email)
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ConvexError("Некорректный email")
+  const phone = text(input.phone)
+  if (phone && !/^\+?[\d\s()-]{10,18}$/.test(phone)) throw new ConvexError("Некорректный телефон")
+  const employmentDate = text(input.employmentDate)
+  if (employmentDate && !/^\d{4}-\d{2}-\d{2}$/.test(employmentDate)) throw new ConvexError("Некорректная дата приёма")
+  if (input.baseRate !== undefined && !(Number.isInteger(input.baseRate) && input.baseRate >= 0)) throw new ConvexError("Ставка — целое число тенге")
+  return { personnelNumber: text(input.personnelNumber), phone, email, iin, positionExternalId: text(input.positionExternalId), employmentDate, payType: input.payType, baseRate: input.baseRate, applyBasicDeduction: input.applyBasicDeduction, admitted: input.admitted }
+}
+
+/** Names of the HR fields that changed — the audit never carries personal data values. */
+function changedFields(before: Record<string, unknown>, after: Record<string, unknown>) {
+  return Object.keys(after).filter((key) => before[key] !== after[key])
+}
+
+export const createPosEmployee = mutation({
+  args: { displayName: v.string(), employeeCode: v.string(), pin: v.string(), role: employeeRole, restaurantExternalIds: v.array(v.string()), ...hrFields },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.employees.edit")
+    const email = await getOfficeAuthEmail(ctx)
+    const displayName = args.displayName.trim()
+    if (displayName.length < 2) throw new ConvexError("Укажите ФИО")
+    if (!/^\d{3,12}$/.test(args.employeeCode)) throw new ConvexError("Код сотрудника должен состоять из 3–12 цифр")
+    if (!isValidPin(args.pin)) throw new ConvexError(`PIN должен состоять из ${PIN_MIN}–${PIN_MAX} цифр`)
+    if (await ctx.db.query("employees").withIndex("by_code", (q) => q.eq("code", args.employeeCode)).unique()) throw new ConvexError("Этот код сотрудника уже используется")
+    const restaurantIds = await resolveRestaurantIds(ctx, user, args.restaurantExternalIds)
+    const pinSalt = randomPinSalt()
+    const pinHash = await derivePinHash(args.pin, pinSalt)
+    const hr = checkHr(args)
+    const employeeId = await ctx.db.insert("employees", { code: args.employeeCode, displayName, role: args.role, restaurantIds, pinSalt, pinHash, active: true, failedAttempts: 0, ...hr, updatedAt: Date.now() })
+    await writeOfficeAudit(ctx, email!, { action: "workforce.create", summary: `Создан сотрудник кассы «${displayName}» (код ${args.employeeCode}, роль ${args.role})`, resourceType: "employee", resourceExternalId: args.employeeCode })
+    return { employeeId, code: args.employeeCode }
+  },
+})
+
+export const updateEmployeeProfile = mutation({
+  args: { employeeId: v.id("employees"), displayName: v.string(), expectedUpdatedAt: v.optional(v.number()), ...hrFields },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.employees.edit")
+    const email = await getOfficeAuthEmail(ctx)
+    const employee = await ctx.db.get(args.employeeId)
+    if (!employee) throw new ConvexError("Сотрудник не найден")
+    await requireEmployeeInScope(ctx, user, employee)
+    if (args.expectedUpdatedAt !== undefined && (employee.updatedAt ?? 0) !== args.expectedUpdatedAt) throw new ConvexError("Карточку изменил другой пользователь — обновите страницу")
+    const displayName = args.displayName.trim()
+    if (displayName.length < 2) throw new ConvexError("Укажите ФИО")
+    const hr = checkHr(args)
+    const changed = changedFields(employee as unknown as Record<string, unknown>, { displayName, ...hr })
+    await ctx.db.patch(employee._id, { displayName, ...hr, updatedAt: Date.now() })
+    await writeOfficeAudit(ctx, email!, { action: "workforce.profile.update", summary: `Изменена карточка «${displayName}» (код ${employee.code}): ${changed.join(", ") || "без изменений"}`, resourceType: "employee", resourceExternalId: employee.code })
   },
 })
