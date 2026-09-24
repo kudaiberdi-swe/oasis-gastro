@@ -11,7 +11,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const BASELINE_PATH = path.join(ROOT, "scripts/guards/baseline.json")
 const PUBLIC_ALLOWLIST_PATH = path.join(ROOT, "scripts/guards/public-allowlist.json")
 
-const AUTH_TOKENS = ["requireOperator", "requireSession", "requireManagerApproval", "requireOfficeCapability", "getOfficeAuthEmail"]
+const AUTH_TOKENS = ["requireOperator", "requireAnyOperator", "requireSession", "requireManagerApproval", "requireOfficeCapability", "getOfficeAuthEmail"]
 // resolveRestaurantIds (domains/workforce) calls requireRestaurantScope for every restaurant it resolves.
 const SCOPE_TOKENS = ["requireRestaurantScope", "restaurantScopeFilter(", "hasScope(", "restaurantScopes", "resolveRestaurantIds("]
 

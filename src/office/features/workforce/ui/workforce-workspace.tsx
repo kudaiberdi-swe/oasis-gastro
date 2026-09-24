@@ -34,7 +34,7 @@ import {
 
 const ROLES = ["cashier", "manager", "administrator"] as const
 type Role = (typeof ROLES)[number]
-const ROLE_LABEL: Record<string, string> = { cashier: "Кассир", manager: "Менеджер", administrator: "Администратор" }
+const ROLE_LABEL: Record<string, string> = { cashier: "Кассир", manager: "Менеджер", administrator: "Администратор", kitchen: "Кухня" }
 const ROLE_OPTIONS = ROLES.map((role) => ({ value: role, label: ROLE_LABEL[role] }))
 
 const CANDIDATE_LIMIT = 200

@@ -85,6 +85,7 @@ import type * as lib_capabilities from "../lib/capabilities.js";
 import type * as lib_checkoutCore from "../lib/checkoutCore.js";
 import type * as lib_domainRecords from "../lib/domainRecords.js";
 import type * as lib_finance from "../lib/finance.js";
+import type * as lib_kitchen from "../lib/kitchen.js";
 import type * as lib_ledger from "../lib/ledger.js";
 import type * as lib_lifecycles from "../lib/lifecycles.js";
 import type * as lib_loyalty from "../lib/loyalty.js";
@@ -110,6 +111,7 @@ import type * as lib_time from "../lib/time.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as migrations_m2Orders from "../migrations/m2Orders.js";
 import type * as migrations_m3StockWarehouses from "../migrations/m3StockWarehouses.js";
+import type * as migrations_m7KitchenTickets from "../migrations/m7KitchenTickets.js";
 
 import type {
   ApiFromModules,
@@ -195,6 +197,7 @@ declare const fullApi: ApiFromModules<{
   "lib/checkoutCore": typeof lib_checkoutCore;
   "lib/domainRecords": typeof lib_domainRecords;
   "lib/finance": typeof lib_finance;
+  "lib/kitchen": typeof lib_kitchen;
   "lib/ledger": typeof lib_ledger;
   "lib/lifecycles": typeof lib_lifecycles;
   "lib/loyalty": typeof lib_loyalty;
@@ -220,6 +223,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   "migrations/m2Orders": typeof migrations_m2Orders;
   "migrations/m3StockWarehouses": typeof migrations_m3StockWarehouses;
+  "migrations/m7KitchenTickets": typeof migrations_m7KitchenTickets;
 }>;
 
 /**

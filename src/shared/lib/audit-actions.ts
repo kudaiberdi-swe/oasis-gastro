@@ -19,6 +19,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "shift.x-report": "X-отчёт",
   "shift.cash-in": "Внесение наличных",
   "shift.cash-out": "Изъятие наличных",
+  "kitchen.bump-back": "Кухня: возврат статуса",
+  "order.send-to-kitchen": "Отправка на кухню",
+  "order.void-line": "Удаление позиции",
   "kitchen.status": "Статус на кухне",
 
   // Офис.

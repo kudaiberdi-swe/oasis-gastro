@@ -1,7 +1,7 @@
-export type EmployeeRole = "cashier" | "manager" | "administrator"
+export type EmployeeRole = "cashier" | "manager" | "administrator" | "kitchen"
 export type OrderType = "dine-in" | "takeaway" | "delivery"
 export type PaymentMethod = "card" | "cash" | "qr"
-export type KitchenStatus = "queued" | "preparing" | "ready" | "completed"
+export type KitchenStatus = "queued" | "preparing" | "ready" | "completed" | "cancelled"
 
 export type PosEmployee = { id: string; code: string; displayName: string; role: EmployeeRole }
 export type PosTerminal = { id: string; externalId: string; name: string; terminalNumber: number }

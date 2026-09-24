@@ -112,9 +112,27 @@ async function accountsReady(ctx: QueryCtx) {
   return Boolean(cogs?.active)
 }
 
-/** Writes off an order's stock and posts cost of goods sold. Idempotent by key; returns the cost. */
-export async function consumeOrderStock(ctx: MutationCtx, args: { order: Doc<"orders">; lines: Doc<"orderLines">[]; restaurantExternalId: string; terminal: Doc<"posTerminals"> | null; idempotencyKey: string; occurredAt: number; businessDate?: string }) {
-  const orderSource = String(args.order._id)
+/**
+ * Writes off an order's stock by recipe and posts its cost. A voided line written off as spoilage
+ * (W1-POS-04) passes its own source, movement kind and expense account, so a later refund of the
+ * order never returns that stock.
+ */
+export async function consumeOrderStock(
+  ctx: MutationCtx,
+  args: {
+    order: Doc<"orders">
+    lines: Doc<"orderLines">[]
+    restaurantExternalId: string
+    terminal: Doc<"posTerminals"> | null
+    idempotencyKey: string
+    occurredAt: number
+    businessDate?: string
+    sourceExternalId?: string
+    movementKind?: "sale" | "writeoff"
+    debitAccount?: string
+  },
+) {
+  const orderSource = args.sourceExternalId ?? String(args.order._id)
   const warnings = async (codes: { code: Doc<"salesWithoutRecipe">["code"]; orderLineId?: Id<"orderLines">; productId?: Id<"products"> }[]) => {
     for (const warning of codes) await ctx.db.insert("salesWithoutRecipe", { orderId: args.order._id, ...warning, restaurantExternalId: args.restaurantExternalId, occurredAt: args.occurredAt })
   }
@@ -140,7 +158,7 @@ export async function consumeOrderStock(ctx: MutationCtx, args: { order: Doc<"or
     if (!item) continue
     const movement = await applyStockMovement(ctx, {
       externalId: `sale:${args.idempotencyKey}:${index}`,
-      kind: "sale",
+      kind: args.movementKind ?? "sale",
       sourceModuleId: "orders",
       sourceExternalId: orderSource,
       sourceNumber: String(args.order.number),
@@ -168,10 +186,10 @@ export async function consumeOrderStock(ctx: MutationCtx, args: { order: Doc<"or
           sourceNumber: String(args.order.number),
           occurredAt: args.occurredAt,
           businessDate: args.businessDate,
-          debitAccount: "cogs",
+          debitAccount: args.debitAccount ?? "cogs",
           creditAccount: account,
           amount: Math.round(amount),
-          description: `Себестоимость заказа №${args.order.number}`,
+          description: args.debitAccount ? `Списание по заказу №${args.order.number}` : `Себестоимость заказа №${args.order.number}`,
           warehouseExternalId: warehouse.externalId,
         })
       }

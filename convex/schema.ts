@@ -7,7 +7,7 @@ import { retailKind, retailSettingData } from "./domains/retail/validators"
 
 const unit = v.union(v.literal("кг"), v.literal("л"), v.literal("шт"), v.literal("порц."))
 
-const employeeRole = v.union(v.literal("cashier"), v.literal("manager"), v.literal("administrator"))
+const employeeRole = v.union(v.literal("cashier"), v.literal("manager"), v.literal("administrator"), v.literal("kitchen"))
 
 const orderStatus = v.union(
   v.literal("draft"),
@@ -27,6 +27,7 @@ const kitchenStatus = v.union(
   v.literal("preparing"),
   v.literal("ready"),
   v.literal("completed"),
+  v.literal("cancelled"),
 )
 
 export default defineSchema({
@@ -468,12 +469,21 @@ export default defineSchema({
     orderNumber: v.number(),
     status: kitchenStatus,
     fulfillment: orderType,
-    source: v.literal("pos"),
+    source: v.union(v.literal("pos"), v.literal("delivery"), v.literal("kiosk")),
     createdAt: v.number(),
     updatedAt: v.number(),
+    // W1-KDS-01 (optional until M-7): the ticket's own restaurant and status times. An order can have
+    // several tickets — one per send to the kitchen (W1-POS-04).
+    restaurantId: v.optional(v.id("restaurants")),
+    tableLabel: v.optional(v.string()),
+    startedAt: v.optional(v.number()),
+    readyAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    cancelledAt: v.optional(v.number()),
   })
     .index("by_order", ["orderId"])
-    .index("by_status_created", ["status", "createdAt"]),
+    .index("by_status_created", ["status", "createdAt"])
+    .index("by_restaurant_status_created", ["restaurantId", "status", "createdAt"]),
 
   kitchenTicketLines: defineTable({
     ticketId: v.id("kitchenTickets"),
@@ -481,6 +491,11 @@ export default defineSchema({
     productName: v.string(),
     quantity: v.number(),
     instructions: v.array(v.string()),
+    // W1-KDS-01 (optional)
+    prepArea: v.optional(v.string()),
+    bundleComponents: v.optional(v.array(v.string())),
+    orderLineId: v.optional(v.id("orderLines")),
+    status: v.optional(v.union(v.literal("active"), v.literal("cancelled"))),
   }).index("by_ticket", ["ticketId"]),
 
   // --- Audit ---------------------------------------------------------------

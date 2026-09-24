@@ -9,12 +9,14 @@ import { postLedgerEntry } from "../../lib/finance"
 import { journalReady, resolvePaymentType, settleOrder } from "../../lib/checkoutCore"
 import { postJournalEntry } from "../../lib/ledger"
 import { reverseLoyaltyPoints } from "../../lib/loyalty"
-import { calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
+import { calculateDiscountAmount, calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
+import { cancelTicketLine, cancelTicketsForOrder, createKitchenTicket } from "../../lib/kitchen"
+import { settingInForce } from "../../lib/retailSettings"
 import { priceDraftLines, resolveDiscount, resolveOrderType, type PricedLine } from "../../lib/orderPricing"
 import { draftLineInput, orderType as orderTypeValidator, paymentMethod as paymentMethodValidator } from "../../lib/validators"
 import { assertPeriodOpen } from "../../lib/periods"
 import { businessDateFor } from "../../lib/time"
-import { reverseOrderConsumption } from "../../lib/recipeConsumption"
+import { consumeOrderStock, reverseOrderConsumption } from "../../lib/recipeConsumption"
 import { hydrateOrder } from "./queries"
 
 async function requireOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess, statuses: string[]) {
@@ -100,8 +102,9 @@ export const saveDraft = mutation({
       const input = args.lines.find((row) => row.clientLineId && row.clientLineId === line.clientLineId)
       if (!input || input.productId !== line.productId || input.quantity !== line.quantity) throw new ConvexError(`«${line.productName}» уже на кухне — изменить её можно только через «Удалить позицию»`)
     }
-    const sentIds = new Set(sent.map((line) => line.clientLineId))
-    const pricedLines = await priceDraftLines(ctx, restaurantExternalId, args.lines.filter((row) => !(row.clientLineId && sentIds.has(row.clientLineId))), now)
+    // Sent lines are kept as they are; a voided line's id never brings it back.
+    const keptIds = new Set(existingLines.filter((line) => line.clientLineId && (line.voidedAt || line.sentToKitchenAt)).map((line) => line.clientLineId))
+    const pricedLines = await priceDraftLines(ctx, restaurantExternalId, args.lines.filter((row) => !(row.clientLineId && keptIds.has(row.clientLineId))), now)
     const subtotal = sent.reduce((sum, line) => sum + (line.lineTotal ?? line.unitPrice * line.quantity), 0) + pricedLines.reduce((sum, line) => sum + line.lineTotal, 0)
 
     const orderType = await resolveOrderType(ctx, restaurantExternalId, { orderTypeExternalId: args.orderTypeExternalId, orderType: args.orderType }, now)
@@ -220,6 +223,7 @@ export const cancel = mutation({
     await assertPeriodOpen(ctx, posPeriodScope(access, businessDateFor(Date.now(), access.restaurant.businessDayCutoffMinutes)))
     const manager = await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id)
     await ctx.db.patch(order._id, { status: "cancelled", cancelledAt: Date.now(), updatedAt: Date.now(), updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
+    await cancelTicketsForOrder(ctx, order._id, Date.now())
     await ctx.db.insert("orderDeletionEvents", {
       orderId: order._id,
       deletionReasonName: "Отмена заказа",
@@ -332,6 +336,7 @@ export const refund = mutation({
       createdAt: now,
     })
     const totalRefunded = refunded + roundKzt(args.amount)
+    if (totalRefunded === paid) await cancelTicketsForOrder(ctx, order._id, now)
     await ctx.db.patch(order._id, { status: totalRefunded === paid ? "refunded" : "partially_refunded", updatedAt: now, updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
     await ctx.db.insert("shiftEvents", { shiftId: shift._id, type: "refund", amount: roundKzt(args.amount), reason: `${args.reason.trim()} · заказ №${order.number}`, actorId: access.employee._id, orderId: order._id, createdAt: now })
     await postLedgerEntry(ctx, {
@@ -365,6 +370,96 @@ export const refund = mutation({
     await reverseLoyaltyPoints(ctx, order, { paidTotal: paid, refundedTotal: totalRefunded, paymentId, occurredAt: now })
     await writeAudit(ctx, access, { action: "order.refund", summary: `Возврат ${roundKzt(args.amount)} ₸ по заказу №${order.number}: ${args.reason.trim()}`, shiftId: shift._id, orderId: order._id, managerId: manager._id })
     return paymentId
+  },
+})
+
+/** «На кухню» before payment (W1-POS-04): a new ticket for the lines not sent yet. */
+export const sendToKitchen = mutation({
+  args: { sessionToken: v.string(), orderId: v.id("orders"), expectedVersion: v.optional(v.number()), lineIds: v.optional(v.array(v.id("orderLines"))) },
+  handler: async (ctx, args) => {
+    const access = await requireOperator(ctx, args.sessionToken)
+    const shift = await requireOpenShift(ctx, access.terminal._id)
+    const order = await requireOrder(ctx, args.orderId, access, ["draft", "held"])
+    if (args.expectedVersion != null && (order.version ?? 1) !== args.expectedVersion) throw new ConvexError("Заказ изменён на другой кассе. Обновите данные")
+    const lines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200)
+    const chosen = args.lineIds ? new Set(args.lineIds) : null
+    const unsent = lines.filter((line) => !line.sentToKitchenAt && !line.voidedAt && (!chosen || chosen.has(line._id)))
+    if (!unsent.length) throw new ConvexError("Нет новых позиций для кухни")
+    const now = Date.now()
+    // saveDraft recognises sent lines by clientLineId, so every sent line needs one.
+    for (const line of unsent) if (!line.clientLineId) await ctx.db.patch(line._id, { clientLineId: String(line._id) })
+    const ticketId = await createKitchenTicket(ctx, { order, lines: unsent, restaurantId: access.restaurant._id, source: "pos", now })
+    const version = (order.version ?? 1) + 1
+    await ctx.db.patch(order._id, { kitchenSentAt: order.kitchenSentAt ?? now, updatedAt: now, updatedBy: access.employee._id, version })
+    await touchSession(ctx, access.session._id)
+    await writeAudit(ctx, access, { action: "order.send-to-kitchen", summary: `Заказ №${order.number}: на кухню ${unsent.length} поз.`, shiftId: shift._id, orderId: order._id })
+    return { ticketId, version, order: await hydrateOrder(ctx, (await ctx.db.get(order._id))!) }
+  },
+})
+
+/**
+ * Removes a line with a deletion reason (W1-POS-04). A manager confirms when the reason requires it or
+ * the line is already on the kitchen ticket; a write-off reason takes the stock by recipe to the
+ * reason's expense account. Totals are recalculated with the order's discount and service charge.
+ */
+export const voidLine = mutation({
+  args: {
+    sessionToken: v.string(),
+    orderId: v.id("orders"),
+    orderLineId: v.id("orderLines"),
+    expectedVersion: v.optional(v.number()),
+    deletionReasonExternalId: v.string(),
+    comment: v.optional(v.string()),
+    managerApprovalToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const access = await requireOperator(ctx, args.sessionToken)
+    const shift = await requireOpenShift(ctx, access.terminal._id)
+    const order = await requireOrder(ctx, args.orderId, access, ["draft", "held"])
+    if (args.expectedVersion != null && (order.version ?? 1) !== args.expectedVersion) throw new ConvexError("Заказ изменён на другой кассе. Обновите данные")
+    const line = await ctx.db.get(args.orderLineId)
+    if (!line || line.orderId !== order._id || line.voidedAt) throw new ConvexError("Позиция не найдена в заказе")
+    const now = Date.now()
+    const reason = await settingInForce(ctx, "deletion-reason", args.deletionReasonExternalId, access.restaurant.externalId, now, "Причина удаления")
+    if (reason.data.kind !== "deletion-reason") throw new ConvexError("Причина удаления недоступна на этой кассе")
+    const comment = args.comment?.trim() ?? ""
+    if (reason.data.requireComment && comment.length < 3) throw new ConvexError("Для этой причины нужен комментарий")
+    const manager = reason.data.requireManager || line.sentToKitchenAt ? await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id) : null
+    if (reason.data.writeOff) await assertPeriodOpen(ctx, posPeriodScope(access, shift.businessDate))
+
+    await ctx.db.patch(line._id, { voidedAt: now, voidReasonExternalId: reason.externalId, ...(line.clientLineId ? {} : { clientLineId: String(line._id) }) })
+    await ctx.db.insert("orderDeletionEvents", { orderId: order._id, orderLineId: line._id, deletionReasonName: reason.name, writeOff: reason.data.writeOff, comment, actorId: access.employee._id, managerId: manager?._id, createdAt: now })
+    if (line.sentToKitchenAt) await cancelTicketLine(ctx, line, now)
+    if (reason.data.writeOff) {
+      await consumeOrderStock(ctx, {
+        order,
+        lines: [line],
+        restaurantExternalId: access.restaurant.externalId,
+        terminal: access.terminal,
+        idempotencyKey: `void:${line._id}`,
+        occurredAt: now,
+        businessDate: shift.businessDate,
+        sourceExternalId: `${order._id}:void:${line._id}`,
+        movementKind: "writeoff",
+        debitAccount: reason.data.expenseAccount,
+      })
+    }
+
+    const orderLines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200)
+    const remaining = orderLines.filter((row) => !row.voidedAt)
+    const subtotal = remaining.reduce((sum, row) => sum + (row.lineTotal ?? row.unitPrice * row.quantity), 0)
+    const discountAmount = recalculatedDiscount(order, subtotal)
+    const serviceChargeAmount = order.serviceChargeWaived ? 0 : calculateServiceCharge(subtotal, discountAmount, order.serviceChargePercent)
+    const version = (order.version ?? 1) + 1
+    await ctx.db.patch(order._id, { subtotal, discountAmount, serviceChargeAmount, total: calculateOrderTotal(subtotal, discountAmount, serviceChargeAmount), updatedAt: now, updatedBy: access.employee._id, version })
+    await writeAudit(ctx, access, {
+      action: "order.void-line",
+      summary: `Заказ №${order.number}: удалена «${line.productName}» ×${line.quantity} — ${reason.name}${comment ? `: ${comment}` : ""}`,
+      shiftId: shift._id,
+      orderId: order._id,
+      managerId: manager?._id,
+    })
+    return { version, order: await hydrateOrder(ctx, (await ctx.db.get(order._id))!) }
   },
 })
 
@@ -404,4 +499,13 @@ async function refundPaymentType(ctx: MutationCtx, restaurantExternalId: string,
     if (row?.data.kind === "payment-type") return { name: row.name, account: row.data.account }
   }
   return resolvePaymentType(ctx, restaurantExternalId, { method: original.method }, Date.now())
+}
+
+/** The order's discount on a new subtotal: a percent stays a percent, a fixed amount is capped, a markup scales. */
+function recalculatedDiscount(order: Doc<"orders">, subtotal: number) {
+  if (order.discountPercent > 0) return calculateDiscountAmount(subtotal, order.discountPercent)
+  const amount = order.discountAmount ?? 0
+  if (amount > 0) return Math.min(amount, subtotal)
+  if (amount < 0 && order.subtotal > 0) return roundKzt((amount * subtotal) / order.subtotal)
+  return 0
 }

@@ -7,6 +7,7 @@ import { postLedgerEntry } from "./finance"
 import { postJournalEntry } from "./ledger"
 import { accrueLoyaltyPoints } from "./loyalty"
 import { appendOutboxEvent } from "./outbox"
+import { createKitchenTicket } from "./kitchen"
 import { consumeOrderStock } from "./recipeConsumption"
 import { activeSettingsAt, settingInForce } from "./retailSettings"
 
@@ -54,20 +55,6 @@ export async function resolvePaymentType(ctx: QueryCtx, restaurantExternalId: st
 export async function journalReady(ctx: QueryCtx) {
   const revenue = await ctx.db.query("accounts").withIndex("by_external_id", (q) => q.eq("externalId", SYSTEM_ACCOUNTS.revenue.externalId)).unique()
   return Boolean(revenue?.active)
-}
-
-export async function ensureKitchenTicket(ctx: MutationCtx, order: Doc<"orders">, now: number) {
-  const existing = await ctx.db.query("kitchenTickets").withIndex("by_order", (q) => q.eq("orderId", order._id)).first()
-  if (existing) return existing._id
-  const ticketId = await ctx.db.insert("kitchenTickets", { orderId: order._id, orderNumber: order.number, status: "queued", fulfillment: order.orderType, source: "pos", createdAt: now, updatedAt: now })
-  const lines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(100)
-  for (const line of lines) {
-    if (line.voidedAt) continue
-    const productName = line.sizeLabel ? `${line.productName} · ${line.sizeLabel}` : line.productName
-    const instructions = [...(line.kitchenModifiers ?? []).map((modifier) => modifier.label), ...line.modifiers]
-    await ctx.db.insert("kitchenTicketLines", { ticketId, productExternalId: line.productExternalId ?? String(line.productId), productName, quantity: line.quantity, instructions })
-  }
-  return ticketId
 }
 
 /**
@@ -169,7 +156,9 @@ export async function settleOrder(
     })
   }
 
-  await ensureKitchenTicket(ctx, order, now)
+  // Only what was not sent with «На кухню» yet (W1-POS-04).
+  const orderLines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200)
+  await createKitchenTicket(ctx, { order, lines: orderLines.filter((line) => !line.sentToKitchenAt && !line.voidedAt), restaurantId: actor.restaurant._id, source: args.source, now })
   await ctx.db.patch(order._id, {
     status: "paid",
     paymentMethod: resolved.length === 1 ? resolved[0].type.processorKind : undefined,
@@ -184,7 +173,7 @@ export async function settleOrder(
   // Flat P&L ledger stays until M-4 (W1-FIN-07) moves its readers to the journal.
   await postLedgerEntry(ctx, { restaurantExternalId, occurredAt: now, kind: "revenue", category: "Продажи", amount: order.total, sourceModuleId: "orders", sourceExternalId, description: `Заказ №${order.number}`, businessDate })
   // Sale write-off by recipe and cost of goods sold (W1-RCP-03); never fails the sale.
-  const soldLines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200)
+  const soldLines = orderLines.filter((line) => !line.voidedAt)
   await consumeOrderStock(ctx, { order, lines: soldLines, restaurantExternalId, terminal: actor.terminal, idempotencyKey: args.idempotencyKey, occurredAt: now, businessDate })
   await accrueLoyaltyPoints(ctx, order, now)
   await appendOutboxEvent(ctx, {

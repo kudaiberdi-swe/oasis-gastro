@@ -1,12 +1,12 @@
 import { v } from "convex/values"
 
 import { query } from "../../_generated/server"
-import { requireOperator } from "../../lib/auth"
+import { requireAnyOperator } from "../../lib/auth"
 
 export const current = query({
   args: { sessionToken: v.string() },
   handler: async (ctx, args) => {
-    const access = await requireOperator(ctx, args.sessionToken)
+    const access = await requireAnyOperator(ctx, args.sessionToken)
     return {
       expiresAt: access.session.expiresAt,
       employee: {

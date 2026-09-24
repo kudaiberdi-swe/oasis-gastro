@@ -66,7 +66,15 @@ async function requireSession(ctx: AnyCtx, sessionToken: string, purpose: "opera
 
 export type PosAccess = Awaited<ReturnType<typeof requireSession>>
 
+/** A cashier-side operator: every POS function except the kitchen board. The kitchen PIN role can't sell. */
 export async function requireOperator(ctx: AnyCtx, sessionToken: string): Promise<PosAccess> {
+  const access = await requireSession(ctx, sessionToken, "operator")
+  if (access.employee.role === "kitchen") throw new ConvexError("Роль «Кухня» работает только с экраном кухни")
+  return access
+}
+
+/** Any operator including the kitchen role (W1-KDS-01): the kitchen board and the session itself. */
+export async function requireAnyOperator(ctx: AnyCtx, sessionToken: string): Promise<PosAccess> {
   return requireSession(ctx, sessionToken, "operator")
 }
 

@@ -10,6 +10,7 @@
 #   7. retail defaults          domains/retail/internal:seedDefaults (payment/order types, reasons, cash ops)
 #   8. M-2 orders               migrations/m2Orders: backfillOrders, backfillLines, backfillPayments (paged;
 #                               needs step 7 — the dry run reports missingSettings until it is applied)
+#   9. M-7 kitchen tickets      migrations/m7KitchenTickets:backfill (paged; reports unresolved tickets)
 # Each step runs as a dry run first and prints what it would change; then asks before writing.
 #
 #   bash scripts/prod-w1-maintenance.sh          # production
@@ -60,6 +61,7 @@ run domains/retail/internal:seedDefaults '{"dryRun":true}'
 paged migrations/m2Orders:backfillOrders true
 paged migrations/m2Orders:backfillLines true
 paged migrations/m2Orders:backfillPayments true
+paged migrations/m7KitchenTickets:backfill true
 
 read -r -p "Apply these changes to production? [y/N] " ANSWER
 [ "$ANSWER" = "y" ] || { echo "Nothing written."; exit 0; }
@@ -78,6 +80,7 @@ run domains/retail/internal:seedDefaults '{}'
 paged migrations/m2Orders:backfillOrders false
 paged migrations/m2Orders:backfillLines false
 paged migrations/m2Orders:backfillPayments false
+paged migrations/m7KitchenTickets:backfill false
 echo "── M-3 verify (expect no mismatches) ──"
 run migrations/m3StockWarehouses:verify '{"paginationOpts":{"numItems":200,"cursor":null}}'
 echo "Done."
