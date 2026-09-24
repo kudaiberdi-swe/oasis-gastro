@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 import { authTables } from "@convex-dev/auth/server"
+import { financeModuleId, financeRecordData } from "./domains/finance/validators"
+import { officeDomainStatus } from "./lib/validators"
 
 const unit = v.union(v.literal("кг"), v.literal("л"), v.literal("шт"), v.literal("порц."))
 
@@ -725,4 +727,32 @@ export default defineSchema({
     scopeKey: v.string(),
     next: v.number(),
   }).index("by_scope_key", ["scopeKey"]),
+  // Finance domain records (W1-FIN-01) — lifecycle, numbering and pagination through lib/domainRecords.ts.
+  financeRecords: defineTable({
+    externalId: v.string(),
+    moduleId: financeModuleId,
+    number: v.string(),
+    name: v.string(),
+    status: officeDomainStatus,
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    businessDate: v.string(), // YYYY-MM-DD
+    amount: v.number(), // whole tenge
+    debitAccountExternalId: v.optional(v.string()),
+    creditAccountExternalId: v.optional(v.string()),
+    cashflowCategoryExternalId: v.optional(v.string()),
+    counterpartyExternalId: v.optional(v.string()),
+    data: financeRecordData,
+    searchText: v.string(),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    postedAt: v.optional(v.number()),
+    reversedAt: v.optional(v.number()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_module_status_date", ["moduleId", "status", "businessDate"])
+    .index("by_module_restaurant_date", ["moduleId", "restaurantExternalId", "businessDate"])
+    .index("by_counterparty_module", ["counterpartyExternalId", "moduleId"])
+    .searchIndex("search_finance_records", { searchField: "searchText", filterFields: ["moduleId", "status", "restaurantExternalId"] }),
 })

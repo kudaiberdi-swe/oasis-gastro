@@ -40,3 +40,17 @@ export const draftLineInput = v.object({
   quantity: v.number(),
   modifiers: v.optional(v.array(v.string())),
 })
+
+/** Status of an office domain record (OFFICE-DESIGN §3.5 lifecycles). */
+export const officeDomainStatus = v.union(
+  v.literal("draft"),
+  v.literal("pending-approval"),
+  v.literal("approved"),
+  v.literal("posted"),
+  v.literal("reversed"),
+  v.literal("cancelled"),
+  v.literal("active"),
+  v.literal("inactive"),
+  v.literal("published"),
+  v.literal("expired"),
+)
