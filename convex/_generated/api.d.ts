@@ -62,6 +62,7 @@ import type * as domains_shifts_queries from "../domains/shifts/queries.js";
 import type * as domains_sizeScales_mutations from "../domains/sizeScales/mutations.js";
 import type * as domains_sizeScales_queries from "../domains/sizeScales/queries.js";
 import type * as domains_stock_internal from "../domains/stock/internal.js";
+import type * as domains_stock_master from "../domains/stock/master.js";
 import type * as domains_stock_mutations from "../domains/stock/mutations.js";
 import type * as domains_stock_queries from "../domains/stock/queries.js";
 import type * as domains_workforce_mutations from "../domains/workforce/mutations.js";
@@ -155,6 +156,7 @@ declare const fullApi: ApiFromModules<{
   "domains/sizeScales/mutations": typeof domains_sizeScales_mutations;
   "domains/sizeScales/queries": typeof domains_sizeScales_queries;
   "domains/stock/internal": typeof domains_stock_internal;
+  "domains/stock/master": typeof domains_stock_master;
   "domains/stock/mutations": typeof domains_stock_mutations;
   "domains/stock/queries": typeof domains_stock_queries;
   "domains/workforce/mutations": typeof domains_workforce_mutations;

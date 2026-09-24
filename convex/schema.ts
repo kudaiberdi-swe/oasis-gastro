@@ -648,6 +648,7 @@ export default defineSchema({
     .index("by_external_id", ["externalId"])
     .index("by_active_and_name", ["active", "nameSort"])
     .index("by_product", ["productExternalId"])
+    .index("by_unit", ["unitExternalId"])
     .searchIndex("search_inventory_items", { searchField: "searchText", filterFields: ["active"] }),
 
   // Denormalized current quantity + weighted-average cost per (branch, item) — avoids summing
@@ -690,7 +691,8 @@ export default defineSchema({
     .index("by_occurred_at", ["occurredAt"])
     .index("by_external_id", ["externalId"])
     .index("by_source", ["sourceExternalId", "occurredAt"])
-    .index("by_warehouse_item_occurred", ["warehouseId", "inventoryItemId", "occurredAt"]),
+    .index("by_warehouse_item_occurred", ["warehouseId", "inventoryItemId", "occurredAt"])
+    .index("by_item_occurred", ["inventoryItemId", "occurredAt"]),
   // ── Accounting platform (W1-PLT-01) ─────────────────────────────────────────────────────────
   // Chart of accounts (Kazakhstan standard chart, reference model; UI in W1 finance).
   accounts: defineTable({
@@ -1127,6 +1129,7 @@ export default defineSchema({
     .index("by_restaurant_status_date", ["restaurantExternalId", "status", "date"])
     .index("by_restaurant_date", ["restaurantExternalId", "date"])
     .index("by_number", ["number"])
+    .index("by_supplier_status", ["supplierId", "status"])
     .searchIndex("search_receipts", { searchField: "searchText", filterFields: ["status", "restaurantExternalId"] }),
 
   receiptLines: defineTable({
@@ -1168,6 +1171,7 @@ export default defineSchema({
     .index("by_type_restaurant_status_date", ["type", "restaurantExternalId", "status", "date"])
     .index("by_type_restaurant_date", ["type", "restaurantExternalId", "date"])
     .index("by_type_status_date", ["type", "status", "date"])
+    .index("by_source_warehouse_status", ["sourceWarehouseId", "status"])
     .searchIndex("search_stock_documents", { searchField: "searchText", filterFields: ["type", "status", "restaurantExternalId"] }),
 
   stockDocumentLines: defineTable({
