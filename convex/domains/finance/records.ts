@@ -62,7 +62,7 @@ export const references = query({
     const [categories, counterparties, restaurants] = await Promise.all([records("cashflow-categories"), records("counterparties"), scopedRestaurants(ctx, user)])
     return {
       accounts: accounts.filter((account) => account.active).map((account) => ({ externalId: account.externalId, code: account.code, name: account.name, type: account.type, allowManualEntries: account.allowManualEntries })),
-      cashflowCategories: categories.slice(0, LIMIT).map((row) => ({ externalId: row.externalId, name: row.name })),
+      cashflowCategories: categories.slice(0, LIMIT).map((row) => ({ externalId: row.externalId, name: row.name, direction: typeof row.data.direction === "string" ? row.data.direction : null })),
       counterparties: counterparties.slice(0, LIMIT).map((row) => ({ externalId: row.externalId, name: row.name })),
       restaurants: restaurants.map((restaurant) => ({ externalId: restaurant.externalId, name: restaurant.name })),
       truncated: categories.length > LIMIT || counterparties.length > LIMIT,

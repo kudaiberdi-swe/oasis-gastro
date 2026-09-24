@@ -132,12 +132,27 @@ export const reverseShiftAcceptance = mutation({
   },
 })
 
-/** Accepted shifts of a restaurant, newest first (the register under the panel). */
+/** Accepted shifts, newest first — one restaurant (paged) or every restaurant in scope (latest of each). */
 export const acceptances = query({
-  args: { restaurantExternalId: v.string(), paginationOpts: paginationOptsValidator },
+  args: { restaurantExternalId: v.optional(v.string()), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.shift-acceptance.view")
-    await requireRestaurantScope(ctx, user, args.restaurantExternalId)
-    return ctx.db.query("cashShiftAcceptances").withIndex("by_restaurant_accepted", (q) => q.eq("restaurantExternalId", args.restaurantExternalId)).order("desc").paginate(args.paginationOpts)
+    if (args.restaurantExternalId) await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    const describe = async (row: Doc<"cashShiftAcceptances">) => {
+      const shift = await ctx.db.get(row.shiftId)
+      const terminal = shift ? await ctx.db.get(shift.terminalId) : null
+      const restaurant = shift ? await ctx.db.get(shift.restaurantId) : null
+      return { ...row, shiftNumber: shift?.number ?? null, zReportNumber: shift?.zReportNumber ?? null, businessDate: shift?.businessDate ?? null, terminalName: terminal?.name ?? null, restaurantName: restaurant?.name ?? null }
+    }
+    if (args.restaurantExternalId) {
+      const page = await ctx.db.query("cashShiftAcceptances").withIndex("by_restaurant_accepted", (q) => q.eq("restaurantExternalId", args.restaurantExternalId!)).order("desc").paginate(args.paginationOpts)
+      return { ...page, page: await Promise.all(page.page.map(describe)) }
+    }
+    const rows: Doc<"cashShiftAcceptances">[] = []
+    for (const restaurant of (await scopedRestaurants(ctx, user)).slice(0, 50)) {
+      rows.push(...(await ctx.db.query("cashShiftAcceptances").withIndex("by_restaurant_accepted", (q) => q.eq("restaurantExternalId", restaurant.externalId)).order("desc").take(20)))
+    }
+    rows.sort((a, b) => b.acceptedAt - a.acceptedAt)
+    return { page: await Promise.all(rows.slice(0, args.paginationOpts.numItems).map(describe)), isDone: true, continueCursor: "" }
   },
 })

@@ -71,6 +71,11 @@ const ACCEPTED: ShiftAcceptanceRow = {
   recountedCash: 2000,
   variance: -300,
   journalEntryExternalId: "shift-variance-shift0",
+  shiftNumber: 11,
+  zReportNumber: "Z-11",
+  businessDate: "2026-09-22",
+  terminalName: "Касса №1",
+  restaurantName: "Sandyq Алматы",
 }
 
 beforeEach(() => {

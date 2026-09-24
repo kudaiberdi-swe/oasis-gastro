@@ -143,12 +143,13 @@ export const journal = query({
  * one «Оборот за период» — in double entry the whole book's debit always equals its credit (L-11).
  */
 export const overview = query({
-  args: { restaurantExternalId: v.optional(v.string()), from: v.string(), to: v.string(), accountExternalId: v.optional(v.string()) },
+  args: { restaurantExternalId: v.optional(v.string()), from: v.string(), to: v.string(), accountExternalId: v.optional(v.string()), sourceModuleId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.transactions.view")
     const inScope = restaurantScopeFilter(user, args.restaurantExternalId)
     checkPeriod(args.from, args.to)
-    const inRestaurant = (entry: Doc<"journalEntries">) => inScope(entry.restaurantExternalId) && (!args.restaurantExternalId || entry.restaurantExternalId === args.restaurantExternalId)
+    const inRestaurant = (entry: Doc<"journalEntries">) =>
+      inScope(entry.restaurantExternalId) && (!args.restaurantExternalId || entry.restaurantExternalId === args.restaurantExternalId) && (!args.sourceModuleId || entry.sourceModuleId === args.sourceModuleId)
     let scanned = 0
     const sum = async (entries: AsyncIterable<Doc<"journalEntries">>) => {
       let amount = 0
