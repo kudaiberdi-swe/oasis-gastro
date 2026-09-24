@@ -24,6 +24,8 @@ interface BaseProps {
   "aria-describedby"?: string
   "aria-invalid"?: boolean
   "aria-label"?: string
+  /** Server-side search: called with the typed text (the list still filters what it gets). */
+  onSearchChange?: (search: string) => void
 }
 
 export type ComboboxProps =
@@ -32,7 +34,7 @@ export type ComboboxProps =
 
 /** Searchable choice; `multiple` shows the selection as removable chips instead of a <select multiple>. */
 export function Combobox(props: ComboboxProps) {
-  const { options, placeholder = "Выберите", searchPlaceholder = "Поиск", emptyText = "Ничего не найдено", disabled, id, className, ...rest } = props
+  const { options, placeholder = "Выберите", searchPlaceholder = "Поиск", emptyText = "Ничего не найдено", disabled, id, className, onSearchChange, ...rest } = props
   const aria = { "aria-describedby": rest["aria-describedby"], "aria-invalid": rest["aria-invalid"], "aria-label": rest["aria-label"] }
   const [open, setOpen] = React.useState(false)
   const selected = props.multiple ? props.value : props.value ? [props.value] : []
@@ -71,7 +73,7 @@ export function Combobox(props: ComboboxProps) {
             className="z-50 w-[var(--radix-popover-trigger-width)] min-w-56 rounded-card border border-border bg-popover text-popover-foreground shadow-float"
           >
             <Command loop>
-              <Command.Input placeholder={searchPlaceholder} className={cn(inputClass, "rounded-b-none border-0 border-b border-border")} />
+              <Command.Input placeholder={searchPlaceholder} onValueChange={onSearchChange} className={cn(inputClass, "rounded-b-none border-0 border-b border-border")} />
               <Command.List className="max-h-72 overflow-y-auto p-1">
                 <Command.Empty className="px-3 py-4 text-body-sm text-muted-foreground">{emptyText}</Command.Empty>
                 {options.map((option) => (

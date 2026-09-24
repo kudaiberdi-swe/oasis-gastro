@@ -18,7 +18,7 @@ vi.mock("@/office/features/session/data/use-office-context", () => ({
 }))
 vi.mock("@/pos/router", () => ({ PosRouter: () => <p>POS screen</p> }))
 vi.mock("@/office/features/nomenclature/ui/nomenclature-workspace", () => ({ NomenclatureWorkspace: () => <p>NomenclatureWorkspace</p> }))
-vi.mock("@/office/features/stock/ui/stock-workspace", () => ({ StockWorkspace: () => <p>StockWorkspace</p> }))
+vi.mock("@/office/features/stock/ui/balances-page", () => ({ BalancesPage: () => <p>BalancesPage</p> }))
 vi.mock("@/office/features/finance/ui/finance-workspace", () => ({ FinanceWorkspace: () => <p>FinanceWorkspace</p> }))
 vi.mock("@/office/features/workforce/ui/workforce-workspace", () => ({ WorkforceWorkspace: () => <p>WorkforceWorkspace</p> }))
 vi.mock("@/office/features/loyalty/ui/loyalty-workspace", () => ({ LoyaltyWorkspace: () => <p>LoyaltyWorkspace</p> }))
@@ -39,7 +39,7 @@ function renderAt(url: string) {
 describe("app routes (W0-FND-01)", () => {
   it("opens an office section straight from its URL, so a reload keeps it", async () => {
     renderAt("/office/stock")
-    expect(await screen.findByText("StockWorkspace")).toBeTruthy()
+    expect(await screen.findByText("BalancesPage")).toBeTruthy()
   })
 
   it("sends /office to the default section and unknown sections to Not Found", async () => {
@@ -58,9 +58,9 @@ describe("app routes (W0-FND-01)", () => {
     expect(router.state.location.pathname).toBe("/office/nomenclature")
 
     cleanup()
-    renderAt("/office/receipts")
+    renderAt("/office/price-lists")
     expect(await screen.findByText("Раздел в разработке")).toBeTruthy()
-    expect(screen.getByRole("heading", { level: 1, name: "Приходные накладные" })).toBeTruthy()
+    expect(screen.getByRole("heading", { level: 1, name: "Прайс-листы" })).toBeTruthy()
     expect(screen.queryByText(/Касса №|Смена закрыта/)).toBeNull()
   })
 

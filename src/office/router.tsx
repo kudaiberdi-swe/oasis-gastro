@@ -21,7 +21,12 @@ import { useOfficeContext } from "@/office/features/session/data/use-office-cont
 import { OfficeBootstrap } from "@/office/features/session/ui/office-bootstrap"
 import { OfficeAccessDenied, OfficeSignIn } from "@/office/features/session/ui/office-sign-in"
 import { SizeScalesWorkspace } from "@/office/features/size-scales/ui/size-scales-workspace"
-import { StockWorkspace } from "@/office/features/stock/ui/stock-workspace"
+import { ReceiptsWorkspace } from "@/office/features/receipts/ui/receipts-workspace"
+import { InventoriesWorkspace, OutgoingInvoicesWorkspace, SupplierReturnsWorkspace, TransfersWorkspace, WriteoffsWorkspace } from "@/office/features/stock-documents/ui/documents-workspace"
+import { BalancesPage } from "@/office/features/stock/ui/balances-page"
+import { SuppliersPage } from "@/office/features/stock/ui/suppliers-page"
+import { UnitsPage } from "@/office/features/stock/ui/units-page"
+import { WarehousesPage } from "@/office/features/stock/ui/warehouses-page"
 import { WorkforceWorkspace } from "@/office/features/workforce/ui/workforce-workspace"
 import { allowsCapability } from "@/office/model/capabilities"
 import { filterNavigationByCapabilities } from "@/office/model/nav-filter"
@@ -36,7 +41,16 @@ const WORKSPACES: Record<string, ComponentType> = {
   modifiers: ModifiersWorkspace,
   "size-scales": SizeScalesWorkspace,
   "price-orders": PriceOrdersWorkspace,
-  stock: StockWorkspace,
+  stock: BalancesPage,
+  units: UnitsPage,
+  warehouses: WarehousesPage,
+  suppliers: SuppliersPage,
+  receipts: ReceiptsWorkspace,
+  inventories: InventoriesWorkspace,
+  transfers: TransfersWorkspace,
+  writeoffs: WriteoffsWorkspace,
+  "outgoing-invoices": OutgoingInvoicesWorkspace,
+  "supplier-returns": SupplierReturnsWorkspace,
   transactions: FinanceWorkspace,
   employees: WorkforceWorkspace,
   guests: LoyaltyWorkspace,
