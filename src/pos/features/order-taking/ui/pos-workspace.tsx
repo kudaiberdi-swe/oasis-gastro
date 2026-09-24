@@ -22,6 +22,9 @@ import { useClosePreview, useCurrentShift, useShiftMutations } from "@/pos/featu
 import { Button } from "@/shared/components/ui/button"
 import { errorMessage } from "@/shared/lib/error-message"
 
+// Cashier touch targets (POS-DESIGN §5): the action row uses the POS control height.
+const TOOLBAR_BUTTON = "h-[var(--control-h-pos)]"
+
 export function PosWorkspace() {
   const session = usePosSession()
 
@@ -83,7 +86,7 @@ function AuthenticatedPos({
   const guest = useOrderGuest(sessionToken, draft.orderId)
 
   if (shift === undefined) {
-    return <div className="flex h-full items-center justify-center text-muted-foreground">Загрузка…</div>
+    return <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">Загрузка…</div>
   }
 
   if (!shift) {
@@ -144,7 +147,7 @@ function AuthenticatedPos({
         <div className="min-h-0 flex-1">
           <KitchenBoard sessionToken={sessionToken} />
         </div>
-        <Button variant="secondary" onClick={() => setShowKitchen(false)}>
+        <Button variant="secondary" size="lg" onClick={() => setShowKitchen(false)}>
           Назад к кассе
         </Button>
       </div>
@@ -155,17 +158,21 @@ function AuthenticatedPos({
     <div className="flex h-full flex-col gap-2 p-2">
       <AppHeader restaurantName={access.restaurant.name} employeeName={access.employee.displayName} shiftNumber={shift.number} onOpenShiftInfo={() => setCloseShiftOpen(true)} onLock={onLock} />
       <div className="flex items-center gap-2">
-        <Button variant="secondary" size="sm" onClick={() => setShowKitchen(true)}>
+        <Button variant="secondary" className={TOOLBAR_BUTTON} onClick={() => setShowKitchen(true)}>
           Экран кухни {kitchenTickets.length > 0 && `(${kitchenTickets.length})`}
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => setCloseShiftOpen(true)}>
+        <Button variant="ghost" className={TOOLBAR_BUTTON} onClick={() => setCloseShiftOpen(true)}>
           Закрыть смену
         </Button>
-        <Button variant="secondary" size="sm" onClick={handleXReport} disabled={xReportSubmitting}>
+        <Button variant="secondary" className={TOOLBAR_BUTTON} onClick={handleXReport} disabled={xReportSubmitting}>
           {xReportSubmitting ? "Формирование…" : "X-отчёт"}
         </Button>
-        {xReportError && <span className="text-xs font-semibold text-destructive">{xReportError}</span>}
-        <Button variant="secondary" size="sm" onClick={() => setGuestOpen(true)} disabled={!draft.orderId}>
+        {xReportError && (
+          <span role="alert" className="text-caption font-semibold text-destructive">
+            {xReportError}
+          </span>
+        )}
+        <Button variant="secondary" className={TOOLBAR_BUTTON} onClick={() => setGuestOpen(true)} disabled={!draft.orderId}>
           {guest ? `${guest.name || guest.phone} · ${guest.points} б.` : "Гость"}
         </Button>
       </div>

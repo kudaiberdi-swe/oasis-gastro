@@ -1,9 +1,26 @@
 import { useState } from "react"
+import { Search } from "lucide-react"
 
 import { useCategories, useProducts } from "@/pos/features/catalog/data/use-catalog"
 import { ProductCard } from "@/pos/components/product-card"
 import { Button } from "@/shared/components/ui/button"
-import { cn } from "@/shared/lib/utils"
+import { Chip, type CategoryTone } from "@/shared/components/ui/chip"
+import { Input } from "@/shared/components/ui/input"
+
+// Category strip colour (POS-DESIGN §2.3). Categories carry no tone field yet, so it is read from the
+// bilingual label; categories that match nothing (sauces, garnishes, «Прочее») get no strip.
+// --cat-turkistan is reserved for dishes marked Туркестан and is never assigned to a category.
+const CATEGORY_TONES: Array<[RegExp, CategoryTone]> = [
+  [/салат/i, "green"],
+  [/выпечк|нан-тоқаш|баурсак/i, "bread"],
+  [/десерт|тәтті|чай/i, "tea"],
+  [/напит|сусын|фреш|лимонад/i, "dairy"],
+  [/основн|втор|деликатес|суп|компанию/i, "meat"],
+]
+
+function categoryTone(label: string): CategoryTone | undefined {
+  return CATEGORY_TONES.find(([pattern]) => pattern.test(label))?.[1]
+}
 
 export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: string; onAddProduct: (product: { productId: string; name: string; nameKk: string; price: number }) => void }) {
   const categories = useCategories(sessionToken)
@@ -13,41 +30,40 @@ export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: str
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col gap-3">
-      <input
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Поиск блюда…"
-        className="h-11 rounded-[var(--radius-control)] border border-border bg-card px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
-      />
+      <div className="relative">
+        <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-[18px] -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Поиск блюда…"
+          aria-label="Поиск блюда"
+          className="h-[var(--control-h-pos)] pl-10 text-body"
+        />
+      </div>
       {!search && (
         <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
-          <button
-            type="button"
-            onClick={() => setActiveCategory(undefined)}
-            className={cn("shrink-0 rounded-full px-4 py-2 text-sm font-bold", !activeCategory ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}
-          >
+          <Chip size="lg" active={!activeCategory} onClick={() => setActiveCategory(undefined)}>
             Все
-          </button>
+          </Chip>
           {categories.map((category) => (
-            <button
+            <Chip
               key={category.externalId}
-              type="button"
+              size="lg"
+              tone={categoryTone(category.label)}
+              active={activeCategory === category.externalId}
               onClick={() => setActiveCategory(category.externalId)}
-              className={cn(
-                "shrink-0 rounded-full px-4 py-2 text-sm font-bold",
-                activeCategory === category.externalId ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-              )}
             >
               {category.shortLabel}
-            </button>
+            </Chip>
           ))}
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
-          <p className="p-4 text-sm text-muted-foreground">Загрузка меню…</p>
+          <p className="p-4 text-body-sm text-muted-foreground">Загрузка меню…</p>
         ) : items.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">Ничего не найдено</p>
+          <p className="p-4 text-body-sm text-muted-foreground">Ничего не найдено</p>
         ) : (
           <div className="grid grid-cols-2 gap-2.5 pb-4 sm:grid-cols-3 lg:grid-cols-4">
             {items.map((product) => (

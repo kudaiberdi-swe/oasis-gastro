@@ -1,8 +1,7 @@
 import { useRef, useState } from "react"
 
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
-import { cn, focusRingClass, formatTenge } from "@/shared/lib/utils"
+import { Button, Chip, Dialog, DialogContent, DialogHeader, DialogTitle, Field, Input, Money, MoneyInput, SegmentedControl } from "@/shared/components/ui"
+import { formatTenge } from "@/shared/lib/utils"
 import type { PaymentMethod } from "@/shared/types/pos"
 import { PAYMENT_METHOD_LABEL, QUICK_CASH_STEPS, roundUpTo } from "../model/order-receipt"
 
@@ -75,73 +74,73 @@ export function PaymentDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-display font-semibold">
-            Оплата — <span className="tabular-nums text-accent">{formatTenge(total)}</span>
+          <DialogTitle>
+            Оплата — <Money value={total} size="lg" />
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           {rows.map((row, index) => (
-            <div key={row.id} className="rounded-[var(--radius-card)] border border-border p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex gap-1.5">
-                  {(Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      onClick={() => setMethod(index, method)}
-                      className={cn("rounded-full px-3 py-1.5 text-xs font-bold", row.method === method ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}
-                    >
-                      {PAYMENT_METHOD_LABEL[method]}
-                    </button>
-                  ))}
-                </div>
+            // The card-radius class also marks a payment row for tests/pos/pos-dialogs.test.tsx.
+            <div key={row.id} className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <SegmentedControl
+                  aria-label="Способ оплаты"
+                  size="pos"
+                  value={row.method}
+                  onValueChange={(method) => setMethod(index, method)}
+                  options={(Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map((method) => ({ value: method, label: PAYMENT_METHOD_LABEL[method] }))}
+                />
                 {rows.length > 1 && (
-                  <button type="button" onClick={() => removeRow(index)} className="text-xs font-semibold text-muted-foreground">
+                  <Button variant="ghost" size="sm" onClick={() => removeRow(index)}>
                     Убрать
-                  </button>
+                  </Button>
                 )}
               </div>
-              <label className="mb-1 block text-xs text-muted-foreground">Сумма</label>
-              <input
-                type="number"
-                value={row.amount || ""}
-                onChange={(event) => updateRow(index, { amount: Math.max(0, Math.round(Number(event.target.value))), tendered: row.method === "cash" ? Math.max(0, Math.round(Number(event.target.value))) : row.tendered })}
-                className={cn("h-11 w-full rounded-[var(--radius-control)] border border-border bg-card px-3 text-right text-lg font-bold", focusRingClass)}
-              />
+              {/* Native number input (role spinbutton) kept for the amount; styled by the Input primitive. */}
+              <Field label="Сумма">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="number"
+                    inputMode="numeric"
+                    value={row.amount || ""}
+                    onChange={(event) => updateRow(index, { amount: Math.max(0, Math.round(Number(event.target.value))), tendered: row.method === "cash" ? Math.max(0, Math.round(Number(event.target.value))) : row.tendered })}
+                    className="h-[var(--control-h-pos)] text-right text-body font-semibold tabular-nums"
+                  />
+                )}
+              </Field>
               {row.method === "cash" && (
                 <>
-                  <label className="mb-1 mt-2 block text-xs text-muted-foreground">Получено от гостя</label>
-                  <input
-                    type="number"
-                    value={row.tendered ?? row.amount}
-                    onChange={(event) => updateRow(index, { tendered: Math.max(0, Math.round(Number(event.target.value))) })}
-                    className={cn("h-11 w-full rounded-[var(--radius-control)] border border-border bg-card px-3 text-right text-lg font-bold", focusRingClass)}
-                  />
-                  <div className="mt-2 flex gap-1.5">
+                  <Field label="Получено от гостя">
+                    {(control) => (
+                      <MoneyInput
+                        {...control}
+                        value={row.tendered ?? row.amount}
+                        onValueChange={(value) => updateRow(index, { tendered: Math.max(0, Math.round(value ?? 0)) })}
+                        className="h-[var(--control-h-pos)] text-body font-semibold"
+                      />
+                    )}
+                  </Field>
+                  <div className="flex flex-wrap gap-1.5">
                     {cashPresets(row.amount).map((preset) => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => updateRow(index, { tendered: preset.tendered })}
-                        className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
-                      >
+                      <Chip key={preset.label} active={(row.tendered ?? row.amount) === preset.tendered} onClick={() => updateRow(index, { tendered: preset.tendered })}>
                         {preset.label}
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                   {(row.tendered ?? row.amount) > row.amount && (
-                    <p className="font-display mt-2 text-sm font-semibold tabular-nums text-success">Сдача: {formatTenge((row.tendered ?? row.amount) - row.amount)}</p>
+                    <p className="font-display text-body font-semibold tabular-nums text-success">Сдача: {formatTenge((row.tendered ?? row.amount) - row.amount)}</p>
                   )}
                 </>
               )}
             </div>
           ))}
           {remaining !== 0 && (
-            <button type="button" onClick={addRow} disabled={remaining <= 0} className="text-sm font-semibold text-primary disabled:text-muted-foreground">
+            <Button variant="link" className="h-auto self-start px-0" onClick={addRow} disabled={remaining <= 0}>
               {remaining > 0 ? `Разделить оплату (осталось ${formatTenge(remaining)})` : "Сумма превышена"}
-            </button>
+            </Button>
           )}
-          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
+          {error && <p className="text-body-sm font-semibold text-destructive">{error}</p>}
         </div>
         <Button size="lg" disabled={!canSubmit || submitting} onClick={() => onSubmit(rows.map(({ id: _id, ...row }) => row))}>
           {submitting ? "Оплата…" : "Подтвердить оплату"}

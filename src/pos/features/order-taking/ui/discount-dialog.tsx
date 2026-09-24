@@ -1,9 +1,7 @@
 import { useRef, useState } from "react"
 
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { Button, Chip, Dialog, DialogContent, DialogHeader, DialogTitle, Field, Input } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
-import { cn, focusRingClass } from "@/shared/lib/utils"
 
 const QUICK_PERCENTS = [5, 10, 15, 20]
 
@@ -69,30 +67,29 @@ export function DiscountDialog({
         </DialogHeader>
         <div className="flex gap-1.5">
           {QUICK_PERCENTS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setPercent(value)}
-              className={`flex-1 rounded-[var(--radius-control)] border py-2 text-sm font-bold ${percent === value ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
-            >
+            <Chip key={value} size="lg" active={percent === value} className="flex-1 justify-center tabular-nums" onClick={() => setPercent(value)}>
               {value}%
-            </button>
+            </Chip>
           ))}
         </div>
-        <label className="text-sm text-muted-foreground">Процент вручную</label>
-        <input
-          type="number"
-          value={percent}
-          onChange={(event) => setPercent(Math.max(0, Math.min(100, Math.round(Number(event.target.value)))))}
-          className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3 text-right text-lg font-bold", focusRingClass)}
-        />
+        <Field label="Процент вручную">
+          {(control) => (
+            <Input
+              {...control}
+              type="number"
+              inputMode="numeric"
+              value={percent}
+              onChange={(event) => setPercent(Math.max(0, Math.min(100, Math.round(Number(event.target.value)))))}
+              className="h-[var(--control-h-pos)] text-right text-body font-semibold tabular-nums"
+            />
+          )}
+        </Field>
         {percent > 0 && (
-          <>
-            <label className="text-sm text-muted-foreground">Причина</label>
-            <input value={reason} onChange={(event) => setReason(event.target.value)} className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3", focusRingClass)} />
-          </>
+          <Field label="Причина">
+            {(control) => <Input {...control} value={reason} onChange={(event) => setReason(event.target.value)} className="h-[var(--control-h-pos)]" />}
+          </Field>
         )}
-        {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
+        {error && <p className="text-body-sm font-semibold text-destructive">{error}</p>}
         <div className="flex gap-2">
           <Button variant="secondary" size="lg" className="flex-1" onClick={() => setPercent(0)} disabled={submitting}>
             Убрать

@@ -1,12 +1,11 @@
 import { useState } from "react"
 
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { Banner, Button, Dialog, DialogContent, DialogHeader, DialogTitle, Field, Input, MoneyInput } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
-import { cn, focusRingClass, formatTenge } from "@/shared/lib/utils"
+import { cn, formatTenge } from "@/shared/lib/utils"
 
 export function OpenShiftDialog({ open, onOpen }: { open: boolean; onOpen: (openingCash: number, note: string) => Promise<unknown> }) {
-  const [openingCash, setOpeningCash] = useState("0")
+  const [openingCash, setOpeningCash] = useState<number | null>(0)
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -15,7 +14,7 @@ export function OpenShiftDialog({ open, onOpen }: { open: boolean; onOpen: (open
     setSubmitting(true)
     setError(null)
     try {
-      await onOpen(Math.max(0, Math.round(Number(openingCash))), note)
+      await onOpen(Math.max(0, Math.round(openingCash ?? 0)), note)
     } catch (caught) {
       setError(errorMessage(caught, "Не удалось открыть смену"))
     } finally {
@@ -29,16 +28,13 @@ export function OpenShiftDialog({ open, onOpen }: { open: boolean; onOpen: (open
         <DialogHeader>
           <DialogTitle>Открытие смены</DialogTitle>
         </DialogHeader>
-        <label className="text-sm text-muted-foreground">Наличность в кассе на начало смены</label>
-        <input
-          type="number"
-          value={openingCash}
-          onChange={(event) => setOpeningCash(event.target.value)}
-          className={cn("h-12 rounded-[var(--radius-control)] border border-border bg-card px-3 text-right text-lg font-bold", focusRingClass)}
-        />
-        <label className="text-sm text-muted-foreground">Комментарий</label>
-        <input value={note} onChange={(event) => setNote(event.target.value)} className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3", focusRingClass)} />
-        {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
+        <Field label="Наличность в кассе на начало смены">
+          {(control) => <MoneyInput {...control} value={openingCash} onValueChange={setOpeningCash} className="h-[var(--control-h-pos)] text-body font-semibold" />}
+        </Field>
+        <Field label="Комментарий">
+          {(control) => <Input {...control} value={note} onChange={(event) => setNote(event.target.value)} className="h-[var(--control-h-pos)]" />}
+        </Field>
+        {error && <p className="text-body-sm font-semibold text-destructive">{error}</p>}
         <Button size="lg" onClick={submit} disabled={submitting}>
           {submitting ? "Открытие…" : "Открыть смену"}
         </Button>
@@ -64,12 +60,11 @@ export function CloseShiftDialog({
 }) {
   // Blind count (POS-DESIGN §6.2): the cashier enters what is in the drawer first; the expected
   // amount and the variance appear only after that.
-  const [countedCash, setCountedCash] = useState("")
+  const [counted, setCounted] = useState<number | null>(null)
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const counted = countedCash.trim() === "" ? null : Math.round(Number(countedCash))
   const variance = counted === null ? 0 : counted - expectedCash
 
   async function submit() {
@@ -107,30 +102,22 @@ export function CloseShiftDialog({
         <DialogHeader>
           <DialogTitle>Закрытие смены</DialogTitle>
         </DialogHeader>
-        {blockers.length > 0 && (
-          <div className="rounded-[var(--radius-card)] bg-destructive/10 p-3 text-sm text-destructive">
-            Есть незакрытые заказы: {blockers.map((b) => b.tableLabel || `№${b.number}`).join(", ")}
-          </div>
-        )}
-        <label htmlFor="close-shift-counted" className="text-sm text-muted-foreground">Фактическая наличность</label>
-        <input
-          type="number"
-          id="close-shift-counted"
-          value={countedCash}
-          onChange={(event) => setCountedCash(event.target.value)}
-          className={cn("h-12 rounded-[var(--radius-control)] border border-border bg-card px-3 text-right text-lg font-bold", focusRingClass)}
-        />
+        {blockers.length > 0 && <Banner tone="danger" title="Есть незакрытые заказы">{blockers.map((b) => b.tableLabel || `№${b.number}`).join(", ")}</Banner>}
+        <Field id="close-shift-counted" label="Фактическая наличность">
+          {(control) => <MoneyInput {...control} value={counted} onValueChange={setCounted} className="h-[var(--control-h-pos)] text-body font-semibold" />}
+        </Field>
         {counted !== null && (
           <>
-            <p className="text-sm text-muted-foreground">Ожидается в кассе: {formatTenge(expectedCash)}</p>
-            <p className={variance === 0 ? "text-sm font-semibold text-muted-foreground" : variance > 0 ? "text-sm font-semibold text-success" : "text-sm font-semibold text-destructive"}>
+            <p className="text-body-sm text-muted-foreground">Ожидается в кассе: {formatTenge(expectedCash)}</p>
+            <p className={cn("text-body-sm font-semibold tabular-nums", variance === 0 ? "text-muted-foreground" : variance > 0 ? "text-success" : "text-destructive")}>
               Расхождение: {formatTenge(variance, { explicitPlus: true })}
             </p>
           </>
         )}
-        <label htmlFor="close-shift-note" className="text-sm text-muted-foreground">Комментарий</label>
-        <input id="close-shift-note" value={note} onChange={(event) => setNote(event.target.value)} className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3", focusRingClass)} />
-        {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
+        <Field id="close-shift-note" label="Комментарий">
+          {(control) => <Input {...control} value={note} onChange={(event) => setNote(event.target.value)} className="h-[var(--control-h-pos)]" />}
+        </Field>
+        {error && <p className="text-body-sm font-semibold text-destructive">{error}</p>}
         <Button size="lg" onClick={submit} disabled={submitting || counted === null}>
           {submitting ? "Закрытие…" : "Закрыть смену"}
         </Button>

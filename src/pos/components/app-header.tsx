@@ -2,6 +2,7 @@ import { Moon, Sun } from "lucide-react"
 
 import { useTheme } from "@/shared/components/theme-provider"
 import { Button } from "@/shared/components/ui/button"
+import { cn, focusRingClass } from "@/shared/lib/utils"
 
 function Mark() {
   return (
@@ -27,22 +28,28 @@ export function AppHeader({
 }) {
   const { mode, setMode } = useTheme()
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between rounded-[var(--radius-panel)] bg-nav px-4 text-nav-foreground">
+    <header className="flex h-14 shrink-0 items-center justify-between rounded-panel bg-nav px-4 text-nav-foreground">
       <div className="flex items-center gap-2">
         <span className="text-nav-accent">
           <Mark />
         </span>
-        <span className="font-display text-base font-semibold">{restaurantName}</span>
-        {shiftNumber != null && <span className="text-sm text-nav-foreground/55">· смена №{shiftNumber}</span>}
+        <span className="font-display text-body font-semibold">{restaurantName}</span>
+        {shiftNumber != null && <span className="text-body-sm text-nav-muted">· смена №{shiftNumber}</span>}
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" className="text-nav-foreground hover:bg-white/10 hover:text-nav-foreground" onClick={() => setMode(mode === "day" ? "night" : "day")}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={mode === "day" ? "Ночная тема" : "Дневная тема"}
+          className="text-nav-foreground hover:bg-nav-raised hover:text-nav-foreground"
+          onClick={() => setMode(mode === "day" ? "night" : "day")}
+        >
           {mode === "day" ? <Moon className="size-4" /> : <Sun className="size-4" />}
         </Button>
-        <button type="button" onClick={onOpenShiftInfo} className="text-sm font-semibold text-nav-foreground/80 hover:text-nav-foreground">
+        <button type="button" onClick={onOpenShiftInfo} className={cn("rounded-control px-1 text-body-sm font-semibold text-nav-muted hover:text-nav-foreground", focusRingClass)}>
           {employeeName}
         </button>
-        <Button variant="ghost" size="sm" className="text-nav-foreground hover:bg-white/10 hover:text-nav-foreground" onClick={onLock}>
+        <Button variant="ghost" size="sm" className="text-nav-foreground hover:bg-nav-raised hover:text-nav-foreground" onClick={onLock}>
           Блокировать
         </Button>
       </div>

@@ -1,11 +1,9 @@
 import { useState } from "react"
 
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Field, Input } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 
 import { useFindGuestByPhone } from "../data/use-loyalty"
-import { cn, focusRingClass } from "@/shared/lib/utils"
 
 export function GuestDialog({
   open,
@@ -64,33 +62,43 @@ export function GuestDialog({
         </DialogHeader>
 
         {currentGuest ? (
-          <div className="rounded-[var(--radius-card)] border border-border bg-muted/40 p-3">
-            <p className="font-semibold text-foreground">{currentGuest.name || currentGuest.phone}</p>
-            {currentGuest.name && <p className="text-sm text-muted-foreground">{currentGuest.phone}</p>}
-            <p className="mt-1 text-sm text-accent">{currentGuest.points} баллов</p>
-            <Button variant="secondary" size="sm" className="mt-2" onClick={handleDetach} disabled={submitting}>Убрать гостя</Button>
-            {error && <p className="mt-2 text-sm font-semibold text-destructive">{error}</p>}
+          <div className="rounded-card border border-border bg-muted p-3">
+            <p className="text-body font-semibold text-foreground">{currentGuest.name || currentGuest.phone}</p>
+            {currentGuest.name && <p className="text-body-sm text-muted-foreground">{currentGuest.phone}</p>}
+            <p className="mt-1 text-body-sm font-medium text-accent tabular-nums">{currentGuest.points} баллов</p>
+            <Button variant="secondary" size="sm" className="mt-2" onClick={handleDetach} disabled={submitting}>
+              Убрать гостя
+            </Button>
+            {error && <p className="mt-2 text-body-sm font-semibold text-destructive">{error}</p>}
           </div>
         ) : (
           <>
-            <label className="text-sm text-muted-foreground">Телефон</label>
-            <input
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+7 700 000 00 00"
-              className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3 text-lg", focusRingClass)}
-              inputMode="tel"
-            />
+            <Field label="Телефон">
+              {(control) => (
+                <Input
+                  {...control}
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  placeholder="+7 700 000 00 00"
+                  className="h-[var(--control-h-pos)] text-body tabular-nums"
+                />
+              )}
+            </Field>
             {found ? (
-              <p className="text-sm text-success">Найден: {found.name || found.phone} · {found.points} баллов</p>
+              <p className="text-body-sm text-success">
+                Найден: {found.name || found.phone} · {found.points} баллов
+              </p>
             ) : phone.replace(/\D/g, "").length >= 10 ? (
               <>
-                <p className="text-sm text-muted-foreground">Новый гость</p>
-                <label className="text-sm text-muted-foreground">Имя (необязательно)</label>
-                <input value={name} onChange={(event) => setName(event.target.value)} className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3", focusRingClass)} />
+                <p className="text-body-sm text-muted-foreground">Новый гость</p>
+                <Field label="Имя (необязательно)">
+                  {(control) => <Input {...control} value={name} onChange={(event) => setName(event.target.value)} className="h-[var(--control-h-pos)]" />}
+                </Field>
               </>
             ) : null}
-            {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
+            {error && <p className="text-body-sm font-semibold text-destructive">{error}</p>}
             <Button size="lg" onClick={handleAttach} disabled={submitting || phone.replace(/\D/g, "").length < 10}>
               {submitting ? "Сохранение…" : "Прикрепить"}
             </Button>

@@ -1,19 +1,49 @@
 import { Plus } from "lucide-react"
 import { useState } from "react"
 
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
-import { errorMessage } from "@/shared/lib/error-message"
-import { cn, formatTenge } from "@/shared/lib/utils"
+import {
+  Button,
+  DataTable,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  EmptyState,
+  Field,
+  Input,
+  SegmentedControl,
+  Select,
+  SkeletonRows,
+  TonePill,
+  type Column,
+} from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
+import { errorMessage } from "@/shared/lib/error-message"
+import { formatQuantity, formatTenge } from "@/shared/lib/format"
+import type { StatusTone } from "@/shared/lib/status-dictionary"
+import { cn } from "@/shared/lib/utils"
 
 import { useOfficeStock, useOfficeStockMutations, useRecentMovements, type InventoryItemId, type OfficeInventoryItem, type OfficeStockRestaurant } from "../data/use-office-stock"
 
 const UNITS = ["кг", "л", "шт", "порц."] as const
+const UNIT_OPTIONS = UNITS.map((unit) => ({ value: unit, label: unit }))
 
-const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50"
+const TAB_OPTIONS = [
+  { value: "balances" as const, label: "Остатки" },
+  { value: "log" as const, label: "Журнал" },
+]
+
+const KIND_LABEL: Record<string, { label: string; tone: StatusTone }> = {
+  receipt: { label: "Приход", tone: "success" },
+  writeoff: { label: "Списание", tone: "danger" },
+  adjustment: { label: "Инвентаризация", tone: "info" },
+}
 
 type StockAction = { kind: "receipt" | "writeoff" | "adjust"; item: OfficeInventoryItem; restaurantExternalId: string } | null
+
+type Movement = ReturnType<typeof useRecentMovements>["movements"][number]
 
 export function StockWorkspace() {
   const { items, restaurants, loading } = useOfficeStock()
@@ -22,153 +52,147 @@ export function StockWorkspace() {
   const [creating, setCreating] = useState(false)
   const [action, setAction] = useState<StockAction>(null)
 
-  if (loading) return <div className="grid flex-1 place-items-center text-sm text-muted-foreground">Загрузка…</div>
+  if (loading) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col p-5">
+        <SkeletonRows />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
-        <div className="flex gap-1 rounded-[var(--radius-control)] bg-muted p-1">
-          <button type="button" onClick={() => setTab("balances")} className={cn("rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm font-bold", tab === "balances" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
-            Остатки
-          </button>
-          <button type="button" onClick={() => setTab("log")} className={cn("rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm font-bold", tab === "log" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
-            Журнал
-          </button>
-        </div>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+        <SegmentedControl aria-label="Раздел склада" value={tab} onValueChange={setTab} options={TAB_OPTIONS} />
         {tab === "balances" ? (
           <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="size-3.5" /> Добавить товар
+            <Plus /> Добавить товар
           </Button>
         ) : null}
       </div>
 
-      {tab === "balances" ? (
-        <BalancesTable items={items} restaurants={restaurants} onAction={setAction} />
-      ) : (
-        <MovementsLog />
-      )}
+      <div className="min-h-0 flex-1 overflow-auto p-5">{tab === "balances" ? <BalancesTable items={items} restaurants={restaurants} onAction={setAction} /> : <MovementsLog />}</div>
 
       {creating ? <CreateItemDialog onClose={() => setCreating(false)} onCreate={mutations.createInventoryItem} /> : null}
 
       {action ? (
-        <StockActionDialog
-          action={action}
-          onClose={() => setAction(null)}
-          onReceive={mutations.receiveStock}
-          onWriteOff={mutations.writeOffStock}
-          onAdjust={mutations.adjustStock}
-        />
+        <StockActionDialog action={action} onClose={() => setAction(null)} onReceive={mutations.receiveStock} onWriteOff={mutations.writeOffStock} onAdjust={mutations.adjustStock} />
       ) : null}
     </div>
   )
 }
 
-function BalancesTable({
-  items,
-  restaurants,
-  onAction,
-}: {
-  items: OfficeInventoryItem[]
-  restaurants: OfficeStockRestaurant[]
-  onAction: (action: StockAction) => void
-}) {
-  return (
-    <div className="min-h-0 flex-1 overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th className="px-5 py-2 text-left">Товар</th>
-            {restaurants.map((restaurant) => (
-              <th key={restaurant.externalId} className="px-3 py-2 text-right">{restaurant.name}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item._id} className="border-t border-border/60 hover:bg-muted/40">
-              <td className="px-5 py-2">
-                <p className="font-semibold text-foreground">{item.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {item.unit}
-                  {item.minimumStock !== undefined ? ` · мин. ${item.minimumStock}` : ""}
-                </p>
-              </td>
-              {restaurants.map((restaurant) => {
-                const balance = item.balances.find((candidate) => candidate.restaurantExternalId === restaurant.externalId)
-                const quantity = balance?.quantity ?? 0
-                const low = item.minimumStock !== undefined && quantity < item.minimumStock
-                return (
-                  <td key={restaurant.externalId} className="px-3 py-2 text-right align-top">
-                    <p className={cn("tabular-nums font-semibold", low ? "text-destructive" : "text-foreground")}>{quantity} {item.unit}</p>
-                    {balance?.averageUnitCost ? <p className="text-xs text-muted-foreground">~{formatTenge(balance.averageUnitCost)}/{item.unit}</p> : null}
-                    <div className="mt-1 flex justify-end gap-1">
-                      <button type="button" onClick={() => onAction({ kind: "receipt", item, restaurantExternalId: restaurant.externalId })} className="rounded-[var(--radius-control)] px-1.5 py-0.5 text-xs font-bold text-primary hover:bg-primary/10">
-                        Приход
-                      </button>
-                      <button type="button" onClick={() => onAction({ kind: "writeoff", item, restaurantExternalId: restaurant.externalId })} className="rounded-[var(--radius-control)] px-1.5 py-0.5 text-xs font-bold text-destructive hover:bg-destructive/10">
-                        Списать
-                      </button>
-                      <button type="button" onClick={() => onAction({ kind: "adjust", item, restaurantExternalId: restaurant.externalId })} className="rounded-[var(--radius-control)] px-1.5 py-0.5 text-xs font-bold text-muted-foreground hover:bg-muted">
-                        Инв.
-                      </button>
-                    </div>
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
-          {!items.length && (
-            <tr>
-              <td colSpan={1 + restaurants.length} className="px-5 py-8 text-center text-sm text-muted-foreground">Товаров пока нет</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  )
+const cellActionClass = "h-7 px-2 text-caption"
+
+function BalancesTable({ items, restaurants, onAction }: { items: OfficeInventoryItem[]; restaurants: OfficeStockRestaurant[]; onAction: (action: StockAction) => void }) {
+  const columns: Column<OfficeInventoryItem>[] = [
+    {
+      key: "item",
+      header: "Товар",
+      sortValue: (item) => item.name,
+      cell: (item) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-foreground">{item.name}</span>
+          <span className="text-caption text-muted-foreground">
+            {item.unit}
+            {item.minimumStock !== undefined ? ` · мин. ${formatQuantity(item.minimumStock)}` : ""}
+          </span>
+        </div>
+      ),
+    },
+    ...restaurants.map(
+      (restaurant): Column<OfficeInventoryItem> => ({
+        key: restaurant.externalId,
+        header: restaurant.name,
+        numeric: true,
+        className: "align-top",
+        cell: (item) => {
+          const balance = item.balances.find((candidate) => candidate.restaurantExternalId === restaurant.externalId)
+          const quantity = balance?.quantity ?? 0
+          const low = item.minimumStock !== undefined && quantity < item.minimumStock
+          return (
+            <div className="flex flex-col items-end gap-0.5">
+              <span className={cn("font-semibold", low ? "text-destructive" : "text-foreground")}>{formatQuantity(quantity, item.unit)}</span>
+              {balance?.averageUnitCost ? (
+                <span className="text-caption text-muted-foreground">
+                  ~{formatTenge(balance.averageUnitCost)}/{item.unit}
+                </span>
+              ) : null}
+              <div className="mt-1 flex justify-end gap-1">
+                <Button variant="ghost" size="sm" className={cn(cellActionClass, "text-accent")} onClick={() => onAction({ kind: "receipt", item, restaurantExternalId: restaurant.externalId })}>
+                  Приход
+                </Button>
+                <Button variant="ghost" size="sm" className={cn(cellActionClass, "text-destructive")} onClick={() => onAction({ kind: "writeoff", item, restaurantExternalId: restaurant.externalId })}>
+                  Списать
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(cellActionClass, "text-muted-foreground")}
+                  title="Инвентаризация"
+                  onClick={() => onAction({ kind: "adjust", item, restaurantExternalId: restaurant.externalId })}
+                >
+                  Инв.
+                </Button>
+              </div>
+            </div>
+          )
+        },
+      }),
+    ),
+  ]
+
+  return <DataTable caption="Остатки" columns={columns} rows={items} getRowId={(item) => item._id} empty={<EmptyState title="Товаров пока нет" description="Добавьте товар, чтобы вести его остатки." />} />
 }
 
 function MovementsLog() {
   const { movements, loading } = useRecentMovements()
-  const KIND_LABEL: Record<string, string> = { receipt: "Приход", writeoff: "Списание", adjustment: "Инвентаризация" }
 
-  if (loading) return <div className="grid flex-1 place-items-center text-sm text-muted-foreground">Загрузка…</div>
+  const columns: Column<Movement>[] = [
+    { key: "when", header: "Когда", sortValue: (movement) => movement.occurredAt, cell: (movement) => <span className="whitespace-nowrap text-muted-foreground">{formatAlmatyDateTime(movement.occurredAt)}</span> },
+    { key: "item", header: "Товар", sortValue: (movement) => movement.itemName, cell: (movement) => <span className="font-semibold">{movement.itemName}</span> },
+    {
+      key: "kind",
+      header: "Тип",
+      cell: (movement) => {
+        const kind = KIND_LABEL[movement.kind]
+        return <TonePill tone={kind?.tone ?? "neutral"}>{kind?.label ?? movement.kind}</TonePill>
+      },
+    },
+    {
+      key: "delta",
+      header: "Изменение",
+      numeric: true,
+      sortValue: (movement) => movement.quantityDelta,
+      cell: (movement) => (
+        <span className={cn("font-semibold", movement.quantityDelta < 0 ? "text-destructive" : "text-foreground")}>
+          {movement.quantityDelta > 0 ? "+" : ""}
+          {formatQuantity(movement.quantityDelta, movement.itemUnit)}
+        </span>
+      ),
+    },
+    { key: "balance", header: "Остаток", numeric: true, cell: (movement) => formatQuantity(movement.balanceAfter, movement.itemUnit) },
+    {
+      key: "actor",
+      header: "Кто / причина",
+      cell: (movement) => (
+        <span className="text-muted-foreground">
+          {movement.actorEmail}
+          {movement.reason ? ` · ${movement.reason}` : ""}
+        </span>
+      ),
+    },
+  ]
 
-  return (
-    <div className="min-h-0 flex-1 overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th className="px-5 py-2 text-left">Когда</th>
-            <th className="px-3 py-2 text-left">Товар</th>
-            <th className="px-3 py-2 text-left">Тип</th>
-            <th className="px-3 py-2 text-right">Изменение</th>
-            <th className="px-3 py-2 text-right">Остаток</th>
-            <th className="px-3 py-2 text-left">Кто / причина</th>
-          </tr>
-        </thead>
-        <tbody>
-          {movements.map((movement) => (
-            <tr key={movement._id} className="border-t border-border/60">
-              <td className="px-5 py-2 text-xs text-muted-foreground">{formatAlmatyDateTime(movement.occurredAt)}</td>
-              <td className="px-3 py-2 font-semibold text-foreground">{movement.itemName}</td>
-              <td className="px-3 py-2">{KIND_LABEL[movement.kind] ?? movement.kind}</td>
-              <td className={cn("px-3 py-2 text-right tabular-nums font-semibold", movement.quantityDelta < 0 ? "text-destructive" : "text-foreground")}>
-                {movement.quantityDelta > 0 ? "+" : ""}{movement.quantityDelta} {movement.itemUnit}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums">{movement.balanceAfter} {movement.itemUnit}</td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">{movement.actorEmail}{movement.reason ? ` · ${movement.reason}` : ""}</td>
-            </tr>
-          ))}
-          {!movements.length && (
-            <tr>
-              <td colSpan={6} className="px-5 py-8 text-center text-sm text-muted-foreground">Движений пока нет</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  )
+  return <DataTable caption="Журнал движений" columns={columns} rows={loading ? undefined : movements} getRowId={(movement) => movement._id} empty={<EmptyState title="Движений пока нет" />} />
+}
+
+function FormError({ error }: { error: string | null }) {
+  return error ? (
+    <p role="alert" className="text-body-sm font-medium text-destructive">
+      {error}
+    </p>
+  ) : null
 }
 
 function CreateItemDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (args: { name: string; unit: (typeof UNITS)[number]; minimumStock?: number }) => Promise<InventoryItemId> }) {
@@ -196,26 +220,23 @@ function CreateItemDialog({ onClose, onCreate }: { onClose: () => void; onCreate
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Новый товар на складе</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground">Название</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} className={inputClass} required />
-          </label>
+        <DialogHeader>
+          <DialogTitle>Новый товар на складе</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Название">{(control) => <Input {...control} value={name} onChange={(event) => setName(event.target.value)} required />}</Field>
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">Ед. измерения</span>
-              <select value={unit} onChange={(event) => setUnit(event.target.value as (typeof UNITS)[number])} className={inputClass}>
-                {UNITS.map((option) => <option key={option} value={option}>{option}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">Мин. остаток (необязательно)</span>
-              <input type="number" min={0} value={minimumStock} onChange={(event) => setMinimumStock(event.target.value)} className={inputClass} />
-            </label>
+            <Field label="Ед. измерения">{(control) => <Select {...control} value={unit} onValueChange={(value) => setUnit(value as (typeof UNITS)[number])} options={UNIT_OPTIONS} />}</Field>
+            <Field label="Мин. остаток (необязательно)">
+              {(control) => <Input {...control} type="number" inputMode="decimal" min={0} className="text-right tabular-nums" value={minimumStock} onChange={(event) => setMinimumStock(event.target.value)} />}
+            </Field>
           </div>
-          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting} className="mt-1">{submitting ? "Сохранение…" : "Добавить"}</Button>
+          <FormError error={error} />
+          <DialogFooter>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Сохранение…" : "Добавить"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -264,29 +285,32 @@ function StockActionDialog({
     }
   }
 
+  const numberInputProps = { type: "number", inputMode: "decimal", min: 0, step: "any", required: true, className: "text-right tabular-nums" } as const
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{title}: {action.item.name}</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">Текущий остаток: {currentBalance?.quantity ?? 0} {action.item.unit}</p>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground">{action.kind === "adjust" ? `Фактический остаток, ${action.item.unit}` : `Количество, ${action.item.unit}`}</span>
-            <input type="number" min={0} step="any" value={quantity} onChange={(event) => setQuantity(event.target.value)} className={inputClass} required />
-          </label>
+        <DialogHeader>
+          <DialogTitle>
+            {title}: {action.item.name}
+          </DialogTitle>
+          <DialogDescription>Текущий остаток: {formatQuantity(currentBalance?.quantity ?? 0, action.item.unit)}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label={action.kind === "adjust" ? `Фактический остаток, ${action.item.unit}` : `Количество, ${action.item.unit}`}>
+            {(control) => <Input {...control} {...numberInputProps} value={quantity} onChange={(event) => setQuantity(event.target.value)} />}
+          </Field>
           {action.kind === "receipt" ? (
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">Цена за {action.item.unit}, ₸</span>
-              <input type="number" min={0} step="any" value={unitCost} onChange={(event) => setUnitCost(event.target.value)} className={inputClass} required />
-            </label>
+            <Field label={`Цена за ${action.item.unit}, ₸`}>{(control) => <Input {...control} {...numberInputProps} value={unitCost} onChange={(event) => setUnitCost(event.target.value)} />}</Field>
           ) : (
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">Причина</span>
-              <input value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} required />
-            </label>
+            <Field label="Причина">{(control) => <Input {...control} value={reason} onChange={(event) => setReason(event.target.value)} required />}</Field>
           )}
-          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting} className="mt-1">{submitting ? "Сохранение…" : "Сохранить"}</Button>
+          <FormError error={error} />
+          <DialogFooter>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Сохранение…" : "Сохранить"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

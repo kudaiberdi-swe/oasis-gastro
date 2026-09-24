@@ -1,16 +1,24 @@
 import { useState } from "react"
 
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { Banner, Button, DataTable, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, Input, SkeletonRows, type Column } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
+import { formatQuantity, formatTenge } from "@/shared/lib/format"
 import { cn } from "@/shared/lib/utils"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 
 import { useAdjustPoints, useGuestHistory, useGuests, type Guest } from "../data/use-office-loyalty"
 
-const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50"
-
 const KIND_LABEL: Record<string, string> = { accrual: "Начисление", redemption: "Списание", adjustment: "Корректировка" }
+
+function formatPoints(points: number, { explicitPlus = false } = {}) {
+  return `${explicitPlus && points > 0 ? "+" : ""}${formatQuantity(points)}`
+}
+
+const columns: Column<Guest>[] = [
+  { key: "phone", header: "Телефон", sortValue: (guest) => guest.phone, cell: (guest) => <span className="font-semibold text-foreground tabular-nums">{guest.phone}</span> },
+  { key: "name", header: "Имя", sortValue: (guest) => guest.name || null, cell: (guest) => <span className="text-muted-foreground">{guest.name || "—"}</span> },
+  { key: "points", header: "Баллы", numeric: true, sortValue: (guest) => guest.points, cell: (guest) => <span className="font-semibold text-accent">{formatPoints(guest.points)}</span> },
+]
 
 export function LoyaltyWorkspace() {
   const [search, setSearch] = useState("")
@@ -19,42 +27,29 @@ export function LoyaltyWorkspace() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск по телефону или имени…" className={cn(inputClass, "h-9 w-72")} />
-        <p className="text-xs text-muted-foreground">Начисление: 1 балл за каждые 100 ₸ чека</p>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-3 xl:px-8">
+        <Input
+          type="search"
+          aria-label="Поиск по телефону или имени"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Поиск по телефону или имени…"
+          className="w-72"
+        />
+        <p className="text-caption text-muted-foreground">Начисление: 1 балл за каждые {formatTenge(100)} чека</p>
       </div>
 
-      {loading ? (
-        <div className="grid flex-1 place-items-center text-sm text-muted-foreground">Загрузка…</div>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-card text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-5 py-2 text-left">Телефон</th>
-                <th className="px-3 py-2 text-left">Имя</th>
-                <th className="px-3 py-2 text-right">Баллы</th>
-                <th className="w-24" />
-              </tr>
-            </thead>
-            <tbody>
-              {guests.map((guest) => (
-                <tr key={guest._id} className="border-t border-border/60 hover:bg-muted/40">
-                  <td className="px-5 py-2 font-semibold text-foreground">{guest.phone}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{guest.name || "—"}</td>
-                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-accent">{guest.points}</td>
-                  <td className="px-3 py-2 text-right">
-                    <Button size="sm" variant="secondary" onClick={() => setSelected(guest)}>Открыть</Button>
-                  </td>
-                </tr>
-              ))}
-              {!guests.length && (
-                <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-muted-foreground">Гостей пока нет</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="min-h-0 flex-1 overflow-auto px-6 py-4 xl:px-8">
+        <DataTable
+          caption="Гости программы лояльности"
+          columns={columns}
+          rows={loading ? undefined : guests}
+          getRowId={(guest) => guest._id}
+          onRowClick={setSelected}
+          selectedId={selected?._id ?? null}
+          empty={<p className="px-4 py-10 text-center text-body-sm text-muted-foreground">Гостей пока нет</p>}
+        />
+      </div>
 
       {selected ? <GuestDetailDialog guest={guests.find((candidate) => candidate._id === selected._id) ?? selected} onClose={() => setSelected(null)} /> : null}
     </div>
@@ -88,53 +83,59 @@ function GuestDetailDialog({ guest, onClose }: { guest: Guest; onClose: () => vo
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>{guest.name || guest.phone}</DialogTitle></DialogHeader>
-        <div className="flex items-center justify-between rounded-[var(--radius-card)] border border-border bg-muted/40 p-3">
+      <DialogContent className="max-w-lg" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>{guest.name || guest.phone}</DialogTitle>
+        </DialogHeader>
+        <div className="flex items-center justify-between gap-3 rounded-card border border-border bg-muted p-3">
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">{guest.phone}</p>
-            <p className="font-display text-2xl font-semibold tabular-nums text-accent">{guest.points} баллов</p>
+            <p className="text-caption font-medium text-muted-foreground tabular-nums">{guest.phone}</p>
+            <p className="sq-price text-title font-semibold text-accent">{formatPoints(guest.points)} баллов</p>
           </div>
-          <Button size="sm" variant="secondary" onClick={() => setAdjusting((current) => !current)}>Скорректировать</Button>
+          <Button size="sm" variant="secondary" aria-expanded={adjusting} onClick={() => setAdjusting((current) => !current)}>
+            Скорректировать
+          </Button>
         </div>
 
         {adjusting ? (
-          <form onSubmit={handleAdjust} className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-border p-3">
+          <form onSubmit={handleAdjust} className="flex flex-col gap-3 rounded-card border border-border p-3">
             <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-muted-foreground">Баллы (± целое число)</span>
-                <input type="number" step={1} value={points} onChange={(event) => setPoints(event.target.value)} className={inputClass} required />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-muted-foreground">Причина</span>
-                <input value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} required />
-              </label>
+              <Field label="Баллы (± целое число)">
+                {(control) => <Input {...control} type="number" inputMode="numeric" step={1} value={points} onChange={(event) => setPoints(event.target.value)} required />}
+              </Field>
+              <Field label="Причина">{(control) => <Input {...control} value={reason} onChange={(event) => setReason(event.target.value)} required />}</Field>
             </div>
-            {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
-            <Button type="submit" size="sm" disabled={submitting}>{submitting ? "Сохранение…" : "Применить"}</Button>
+            {error && <Banner tone="danger" title={error} />}
+            <DialogFooter>
+              <Button type="submit" size="sm" disabled={submitting}>
+                {submitting ? "Сохранение…" : "Применить"}
+              </Button>
+            </DialogFooter>
           </form>
         ) : null}
 
-        <div>
-          <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-muted-foreground">История</p>
+        <section className="flex flex-col gap-2">
+          <h3 className="text-body-sm font-semibold text-foreground">История</h3>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Загрузка…</p>
+            <SkeletonRows rows={3} />
           ) : (
-            <div className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+            <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
               {history.map((entry) => (
-                <div key={entry._id} className="flex items-center justify-between text-sm">
+                <div key={entry._id} className="flex items-center justify-between gap-3 text-body-sm">
                   <div>
                     <span className="font-semibold text-foreground">{KIND_LABEL[entry.kind] ?? entry.kind}</span>
                     {entry.reason ? <span className="text-muted-foreground"> — {entry.reason}</span> : null}
-                    <p className="text-xs text-muted-foreground">{formatAlmatyDateTime(entry.occurredAt)}</p>
+                    <p className="text-caption text-muted-foreground">{formatAlmatyDateTime(entry.occurredAt)}</p>
                   </div>
-                  <span className={cn("tabular-nums font-semibold", entry.points < 0 ? "text-destructive" : "text-success")}>{entry.points > 0 ? "+" : ""}{entry.points}</span>
+                  <span className={cn("font-semibold tabular-nums whitespace-nowrap", entry.points < 0 ? "text-destructive" : "text-success")}>
+                    {formatPoints(entry.points, { explicitPlus: true })}
+                  </span>
                 </div>
               ))}
-              {!history.length && <p className="text-sm text-muted-foreground">Движений пока нет</p>}
+              {!history.length && <p className="text-body-sm text-muted-foreground">Движений пока нет</p>}
             </div>
           )}
-        </div>
+        </section>
       </DialogContent>
     </Dialog>
   )

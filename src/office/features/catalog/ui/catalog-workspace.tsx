@@ -1,16 +1,40 @@
 import { Pencil, Plus } from "lucide-react"
 import { useMemo, useState } from "react"
 
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import {
+  Button,
+  Checkbox,
+  DataTable,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  EmptyState,
+  Field,
+  formatMoneyDigits,
+  Input,
+  MoneyInput,
+  Select,
+  SkeletonRows,
+  Textarea,
+  TonePill,
+  type Column,
+} from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
-import { cn, formatTenge } from "@/shared/lib/utils"
+import { formatTenge } from "@/shared/lib/format"
+import { cn, focusRingClass } from "@/shared/lib/utils"
 
 import { useOfficeCatalog, useOfficeCatalogMutations, type CategoryId, type OfficeCategory, type OfficeProduct, type ProductId } from "../data/use-office-catalog"
 
 const UNITS = ["порц.", "шт", "кг", "л"] as const
+const UNIT_OPTIONS = UNITS.map((unit) => ({ value: unit, label: unit }))
 
-const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50"
+const categoryItemClass = cn(
+  "flex h-9 min-w-0 flex-1 items-center rounded-control px-2 text-left text-body-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+  focusRingClass,
+)
+const categoryActiveClass = "bg-muted font-semibold text-foreground shadow-[inset_2px_0_0_var(--gold)]"
 
 export function CatalogWorkspace() {
   const { categories, products, restaurants, loading } = useOfficeCatalog()
@@ -24,91 +48,101 @@ export function CatalogWorkspace() {
     [products, activeCategory],
   )
 
+  const columns: Column<OfficeProduct>[] = [
+    {
+      key: "name",
+      header: "Блюдо",
+      sortValue: (product) => product.nameSort,
+      cell: (product) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-foreground">{product.name}</span>
+          <span className="text-caption text-muted-foreground">{product.nameKk}</span>
+        </div>
+      ),
+    },
+    { key: "sku", header: "SKU", sortValue: (product) => product.sku, cell: (product) => <span className="text-muted-foreground">{product.sku}</span> },
+    { key: "price", header: "Базовая цена", numeric: true, sortValue: (product) => product.basePrice, cell: (product) => formatTenge(product.basePrice) },
+    {
+      key: "enabled",
+      header: "В кассе",
+      cell: (product) => (product.enabled ? <TonePill tone="success">Активно</TonePill> : <TonePill>Скрыто</TonePill>),
+    },
+    {
+      key: "edit",
+      header: <span className="sr-only">Действия</span>,
+      className: "w-14 text-right",
+      cell: (product) => (
+        <Button variant="ghost" size="icon-sm" aria-label={`Редактировать «${product.name}»`} onClick={() => setEditingProduct(product)}>
+          <Pencil />
+        </Button>
+      ),
+    },
+  ]
+
   if (loading) {
-    return <div className="grid flex-1 place-items-center text-sm text-muted-foreground">Загрузка…</div>
+    return (
+      <div className="flex min-h-0 flex-1 flex-col p-5">
+        <SkeletonRows />
+      </div>
+    )
   }
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <div className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-border p-3">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Категории</p>
-          <button type="button" onClick={() => setEditingCategory("new")} className="grid size-6 place-items-center rounded-[var(--radius-control)] text-muted-foreground hover:bg-muted hover:text-foreground">
-            <Plus className="size-3.5" />
-          </button>
+      <nav aria-label="Категории" className="flex w-64 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border p-3">
+        <div className="mb-1 flex items-center justify-between pl-2">
+          <p className="text-caption font-semibold text-muted-foreground">Категории</p>
+          <Button variant="ghost" size="icon-sm" aria-label="Новая категория" onClick={() => setEditingCategory("new")}>
+            <Plus />
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={() => setActiveCategory("all")}
-          className={cn("flex h-8 items-center rounded-[var(--radius-control)] px-2 text-left text-sm font-semibold text-muted-foreground hover:bg-muted", activeCategory === "all" && "bg-primary/10 text-primary")}
-        >
+        <button type="button" onClick={() => setActiveCategory("all")} aria-current={activeCategory === "all" ? "true" : undefined} className={cn(categoryItemClass, activeCategory === "all" && categoryActiveClass)}>
           Все блюда ({products.length})
         </button>
         {categories.map((category) => {
           const count = products.filter((product) => product.category === category.externalId).length
+          const active = activeCategory === category.externalId
           return (
-            <div key={category._id} className="group flex items-center">
+            <div key={category._id} className="group flex items-center gap-0.5">
               <button
                 type="button"
                 onClick={() => setActiveCategory(category.externalId)}
-                className={cn(
-                  "flex h-8 min-w-0 flex-1 items-center rounded-[var(--radius-control)] px-2 text-left text-sm font-semibold text-muted-foreground hover:bg-muted",
-                  activeCategory === category.externalId && "bg-primary/10 text-primary",
-                  category.active === false && "opacity-45",
-                )}
+                aria-current={active ? "true" : undefined}
+                className={cn(categoryItemClass, active && categoryActiveClass, category.active === false && "opacity-45")}
               >
-                <span className="truncate">{category.label} ({count})</span>
+                <span className="truncate">
+                  {category.label} ({count})
+                </span>
               </button>
-              <button type="button" onClick={() => setEditingCategory(category)} className="grid size-6 shrink-0 place-items-center rounded-[var(--radius-control)] text-muted-foreground opacity-0 hover:bg-muted hover:text-foreground group-hover:opacity-100">
-                <Pencil className="size-3" />
-              </button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Редактировать категорию «${category.label}»`}
+                onClick={() => setEditingCategory(category)}
+                className="text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              >
+                <Pencil />
+              </Button>
             </div>
           )
         })}
-      </div>
+      </nav>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <p className="text-sm font-extrabold text-foreground">Блюда</p>
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
+          <p className="text-title-sm font-semibold text-foreground">Блюда</p>
           <Button size="sm" onClick={() => setEditingProduct("new")}>
-            <Plus className="size-3.5" /> Добавить блюдо
+            <Plus /> Добавить блюдо
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-card text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-5 py-2 text-left">Блюдо</th>
-                <th className="px-3 py-2 text-left">SKU</th>
-                <th className="px-3 py-2 text-right">Базовая цена</th>
-                <th className="px-3 py-2 text-center">Активно</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
-            <tbody>
-              {visibleProducts.map((product) => (
-                <tr key={product._id} className="border-t border-border/60 hover:bg-muted/40">
-                  <td className="px-5 py-2">
-                    <p className="font-semibold text-foreground">{product.name}</p>
-                    <p className="text-xs text-muted-foreground">{product.nameKk}</p>
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">{product.sku}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatTenge(product.basePrice)}</td>
-                  <td className="px-3 py-2 text-center">{product.enabled ? "✓" : "—"}</td>
-                  <td className="px-3 py-2 text-right">
-                    <button type="button" onClick={() => setEditingProduct(product)} className="grid size-7 place-items-center rounded-[var(--radius-control)] text-muted-foreground hover:bg-muted hover:text-foreground">
-                      <Pencil className="size-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {!visibleProducts.length && (
-                <tr>
-                  <td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground">Блюд пока нет</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <DataTable
+            caption="Блюда"
+            columns={columns}
+            rows={visibleProducts}
+            getRowId={(product) => product._id}
+            empty={<EmptyState title="Блюд пока нет" description="Добавьте блюдо, чтобы оно появилось в кассе." />}
+          />
         </div>
       </div>
 
@@ -135,6 +169,15 @@ export function CatalogWorkspace() {
         />
       ) : null}
     </div>
+  )
+}
+
+function CheckboxRow({ checked, onCheckedChange, children, className }: { checked: boolean; onCheckedChange: (checked: boolean) => void; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={cn("flex items-center gap-2 text-body-sm font-medium text-foreground", className)}>
+      <Checkbox checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)} />
+      {children}
+    </label>
   )
 }
 
@@ -179,24 +222,29 @@ function CategoryDialog({
         <DialogHeader>
           <DialogTitle>{category ? "Категория" : "Новая категория"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <Field label="Название">
-            <input value={label} onChange={(event) => setLabel(event.target.value)} className={inputClass} required />
-          </Field>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Название">{(control) => <Input {...control} value={label} onChange={(event) => setLabel(event.target.value)} required />}</Field>
           <Field label="Короткое название (для чека/кассы)">
-            <input value={shortLabel} onChange={(event) => setShortLabel(event.target.value)} className={inputClass} required />
+            {(control) => <Input {...control} value={shortLabel} onChange={(event) => setShortLabel(event.target.value)} required />}
           </Field>
           <Field label="Порядок сортировки">
-            <input type="number" value={sortOrder} onChange={(event) => setSortOrder(Number(event.target.value))} className={inputClass} />
+            {(control) => <Input {...control} type="number" inputMode="numeric" value={sortOrder} onChange={(event) => setSortOrder(Number(event.target.value))} />}
           </Field>
           {category ? (
-            <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />
+            <CheckboxRow checked={active} onCheckedChange={setActive}>
               Активна (видна в кассе)
-            </label>
+            </CheckboxRow>
           ) : null}
-          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting} className="mt-2">{submitting ? "Сохранение…" : "Сохранить"}</Button>
+          {error ? (
+            <p role="alert" className="text-body-sm font-medium text-destructive">
+              {error}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Сохранение…" : "Сохранить"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -226,7 +274,7 @@ function ProductDialog({
   const [nameKk, setNameKk] = useState(product?.nameKk ?? "")
   const [description, setDescription] = useState(product?.description ?? "")
   const [category, setCategory] = useState(product?.category ?? defaultCategory)
-  const [basePrice, setBasePrice] = useState(product?.basePrice ?? 0)
+  const [basePrice, setBasePrice] = useState<number | null>(product?.basePrice ?? 0)
   const [sku, setSku] = useState(product?.sku ?? "")
   const [popular, setPopular] = useState(product?.popular ?? false)
   const [badge, setBadge] = useState(product?.badge ?? "")
@@ -240,13 +288,20 @@ function ProductDialog({
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  const categoryOptions = categories.map((option) => ({ value: option.externalId, label: option.label }))
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    // The native <select required> used to block submit without a category; Radix Select has no native validation.
+    if (!category) {
+      setError("Выберите категорию")
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
       const categorySort = categories.find((candidate) => candidate.externalId === category)?.sortOrder ?? 0
-      const common = { name, nameKk, description, category, categorySort, basePrice, sku, popular, badge: badge || undefined, baseUnit }
+      const common = { name, nameKk, description, category, categorySort, basePrice: basePrice ?? 0, sku, popular, badge: badge || undefined, baseUnit }
       const productId = product ? product._id : await onCreate(common)
       if (product) await onUpdate({ productId, ...common, enabled })
       for (const [restaurantExternalId, raw] of Object.entries(prices)) {
@@ -270,74 +325,67 @@ function ProductDialog({
         <DialogHeader>
           <DialogTitle>{product ? product.name : "Новое блюдо"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Название (рус)"><input value={name} onChange={(event) => setName(event.target.value)} className={inputClass} required /></Field>
-            <Field label="Атауы (қаз)"><input value={nameKk} onChange={(event) => setNameKk(event.target.value)} className={inputClass} required /></Field>
+            <Field label="Название (рус)">{(control) => <Input {...control} value={name} onChange={(event) => setName(event.target.value)} required />}</Field>
+            <Field label="Атауы (қаз)">{(control) => <Input {...control} value={nameKk} onChange={(event) => setNameKk(event.target.value)} required />}</Field>
           </div>
-          <Field label="Описание"><textarea value={description} onChange={(event) => setDescription(event.target.value)} className={cn(inputClass, "min-h-16 resize-y")} /></Field>
+          <Field label="Описание">{(control) => <Textarea {...control} value={description} onChange={(event) => setDescription(event.target.value)} className="resize-y" />}</Field>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Категория">
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass} required>
-                {categories.map((option) => <option key={option._id} value={option.externalId}>{option.label}</option>)}
-              </select>
-            </Field>
+            <Field label="Категория">{(control) => <Select {...control} value={category || undefined} onValueChange={setCategory} options={categoryOptions} />}</Field>
             <Field label="Ед. измерения">
-              <select value={baseUnit} onChange={(event) => setBaseUnit(event.target.value as (typeof UNITS)[number])} className={inputClass}>
-                {UNITS.map((option) => <option key={option} value={option}>{option}</option>)}
-              </select>
+              {(control) => <Select {...control} value={baseUnit} onValueChange={(value) => setBaseUnit(value as (typeof UNITS)[number])} options={UNIT_OPTIONS} />}
             </Field>
-            <Field label="SKU"><input value={sku} onChange={(event) => setSku(event.target.value)} className={inputClass} required /></Field>
+            <Field label="SKU">{(control) => <Input {...control} value={sku} onChange={(event) => setSku(event.target.value)} required />}</Field>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Базовая цена, ₸"><input type="number" value={basePrice} onChange={(event) => setBasePrice(Number(event.target.value))} className={inputClass} required min={0} /></Field>
-            <Field label="Бейдж (напр. «Хит»)"><input value={badge} onChange={(event) => setBadge(event.target.value)} className={inputClass} /></Field>
-            <label className="mt-6 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <input type="checkbox" checked={popular} onChange={(event) => setPopular(event.target.checked)} />
+          <div className="grid grid-cols-3 items-end gap-3">
+            <Field label="Базовая цена">{(control) => <MoneyInput {...control} value={basePrice} onValueChange={setBasePrice} required />}</Field>
+            <Field label="Бейдж (напр. «Хит»)">{(control) => <Input {...control} value={badge} onChange={(event) => setBadge(event.target.value)} />}</Field>
+            <CheckboxRow checked={popular} onCheckedChange={setPopular} className="h-[var(--control-h)]">
               Популярное
-            </label>
+            </CheckboxRow>
           </div>
 
           {product ? (
-            <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
+            <CheckboxRow checked={enabled} onCheckedChange={setEnabled}>
               Активно (видно в кассе)
-            </label>
+            </CheckboxRow>
           ) : null}
 
-          <div className="rounded-[var(--radius-card)] border border-border p-3">
-            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Цена по филиалам (₸)</p>
-            <p className="mb-2 text-xs text-muted-foreground">Пусто — используется базовая цена</p>
-            <div className="grid grid-cols-2 gap-2">
-              {restaurants.map((restaurant) => (
-                <label key={restaurant.externalId} className="flex flex-col gap-1">
-                  <span className="text-xs font-semibold text-muted-foreground">{restaurant.name}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder={String(basePrice)}
-                    value={prices[restaurant.externalId] ?? ""}
-                    onChange={(event) => setPrices((current) => ({ ...current, [restaurant.externalId]: event.target.value }))}
-                    className={inputClass}
-                  />
-                </label>
-              ))}
+          <fieldset className="flex flex-col gap-3 rounded-card border border-border p-3">
+            <legend className="px-1 text-body-sm font-semibold text-foreground">Цена по филиалам</legend>
+            <p className="text-caption text-muted-foreground">Пусто — используется базовая цена</p>
+            <div className="grid grid-cols-2 gap-3">
+              {restaurants.map((restaurant) => {
+                const raw = prices[restaurant.externalId]
+                return (
+                  <Field key={restaurant.externalId} label={restaurant.name}>
+                    {(control) => (
+                      <MoneyInput
+                        {...control}
+                        placeholder={formatMoneyDigits(String(basePrice ?? 0))}
+                        value={raw ? Number(raw) : null}
+                        onValueChange={(value) => setPrices((current) => ({ ...current, [restaurant.externalId]: value === null ? "" : String(value) }))}
+                      />
+                    )}
+                  </Field>
+                )
+              })}
             </div>
-          </div>
+          </fieldset>
 
-          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting} className="mt-1">{submitting ? "Сохранение…" : "Сохранить"}</Button>
+          {error ? (
+            <p role="alert" className="text-body-sm font-medium text-destructive">
+              {error}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Сохранение…" : "Сохранить"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-      {children}
-    </label>
   )
 }

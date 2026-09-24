@@ -13,10 +13,10 @@ export function BranchPicker() {
     <div className="flex h-full flex-col items-center justify-center gap-8 bg-nav px-6">
       <div className="flex flex-col items-center gap-3 text-nav-foreground">
         <img src="/branding/sandyq-kz-logo.svg" alt="Sandyq" className="h-12" />
-        <p className="text-sm text-nav-foreground/65">Выберите филиал</p>
+        <p className="text-body-sm text-nav-muted">Выберите филиал</p>
       </div>
 
-      <div className="flex w-full max-w-sm flex-col gap-3 rounded-[var(--radius-panel)] bg-card p-8 shadow-[var(--shadow-float)]">
+      <div className="flex w-full max-w-sm flex-col gap-3 rounded-panel bg-card p-8 shadow-[var(--shadow-float)]">
         {BRANCHES.map((branch) => (
           <Button
             key={branch.externalId}

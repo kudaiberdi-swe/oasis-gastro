@@ -2,7 +2,7 @@ import { useAuthActions } from "@convex-dev/auth/react"
 import { useState } from "react"
 import { ConvexError } from "convex/values"
 
-import { Button } from "@/shared/components/ui/button"
+import { Banner, Button, EmptyState, Field, Input, OrnamentPair, SegmentedControl } from "@/shared/components/ui"
 
 export function OfficeSignIn() {
   const { signIn } = useAuthActions()
@@ -38,41 +38,50 @@ export function OfficeSignIn() {
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 bg-nav px-6">
-      <div className="flex flex-col items-center gap-2 text-nav-foreground">
-        <img src="/branding/sandyq-kz-logo.svg" alt="Sandyq" className="h-10" />
-        <p className="text-sm text-nav-foreground/65">Офис</p>
+      <div className="flex flex-col items-center gap-3 text-nav-foreground">
+        <img src="/branding/sandyq-kz-logo.svg" alt="Sandyq" className="h-12" />
+        <OrnamentPair className="text-nav-accent" />
+        <p className="text-body-sm text-nav-muted">Офис</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-[var(--radius-panel)] bg-card p-8 shadow-[var(--shadow-float)]">
-        <div className="mb-5 flex gap-1 rounded-[var(--radius-control)] bg-muted p-1">
-          <button type="button" onClick={() => setFlow("signIn")} className={`flex-1 rounded-[calc(var(--radius-control)-2px)] py-1.5 text-sm font-bold transition-colors ${flow === "signIn" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            Вход
-          </button>
-          <button type="button" onClick={() => setFlow("signUp")} className={`flex-1 rounded-[calc(var(--radius-control)-2px)] py-1.5 text-sm font-bold transition-colors ${flow === "signUp" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-            Регистрация
-          </button>
-        </div>
+      <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-5 rounded-panel bg-card p-8 shadow-float">
+        <SegmentedControl
+          aria-label="Вход или регистрация"
+          value={flow}
+          onValueChange={setFlow}
+          className="w-full"
+          options={[
+            { value: "signIn", label: "Вход" },
+            { value: "signUp", label: "Регистрация" },
+          ]}
+        />
 
         <div className="flex flex-col gap-3">
           {flow === "signUp" && (
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">Имя</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50" required />
-            </label>
+            <Field label="Имя">{(control) => <Input {...control} name="name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />}</Field>
           )}
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground">Email</span>
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50" required />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground">Пароль</span>
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50" required minLength={10} />
-          </label>
+          <Field label="Email">
+            {(control) => <Input {...control} type="email" name="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />}
+          </Field>
+          <Field label="Пароль">
+            {(control) => (
+              <Input
+                {...control}
+                type="password"
+                name="password"
+                autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                minLength={10}
+              />
+            )}
+          </Field>
         </div>
 
-        {error && <p className="mt-3 text-sm font-semibold text-destructive">{error}</p>}
+        {error && <Banner tone="danger" title={error} />}
 
-        <Button type="submit" size="lg" className="mt-5 w-full" disabled={submitting}>
+        <Button type="submit" size="lg" className="w-full" disabled={submitting}>
           {submitting ? "Подождите…" : flow === "signIn" ? "Войти" : "Создать учётную запись"}
         </Button>
       </form>
@@ -82,10 +91,17 @@ export function OfficeSignIn() {
 
 export function OfficeAccessDenied({ onSignOut }: { onSignOut: () => void }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-      <p className="text-lg font-extrabold text-foreground">Доступ не настроен</p>
-      <p className="max-w-sm text-sm text-muted-foreground">Эта учётная запись не привязана к офису Sandyq. Обратитесь к администратору.</p>
-      <Button variant="secondary" onClick={onSignOut}>Выйти</Button>
+    <div className="flex h-full items-center justify-center bg-background px-6">
+      <EmptyState
+        size="lg"
+        title="Доступ не настроен"
+        description="Эта учётная запись не привязана к офису Sandyq. Обратитесь к администратору."
+        action={
+          <Button variant="secondary" onClick={onSignOut}>
+            Выйти
+          </Button>
+        }
+      />
     </div>
   )
 }

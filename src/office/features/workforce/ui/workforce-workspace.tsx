@@ -1,9 +1,25 @@
 import { useState } from "react"
 
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import {
+  Banner,
+  Button,
+  Checkbox,
+  DataTable,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Field,
+  Input,
+  NumericCodeInput,
+  SegmentedControl,
+  Select,
+  Switch,
+  type Column,
+} from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
-import { cn } from "@/shared/lib/utils"
 
 import {
   useSuggestedCredentials,
@@ -17,9 +33,11 @@ import {
 } from "../data/use-office-workforce"
 
 const ROLES = ["cashier", "manager", "administrator"] as const
+type Role = (typeof ROLES)[number]
 const ROLE_LABEL: Record<string, string> = { cashier: "Кассир", manager: "Менеджер", administrator: "Администратор" }
+const ROLE_OPTIONS = ROLES.map((role) => ({ value: role, label: ROLE_LABEL[role] }))
 
-const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50"
+const CANDIDATE_LIMIT = 200
 
 export function WorkforceWorkspace() {
   const [tab, setTab] = useState<"employees" | "candidates">("employees")
@@ -27,15 +45,16 @@ export function WorkforceWorkspace() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex items-center gap-1 border-b border-border px-5 py-3">
-        <div className="flex gap-1 rounded-[var(--radius-control)] bg-muted p-1">
-          <button type="button" onClick={() => setTab("employees")} className={cn("rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm font-bold", tab === "employees" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
-            Сотрудники кассы
-          </button>
-          <button type="button" onClick={() => setTab("candidates")} className={cn("rounded-[calc(var(--radius-control)-2px)] px-3 py-1.5 text-sm font-bold", tab === "candidates" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
-            Из iiko {candidates.length ? `(${candidates.length})` : ""}
-          </button>
-        </div>
+      <div className="flex items-center gap-3 border-b border-border px-6 py-3 xl:px-8">
+        <SegmentedControl
+          aria-label="Список сотрудников"
+          value={tab}
+          onValueChange={setTab}
+          options={[
+            { value: "employees", label: "Сотрудники кассы" },
+            { value: "candidates", label: `Из iiko${candidates.length ? ` (${candidates.length})` : ""}` },
+          ]}
+        />
       </div>
 
       {tab === "employees" ? <EmployeesTab /> : <CandidatesTab />}
@@ -50,60 +69,64 @@ function EmployeesTab() {
   const [editing, setEditing] = useState<PosEmployee | null>(null)
   const [resetting, setResetting] = useState<PosEmployee | null>(null)
 
-  if (loading) return <div className="grid flex-1 place-items-center text-sm text-muted-foreground">Загрузка…</div>
+  const columns: Column<PosEmployee>[] = [
+    {
+      key: "name",
+      header: "Сотрудник",
+      sortValue: (employee) => employee.displayName,
+      cell: (employee) => (
+        <div>
+          <p className="font-semibold text-foreground">{employee.displayName}</p>
+          {employee.iikoEmployeeExternalId ? <p className="text-caption text-muted-foreground">из iiko</p> : null}
+        </div>
+      ),
+    },
+    { key: "code", header: "Код", cell: (employee) => <span className="text-muted-foreground tabular-nums">{employee.code}</span> },
+    { key: "role", header: "Роль", cell: (employee) => ROLE_LABEL[employee.role] ?? employee.role },
+    {
+      key: "branches",
+      header: "Филиалы",
+      cell: (employee) => <span className="text-muted-foreground">{employee.restaurants.map((restaurant) => restaurant.name).join(", ") || "—"}</span>,
+    },
+    {
+      key: "active",
+      header: "Активен",
+      cell: (employee) => (
+        <Switch
+          aria-label={`Активен: ${employee.displayName}`}
+          checked={employee.active}
+          onCheckedChange={() => mutations.setEmployeeActive({ employeeId: employee._id, active: !employee.active })}
+        />
+      ),
+    },
+    {
+      key: "actions",
+      header: <span className="sr-only">Действия</span>,
+      numeric: true,
+      cell: (employee) => (
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setEditing(employee)}>
+            Изменить
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setResetting(employee)}>
+            Сбросить PIN
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th className="px-5 py-2 text-left">Сотрудник</th>
-            <th className="px-3 py-2 text-left">Код</th>
-            <th className="px-3 py-2 text-left">Роль</th>
-            <th className="px-3 py-2 text-left">Филиалы</th>
-            <th className="px-3 py-2 text-center">Активен</th>
-            <th className="px-3 py-2 text-right">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          {employees.map((employee) => (
-            <tr key={employee._id} className="border-t border-border/60 hover:bg-muted/40">
-              <td className="px-5 py-2">
-                <p className="font-semibold text-foreground">{employee.displayName}</p>
-                {employee.iikoEmployeeExternalId ? <p className="text-xs text-muted-foreground">из iiko</p> : null}
-              </td>
-              <td className="px-3 py-2 text-muted-foreground">{employee.code}</td>
-              <td className="px-3 py-2">{ROLE_LABEL[employee.role] ?? employee.role}</td>
-              <td className="px-3 py-2 text-muted-foreground">{employee.restaurants.map((restaurant) => restaurant.name).join(", ") || "—"}</td>
-              <td className="px-3 py-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => mutations.setEmployeeActive({ employeeId: employee._id, active: !employee.active })}
-                  className={cn("rounded-full px-2 py-0.5 text-xs font-bold", employee.active ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive")}
-                >
-                  {employee.active ? "Да" : "Нет"}
-                </button>
-              </td>
-              <td className="px-3 py-2 text-right">
-                <button type="button" onClick={() => setEditing(employee)} className="rounded-[var(--radius-control)] px-1.5 py-0.5 text-xs font-bold text-primary hover:bg-primary/10">Изменить</button>{" "}
-                <button type="button" onClick={() => setResetting(employee)} className="rounded-[var(--radius-control)] px-1.5 py-0.5 text-xs font-bold text-muted-foreground hover:bg-muted">Сбросить PIN</button>
-              </td>
-            </tr>
-          ))}
-          {!employees.length && (
-            <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-muted-foreground">Сотрудников пока нет</td></tr>
-          )}
-        </tbody>
-      </table>
+    <div className="min-h-0 flex-1 overflow-auto px-6 py-4 xl:px-8">
+      <DataTable
+        caption="Сотрудники кассы"
+        columns={columns}
+        rows={loading ? undefined : employees}
+        getRowId={(employee) => employee._id}
+        empty={<p className="px-4 py-10 text-center text-body-sm text-muted-foreground">Сотрудников пока нет</p>}
+      />
 
-      {editing ? (
-        <AssignmentDialog
-          employee={editing}
-          branches={branches}
-          onClose={() => setEditing(null)}
-          onSave={mutations.updateEmployeeAssignment}
-        />
-      ) : null}
+      {editing ? <AssignmentDialog employee={editing} branches={branches} onClose={() => setEditing(null)} onSave={mutations.updateEmployeeAssignment} /> : null}
       {resetting ? <ResetPinDialog employee={resetting} onClose={() => setResetting(null)} onReset={mutations.resetPin} /> : null}
     </div>
   )
@@ -116,51 +139,55 @@ function CandidatesTab() {
   const [provisioning, setProvisioning] = useState<UnprovisionedCandidate | null>(null)
   const [query, setQuery] = useState("")
 
-  if (loading) return <div className="grid flex-1 place-items-center text-sm text-muted-foreground">Загрузка…</div>
-
   const filtered = query.trim()
     ? candidates.filter((candidate) => candidate.displayName.toLocaleLowerCase("ru").includes(query.trim().toLocaleLowerCase("ru")))
     : candidates
 
+  const columns: Column<UnprovisionedCandidate>[] = [
+    { key: "name", header: "Имя (из iiko)", cell: (candidate) => <span className="font-semibold text-foreground">{candidate.displayName}</span> },
+    { key: "code", header: "Табельный №", cell: (candidate) => <span className="text-muted-foreground tabular-nums">{candidate.code ?? "—"}</span> },
+    { key: "role", header: "Роль в iiko", cell: (candidate) => <span className="text-muted-foreground">{candidate.mainRoleCode ?? "—"}</span> },
+    { key: "branch", header: "Филиал", cell: (candidate) => <span className="text-muted-foreground">{candidate.branches.map((branch) => branch.name).join(", ") || "—"}</span> },
+    {
+      key: "actions",
+      header: <span className="sr-only">Действия</span>,
+      numeric: true,
+      cell: (candidate) => (
+        <Button size="sm" variant="secondary" onClick={() => setProvisioning(candidate)}>
+          Подключить
+        </Button>
+      ),
+    },
+  ]
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="border-b border-border px-5 py-3">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по имени…" className={cn(inputClass, "h-9 w-72")} />
+      <div className="border-b border-border px-6 py-3 xl:px-8">
+        <Input
+          type="search"
+          aria-label="Поиск по имени"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Поиск по имени…"
+          className="w-72"
+        />
       </div>
-      <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-card text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-5 py-2 text-left">Имя (из iiko)</th>
-              <th className="px-3 py-2 text-left">Табельный №</th>
-              <th className="px-3 py-2 text-left">Роль в iiko</th>
-              <th className="px-3 py-2 text-left">Филиал</th>
-              <th className="w-32" />
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.slice(0, 200).map((candidate) => (
-              <tr key={candidate._id} className="border-t border-border/60 hover:bg-muted/40">
-                <td className="px-5 py-2 font-semibold text-foreground">{candidate.displayName}</td>
-                <td className="px-3 py-2 text-muted-foreground">{candidate.code ?? "—"}</td>
-                <td className="px-3 py-2 text-muted-foreground">{candidate.mainRoleCode ?? "—"}</td>
-                <td className="px-3 py-2 text-muted-foreground">{candidate.branches.map((branch) => branch.name).join(", ") || "—"}</td>
-                <td className="px-3 py-2 text-right">
-                  <Button size="sm" variant="secondary" onClick={() => setProvisioning(candidate)}>Подключить</Button>
-                </td>
-              </tr>
-            ))}
-            {!filtered.length && (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground">Ничего не найдено</td></tr>
-            )}
-          </tbody>
-        </table>
-        {filtered.length > 200 ? <p className="px-5 py-3 text-xs text-muted-foreground">Показаны первые 200 из {filtered.length} — уточните поиск</p> : null}
+      <div className="min-h-0 flex-1 overflow-auto px-6 py-4 xl:px-8">
+        <DataTable
+          caption="Сотрудники из iiko без доступа к кассе"
+          columns={columns}
+          rows={loading ? undefined : filtered.slice(0, CANDIDATE_LIMIT)}
+          getRowId={(candidate) => candidate._id}
+          empty={<p className="px-4 py-10 text-center text-body-sm text-muted-foreground">Ничего не найдено</p>}
+        />
+        {!loading && filtered.length > CANDIDATE_LIMIT ? (
+          <p className="pt-3 text-caption text-muted-foreground">
+            Показаны первые {CANDIDATE_LIMIT} из {filtered.length} — уточните поиск
+          </p>
+        ) : null}
       </div>
 
-      {provisioning ? (
-        <ProvisionDialog candidate={provisioning} branches={branches} onClose={() => setProvisioning(null)} onProvision={provisionPosAccess} />
-      ) : null}
+      {provisioning ? <ProvisionDialog candidate={provisioning} branches={branches} onClose={() => setProvisioning(null)} onProvision={provisionPosAccess} /> : null}
     </div>
   )
 }
@@ -175,13 +202,30 @@ function BranchCheckboxes({
   onToggle: (externalId: string) => void
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-1.5 text-body-sm font-medium text-muted-foreground">Филиалы</legend>
       {branches.map((branch) => (
-        <label key={branch.externalId} className="flex items-center gap-2 text-sm text-foreground">
-          <input type="checkbox" checked={selected.has(branch.externalId)} onChange={() => onToggle(branch.externalId)} />
+        <label key={branch.externalId} className="flex items-center gap-2 text-body-sm text-foreground">
+          <Checkbox checked={selected.has(branch.externalId)} onCheckedChange={() => onToggle(branch.externalId)} />
           {branch.name}
         </label>
       ))}
+    </fieldset>
+  )
+}
+
+function toggleIn(current: Set<string>, externalId: string) {
+  const next = new Set(current)
+  if (next.has(externalId)) next.delete(externalId)
+  else next.add(externalId)
+  return next
+}
+
+function CredentialValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-caption font-medium text-muted-foreground">{label}</p>
+      <p className="font-display text-display font-semibold tabular-nums text-foreground">{value}</p>
     </div>
   )
 }
@@ -195,12 +239,12 @@ function ProvisionDialog({
   candidate: UnprovisionedCandidate
   branches: { externalId: string; name: string }[]
   onClose: () => void
-  onProvision: (args: { iikoEmployeeExternalId: string; employeeCode: string; pin: string; role: (typeof ROLES)[number]; restaurantExternalIds: string[] }) => Promise<unknown>
+  onProvision: (args: { iikoEmployeeExternalId: string; employeeCode: string; pin: string; role: Role; restaurantExternalIds: string[] }) => Promise<unknown>
 }) {
   const suggested = useSuggestedCredentials(true)
   const [code, setCode] = useState("")
   const [pin, setPin] = useState("")
-  const [role, setRole] = useState<(typeof ROLES)[number]>("cashier")
+  const [role, setRole] = useState<Role>("cashier")
   const [selected, setSelected] = useState<Set<string>>(() => new Set(candidate.branches.map((branch) => branch.externalId)))
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -227,19 +271,17 @@ function ProvisionDialog({
     return (
       <Dialog open onOpenChange={(open) => !open && onClose()}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Доступ выдан: {candidate.displayName}</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Сообщите сотруднику эти данные один раз — они больше нигде не показываются.</p>
-          <div className="flex gap-4 rounded-[var(--radius-card)] border border-border bg-muted/40 p-4">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground">Код</p>
-              <p className="font-display text-2xl font-semibold tabular-nums">{result.code}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground">PIN</p>
-              <p className="font-display text-2xl font-semibold tabular-nums">{result.pin}</p>
-            </div>
+          <DialogHeader>
+            <DialogTitle>Доступ выдан: {candidate.displayName}</DialogTitle>
+            <DialogDescription>Сообщите сотруднику эти данные один раз — они больше нигде не показываются.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-6 rounded-card border border-border bg-muted p-4">
+            <CredentialValue label="Код" value={result.code} />
+            <CredentialValue label="PIN" value={result.pin} />
           </div>
-          <Button onClick={onClose}>Готово</Button>
+          <DialogFooter>
+            <Button onClick={onClose}>Готово</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     )
@@ -247,40 +289,27 @@ function ProvisionDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Подключить: {candidate.displayName}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <DialogContent aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Подключить: {candidate.displayName}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">Код сотрудника</span>
-              <input value={effectiveCode} onChange={(event) => setCode(event.target.value)} className={inputClass} required pattern="\d{4,12}" />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-semibold text-muted-foreground">PIN</span>
-              <input value={effectivePin} onChange={(event) => setPin(event.target.value)} className={inputClass} required pattern="\d{4,6}" />
-            </label>
+            <Field label="Код сотрудника">
+              {(control) => <NumericCodeInput {...control} name="employee-code" value={effectiveCode} onValueChange={setCode} maxLength={12} required pattern="\d{4,12}" />}
+            </Field>
+            <Field label="PIN">
+              {(control) => <NumericCodeInput {...control} name="employee-pin" value={effectivePin} onValueChange={setPin} maxLength={6} required pattern="\d{4,6}" />}
+            </Field>
           </div>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground">Роль</span>
-            <select value={role} onChange={(event) => setRole(event.target.value as (typeof ROLES)[number])} className={inputClass}>
-              {ROLES.map((option) => <option key={option} value={option}>{ROLE_LABEL[option]}</option>)}
-            </select>
-          </label>
-          <div>
-            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Филиалы</p>
-            <BranchCheckboxes
-              branches={branches}
-              selected={selected}
-              onToggle={(externalId) => setSelected((current) => {
-                const next = new Set(current)
-                if (next.has(externalId)) next.delete(externalId)
-                else next.add(externalId)
-                return next
-              })}
-            />
-          </div>
-          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting} className="mt-1">{submitting ? "Сохранение…" : "Выдать доступ"}</Button>
+          <Field label="Роль">{(control) => <Select {...control} value={role} onValueChange={(value) => setRole(value as Role)} options={ROLE_OPTIONS} />}</Field>
+          <BranchCheckboxes branches={branches} selected={selected} onToggle={(externalId) => setSelected((current) => toggleIn(current, externalId))} />
+          {error && <Banner tone="danger" title={error} />}
+          <DialogFooter>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Сохранение…" : "Выдать доступ"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -296,9 +325,9 @@ function AssignmentDialog({
   employee: PosEmployee
   branches: { externalId: string; name: string }[]
   onClose: () => void
-  onSave: (args: { employeeId: EmployeeId; role: (typeof ROLES)[number]; restaurantExternalIds: string[] }) => Promise<unknown>
+  onSave: (args: { employeeId: EmployeeId; role: Role; restaurantExternalIds: string[] }) => Promise<unknown>
 }) {
-  const [role, setRole] = useState<(typeof ROLES)[number]>(employee.role as (typeof ROLES)[number])
+  const [role, setRole] = useState<Role>(employee.role as Role)
   const [selected, setSelected] = useState<Set<string>>(() => new Set(employee.restaurants.map((restaurant) => restaurant.externalId)))
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -319,30 +348,19 @@ function AssignmentDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Назначение: {employee.displayName}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground">Роль</span>
-            <select value={role} onChange={(event) => setRole(event.target.value as (typeof ROLES)[number])} className={inputClass}>
-              {ROLES.map((option) => <option key={option} value={option}>{ROLE_LABEL[option]}</option>)}
-            </select>
-          </label>
-          <div>
-            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Филиалы</p>
-            <BranchCheckboxes
-              branches={branches}
-              selected={selected}
-              onToggle={(externalId) => setSelected((current) => {
-                const next = new Set(current)
-                if (next.has(externalId)) next.delete(externalId)
-                else next.add(externalId)
-                return next
-              })}
-            />
-          </div>
-          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting} className="mt-1">{submitting ? "Сохранение…" : "Сохранить"}</Button>
+      <DialogContent aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Назначение: {employee.displayName}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Роль">{(control) => <Select {...control} value={role} onValueChange={(value) => setRole(value as Role)} options={ROLE_OPTIONS} />}</Field>
+          <BranchCheckboxes branches={branches} selected={selected} onToggle={(externalId) => setSelected((current) => toggleIn(current, externalId))} />
+          {error && <Banner tone="danger" title={error} />}
+          <DialogFooter>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Сохранение…" : "Сохранить"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -375,10 +393,14 @@ function ResetPinDialog({ employee, onClose, onReset }: { employee: PosEmployee;
     return (
       <Dialog open onOpenChange={(open) => !open && onClose()}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Новый PIN: {employee.displayName}</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Сообщите сотруднику этот PIN один раз — он больше нигде не показывается.</p>
-          <p className="font-display text-3xl font-semibold tabular-nums">{result}</p>
-          <Button onClick={onClose}>Готово</Button>
+          <DialogHeader>
+            <DialogTitle>Новый PIN: {employee.displayName}</DialogTitle>
+            <DialogDescription>Сообщите сотруднику этот PIN один раз — он больше нигде не показывается.</DialogDescription>
+          </DialogHeader>
+          <p className="font-display text-display font-semibold tabular-nums text-foreground">{result}</p>
+          <DialogFooter>
+            <Button onClick={onClose}>Готово</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     )
@@ -386,15 +408,20 @@ function ResetPinDialog({ employee, onClose, onReset }: { employee: PosEmployee;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Сбросить PIN: {employee.displayName}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground">Новый PIN</span>
-            <input value={effectivePin} onChange={(event) => setPin(event.target.value)} className={inputClass} required pattern="\d{4,6}" />
-          </label>
-          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
-          <Button type="submit" disabled={submitting} className="mt-1">{submitting ? "Сохранение…" : "Сбросить"}</Button>
+      <DialogContent aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Сбросить PIN: {employee.displayName}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <Field label="Новый PIN">
+            {(control) => <NumericCodeInput {...control} name="employee-pin" value={effectivePin} onValueChange={setPin} maxLength={6} required pattern="\d{4,6}" />}
+          </Field>
+          {error && <Banner tone="danger" title={error} />}
+          <DialogFooter>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Сохранение…" : "Сбросить"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
