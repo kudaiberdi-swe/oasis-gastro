@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values"
 
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server"
 import type { DataModel, Id } from "../_generated/dataModel"
+import { insertAudit, resolveAuditOrganization } from "./audit"
 
 type QueryCtx = GenericQueryCtx<DataModel>
 type MutationCtx = GenericMutationCtx<DataModel>
@@ -81,10 +82,19 @@ export async function requireEmployeeInScope(ctx: AnyCtx, user: { restaurantScop
 export async function writeOfficeAudit(
   ctx: MutationCtx,
   actorEmail: string,
-  details: { action: string; summary: string; resourceType: string; resourceExternalId: string; restaurantExternalId?: string },
+  details: {
+    action: string
+    summary: string
+    resourceType: string
+    resourceExternalId: string
+    restaurantExternalId?: string
+    capability?: string
+    details?: unknown
+    correlationId?: string
+  },
 ) {
-  const organizationExternalId = await resolveOrganizationExternalId(ctx, details.restaurantExternalId)
-  await ctx.db.insert("auditEvents", {
+  const organizationExternalId = await resolveAuditOrganization(ctx, actorEmail, details.restaurantExternalId)
+  await insertAudit(ctx, {
     actorKey: actorEmail,
     action: details.action,
     summary: details.summary,
@@ -92,16 +102,8 @@ export async function writeOfficeAudit(
     resourceExternalId: details.resourceExternalId,
     organizationExternalId,
     ...(details.restaurantExternalId ? { restaurantExternalId: details.restaurantExternalId } : {}),
-    occurredAt: Date.now(),
+    ...(details.capability ? { capability: details.capability } : {}),
+    ...(details.details !== undefined ? { details: details.details } : {}),
+    ...(details.correlationId ? { correlationId: details.correlationId } : {}),
   })
-}
-
-async function resolveOrganizationExternalId(ctx: MutationCtx, restaurantExternalId?: string) {
-  if (restaurantExternalId) {
-    const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", restaurantExternalId)).unique()
-    if (restaurant) return restaurant.organizationExternalId
-  }
-  const organization = (await ctx.db.query("organizations").take(10)).find((candidate) => candidate.active)
-  if (!organization) throw new ConvexError("Активная организация не найдена")
-  return organization.externalId
 }
