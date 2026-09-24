@@ -12,7 +12,6 @@ import schema from "../../convex/schema"
 const modules = import.meta.glob("../../convex/**/*.ts")
 const now = Date.parse("2026-09-24T12:00:00+05:00")
 
-type Ids = Record<string, Id<"inventoryItems">> & { warehouse: Id<"warehouses"> }
 
 async function setup() {
   const t = convexTest(schema, modules)
@@ -28,7 +27,7 @@ async function setup() {
     for (const [id, cost] of [[meat, 4000], [cheese, 3000], [brothStock, 500]] as const) {
       await applyStockMovement(ctx, { externalId: `open-${id}`, kind: "document", sourceModuleId: "receipts", sourceExternalId: "open", sourceNumber: "0", warehouseId: warehouse, inventoryItemId: id, quantityDelta: 100, unitCost: cost, occurredAt: almatyDayStart("2026-09-01") })
     }
-    return { warehouse, meat, cheese, brothStock } as Ids
+    return { warehouse, meat, cheese, brothStock }
   })
   await t.mutation(internal.domains.finance.seed.seedChartOfAccounts, {})
   return { t, ids }
