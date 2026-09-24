@@ -5,6 +5,7 @@ import type { MutationCtx } from "../../_generated/server"
 import type { Id } from "../../_generated/dataModel"
 import { requireOperator, type PosAccess } from "../../lib/auth"
 import { findOrCreateGuest, normalizePhone } from "../../lib/loyalty"
+import { quoteLoyalty } from "../../lib/loyaltyCore"
 import { getOfficeAuthEmail, requireNetworkScope, requireOfficeCapability, writeOfficeAudit } from "../../lib/officeAccess"
 
 async function requireOpenOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess) {
@@ -24,12 +25,13 @@ export const attachGuestToOrder = mutation({
     const phone = normalizePhone(args.phone)
     if (!phone) throw new ConvexError("Укажите корректный номер телефона")
     const guest = await findOrCreateGuest(ctx, phone, args.name?.trim() || undefined)
+    if (guest.status === "inactive") throw new ConvexError("Гость отключён в программе лояльности")
     // Deliberately doesn't bump `version` — that field is saveDraft's optimistic-concurrency guard
     // against two terminals editing the same order's *content* at once. Attaching a guest isn't a
     // content edit and happens while the draft stays open on this same terminal; bumping it here
     // would desync the draft hook's locally cached version and make its next content edit fail
     // with a false "order changed on another terminal" conflict.
-    await ctx.db.patch(order._id, { guestId: guest._id, updatedAt: Date.now() })
+    await ctx.db.patch(order._id, { guestId: guest._id, loyaltyRedemptionPlanned: undefined, updatedAt: Date.now() })
     return { guestId: guest._id, phone: guest.phone, name: guest.name, points: guest.points }
   },
 })
@@ -39,7 +41,7 @@ export const detachGuestFromOrder = mutation({
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const order = await requireOpenOrder(ctx, args.orderId, access)
-    await ctx.db.patch(order._id, { guestId: undefined, updatedAt: Date.now() })
+    await ctx.db.patch(order._id, { guestId: undefined, loyaltyRedemptionPlanned: undefined, updatedAt: Date.now() })
   },
 })
 
@@ -72,5 +74,23 @@ export const adjustPoints = mutation({
       resourceType: "guest",
       resourceExternalId: guest.phone,
     })
+  },
+})
+
+/**
+ * How many points to spend on this check (W1-LOY-03), 0…what the program allows; checkout applies it.
+ * Like attaching a guest, this doesn't bump the draft's version.
+ */
+export const setOrderRedemption = mutation({
+  args: { sessionToken: v.string(), orderId: v.id("orders"), redemption: v.number() },
+  handler: async (ctx, args) => {
+    const access = await requireOperator(ctx, args.sessionToken)
+    const order = await requireOpenOrder(ctx, args.orderId, access)
+    if (!order.guestId) throw new ConvexError("Сначала выберите гостя")
+    const quote = await quoteLoyalty(ctx, { guestId: order.guestId, restaurantExternalId: access.restaurant.externalId, payable: order.total, at: Date.now() })
+    if (!quote) throw new ConvexError("Для гостя нет программы лояльности")
+    if (!Number.isInteger(args.redemption) || args.redemption < 0 || args.redemption > quote.maxRedemption) throw new ConvexError(`Списать можно от 0 до ${quote.maxRedemption} баллов`)
+    await ctx.db.patch(order._id, { loyaltyRedemptionPlanned: args.redemption || undefined, updatedAt: Date.now() })
+    return { redemption: args.redemption, toPay: order.total - args.redemption, accrual: quote.accrualFor(args.redemption) }
   },
 })

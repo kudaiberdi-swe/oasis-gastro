@@ -15,7 +15,8 @@ export async function findOrCreateGuest(ctx: MutationCtx, phone: string, name?: 
     if (name && !existing.name) await ctx.db.patch(existing._id, { name })
     return (await ctx.db.get(existing._id))!
   }
-  const id = await ctx.db.insert("guests", { phone, name, points: 0, createdAt: Date.now() })
+  const now = Date.now()
+  const id = await ctx.db.insert("guests", { phone, name, points: 0, createdAt: now, externalId: `guest-${crypto.randomUUID()}`, status: "active", consentState: "unknown", visits: 0, turnover: 0, searchText: `${phone} ${name ?? ""}`.toLocaleLowerCase("ru"), updatedAt: now })
   return (await ctx.db.get(id))!
 }
 

@@ -96,6 +96,7 @@ import type * as lib_kitchen from "../lib/kitchen.js";
 import type * as lib_ledger from "../lib/ledger.js";
 import type * as lib_lifecycles from "../lib/lifecycles.js";
 import type * as lib_loyalty from "../lib/loyalty.js";
+import type * as lib_loyaltyCore from "../lib/loyaltyCore.js";
 import type * as lib_modifierPricing from "../lib/modifierPricing.js";
 import type * as lib_money from "../lib/money.js";
 import type * as lib_numbering from "../lib/numbering.js";
@@ -103,6 +104,7 @@ import type * as lib_officeAccess from "../lib/officeAccess.js";
 import type * as lib_orderPricing from "../lib/orderPricing.js";
 import type * as lib_outbox from "../lib/outbox.js";
 import type * as lib_periods from "../lib/periods.js";
+import type * as lib_pii from "../lib/pii.js";
 import type * as lib_policy from "../lib/policy.js";
 import type * as lib_priceChecks from "../lib/priceChecks.js";
 import type * as lib_pricing from "../lib/pricing.js";
@@ -119,6 +121,7 @@ import type * as lib_validators from "../lib/validators.js";
 import type * as migrations_m2Orders from "../migrations/m2Orders.js";
 import type * as migrations_m3StockWarehouses from "../migrations/m3StockWarehouses.js";
 import type * as migrations_m4LedgerToJournal from "../migrations/m4LedgerToJournal.js";
+import type * as migrations_m5Loyalty from "../migrations/m5Loyalty.js";
 import type * as migrations_m7KitchenTickets from "../migrations/m7KitchenTickets.js";
 
 import type {
@@ -216,6 +219,7 @@ declare const fullApi: ApiFromModules<{
   "lib/ledger": typeof lib_ledger;
   "lib/lifecycles": typeof lib_lifecycles;
   "lib/loyalty": typeof lib_loyalty;
+  "lib/loyaltyCore": typeof lib_loyaltyCore;
   "lib/modifierPricing": typeof lib_modifierPricing;
   "lib/money": typeof lib_money;
   "lib/numbering": typeof lib_numbering;
@@ -223,6 +227,7 @@ declare const fullApi: ApiFromModules<{
   "lib/orderPricing": typeof lib_orderPricing;
   "lib/outbox": typeof lib_outbox;
   "lib/periods": typeof lib_periods;
+  "lib/pii": typeof lib_pii;
   "lib/policy": typeof lib_policy;
   "lib/priceChecks": typeof lib_priceChecks;
   "lib/pricing": typeof lib_pricing;
@@ -239,6 +244,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/m2Orders": typeof migrations_m2Orders;
   "migrations/m3StockWarehouses": typeof migrations_m3StockWarehouses;
   "migrations/m4LedgerToJournal": typeof migrations_m4LedgerToJournal;
+  "migrations/m5Loyalty": typeof migrations_m5Loyalty;
   "migrations/m7KitchenTickets": typeof migrations_m7KitchenTickets;
 }>;
 

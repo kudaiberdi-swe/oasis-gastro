@@ -325,6 +325,7 @@ export default defineSchema({
     guestCount: v.optional(v.number()),
     splitFromOrderId: v.optional(v.id("orders")),
     kitchenSentAt: v.optional(v.number()),
+    loyaltyRedemptionPlanned: v.optional(v.number()), // W1-LOY-03: set at the POS, applied at checkout
     migratedBy: v.optional(v.literal("M-2")),
   })
     .index("by_number", ["number"])
@@ -658,11 +659,92 @@ export default defineSchema({
     name: v.optional(v.string()),
     points: v.number(), // denormalized current balance — loyaltyTransactions is the audit trail
     createdAt: v.number(),
-  }).index("by_phone", ["phone"]),
+    // W1-LOY-01 (optional; M-5 fills existing guests)
+    externalId: v.optional(v.string()),
+    status: v.optional(v.union(v.literal("active"), v.literal("inactive"))),
+    organizationExternalId: v.optional(v.string()),
+    restaurantExternalId: v.optional(v.string()), // first restaurant visited
+    email: v.optional(v.string()),
+    birthDate: v.optional(v.string()),
+    gender: v.optional(v.union(v.literal("female"), v.literal("male"), v.literal("unspecified"))),
+    cardNumber: v.optional(v.string()),
+    categoryExternalIds: v.optional(v.array(v.string())),
+    notes: v.optional(v.string()),
+    consentState: v.optional(v.union(v.literal("unknown"), v.literal("granted"), v.literal("withdrawn"))),
+    visits: v.optional(v.number()),
+    lastVisitAt: v.optional(v.number()),
+    turnover: v.optional(v.number()),
+    searchText: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_phone", ["phone"])
+    .index("by_external_id", ["externalId"])
+    .index("by_status_last_visit", ["status", "lastVisitAt"])
+    .searchIndex("search_guests", { searchField: "searchText", filterFields: ["status", "restaurantExternalId"] }),
+
+  // Consent log (W1-LOY-01): append-only — no function updates or deletes a row.
+  guestConsents: defineTable({
+    guestId: v.id("guests"),
+    channel: v.union(v.literal("personal-data"), v.literal("cross-border"), v.literal("sms"), v.literal("email")),
+    granted: v.boolean(),
+    source: v.union(v.literal("office"), v.literal("pos"), v.literal("web")),
+    actorKey: v.string(),
+    recordedAt: v.number(),
+    validUntil: v.optional(v.number()),
+    documentRef: v.optional(v.string()),
+  }).index("by_guest_channel_recorded", ["guestId", "channel", "recordedAt"]),
+
+  // Loyalty programs (W1-LOY-01). Chosen per restaurant, then guest category, then priority (B-20).
+  loyaltyPrograms: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("inactive")),
+    programKind: v.union(v.literal("bonus"), v.literal("deposit")),
+    accrualPercent: v.number(),
+    maxRedemptionPercent: v.number(),
+    welcomeBonus: v.number(),
+    startsAt: v.number(),
+    endsAt: v.optional(v.number()),
+    categoryExternalId: v.optional(v.string()),
+    restaurantExternalIds: v.array(v.string()), // "*" = every restaurant
+    expirationDays: v.optional(v.number()),
+    priority: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_status_priority", ["status", "priority"]),
+
+  guestCategories: defineTable({
+    externalId: v.string(),
+    code: v.string(),
+    name: v.string(),
+    color: v.string(), // a design token name, not a hex
+    assignment: v.union(v.literal("manual"), v.literal("automatic"), v.literal("default")),
+    minimumSpend: v.number(),
+    minimumVisits: v.number(),
+    validDays: v.number(),
+    active: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_external_id", ["externalId"]),
+
+  loyaltyAccounts: defineTable({
+    externalId: v.string(),
+    guestId: v.id("guests"),
+    programExternalId: v.string(),
+    kind: v.union(v.literal("bonus"), v.literal("deposit")),
+    balance: v.number(),
+    reserved: v.number(),
+    updatedAt: v.number(),
+    migrationBatch: v.optional(v.string()),
+  })
+    .index("by_guest_program", ["guestId", "programExternalId"])
+    .index("by_program", ["programExternalId"]),
 
   loyaltyTransactions: defineTable({
     guestId: v.id("guests"),
-    kind: v.union(v.literal("accrual"), v.literal("redemption"), v.literal("adjustment"), v.literal("reversal")),
+    kind: v.union(v.literal("accrual"), v.literal("redemption"), v.literal("reservation"), v.literal("release"), v.literal("expiration"), v.literal("adjustment"), v.literal("reversal")),
     points: v.number(), // signed: + for accrual/upward adjustment, - for redemption/downward adjustment/reversal
     orderId: v.optional(v.id("orders")),
     reason: v.optional(v.string()), // required for a manual office adjustment
@@ -671,9 +753,20 @@ export default defineSchema({
     paymentId: v.optional(v.id("payments")), // reversal: the refund payment that triggered it
     shortfall: v.optional(v.number()), // reversal: points owed back but already spent (balance never goes below 0)
     occurredAt: v.number(),
+    // W1-LOY-01 (optional; M-5 links existing rows)
+    accountId: v.optional(v.id("loyaltyAccounts")),
+    programExternalId: v.optional(v.string()),
+    idempotencyKey: v.optional(v.string()),
+    reversalOf: v.optional(v.id("loyaltyTransactions")),
+    expiresAt: v.optional(v.number()),
+    description: v.optional(v.string()),
   })
     .index("by_guest_occurred", ["guestId", "occurredAt"])
-    .index("by_occurred_at", ["occurredAt"]),
+    .index("by_occurred_at", ["occurredAt"])
+    .index("by_idempotency_key", ["idempotencyKey"])
+    .index("by_account_occurred", ["accountId", "occurredAt"])
+    .index("by_order_occurred", ["orderId", "occurredAt"])
+    .index("by_expires", ["expiresAt"]),
 
   // --- Finance (Phase 4) -------------------------------------------------
   // A flat P&L ledger, not double-entry — Sandyq has no chart of accounts yet, so

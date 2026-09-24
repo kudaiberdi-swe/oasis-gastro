@@ -2,10 +2,9 @@ import { ConvexError } from "convex/values"
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server"
 
 import type { DataModel, Doc, Id } from "../_generated/dataModel"
-import { SYSTEM_ACCOUNTS } from "./accounts"
 import { postLedgerEntry } from "./finance"
-import { postJournalEntry } from "./ledger"
-import { accrueLoyaltyPoints } from "./loyalty"
+import { journalReady, postJournalEntry } from "./ledger"
+import { applyOrderLoyalty } from "./loyaltyCore"
 import { appendOutboxEvent } from "./outbox"
 import { createKitchenTicket } from "./kitchen"
 import { consumeOrderStock } from "./recipeConsumption"
@@ -51,11 +50,7 @@ export async function resolvePaymentType(ctx: QueryCtx, restaurantExternalId: st
   return { name: LEGACY_NAME[method], processorKind: method, account: method === "cash" ? "cash" : "inTransit", combinable: true, allowsChange: method === "cash" }
 }
 
-/** Journal postings need the chart of accounts; before it is seeded, M-4 back-fills from payments. */
-export async function journalReady(ctx: QueryCtx) {
-  const revenue = await ctx.db.query("accounts").withIndex("by_external_id", (q) => q.eq("externalId", SYSTEM_ACCOUNTS.revenue.externalId)).unique()
-  return Boolean(revenue?.active)
-}
+export { journalReady }
 
 /**
  * Pays an order in one transaction: validates the split against the payment types, records payments,
@@ -85,7 +80,9 @@ export async function settleOrder(
     if (input.tendered != null && !Number.isInteger(input.tendered)) throw new ConvexError("Полученная сумма должна быть указана в целых тенге")
     resolved.push({ input, type: await resolvePaymentType(ctx, restaurantExternalId, input, now) })
   }
-  if (resolved.reduce((sum, row) => sum + row.input.amount, 0) !== order.total) throw new ConvexError("Сумма оплат не равна сумме заказа")
+  // Points planned at the POS (W1-LOY-03) pay part of the order; the payments cover the rest.
+  const redemption = order.loyaltyRedemptionPlanned ?? 0
+  if (resolved.reduce((sum, row) => sum + row.input.amount, 0) !== order.total - redemption) throw new ConvexError("Сумма оплат не равна сумме заказа")
   if (resolved.length > 1) {
     const single = resolved.find((row) => !row.type.combinable)
     if (single) throw new ConvexError(`«${single.type.name}» нельзя комбинировать с другими типами оплаты`)
@@ -175,7 +172,7 @@ export async function settleOrder(
   // Sale write-off by recipe and cost of goods sold (W1-RCP-03); never fails the sale.
   const soldLines = orderLines.filter((line) => !line.voidedAt)
   await consumeOrderStock(ctx, { order, lines: soldLines, restaurantExternalId, terminal: actor.terminal, idempotencyKey: args.idempotencyKey, occurredAt: now, businessDate })
-  await accrueLoyaltyPoints(ctx, order, now)
+  await applyOrderLoyalty(ctx, { order, redemption, idempotencyKey: args.idempotencyKey, restaurantExternalId, occurredAt: now, businessDate })
   await appendOutboxEvent(ctx, {
     aggregateType: "order",
     aggregateExternalId: sourceExternalId,

@@ -8,7 +8,7 @@ import { writeAudit } from "../../lib/audit"
 import { postLedgerEntry } from "../../lib/finance"
 import { journalReady, resolvePaymentType, settleOrder } from "../../lib/checkoutCore"
 import { postJournalEntry } from "../../lib/ledger"
-import { reverseLoyaltyPoints } from "../../lib/loyalty"
+import { reverseOrderLoyalty } from "../../lib/loyaltyCore"
 import { calculateDiscountAmount, calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
 import { cancelTicketLine, cancelTicketsForOrder, createKitchenTicket } from "../../lib/kitchen"
 import { settingInForce } from "../../lib/retailSettings"
@@ -406,7 +406,7 @@ export const refund = mutation({
       await ctx.db.patch(paymentId, { journalEntryId: entry.externalId })
     }
     await reverseOrderConsumption(ctx, { order, refundKey: String(paymentId), share: Math.min(1, roundKzt(args.amount) / paid), occurredAt: now, businessDate: shift.businessDate })
-    await reverseLoyaltyPoints(ctx, order, { paidTotal: paid, refundedTotal: totalRefunded, paymentId, occurredAt: now })
+    await reverseOrderLoyalty(ctx, { order, paidTotal: paid, refundedTotal: totalRefunded, paymentId, occurredAt: now })
     await appendOutboxEvent(ctx, {
       aggregateType: "order",
       aggregateExternalId: String(order._id),

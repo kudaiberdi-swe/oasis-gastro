@@ -14,6 +14,7 @@
 #  10. cashflow categories      domains/finance/seed:seedCashflowCategories
 #  11. M-4 ledger → journal     migrations/m4LedgerToJournal:migrateLedgerToJournal (paged; needs step 1;
 #                               the dry run prints the sums per account to check against the legacy P&L)
+#  12. M-5 loyalty              migrations/m5Loyalty: ensureBaseProgram, migrateGuests (paged; reports mismatches)
 # Each step runs as a dry run first and prints what it would change; then asks before writing.
 #
 #   bash scripts/prod-w1-maintenance.sh          # production
@@ -67,6 +68,8 @@ paged migrations/m2Orders:backfillPayments true
 paged migrations/m7KitchenTickets:backfill true
 run domains/finance/seed:seedCashflowCategories '{"dryRun":true}'
 paged migrations/m4LedgerToJournal:migrateLedgerToJournal true
+run migrations/m5Loyalty:ensureBaseProgram '{"dryRun":true}'
+paged migrations/m5Loyalty:migrateGuests true
 
 read -r -p "Apply these changes to production? [y/N] " ANSWER
 [ "$ANSWER" = "y" ] || { echo "Nothing written."; exit 0; }
@@ -88,6 +91,8 @@ paged migrations/m2Orders:backfillPayments false
 paged migrations/m7KitchenTickets:backfill false
 run domains/finance/seed:seedCashflowCategories '{}'
 paged migrations/m4LedgerToJournal:migrateLedgerToJournal false
+run migrations/m5Loyalty:ensureBaseProgram '{}'
+paged migrations/m5Loyalty:migrateGuests false
 echo "── M-3 verify (expect no mismatches) ──"
 run migrations/m3StockWarehouses:verify '{"paginationOpts":{"numItems":200,"cursor":null}}'
 echo "Done."

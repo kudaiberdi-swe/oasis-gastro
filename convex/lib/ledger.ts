@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values"
-import type { GenericMutationCtx } from "convex/server"
+import type { GenericMutationCtx, GenericQueryCtx } from "convex/server"
 
 import type { DataModel, Doc } from "../_generated/dataModel"
 import { isSystemAccountKey, SYSTEM_ACCOUNTS, type SystemAccountKey } from "./accounts"
@@ -129,4 +129,10 @@ export async function reverseJournalEntries(
     reversals.push(reversal)
   }
   return reversals
+}
+
+/** Journal postings need the chart of accounts; before it is seeded, M-4 back-fills from payments. */
+export async function journalReady(ctx: GenericQueryCtx<DataModel>) {
+  const revenue = await ctx.db.query("accounts").withIndex("by_external_id", (q) => q.eq("externalId", SYSTEM_ACCOUNTS.revenue.externalId)).unique()
+  return Boolean(revenue?.active)
 }
