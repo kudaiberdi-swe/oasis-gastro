@@ -5,6 +5,12 @@ import { cn } from "@/shared/lib/utils"
 
 export type OfficeDestination = "catalog" | "stock" | "finance" | "workforce" | "loyalty" | "reports"
 
+export const DEFAULT_OFFICE_DESTINATION: OfficeDestination = "catalog"
+
+export function isOfficeDestination(value: string | undefined): value is OfficeDestination {
+  return NAV.some((item) => item.id === value)
+}
+
 const NAV: { id: OfficeDestination; label: string }[] = [
   { id: "catalog", label: "Меню и цены" },
   { id: "stock", label: "Склад" },

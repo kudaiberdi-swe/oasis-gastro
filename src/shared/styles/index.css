@@ -44,13 +44,16 @@ body,
 
 body {
   margin: 0;
-  min-width: 1024px;
-  overflow: hidden;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-ui);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
+}
+
+/* The POS and kitchen are fixed-size touch surfaces; the office scrolls its own content. */
+.pos-surface {
+  min-width: 1024px;
+  overflow: hidden;
 }
 
 button,
