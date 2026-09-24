@@ -33,6 +33,7 @@ describe("posTerminalOptions (W0-POS-01)", () => {
         restaurantExternalId: "almaty",
         restaurantName: "Sandyq Алматы",
         city: "Алматы",
+        address: "—",
         terminals: [
           { externalId: "almaty-01", name: "Главная касса", terminalNumber: 1 },
           { externalId: "almaty-02", name: "Касса выдачи", terminalNumber: 2 },

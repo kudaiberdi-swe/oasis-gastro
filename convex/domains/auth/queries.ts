@@ -50,7 +50,11 @@ export const posTerminalOptions = query({
           restaurantExternalId: restaurant.externalId,
           restaurantName: restaurant.name,
           city: restaurant.city ?? null,
-          terminals: terminals.map((terminal) => ({ externalId: terminal.externalId, name: terminal.name, terminalNumber: terminal.terminalNumber })),
+          address: restaurant.address || null,
+          // Cashier terminals only: kitchen screens and office terminals are not picked at the POS.
+          terminals: terminals
+            .filter((terminal) => terminal.kind === undefined || terminal.kind === "pos")
+            .map((terminal) => ({ externalId: terminal.externalId, name: terminal.name, terminalNumber: terminal.terminalNumber })),
         }
       }),
     )

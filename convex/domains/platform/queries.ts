@@ -2,7 +2,7 @@ import { paginationOptsValidator } from "convex/server"
 import { ConvexError, v } from "convex/values"
 
 import { query } from "../../_generated/server"
-import { hasNetworkScope, hasScope, requireOfficeCapability, requireRestaurantScope } from "../../lib/officeAccess"
+import { effectiveScopes, hasNetworkScope, hasScope, requireOfficeCapability, requireRestaurantScope, restaurantScopeFilter, scopedRestaurants } from "../../lib/officeAccess"
 import { findPeriodLocks, lockedThroughDate, periodLockMessage } from "../../lib/periods"
 
 /** For the «Период закрыт» banner on office documents (OFFICE-DESIGN §7). */
@@ -76,5 +76,65 @@ export const auditLog = query({
         q.and(args.action ? q.eq(q.field("action"), args.action) : true, restaurantExternalId && args.actorKey ? q.eq(q.field("actorKey"), args.actorKey) : true),
       )
       .paginate(args.paginationOpts)
+  },
+})
+
+/** «Терминалы» (W1-ADM-01): terminals of restaurants in scope, by restaurant and status. */
+export const listTerminals = query({
+  args: { restaurantExternalId: v.optional(v.string()), status: v.optional(v.union(v.literal("active"), v.literal("inactive"))), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.terminals.view")
+    const inScope = restaurantScopeFilter(user, args.restaurantExternalId)
+    const restaurants = await scopedRestaurants(ctx, user)
+    const byId = new Map(restaurants.map((restaurant) => [restaurant._id, restaurant]))
+    const requested = args.restaurantExternalId ? restaurants.find((restaurant) => restaurant.externalId === args.restaurantExternalId) : undefined
+    if (args.restaurantExternalId && !requested) return { page: [], isDone: true, continueCursor: "" }
+    const active = args.status === undefined ? undefined : args.status === "active"
+    const base = requested
+      ? ctx.db.query("posTerminals").withIndex("by_restaurant_active_and_number", (q) => (active === undefined ? q.eq("restaurantId", requested._id) : q.eq("restaurantId", requested._id).eq("active", active)))
+      : ctx.db.query("posTerminals").withIndex("by_external_id")
+    const result = await base.filter((q) => (active === undefined || requested ? true : q.eq(q.field("active"), active))).paginate(args.paginationOpts)
+    return {
+      ...result,
+      page: result.page
+        .map((terminal) => ({ terminal, restaurant: byId.get(terminal.restaurantId) }))
+        .filter(({ restaurant }) => restaurant && inScope(restaurant.externalId))
+        .map(({ terminal, restaurant }) => ({
+          externalId: terminal.externalId,
+          name: terminal.name,
+          terminalNumber: terminal.terminalNumber,
+          kind: terminal.kind ?? "pos",
+          active: terminal.active,
+          lastLoginAt: terminal.lastLoginAt ?? null,
+          appVersion: terminal.appVersion ?? null,
+          heartbeatUrl: terminal.heartbeatUrl ?? null,
+          sourceReadOnly: terminal.sourceReadOnly ?? false,
+          version: terminal.version ?? 1,
+          restaurantExternalId: restaurant!.externalId,
+          restaurantName: restaurant!.name,
+        })),
+    }
+  },
+})
+
+/** «Закрытие периода» (W1-ADM-03): locks of the user's organizations, newest first. */
+export const listPeriodLocks = query({
+  args: { status: v.optional(v.union(v.literal("active"), v.literal("reopened"))), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const { user, role } = await requireOfficeCapability(ctx, "office.document-locks.view")
+    const scopes = await effectiveScopes(ctx, user, role)
+    const inScope = restaurantScopeFilter(user)
+    const result = await ctx.db
+      .query("periodLocks")
+      .withIndex("by_external_id")
+      .order("desc")
+      .filter((q) => (args.status === undefined ? true : q.eq(q.field("active"), args.status === "active")))
+      .paginate(args.paginationOpts)
+    return {
+      ...result,
+      page: result.page
+        .filter((lock) => hasScope(scopes.organizationScopes, lock.organizationExternalId) && (lock.restaurantExternalId ? inScope(lock.restaurantExternalId) : true))
+        .map((lock) => ({ ...lock, lockedThroughDate: lockedThroughDate(lock.lockedThrough) })),
+    }
   },
 })

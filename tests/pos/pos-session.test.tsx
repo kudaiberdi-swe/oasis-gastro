@@ -14,6 +14,7 @@ const OPTIONS = [
     restaurantExternalId: "almaty",
     restaurantName: "Sandyq Алматы",
     city: "Алматы",
+    address: "ул. Абылай хана, 1",
     terminals: [
       { externalId: "almaty-01", name: "Главная касса", terminalNumber: 1 },
       { externalId: "almaty-02", name: "Касса выдачи", terminalNumber: 2 },

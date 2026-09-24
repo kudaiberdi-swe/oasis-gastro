@@ -50,6 +50,8 @@ export const createSession = internalMutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.employeeId, { failedAttempts: 0, lockedUntil: undefined })
+    // «Последний вход» on the office terminal register (operator sign-ins only).
+    if (args.purpose === "operator") await ctx.db.patch(args.terminalId, { lastLoginAt: args.now })
     return await ctx.db.insert("posSessions", {
       tokenHash: args.tokenHash,
       purpose: args.purpose,

@@ -109,6 +109,9 @@ export default defineSchema({
     // salesWarehouseId arrives with the warehouses table (W1 stock).
     kind: v.optional(v.union(v.literal("pos"), v.literal("kds"), v.literal("office"))),
     lastLoginAt: v.optional(v.number()),
+    appVersion: v.optional(v.string()),
+    heartbeatUrl: v.optional(v.string()),
+    version: v.optional(v.number()), // optimistic concurrency for office edits
   })
     .index("by_external_id", ["externalId"])
     .index("by_restaurant_number", ["restaurantId", "terminalNumber"])
