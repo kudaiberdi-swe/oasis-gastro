@@ -6,6 +6,8 @@ import type { MutationCtx } from "../../_generated/server"
 import { postLedgerEntry } from "../../lib/finance"
 import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
 import { unit } from "../../lib/validators"
+import { assertPeriodOpen } from "../../lib/periods"
+import { businessDateFor } from "../../lib/time"
 
 async function getOrCreateBalance(ctx: MutationCtx, restaurantExternalId: string, inventoryItemId: Id<"inventoryItems">) {
   const existing = await ctx.db
@@ -42,6 +44,7 @@ export const receiveStock = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.stock.*")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    await assertStockPeriodOpen(ctx, args.restaurantExternalId)
     if (args.quantity <= 0) throw new ConvexError("Количество должно быть больше нуля")
     if (args.unitCost < 0) throw new ConvexError("Цена не может быть отрицательной")
     const email = await getOfficeAuthEmail(ctx)
@@ -90,6 +93,7 @@ export const writeOffStock = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.stock.*")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    await assertStockPeriodOpen(ctx, args.restaurantExternalId)
     if (args.quantity <= 0) throw new ConvexError("Количество должно быть больше нуля")
     if (!args.reason.trim()) throw new ConvexError("Укажите причину списания")
     const email = await getOfficeAuthEmail(ctx)
@@ -128,6 +132,7 @@ export const adjustStock = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.stock.*")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    await assertStockPeriodOpen(ctx, args.restaurantExternalId)
     if (args.actualQuantity < 0) throw new ConvexError("Остаток не может быть отрицательным")
     if (!args.reason.trim()) throw new ConvexError("Укажите причину корректировки")
     const email = await getOfficeAuthEmail(ctx)
@@ -160,3 +165,15 @@ export const adjustStock = mutation({
     })
   },
 })
+
+/** Stock documents post today; a closed period for this restaurant (or its organization) blocks them. */
+async function assertStockPeriodOpen(ctx: MutationCtx, restaurantExternalId: string) {
+  const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", restaurantExternalId)).unique()
+  if (!restaurant) throw new ConvexError("Ресторан не найден")
+  await assertPeriodOpen(ctx, {
+    organizationExternalId: restaurant.organizationExternalId,
+    restaurantExternalId,
+    businessDate: businessDateFor(Date.now(), restaurant.businessDayCutoffMinutes),
+    moduleId: "stock",
+  })
+}

@@ -10,6 +10,8 @@ import { accrueLoyaltyPoints, reverseLoyaltyPoints } from "../../lib/loyalty"
 import { calculateDiscountAmount, calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
 import { DISCOUNT_APPROVAL_PERCENT, SERVICE_CHARGE_PERCENT } from "../../lib/policy"
 import { draftLineInput, orderType as orderTypeValidator, paymentMethod as paymentMethodValidator } from "../../lib/validators"
+import { assertPeriodOpen } from "../../lib/periods"
+import { businessDateFor } from "../../lib/time"
 import { hydrateOrder } from "./queries"
 
 async function requireOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess, statuses: string[]) {
@@ -236,6 +238,7 @@ export const cancel = mutation({
     const access = await requireOperator(ctx, args.sessionToken)
     const order = await requireOrder(ctx, args.orderId, access, ["draft", "held"])
     if (args.reason.trim().length < 3) throw new ConvexError("Укажите причину отмены")
+    await assertPeriodOpen(ctx, posPeriodScope(access, businessDateFor(Date.now(), access.restaurant.businessDayCutoffMinutes)))
     const manager = await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id)
     await ctx.db.patch(order._id, { status: "cancelled", cancelledAt: Date.now(), updatedAt: Date.now(), updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
     await ctx.db.insert("orderDeletionEvents", {
@@ -261,6 +264,7 @@ export const checkout = mutation({
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const shift = await requireOpenShift(ctx, access.terminal._id)
+    await assertPeriodOpen(ctx, posPeriodScope(access, shift.businessDate))
     const persistedOrder = await ctx.db.get(args.orderId)
     if (!persistedOrder || persistedOrder.restaurantId !== access.restaurant._id || persistedOrder.terminalId !== access.terminal._id) {
       throw new ConvexError("Заказ не найден на этой кассе")
@@ -320,6 +324,7 @@ export const checkout = mutation({
       sourceModuleId: "orders",
       sourceExternalId: String(order._id),
       description: `Заказ №${order.number}`,
+      businessDate: shift.businessDate,
     })
     await accrueLoyaltyPoints(ctx, order, now)
     await touchSession(ctx, access.session._id)
@@ -341,6 +346,7 @@ export const refund = mutation({
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const shift = await requireOpenShift(ctx, access.terminal._id)
+    await assertPeriodOpen(ctx, posPeriodScope(access, shift.businessDate))
     const persistedOrder = await ctx.db.get(args.orderId)
     if (!persistedOrder || persistedOrder.restaurantId !== access.restaurant._id || persistedOrder.terminalId !== access.terminal._id) {
       throw new ConvexError("Заказ не найден на этой кассе")
@@ -386,6 +392,7 @@ export const refund = mutation({
       sourceModuleId: "orders",
       sourceExternalId: String(paymentId),
       description: `${args.reason.trim()} · заказ №${order.number}`,
+      businessDate: shift.businessDate,
     })
     await reverseLoyaltyPoints(ctx, order, { paidTotal: paid, refundedTotal: totalRefunded, paymentId, occurredAt: now })
     await writeAudit(ctx, access, { action: "order.refund", summary: `Возврат ${roundKzt(args.amount)} ₸ по заказу №${order.number}: ${args.reason.trim()}`, shiftId: shift._id, orderId: order._id, managerId: manager._id })
@@ -416,3 +423,8 @@ export const transfer = mutation({
     return order._id
   },
 })
+
+/** Money postings of a POS order are checked against period locks of its organization and restaurant. */
+function posPeriodScope(access: PosAccess, businessDate: string) {
+  return { organizationExternalId: access.restaurant.organizationExternalId, restaurantExternalId: access.restaurant.externalId, businessDate, moduleId: "orders" }
+}

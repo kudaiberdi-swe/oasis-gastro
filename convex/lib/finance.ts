@@ -22,11 +22,13 @@ export async function postLedgerEntry(
     sourceExternalId: string
     description: string
     createdByEmail?: string
+    /** POS money events pass the shift's business date; others default to the calendar day. */
+    businessDate?: string
   },
 ) {
   await ctx.db.insert("ledgerEntries", {
     restaurantExternalId: entry.restaurantExternalId,
-    businessDate: almatyBusinessDate(entry.occurredAt),
+    businessDate: entry.businessDate ?? almatyBusinessDate(entry.occurredAt),
     occurredAt: entry.occurredAt,
     kind: entry.kind,
     category: entry.category,

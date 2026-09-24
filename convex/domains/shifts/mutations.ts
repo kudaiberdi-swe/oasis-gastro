@@ -4,7 +4,7 @@ import { mutation } from "../../_generated/server"
 import { getOpenShift, requireManagerApproval, requireOperator, touchSession } from "../../lib/auth"
 import { writeAudit } from "../../lib/audit"
 import { roundKzt } from "../../lib/money"
-import { almatyBusinessDate } from "../../lib/time"
+import { businessDateFor } from "../../lib/time"
 import { VARIANCE_APPROVAL_KZT } from "../../lib/policy"
 import { buildClosePreview, buildXReportSnapshot, calculateSummary } from "./queries"
 
@@ -21,7 +21,8 @@ export const open = mutation({
       restaurantId: access.restaurant._id,
       terminalId: access.terminal._id,
       number,
-      businessDate: almatyBusinessDate(now),
+      // Fixed when the shift opens: every order of a shift that runs past midnight stays in one day.
+      businessDate: businessDateFor(now, access.restaurant.businessDayCutoffMinutes),
       status: "open",
       openedBy: access.employee._id,
       openedAt: now,

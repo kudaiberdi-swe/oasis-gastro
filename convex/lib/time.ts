@@ -10,6 +10,18 @@ export function almatyDayStart(date: string): number {
 }
 
 export function almatyBusinessDate(value: number): string {
-  const date = new Date(value + ALMATY_OFFSET_MS)
+  return businessDateFor(value, 0)
+}
+
+/** restaurants.businessDayCutoffMinutes is 0–720 (up to 12:00); anything else counts as midnight. */
+export const MAX_BUSINESS_DAY_CUTOFF_MINUTES = 720
+
+/**
+ * The Almaty business date of a moment when the restaurant's day ends `cutoffMinutes` after midnight:
+ * with a 04:00 cutoff, 03:59 still belongs to the previous day (W1-PLT-08).
+ */
+export function businessDateFor(value: number, cutoffMinutes = 0): string {
+  const cutoff = Number.isInteger(cutoffMinutes) && cutoffMinutes > 0 && cutoffMinutes <= MAX_BUSINESS_DAY_CUTOFF_MINUTES ? cutoffMinutes : 0
+  const date = new Date(value + ALMATY_OFFSET_MS - cutoff * 60_000)
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`
 }
