@@ -66,22 +66,20 @@ describe("payment dialog (S-15, S-22)", () => {
     expect(cashPresets(6000).map((preset) => preset.tendered)).toEqual([6000, 10_000])
   })
 
-  it("keeps each row's own amount when a middle split row is removed", () => {
+  it("keeps each part's own amount when a middle split part is removed", () => {
     const onSubmit = vi.fn()
     render(<PaymentDialog open onOpenChange={() => {}} total={3000} submitting={false} error={null} onSubmit={onSubmit} />)
-    const amounts = () => screen.getAllByRole("spinbutton").filter((input) => input.closest("div")?.textContent?.includes("Сумма"))
+    fireEvent.click(screen.getByRole("radio", { name: /Смешанная оплата/ }))
+    const parts = () => screen.getAllByRole("listitem").filter((item) => item.getAttribute("aria-label")?.startsWith("Часть"))
+    const amount = (part: HTMLElement) => within(part).getAllByRole("textbox")[0] as HTMLInputElement
 
-    fireEvent.change(amounts()[0], { target: { value: "1000" } })
-    fireEvent.click(screen.getByRole("button", { name: /Разделить оплату/ })) // card row for the remaining 2000
-    fireEvent.change(screen.getAllByRole("spinbutton").at(-1)!, { target: { value: "500" } })
-    fireEvent.click(screen.getByRole("button", { name: /Разделить оплату/ })) // third row for 1500
+    fireEvent.change(amount(parts()[0]), { target: { value: "1000" } }) // two parts: the other takes 2000
+    fireEvent.click(screen.getByRole("button", { name: /Добавить часть/ })) // third part, nothing left
+    fireEvent.change(amount(parts()[1]), { target: { value: "500" } })
+    fireEvent.change(amount(parts()[2]), { target: { value: "1500" } })
 
-    const rows = () => screen.getAllByRole("button", { name: "Убрать" }).map((button) => button.closest(".rounded-\\[var\\(--radius-card\\)\\]") as HTMLElement)
-    fireEvent.click(within(rows()[1]).getByRole("button", { name: "Убрать" }))
-
-    const remaining = rows()
-    expect(remaining).toHaveLength(2)
-    const lastAmount = within(remaining[1]).getAllByRole("spinbutton")[0] as HTMLInputElement
-    expect(lastAmount.value).toBe("1500")
+    fireEvent.click(within(parts()[1]).getByRole("button", { name: /Убрать часть/ }))
+    expect(parts()).toHaveLength(2)
+    expect(amount(parts()[1]).value).toBe("1\u2009500")
   })
 })

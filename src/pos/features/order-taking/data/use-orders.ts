@@ -19,5 +19,7 @@ export function useOrderMutations() {
     cancel: useMutation(api.domains.orders.mutations.cancel),
     checkout: useMutation(api.domains.orders.mutations.checkout),
     refund: useMutation(api.domains.orders.mutations.refund),
+    sendToKitchen: useMutation(api.domains.orders.mutations.sendToKitchen),
+    voidLine: useMutation(api.domains.orders.mutations.voidLine),
   }
 }

@@ -2,6 +2,9 @@ import { useMemo, useState } from "react"
 import { Search } from "lucide-react"
 
 import { useCategories, useProducts } from "@/pos/features/catalog/data/use-catalog"
+import { needsConfiguration } from "@/pos/features/catalog/model/modifier-selection"
+import { ModifierDialog, type ConfigurableProduct } from "@/pos/features/catalog/ui/modifier-dialog"
+import type { CatalogItem } from "@/pos/features/order-taking/model/draft-lines"
 import { ProductCard } from "@/pos/components/product-card"
 import { Button } from "@/shared/components/ui/button"
 import { Chip, type CategoryTone } from "@/shared/components/ui/chip"
@@ -22,8 +25,10 @@ function categoryTone(label: string): CategoryTone | undefined {
   return CATEGORY_TONES.find(([pattern]) => pattern.test(label))?.[1]
 }
 
-export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: string; onAddProduct: (product: { productId: string; name: string; nameKk: string; price: number }) => void }) {
+export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: string; onAddProduct: (item: CatalogItem) => void }) {
   const categories = useCategories(sessionToken)
+  // A dish with sizes or modifier groups opens the dialog (W1-POS-12); any other is added at once.
+  const [configuring, setConfiguring] = useState<ConfigurableProduct | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | undefined>(undefined)
   const [search, setSearch] = useState("")
   const { items, loading, canLoadMore, loadMore } = useProducts({ sessionToken, category: search ? undefined : activeCategory, search })
@@ -74,7 +79,11 @@ export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: str
                 nameKk={product.nameKk}
                 price={product.price}
                 tone={toneByCategory.get(product.category)}
-                onClick={() => onAddProduct({ productId: product._id, name: product.name, nameKk: product.nameKk, price: product.price })}
+                onClick={() =>
+                  needsConfiguration(product)
+                    ? setConfiguring({ productId: product._id, externalId: product.externalId, name: product.name, nameKk: product.nameKk, price: product.price, description: product.description, imageUrl: product.imagePath })
+                    : onAddProduct({ productId: product._id, name: product.name, nameKk: product.nameKk, price: product.price })
+                }
               />
             ))}
           </div>
@@ -87,6 +96,7 @@ export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: str
           </div>
         )}
       </div>
+      <ModifierDialog sessionToken={sessionToken} product={configuring} onOpenChange={(open) => !open && setConfiguring(null)} onAdd={onAddProduct} />
     </div>
   )
 }

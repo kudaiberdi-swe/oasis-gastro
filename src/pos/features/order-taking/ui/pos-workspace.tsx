@@ -3,14 +3,16 @@ import { useState } from "react"
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { AppHeader } from "@/pos/components/app-header"
 import { CatalogPanel } from "@/pos/features/catalog/ui/catalog-panel"
-import { PaymentDialog } from "@/pos/features/checkout/ui/payment-dialog"
+import { PaymentDialog, type CheckoutPayment } from "@/pos/features/checkout/ui/payment-dialog"
 import { useKitchenBoard } from "@/kitchen/features/board/data/use-kitchen-board"
 import { KitchenBoard } from "@/kitchen/features/board/ui/kitchen-board"
 import { useCheck, useOpenChecks, useOrderMutations } from "@/pos/features/order-taking/data/use-orders"
 import { DiscountDialog } from "@/pos/features/order-taking/ui/discount-dialog"
 import { OpenChecksList } from "@/pos/features/order-taking/ui/open-checks-list"
 import { useOrderDraft } from "@/pos/features/order-taking/model/use-order-draft"
-import { OrderPanel } from "@/pos/components/order-panel"
+import { OrderPanel, type OrderTypeOption } from "@/pos/components/order-panel"
+import { VoidLineDialog } from "@/pos/features/order-taking/ui/void-line-dialog"
+import { useRetailSettings, type PosOrderType } from "@/pos/features/retail/data/use-retail-settings"
 import { useLoyaltyMutations, useOrderGuest } from "@/pos/features/loyalty/data/use-loyalty"
 import { GuestDialog } from "@/pos/features/loyalty/ui/guest-dialog"
 import { useTerminalOptions } from "@/pos/features/session/data/use-terminal-options"
@@ -22,9 +24,21 @@ import { CloseShiftDialog, OpenShiftDialog } from "@/pos/features/shifts/ui/shif
 import { useClosePreview, useCurrentShift, useShiftMutations } from "@/pos/features/shifts/data/use-shifts"
 import { Button } from "@/shared/components/ui/button"
 import { errorMessage } from "@/shared/lib/error-message"
+import type { OrderType } from "@/shared/types/pos"
 
 // Cashier touch targets (POS-DESIGN §5): the action row uses the POS control height.
 const TOOLBAR_BUTTON = "h-[var(--control-h-pos)]"
+
+const LEGACY_ORDER_TYPES: OrderTypeOption[] = [
+  { value: "dine-in", label: "В зале", mode: "dine-in" },
+  { value: "takeaway", label: "С собой", mode: "takeaway" },
+  { value: "delivery", label: "Доставка", mode: "delivery" },
+]
+
+/** The order-type switch: published order types, or the three legacy modes while the list is empty. */
+export function orderTypeOptions(orderTypes: PosOrderType[]): OrderTypeOption[] {
+  return orderTypes.length ? orderTypes.map((type) => ({ value: type.externalId, label: type.name, mode: type.data.serviceMode })) : LEGACY_ORDER_TYPES
+}
 
 export function PosWorkspace() {
   const session = usePosSession()
@@ -76,6 +90,7 @@ function AuthenticatedPos({
   const shift = useCurrentShift(sessionToken)
   const { open: openShift, close: closeShift, createXReport } = useShiftMutations()
   const { hold, checkout } = useOrderMutations()
+  const retail = useRetailSettings(sessionToken)
   const { requestApproval, dialog: managerDialog } = useManagerApproval(terminalExternalId)
   const { attachGuest, detachGuest } = useLoyaltyMutations()
 
@@ -91,6 +106,8 @@ function AuthenticatedPos({
   const [guestOpen, setGuestOpen] = useState(false)
   const [xReportSubmitting, setXReportSubmitting] = useState(false)
   const [xReportError, setXReportError] = useState<string | null>(null)
+  const [voidingLineId, setVoidingLineId] = useState<string | null>(null)
+  const [sendingToKitchen, setSendingToKitchen] = useState(false)
 
   const openChecks = useOpenChecks(sessionToken)
   const hydrated = useCheck(sessionToken, selectedOrderId)
@@ -101,12 +118,14 @@ function AuthenticatedPos({
     sessionToken,
     terminalExternalId,
     orderType: "dine-in",
+    orderTypes: retail.orderTypes,
     hydrated: hydrated ?? undefined,
     initialOrderId: selectedOrderId,
     initialTableLabel: pendingTableLabel,
     selectionKey: selectionNonce,
   })
   const guest = useOrderGuest(sessionToken, draft.orderId)
+  const typeOptions = orderTypeOptions(retail.orderTypes)
 
   if (shift === undefined) {
     return <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">Загрузка…</div>
@@ -146,7 +165,18 @@ function AuthenticatedPos({
     }
   }
 
-  async function handleCheckoutSubmit(payments: Array<{ method: "cash" | "card" | "qr"; amount: number; tendered?: number }>) {
+  async function handleSendToKitchen() {
+    setSendingToKitchen(true)
+    try {
+      await draft.sendToKitchen()
+    } catch {
+      // The draft shows the error under the totals.
+    } finally {
+      setSendingToKitchen(false)
+    }
+  }
+
+  async function handleCheckoutSubmit(payments: CheckoutPayment[]) {
     if (!draft.orderId) return
     setPaymentSubmitting(true)
     setPaymentError(null)
@@ -212,23 +242,61 @@ function AuthenticatedPos({
         <CatalogPanel sessionToken={sessionToken} onAddProduct={draft.addItem} />
         <OrderPanel
           tableLabel={draft.tableLabel}
+          orderNumber={draft.orderNumber}
           lines={draft.lines}
+          itemCount={draft.itemCount}
+          orderTypeOptions={typeOptions}
+          orderTypeValue={draft.orderType.externalId ?? draft.orderType.mode}
+          onOrderTypeChange={(value) => {
+            const option = typeOptions.find((candidate) => candidate.value === value)
+            if (option) draft.changeOrderType({ externalId: retail.orderTypes.length ? option.value : undefined, mode: option.mode })
+          }}
           subtotal={draft.subtotal}
           discountPercent={draft.discountPercent}
           discountAmount={draft.discountAmount}
+          serviceChargePercent={draft.serviceChargePercent}
           serviceChargeAmount={draft.serviceChargeAmount}
           total={draft.total}
           saving={draft.saving}
           error={draft.error}
-          onIncrement={(id) => draft.setQuantity(id, (draft.lines.find((l) => l.clientLineId === id)?.quantity ?? 0) + 1)}
+          canSendToKitchen={draft.hasUnsentLines}
+          sendingToKitchen={sendingToKitchen}
+          onIncrement={(id) => {
+            const line = draft.lines.find((candidate) => candidate.clientLineId === id)
+            if (!line) return
+            // A sent line is fixed; another portion of it goes to a new line.
+            if (line.sentToKitchenAt)
+              draft.addItem({ productId: line.productId, name: line.name, nameKk: line.nameKk, price: line.unitPrice, sizeExternalId: line.sizeExternalId, sizeLabel: line.sizeLabel, modifierSelections: line.modifierSelections, modifierLabels: line.modifierLabels })
+            else draft.setQuantity(id, line.quantity + 1)
+          }}
           onDecrement={(id) => draft.setQuantity(id, (draft.lines.find((l) => l.clientLineId === id)?.quantity ?? 0) - 1)}
+          onRemove={(id) => draft.setQuantity(id, 0)}
+          onVoid={setVoidingLineId}
+          onSendToKitchen={handleSendToKitchen}
           onHold={handleHold}
           onCheckout={() => setPaymentOpen(true)}
           onDiscount={() => setDiscountOpen(true)}
         />
       </div>
 
-      <PaymentDialog open={paymentOpen} onOpenChange={setPaymentOpen} total={draft.total} submitting={paymentSubmitting} error={paymentError} onSubmit={handleCheckoutSubmit} />
+      <PaymentDialog
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        total={draft.total}
+        orderNumber={draft.orderNumber}
+        itemCount={draft.itemCount}
+        paymentTypes={retail.paymentTypes}
+        submitting={paymentSubmitting}
+        error={paymentError}
+        onSubmit={handleCheckoutSubmit}
+      />
+      <VoidLineDialog
+        line={draft.lines.find((line) => line.clientLineId === voidingLineId) ?? null}
+        reasons={retail.deletionReasons}
+        onOpenChange={(open) => !open && setVoidingLineId(null)}
+        onVoid={(input) => draft.voidLine(voidingLineId!, input)}
+        onManagerRequired={requestApproval}
+      />
       <GuestDialog
         open={guestOpen}
         onOpenChange={setGuestOpen}

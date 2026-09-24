@@ -20,3 +20,8 @@ export function useProducts(args: { sessionToken: string; category?: string; sea
     loadMore: () => query.loadMore(30),
   }
 }
+
+/** Sizes and modifier groups of one dish, priced for the session's restaurant (W1-CAT-12). */
+export function useProductConfiguration(sessionToken: string, productExternalId: string | null) {
+  return useQuery(api.domains.catalog.pos.getProductConfiguration, productExternalId ? { sessionToken, productExternalId } : "skip")
+}
