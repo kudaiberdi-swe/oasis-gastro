@@ -1,3 +1,4 @@
+import type { OrderType } from "@/shared/types/pos"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { Id } from "../../../../../convex/_generated/dataModel"
@@ -28,7 +29,7 @@ type HydratedCheck = {
 export function useOrderDraft(args: {
   sessionToken: string
   terminalExternalId: string
-  orderType: "dine-in" | "takeaway"
+  orderType: OrderType
   hydrated: HydratedCheck | null | undefined
   initialOrderId: Id<"orders"> | null
   initialTableLabel?: string

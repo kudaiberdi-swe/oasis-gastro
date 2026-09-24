@@ -13,7 +13,7 @@ export const orderStatus = v.union(
   v.literal("refunded"),
 )
 
-export const orderType = v.union(v.literal("dine-in"), v.literal("takeaway"))
+export const orderType = v.union(v.literal("dine-in"), v.literal("takeaway"), v.literal("delivery"))
 
 export const paymentMethod = v.union(v.literal("card"), v.literal("cash"), v.literal("qr"))
 

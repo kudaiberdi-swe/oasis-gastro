@@ -1,5 +1,5 @@
 export type EmployeeRole = "cashier" | "manager" | "administrator"
-export type OrderType = "dine-in" | "takeaway"
+export type OrderType = "dine-in" | "takeaway" | "delivery"
 export type PaymentMethod = "card" | "cash" | "qr"
 export type KitchenStatus = "queued" | "preparing" | "ready" | "completed"
 

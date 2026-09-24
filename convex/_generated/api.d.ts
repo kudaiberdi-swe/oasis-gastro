@@ -106,6 +106,7 @@ import type * as lib_stockPosting from "../lib/stockPosting.js";
 import type * as lib_systemRoles from "../lib/systemRoles.js";
 import type * as lib_time from "../lib/time.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as migrations_m2Orders from "../migrations/m2Orders.js";
 import type * as migrations_m3StockWarehouses from "../migrations/m3StockWarehouses.js";
 
 import type {
@@ -213,6 +214,7 @@ declare const fullApi: ApiFromModules<{
   "lib/systemRoles": typeof lib_systemRoles;
   "lib/time": typeof lib_time;
   "lib/validators": typeof lib_validators;
+  "migrations/m2Orders": typeof migrations_m2Orders;
   "migrations/m3StockWarehouses": typeof migrations_m3StockWarehouses;
 }>;
 

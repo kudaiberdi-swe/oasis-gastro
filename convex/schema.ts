@@ -18,7 +18,7 @@ const orderStatus = v.union(
   v.literal("refunded"),
 )
 
-const orderType = v.union(v.literal("dine-in"), v.literal("takeaway"))
+const orderType = v.union(v.literal("dine-in"), v.literal("takeaway"), v.literal("delivery"))
 
 const paymentMethod = v.union(v.literal("card"), v.literal("cash"), v.literal("qr"))
 
@@ -259,8 +259,26 @@ export default defineSchema({
     paidAt: v.optional(v.number()),
     cancelledAt: v.optional(v.number()),
     searchText: v.string(),
+    // W1-POS-01 (optional; M-2 fills historical orders): retail settings snapshot, guests, split, kitchen.
+    businessDate: v.optional(v.string()), // YYYY-MM-DD by the restaurant cutoff (W1-PLT-08)
+    orderTypeExternalId: v.optional(v.string()),
+    orderTypeName: v.optional(v.string()),
+    discountTypeExternalId: v.optional(v.string()),
+    discountTypeName: v.optional(v.string()),
+    discountAmount: v.optional(v.number()), // fixed-amount discounts
+    retailConfigVersion: v.optional(v.string()), // "<kind>:<code>@<version>" of the settings applied
+    guestExternalId: v.optional(v.string()),
+    loyaltyProgramExternalId: v.optional(v.string()),
+    loyaltyAccrued: v.optional(v.number()),
+    loyaltyRedeemed: v.optional(v.number()),
+    hallLabel: v.optional(v.string()),
+    guestCount: v.optional(v.number()),
+    splitFromOrderId: v.optional(v.id("orders")),
+    kitchenSentAt: v.optional(v.number()),
+    migratedBy: v.optional(v.literal("M-2")),
   })
     .index("by_number", ["number"])
+    .index("by_restaurant_business_date", ["restaurantId", "businessDate"])
     .index("by_client_order_id", ["clientOrderId"])
     .index("by_status_created", ["status", "createdAt"])
     .index("by_restaurant_created", ["restaurantId", "createdAt"])
@@ -284,8 +302,18 @@ export default defineSchema({
     modifiers: v.array(v.string()), // legacy free-text kitchen notes
     // W1-POS-01 (optional until M-2): the chosen size and modifiers, priced by the server.
     sizeOptionId: v.optional(v.id("sizeOptions")),
-    modifierSelections: v.optional(v.array(v.object({ externalId: v.string(), name: v.string(), quantity: v.number(), unitPrice: v.number() }))),
+    modifierSelections: v.optional(
+      v.array(v.object({ externalId: v.string(), name: v.string(), quantity: v.number(), unitPrice: v.number(), groupExternalId: v.optional(v.string()), freeQuantity: v.optional(v.number()) })),
+    ),
     kitchenModifiers: v.optional(v.array(v.object({ externalId: v.string(), label: v.string(), quantity: v.number(), defaultQuantity: v.number() }))),
+    sizeExternalId: v.optional(v.string()),
+    lineTotal: v.optional(v.number()),
+    sentToKitchenAt: v.optional(v.number()),
+    kitchenTicketId: v.optional(v.id("kitchenTickets")),
+    voidedAt: v.optional(v.number()),
+    voidReasonExternalId: v.optional(v.string()),
+    course: v.optional(v.number()),
+    migratedBy: v.optional(v.literal("M-2")),
   }).index("by_order", ["orderId"]),
 
   orderDeletionEvents: defineTable({
@@ -419,8 +447,16 @@ export default defineSchema({
     status: v.literal("recorded"),
     createdBy: v.id("employees"),
     createdAt: v.number(),
+    // W1-POS-01 (optional; M-2 fills historical payments).
+    restaurantId: v.optional(v.id("restaurants")),
+    paymentTypeExternalId: v.optional(v.string()),
+    paymentTypeName: v.optional(v.string()),
+    processorKind: v.optional(v.union(v.literal("cash"), v.literal("card"), v.literal("qr"))),
+    journalEntryId: v.optional(v.string()),
+    migratedBy: v.optional(v.literal("M-2")),
   })
     .index("by_created_at", ["createdAt"])
+    .index("by_restaurant_created", ["restaurantId", "createdAt"])
     .index("by_order_created", ["orderId", "createdAt"])
     .index("by_shift_created", ["shiftId", "createdAt"])
     .index("by_idempotency_key", ["idempotencyKey"]),
