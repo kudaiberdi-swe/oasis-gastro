@@ -2,7 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server"
 import { ConvexError } from "convex/values"
 
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server"
-import type { DataModel } from "../_generated/dataModel"
+import type { DataModel, Id } from "../_generated/dataModel"
 
 type QueryCtx = GenericQueryCtx<DataModel>
 type MutationCtx = GenericMutationCtx<DataModel>
@@ -39,6 +39,43 @@ export async function requireOfficeCapability(ctx: AnyCtx, capability: string) {
 
 export async function requireRestaurantScope(ctx: AnyCtx, user: { restaurantScopes: string[] }, restaurantExternalId: string) {
   if (!hasScope(user.restaurantScopes, restaurantExternalId)) throw new ConvexError("Нет доступа к ресторану")
+}
+
+export function hasNetworkScope(user: { restaurantScopes: string[] }): boolean {
+  return user.restaurantScopes.includes("*")
+}
+
+/**
+ * Predicate for office queries that return per-restaurant rows. A requested restaurant must be in
+ * the user's scope; without a request the user sees every restaurant in scope. Rows without a
+ * restaurant are network-level and only visible with network scope.
+ */
+export function restaurantScopeFilter(user: { restaurantScopes: string[] }, requestedExternalId?: string): (externalId: string | undefined) => boolean {
+  if (requestedExternalId !== undefined && !hasScope(user.restaurantScopes, requestedExternalId)) throw new ConvexError("Нет доступа к ресторану")
+  return (externalId) => {
+    if (externalId === undefined) return hasNetworkScope(user)
+    if (requestedExternalId !== undefined && externalId !== requestedExternalId) return false
+    return hasScope(user.restaurantScopes, externalId)
+  }
+}
+
+/**
+ * Network-level resources (e.g. the guest base) until they get their own scoping. A full
+ * administrator role ("*") counts as network scope: bootstrap used to store the admin's
+ * restaurants as an explicit list rather than "*" (normalised by M-6, W1-ACL-02).
+ */
+export function requireNetworkScope(user: { restaurantScopes: string[] }, role?: { capabilities: string[] }) {
+  if (hasNetworkScope(user) || role?.capabilities.includes("*")) return
+  throw new ConvexError("Раздел доступен только с доступом ко всем ресторанам сети")
+}
+
+/** An employee is in scope when at least one of their restaurants is. */
+export async function requireEmployeeInScope(ctx: AnyCtx, user: { restaurantScopes: string[] }, employee: { restaurantIds: Id<"restaurants">[] }) {
+  if (hasNetworkScope(user)) return
+  const restaurants = await Promise.all(employee.restaurantIds.map((id) => ctx.db.get(id)))
+  if (!restaurants.some((restaurant) => restaurant && hasScope(user.restaurantScopes, restaurant.externalId))) {
+    throw new ConvexError("Сотрудник вне доступных ресторанов")
+  }
 }
 
 export async function writeOfficeAudit(

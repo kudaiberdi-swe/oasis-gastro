@@ -1,6 +1,6 @@
 import type { QueryCtx } from "../../_generated/server"
 import { query } from "../../_generated/server"
-import { requireOfficeCapability } from "../../lib/officeAccess"
+import { hasNetworkScope, hasScope, requireOfficeCapability, restaurantScopeFilter } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 
 // Phase 3's iiko import writes its own restaurants row per department (see
@@ -55,19 +55,23 @@ async function resolveBranchesByDepartmentCode(ctx: QueryCtx) {
 export const listBranches = query({
   args: {},
   handler: async (ctx) => {
-    await requireOfficeCapability(ctx, "office.workforce.*")
-    return listOperationalRestaurants(ctx)
+    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
+    const inScope = restaurantScopeFilter(user)
+    return (await listOperationalRestaurants(ctx)).filter((restaurant) => inScope(restaurant.externalId))
   },
 })
 
 export const listPosEmployees = query({
   args: {},
   handler: async (ctx) => {
-    await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
     const employees = await ctx.db.query("employees").withIndex("by_role_name").collect()
     const restaurants = await ctx.db.query("restaurants").collect()
     const restaurantById = new Map(restaurants.map((restaurant) => [restaurant._id, restaurant]))
-    return employees.map((employee) => {
+    const visible = employees.filter(
+      (employee) => hasNetworkScope(user) || employee.restaurantIds.some((id) => { const r = restaurantById.get(id); return r !== undefined && hasScope(user.restaurantScopes, r.externalId) }),
+    )
+    return visible.map((employee) => {
       const { pinSalt: _pinSalt, pinHash: _pinHash, ...rest } = employee
       return {
         ...rest,
@@ -81,7 +85,7 @@ export const listPosEmployees = query({
 export const listUnprovisioned = query({
   args: {},
   handler: async (ctx) => {
-    await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
     const [iikoEmployees, posEmployees, branchesByCode] = await Promise.all([
       ctx.db.query("iikoEmployees").withIndex("by_active_and_display_name", (q) => q.eq("active", true)).take(1000),
       ctx.db.query("employees").collect(),
@@ -97,6 +101,8 @@ export const listUnprovisioned = query({
         }
         return { ...employee, branches: [...branches.values()] }
       })
+      // Without network scope only candidates from the user's branches are shown.
+      .filter((employee) => hasNetworkScope(user) || employee.branches.some((branch) => hasScope(user.restaurantScopes, branch.externalId)))
   },
 })
 

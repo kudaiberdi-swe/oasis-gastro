@@ -3,7 +3,7 @@ import { v, ConvexError } from "convex/values"
 import { mutation } from "../../_generated/server"
 import type { MutationCtx } from "../../_generated/server"
 import { derivePinHash, randomPinSalt } from "../../lib/auth"
-import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
+import { getOfficeAuthEmail, requireEmployeeInScope, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
 import { employeeRole } from "../../lib/validators"
 
 async function resolveRestaurantIds(ctx: MutationCtx, user: { restaurantScopes: string[] }, restaurantExternalIds: string[]) {
@@ -44,6 +44,7 @@ export const provisionPosAccess = mutation({
     const byCode = await ctx.db.query("employees").withIndex("by_code", (q) => q.eq("code", args.employeeCode)).unique()
     const bySource = await ctx.db.query("employees").withIndex("by_iiko_employee_external_id", (q) => q.eq("iikoEmployeeExternalId", args.iikoEmployeeExternalId)).unique()
     if (byCode && byCode._id !== bySource?._id) throw new ConvexError("Этот код сотрудника уже используется")
+    if (bySource) await requireEmployeeInScope(ctx, user, bySource)
 
     const pinSalt = randomPinSalt()
     const pinHash = await derivePinHash(args.pin, pinSalt)
@@ -74,10 +75,11 @@ export const provisionPosAccess = mutation({
 export const setEmployeeActive = mutation({
   args: { employeeId: v.id("employees"), active: v.boolean() },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
     const email = await getOfficeAuthEmail(ctx)
     const employee = await ctx.db.get(args.employeeId)
     if (!employee) throw new ConvexError("Сотрудник не найден")
+    await requireEmployeeInScope(ctx, user, employee)
     await ctx.db.patch(args.employeeId, { active: args.active, ...(args.active ? { failedAttempts: 0, lockedUntil: undefined } : {}) })
     await writeOfficeAudit(ctx, email!, {
       action: args.active ? "workforce.activate" : "workforce.deactivate",
@@ -95,6 +97,7 @@ export const updateEmployeeAssignment = mutation({
     const email = await getOfficeAuthEmail(ctx)
     const employee = await ctx.db.get(args.employeeId)
     if (!employee) throw new ConvexError("Сотрудник не найден")
+    await requireEmployeeInScope(ctx, user, employee)
     const restaurantIds = await resolveRestaurantIds(ctx, user, args.restaurantExternalIds)
     await ctx.db.patch(args.employeeId, { role: args.role, restaurantIds })
     await writeOfficeAudit(ctx, email!, {
@@ -109,11 +112,12 @@ export const updateEmployeeAssignment = mutation({
 export const resetPin = mutation({
   args: { employeeId: v.id("employees"), pin: v.string() },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
     if (!/^\d{4,12}$/.test(args.pin)) throw new ConvexError("PIN должен состоять из 4–12 цифр")
     const email = await getOfficeAuthEmail(ctx)
     const employee = await ctx.db.get(args.employeeId)
     if (!employee) throw new ConvexError("Сотрудник не найден")
+    await requireEmployeeInScope(ctx, user, employee)
     const pinSalt = randomPinSalt()
     const pinHash = await derivePinHash(args.pin, pinSalt)
     await ctx.db.patch(args.employeeId, { pinSalt, pinHash, failedAttempts: 0, lockedUntil: undefined })

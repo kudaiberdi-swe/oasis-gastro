@@ -5,7 +5,7 @@ import type { MutationCtx } from "../../_generated/server"
 import type { Id } from "../../_generated/dataModel"
 import { requireOperator, type PosAccess } from "../../lib/auth"
 import { findOrCreateGuest, normalizePhone } from "../../lib/loyalty"
-import { getOfficeAuthEmail, requireOfficeCapability, writeOfficeAudit } from "../../lib/officeAccess"
+import { getOfficeAuthEmail, requireNetworkScope, requireOfficeCapability, writeOfficeAudit } from "../../lib/officeAccess"
 
 async function requireOpenOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess) {
   const order = await ctx.db.get(orderId)
@@ -46,7 +46,8 @@ export const detachGuestFromOrder = mutation({
 export const adjustPoints = mutation({
   args: { guestId: v.id("guests"), points: v.number(), reason: v.string() },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.loyalty.*")
+    const { user, role } = await requireOfficeCapability(ctx, "office.loyalty.*")
+    requireNetworkScope(user, role)
     if (!Number.isInteger(args.points) || args.points === 0) throw new ConvexError("Укажите ненулевое целое число баллов")
     if (!args.reason.trim()) throw new ConvexError("Укажите причину корректировки")
     const email = await getOfficeAuthEmail(ctx)

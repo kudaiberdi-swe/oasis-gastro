@@ -13,7 +13,7 @@ const PUBLIC_ALLOWLIST_PATH = path.join(ROOT, "scripts/guards/public-allowlist.j
 
 const AUTH_TOKENS = ["requireOperator", "requireSession", "requireManagerApproval", "requireOfficeCapability", "getOfficeAuthEmail"]
 // resolveRestaurantIds (domains/workforce) calls requireRestaurantScope for every restaurant it resolves.
-const SCOPE_TOKENS = ["requireRestaurantScope", "hasScope(", "restaurantScopes", "resolveRestaurantIds("]
+const SCOPE_TOKENS = ["requireRestaurantScope", "restaurantScopeFilter(", "hasScope(", "restaurantScopes", "resolveRestaurantIds("]
 
 export const FRONTEND_RULES = [
   { id: "fe/hex-color", pattern: /#[0-9a-fA-F]{3,8}\b/g, test: (line) => /(["'`\s(\[])#[0-9a-fA-F]{3,8}\b/.test(line) },

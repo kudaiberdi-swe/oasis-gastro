@@ -3,7 +3,7 @@ import { v } from "convex/values"
 import { query } from "../../_generated/server"
 import { requireOperator } from "../../lib/auth"
 import { normalizePhone } from "../../lib/loyalty"
-import { requireOfficeCapability } from "../../lib/officeAccess"
+import { requireNetworkScope, requireOfficeCapability } from "../../lib/officeAccess"
 
 export const getOrderGuest = query({
   args: { sessionToken: v.string(), orderId: v.id("orders") },
@@ -30,7 +30,8 @@ export const findGuestByPhone = query({
 export const listGuests = query({
   args: { search: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.loyalty.*")
+    const { user, role } = await requireOfficeCapability(ctx, "office.loyalty.*")
+    requireNetworkScope(user, role) // guests are network-wide; branch-scoped guest access comes with W1-LOY-04
     const guests = await ctx.db.query("guests").order("desc").take(500)
     const search = args.search?.trim().toLocaleLowerCase("ru")
     if (!search) return guests
@@ -41,7 +42,8 @@ export const listGuests = query({
 export const guestHistory = query({
   args: { guestId: v.id("guests") },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.loyalty.*")
+    const { user, role } = await requireOfficeCapability(ctx, "office.loyalty.*")
+    requireNetworkScope(user, role)
     return ctx.db.query("loyaltyTransactions").withIndex("by_guest_occurred", (q) => q.eq("guestId", args.guestId)).order("desc").take(100)
   },
 })

@@ -2,14 +2,15 @@ import { v } from "convex/values"
 
 import { query } from "../../_generated/server"
 import { almatyBusinessDate } from "../../lib/time"
-import { requireOfficeCapability } from "../../lib/officeAccess"
+import { requireOfficeCapability, restaurantScopeFilter } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 
 export const restaurantsForFilter = query({
   args: {},
   handler: async (ctx) => {
-    await requireOfficeCapability(ctx, "office.reports.*")
-    return listOperationalRestaurants(ctx)
+    const { user } = await requireOfficeCapability(ctx, "office.reports.*")
+    const inScope = restaurantScopeFilter(user)
+    return (await listOperationalRestaurants(ctx)).filter((restaurant) => inScope(restaurant.externalId))
   },
 })
 
@@ -22,7 +23,8 @@ export const restaurantsForFilter = query({
 export const salesSummary = query({
   args: { restaurantExternalId: v.optional(v.string()), from: v.optional(v.string()), to: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.reports.*")
+    const { user } = await requireOfficeCapability(ctx, "office.reports.*")
+    const inScope = restaurantScopeFilter(user, args.restaurantExternalId)
 
     const restaurants = await ctx.db.query("restaurants").collect()
     const restaurantExternalById = new Map(restaurants.map((restaurant) => [restaurant._id, restaurant.externalId]))
@@ -30,7 +32,7 @@ export const salesSummary = query({
     const allOrders = await ctx.db.query("orders").collect()
     const sold = allOrders.filter((order) => {
       if (order.paidAt === undefined) return false
-      if (args.restaurantExternalId && (!order.restaurantId || restaurantExternalById.get(order.restaurantId) !== args.restaurantExternalId)) return false
+      if (!inScope(order.restaurantId ? restaurantExternalById.get(order.restaurantId) : undefined)) return false
       const date = almatyBusinessDate(order.paidAt)
       if (args.from && date < args.from) return false
       if (args.to && date > args.to) return false
@@ -83,10 +85,11 @@ export const salesSummary = query({
 export const listShiftReports = query({
   args: { restaurantExternalId: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.reports.*")
+    const { user } = await requireOfficeCapability(ctx, "office.reports.*")
+    const inScope = restaurantScopeFilter(user, args.restaurantExternalId)
     const restaurants = await ctx.db.query("restaurants").collect()
     const restaurantExternalById = new Map(restaurants.map((restaurant) => [restaurant._id, restaurant.externalId]))
     const reports = await ctx.db.query("xReports").order("desc").take(args.limit ?? 200)
-    return reports.filter((report) => !args.restaurantExternalId || restaurantExternalById.get(report.restaurantId) === args.restaurantExternalId)
+    return reports.filter((report) => inScope(restaurantExternalById.get(report.restaurantId)))
   },
 })

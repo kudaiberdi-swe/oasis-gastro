@@ -35,7 +35,7 @@ export const bootstrap = mutation({
       email,
       name: existingOwner?.name ?? "Администратор",
       roleExternalId: "administrator",
-      restaurantScopes: restaurants.map((restaurant) => restaurant.externalId),
+      restaurantScopes: ["*"], // the bootstrapped administrator is network-wide, including branches added later
       active: true,
     }
     if (existingOwner) await ctx.db.patch(existingOwner._id, ownerValue)
