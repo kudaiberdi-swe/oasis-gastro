@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "/Users/beket/Desktop/echo/sandyq/.claude/hooks/block-prod-and-ci.sh" }]
+      }
+    ]
+  }
+}
