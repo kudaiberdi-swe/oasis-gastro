@@ -85,6 +85,8 @@ export type SaveDomainRecordArgs = {
   cashflowCategoryExternalId?: string
   counterpartyExternalId?: string
   data: DomainRecord["data"]
+  /** Top-level fields a module derives from its data (counterparties: bin). */
+  bin?: string
 }
 
 function searchTextOf(record: Pick<DomainRecord, "number" | "name" | "data">) {
@@ -121,6 +123,7 @@ export async function saveDomainRecord(ctx: MutationCtx, table: DomainTable, act
     cashflowCategoryExternalId: args.cashflowCategoryExternalId,
     counterpartyExternalId: args.counterpartyExternalId,
     data: args.data,
+    ...(args.bin !== undefined ? { bin: args.bin } : {}),
   }
   let record: DomainRecord
   if (existing) {

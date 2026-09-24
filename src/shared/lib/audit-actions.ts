@@ -74,6 +74,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "stock.adjustment": "Корректировка остатка",
   "finance.expense.record": "Запись расхода",
   "loyalty.adjust": "Корректировка баллов гостя",
+  "finance.shift.accept": "Принятие смены",
+  "finance.shift.reverse": "Сторно приёмки смены",
   "workforce.create": "Создание сотрудника кассы",
   "workforce.profile.update": "Изменение карточки сотрудника",
   "attendance.clock-in": "Отметка прихода",

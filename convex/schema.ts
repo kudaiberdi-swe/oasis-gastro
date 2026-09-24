@@ -405,7 +405,8 @@ export default defineSchema({
     .index("by_terminal_status", ["terminalId", "status"])
     .index("by_terminal_opened", ["terminalId", "openedAt"])
     .index("by_restaurant_opened", ["restaurantId", "openedAt"])
-    .index("by_status_opened", ["status", "openedAt"]),
+    .index("by_status_opened", ["status", "openedAt"])
+    .index("by_restaurant_status_closed", ["restaurantId", "status", "closedAt"]),
 
   shiftEvents: defineTable({
     shiftId: v.id("shifts"),
@@ -511,6 +512,25 @@ export default defineSchema({
   })
     .index("by_terminal_created", ["terminalId", "createdAt"])
     .index("by_terminal_dedupe", ["terminalId", "dedupeKey"]),
+
+  // Shift acceptance by accounting (W1-FIN-06): the recount of a closed shift and its variance posting.
+  cashShiftAcceptances: defineTable({
+    shiftId: v.id("shifts"),
+    restaurantExternalId: v.string(),
+    acceptedByEmail: v.string(),
+    acceptedAt: v.number(),
+    note: v.string(),
+    expectedCash: v.number(),
+    countedAtCloseCash: v.number(),
+    recountedCash: v.number(),
+    variance: v.number(), // recounted − expected
+    journalEntryExternalId: v.optional(v.string()),
+    reversedAt: v.optional(v.number()),
+    reversedByEmail: v.optional(v.string()),
+    reverseReason: v.optional(v.string()),
+  })
+    .index("by_shift", ["shiftId"])
+    .index("by_restaurant_accepted", ["restaurantExternalId", "acceptedAt"]),
 
   // Z-report as its own immutable record (W1-POS-08), written by shifts.close in the same transaction.
   zReports: defineTable({
@@ -890,7 +910,8 @@ export default defineSchema({
     .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
     .index("by_debit_date", ["debitAccountExternalId", "businessDate"])
     .index("by_credit_date", ["creditAccountExternalId", "businessDate"])
-    .index("by_org_date", ["organizationExternalId", "businessDate"]),
+    .index("by_org_date", ["organizationExternalId", "businessDate"])
+    .index("by_date", ["businessDate"]),
 
   // Period close. The organization is part of the index so one brand's lock never blocks another (B-26).
   periodLocks: defineTable({
@@ -980,8 +1001,10 @@ export default defineSchema({
     updatedAt: v.number(),
     postedAt: v.optional(v.number()),
     reversedAt: v.optional(v.number()),
+    bin: v.optional(v.string()), // counterparties: unique BIN (W1-FIN-04)
   })
     .index("by_external_id", ["externalId"])
+    .index("by_bin", ["bin"])
     .index("by_module_status_date", ["moduleId", "status", "businessDate"])
     .index("by_module_restaurant_date", ["moduleId", "restaurantExternalId", "businessDate"])
     .index("by_counterparty_module", ["counterpartyExternalId", "moduleId"])

@@ -6,6 +6,7 @@ import { getDomainRecord, listDomainRecords, saveDomainRecord, transitionCapabil
 import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, restaurantScopeFilter, scopedRestaurants } from "../../lib/officeAccess"
 import { officeDomainStatus } from "../../lib/validators"
 import { FINANCE_MODULES, financeModuleId, financeRecordData, type FinanceModuleId } from "./validators"
+import { financeHooks, validateFinanceRecord } from "./modules"
 
 // Finance records (W1-FIN-01) on the domain-record engine. Every handler checks office.<module>.<action>
 // and the restaurant scope itself.
@@ -89,7 +90,8 @@ export const save = mutation({
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     const email = await getOfficeAuthEmail(ctx)
     if (!email) throw new ConvexError("Требуется вход в Office")
-    const record = await saveDomainRecord(ctx, "financeRecords", email, moduleOf(moduleId), args)
+    const derived = await validateFinanceRecord(ctx, moduleId, args)
+    const record = await saveDomainRecord(ctx, "financeRecords", email, moduleOf(moduleId), { ...args, ...derived })
     return { externalId: record.externalId, number: record.number, version: record.version }
   },
 })
@@ -101,7 +103,7 @@ export const transition = mutation({
     const { user } = await requireOfficeCapability(ctx, transitionCapability(module, args.action))
     const email = await getOfficeAuthEmail(ctx)
     if (!email) throw new ConvexError("Требуется вход в Office")
-    const record = await transitionDomainRecord(ctx, "financeRecords", email, user, module, args)
+    const record = await transitionDomainRecord(ctx, "financeRecords", email, user, module, args, financeHooks(ctx, moduleId))
     return { status: record.status, version: record.version }
   },
 })

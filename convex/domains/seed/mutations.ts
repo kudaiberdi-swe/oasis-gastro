@@ -2,7 +2,7 @@ import { v, ConvexError } from "convex/values"
 
 import { internalMutation } from "../../_generated/server"
 import { employeeRole } from "../../lib/validators"
-import { seedChartOfAccountsRows } from "../finance/seed"
+import { seedCashflowCategoryRows, seedChartOfAccountsRows } from "../finance/seed"
 import { seedRetailDefaults } from "../retail/internal"
 import { categoryPrepArea } from "../catalog/migrations"
 
@@ -150,6 +150,7 @@ export const seedAll = internalMutation({
       createdEmployees.push({ code: employee.code, created: true })
     }
 
+    await seedCashflowCategoryRows(ctx)
     return {
       organization: args.organization.externalId,
       restaurants: args.restaurants.length,
