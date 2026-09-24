@@ -25,3 +25,10 @@ export function businessDateFor(value: number, cutoffMinutes = 0): string {
   const date = new Date(value + ALMATY_OFFSET_MS - cutoff * 60_000)
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`
 }
+
+/** Almaty weekday (Monday = 1 … Sunday = 7) and minute of the day, for price-order schedules. */
+export function almatyWeekdayMinute(value: number): { weekday: number; minute: number } {
+  const date = new Date(value + ALMATY_OFFSET_MS)
+  const day = date.getUTCDay()
+  return { weekday: day === 0 ? 7 : day, minute: date.getUTCHours() * 60 + date.getUTCMinutes() }
+}

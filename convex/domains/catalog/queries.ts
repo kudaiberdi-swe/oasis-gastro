@@ -5,16 +5,13 @@ import type { QueryCtx } from "../../_generated/server"
 import { query } from "../../_generated/server"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { requireOperator } from "../../lib/auth"
+import { resolvePrice } from "../../lib/pricing"
 import { requireOfficeCapability } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 import type { PosProduct } from "./types"
 
 export async function resolveProductPrice(ctx: QueryCtx, product: Doc<"products">, restaurantExternalId: string): Promise<number> {
-  const override = await ctx.db
-    .query("productPrices")
-    .withIndex("by_product_restaurant", (q) => q.eq("productId", product._id).eq("restaurantExternalId", restaurantExternalId))
-    .unique()
-  return override?.priceKzt ?? product.basePrice
+  return (await resolvePrice(ctx, { product, restaurantExternalId, at: Date.now() })).price
 }
 
 async function withResolvedPrice(ctx: QueryCtx, product: Doc<"products">, restaurantExternalId: string): Promise<PosProduct> {

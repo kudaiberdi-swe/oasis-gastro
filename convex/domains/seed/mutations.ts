@@ -3,6 +3,7 @@ import { v, ConvexError } from "convex/values"
 import { internalMutation } from "../../_generated/server"
 import { employeeRole } from "../../lib/validators"
 import { seedChartOfAccountsRows } from "../finance/seed"
+import { categoryPrepArea } from "../catalog/migrations"
 
 async function upsertByExternalId<T extends { externalId: string }>(
   ctx: any,
@@ -91,6 +92,10 @@ export const seedAll = internalMutation({
         sku: product.sku,
         baseUnit: "порц." as const,
         enabled: true,
+        itemType: "dish" as const,
+        writeOffMethod: "ingredients" as const,
+        prepArea: categoryPrepArea(args.categories.find((category) => category.externalId === product.category)?.label),
+        customizable: false,
       })
       productIds.set(product.externalId, id)
     }

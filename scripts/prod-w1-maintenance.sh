@@ -4,6 +4,7 @@
 #   2. seven system roles       domains/office/internal:seedSystemRoles
 #   3. M-6 user scopes          domains/office/migrations:m6BackfillScopes (paged)
 #   4. audit search text        domains/platform/internal:backfillAuditSearchText (paged)
+#   5. M-1 catalog v2 fields    domains/catalog/migrations:m1BackfillProducts + m1bOverlays (paged)
 # Each step runs as a dry run first and prints what it would change; then asks before writing.
 #
 #   bash scripts/prod-w1-maintenance.sh          # production
@@ -45,6 +46,8 @@ run domains/finance/seed:seedChartOfAccounts '{"dryRun":true}'
 run domains/office/internal:seedSystemRoles '{"dryRun":true}'
 paged domains/office/migrations:m6BackfillScopes true
 paged domains/platform/internal:backfillAuditSearchText true
+paged domains/catalog/migrations:m1BackfillProducts true
+paged domains/catalog/migrations:m1bOverlays true
 
 read -r -p "Apply these changes to production? [y/N] " ANSWER
 [ "$ANSWER" = "y" ] || { echo "Nothing written."; exit 0; }
@@ -54,4 +57,6 @@ run domains/finance/seed:seedChartOfAccounts '{}'
 run domains/office/internal:seedSystemRoles '{}'
 paged domains/office/migrations:m6BackfillScopes false
 paged domains/platform/internal:backfillAuditSearchText false
+paged domains/catalog/migrations:m1BackfillProducts false
+paged domains/catalog/migrations:m1bOverlays false
 echo "Done."

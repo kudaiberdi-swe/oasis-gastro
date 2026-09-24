@@ -161,9 +161,14 @@ export default defineSchema({
     shortLabel: v.string(),
     sortOrder: v.number(),
     active: v.optional(v.boolean()),
+    parentExternalId: v.optional(v.string()), // W1-CAT-03 product-group hierarchy
+    sourceSystem: v.optional(v.string()),
+    sourceHash: v.optional(v.string()),
+    importedAt: v.optional(v.number()),
   })
     .index("by_external_id", ["externalId"])
-    .index("by_sort_order", ["sortOrder"]),
+    .index("by_sort_order", ["sortOrder"])
+    .index("by_parent", ["parentExternalId", "sortOrder"]),
 
   products: defineTable({
     externalId: v.string(),
@@ -180,10 +185,31 @@ export default defineSchema({
     sku: v.string(),
     baseUnit: unit,
     enabled: v.boolean(),
+    // Catalog v2 (W1-CAT-01) — optional until migration M-1 has run on prod, then required.
+    imageStorageId: v.optional(v.id("_storage")),
+    imagePath: v.optional(v.string()),
+    itemType: v.optional(v.union(v.literal("dish"), v.literal("good"), v.literal("preparation"))),
+    prepArea: v.optional(v.string()), // hot | cold | bar | bakery …
+    writeOffMethod: v.optional(v.union(v.literal("ingredients"), v.literal("finished-product"))),
+    unitWeightKg: v.optional(v.number()),
+    markupPercent: v.optional(v.number()),
+    customizable: v.optional(v.boolean()),
+    // sizeScaleId arrives with the sizeScales table (W1-CAT-09).
+    firstSaleAt: v.optional(v.number()),
+    technology: v.optional(v.string()),
+    sourceSystem: v.optional(v.string()),
+    sourceRevision: v.optional(v.string()),
+    sourceHash: v.optional(v.string()),
+    importedAt: v.optional(v.number()),
+    sourceDeleted: v.optional(v.boolean()),
+    sourceReadOnly: v.optional(v.boolean()),
   })
     .index("by_external_id", ["externalId"])
     .index("by_enabled_and_category_and_name", ["enabled", "category", "nameSort"])
     .index("by_enabled_and_name", ["enabled", "nameSort"])
+    .index("by_enabled_and_popular_and_name", ["enabled", "popular", "nameSort"])
+    .index("by_category_name", ["category", "nameSort"])
+    .index("by_price", ["basePrice"])
     .searchIndex("search_products", {
       searchField: "searchText",
       filterFields: ["category", "popular", "enabled"],
@@ -571,8 +597,27 @@ export default defineSchema({
     overlayKey: v.string(), // "<entityType>:<sourceExternalId>"
     entityType: v.string(),
     sourceExternalId: v.string(),
-    data: v.any(),
-  }).index("by_overlay_key", ["overlayKey"]),
+    data: v.optional(v.any()), // legacy untyped overlay; moved into the typed fields by M-1b
+    sourceSystem: v.optional(v.literal("iiko-server")),
+    label: v.optional(v.string()),
+    labelKk: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
+    visibleInPos: v.optional(v.boolean()),
+    popular: v.optional(v.boolean()),
+    prepArea: v.optional(v.string()),
+    localSettings: v.optional(
+      v.object({
+        price: v.optional(v.number()),
+        writeOffMethod: v.optional(v.union(v.literal("ingredients"), v.literal("finished-product"))),
+        unitWeightKg: v.optional(v.number()),
+        markupPercent: v.optional(v.number()),
+      }),
+    ),
+    updatedBy: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_overlay_key", ["overlayKey"])
+    .index("by_entity_type_and_source_external_id", ["entityType", "sourceExternalId"]),
 
   // --- Stock (Phase 4) --------------------------------------------------------
   // Raw-material inventory, tracked per branch. No `warehouses` table — Sandyq runs one stockroom
