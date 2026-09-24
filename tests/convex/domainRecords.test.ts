@@ -1,7 +1,7 @@
 import { convexTest } from "convex-test"
 import { describe, expect, it } from "vitest"
 
-import { api } from "../../convex/_generated/api"
+import { api, internal } from "../../convex/_generated/api"
 import { LIFECYCLES } from "../../convex/lib/lifecycles"
 import { almatyDayStart } from "../../convex/lib/time"
 import schema from "../../convex/schema"
@@ -11,6 +11,7 @@ const records = api.domains.finance.records
 
 async function setup() {
   const t = convexTest(schema, modules)
+  await t.mutation(internal.domains.finance.seed.seedChartOfAccounts, {}) // manual operations post to the journal (W1-FIN-05)
   await t.run(async (ctx) => {
     await ctx.db.insert("organizations", { externalId: "sandyq", name: "Sandyq", currency: "KZT", timezone: "Asia/Almaty", active: true })
     for (const externalId of ["almaty", "shymkent"]) {
@@ -52,7 +53,8 @@ describe("domain record lifecycle (W1-PLT-05)", () => {
   it("runs every transition of every lifecycle and rejects the rest", async () => {
     const { admin } = await setup()
     const walk = async (moduleId: "cashflow-categories" | "payments", steps: [string, string][]) => {
-      const saved = await admin.mutation(records.save, draft({ moduleId, debitAccountExternalId: undefined, creditAccountExternalId: undefined }))
+      const data = moduleId === "cashflow-categories" ? { code: "rent", direction: "outgoing", activity: "operating" } : { memo: "сентябрь" }
+      const saved = await admin.mutation(records.save, draft({ moduleId, debitAccountExternalId: undefined, creditAccountExternalId: undefined, data }))
       let version = saved.version
       for (const [action, status] of steps) {
         const result = await admin.mutation(records.transition, { moduleId, externalId: saved.externalId, action: action as "post", expectedVersion: version, reason: "причина" })
