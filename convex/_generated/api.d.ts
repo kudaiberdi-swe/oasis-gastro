@@ -16,6 +16,7 @@ import type * as domains_auth_mutations from "../domains/auth/mutations.js";
 import type * as domains_auth_queries from "../domains/auth/queries.js";
 import type * as domains_catalog_migrations from "../domains/catalog/migrations.js";
 import type * as domains_catalog_mutations from "../domains/catalog/mutations.js";
+import type * as domains_catalog_office from "../domains/catalog/office.js";
 import type * as domains_catalog_queries from "../domains/catalog/queries.js";
 import type * as domains_catalog_types from "../domains/catalog/types.js";
 import type * as domains_finance_mutations from "../domains/finance/mutations.js";
@@ -91,6 +92,7 @@ declare const fullApi: ApiFromModules<{
   "domains/auth/queries": typeof domains_auth_queries;
   "domains/catalog/migrations": typeof domains_catalog_migrations;
   "domains/catalog/mutations": typeof domains_catalog_mutations;
+  "domains/catalog/office": typeof domains_catalog_office;
   "domains/catalog/queries": typeof domains_catalog_queries;
   "domains/catalog/types": typeof domains_catalog_types;
   "domains/finance/mutations": typeof domains_finance_mutations;

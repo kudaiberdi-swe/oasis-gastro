@@ -10,6 +10,9 @@ import { OfficeStatePage } from "@/office/components/state-page"
 import { CatalogWorkspace } from "@/office/features/catalog/ui/catalog-workspace"
 import { FinanceWorkspace } from "@/office/features/finance/ui/finance-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
+import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
+import { PeriodLocksWorkspace } from "@/office/features/platform/ui/period-locks-workspace"
+import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
 import { ReportsWorkspace } from "@/office/features/reports/ui/reports-workspace"
 import { useOfficeContext } from "@/office/features/session/data/use-office-context"
 import { OfficeBootstrap } from "@/office/features/session/ui/office-bootstrap"
@@ -32,6 +35,9 @@ const WORKSPACES: Record<string, ComponentType> = {
   reports: ReportsWorkspace,
   roles: AccessControlWorkspace,
   users: AccessControlWorkspace,
+  terminals: TerminalsWorkspace,
+  "document-locks": PeriodLocksWorkspace,
+  "audit-log": AuditLogWorkspace,
 }
 
 export function OfficeRouter() {

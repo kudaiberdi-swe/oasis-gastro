@@ -1,6 +1,6 @@
 import { query } from "../../_generated/server"
 import { CAPABILITY_CATALOG } from "../../lib/capabilities"
-import { effectiveScopes, getOfficeAuthEmail, hasScope } from "../../lib/officeAccess"
+import { effectiveScopes, getOfficeAuthEmail, hasScope, scopedRestaurants } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 
 declare const process: { env: Record<string, string | undefined> }
@@ -26,9 +26,13 @@ export const context = query({
       ? await ctx.db.query("organizations").withIndex("by_external_id", (q) => q.eq("externalId", organizationExternalId)).unique()
       : null
     const scopes = user ? await effectiveScopes(ctx, user, role ?? undefined) : null
+    // Every active restaurant in scope, with or without a terminal — for administration screens
+    // (a new branch needs its first terminal created here).
+    const adminRestaurants = user ? (await scopedRestaurants(ctx, user)).map((restaurant) => ({ externalId: restaurant.externalId, name: restaurant.name, organizationExternalId: restaurant.organizationExternalId })) : []
     return {
       email,
       ready,
+      adminRestaurants,
       organizationScopes: scopes?.organizationScopes ?? [],
       warehouseScopes: scopes?.warehouseScopes ?? [],
       capabilityCatalog: CAPABILITY_CATALOG,

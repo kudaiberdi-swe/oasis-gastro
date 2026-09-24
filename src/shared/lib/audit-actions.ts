@@ -1,0 +1,99 @@
+// Russian labels for audit action codes (W1-ADM-04, closes L-9 for «Журнал событий»): the raw code
+// never reaches the screen as the label — it stays in the pill's `title`. tests/pos/admin-screens.test.tsx
+// checks that every action string written by convex/** has a label here.
+
+export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  // Касса: сессия, заказы, смены, кухня.
+  "session.login": "Вход в кассу",
+  "session.lock": "Блокировка кассы",
+  "session.logout": "Выход из кассы",
+  "order.checkout": "Оплата заказа",
+  "order.hold": "Заказ отложен",
+  "order.resume": "Заказ возобновлён",
+  "order.cancel": "Отмена заказа",
+  "order.refund": "Возврат заказа",
+  "order.transfer": "Перенос заказа",
+  "order.manager-override": "Подтверждение менеджера",
+  "shift.open": "Открытие смены",
+  "shift.close": "Закрытие смены",
+  "shift.x-report": "X-отчёт",
+  "shift.cash-in": "Внесение наличных",
+  "shift.cash-out": "Изъятие наличных",
+  "kitchen.status": "Статус на кухне",
+
+  // Офис.
+  "catalog.category.create": "Создание категории",
+  "catalog.category.update": "Изменение категории",
+  "catalog.product.create": "Создание блюда",
+  "catalog.product.update": "Изменение блюда",
+  "catalog.product.image": "Изменение изображения блюда",
+  "catalog.group.save": "Сохранение группы товаров",
+  "catalog.price.set": "Изменение цены",
+  "stock.item.create": "Создание складского товара",
+  "stock.receipt": "Приход на склад",
+  "stock.writeoff": "Списание со склада",
+  "stock.adjustment": "Корректировка остатка",
+  "finance.expense.record": "Запись расхода",
+  "loyalty.adjust": "Корректировка баллов гостя",
+  "workforce.provision": "Выдача доступа к кассе",
+  "workforce.pin.reset": "Сброс PIN сотрудника",
+  "workforce.assignment.update": "Изменение назначения сотрудника",
+  "workforce.activate": "Включение сотрудника",
+  "workforce.deactivate": "Отключение сотрудника",
+  "office-role.create": "Создание роли",
+  "office-role.update": "Изменение роли",
+  "office-user.create": "Создание пользователя офиса",
+  "office-user.update": "Изменение пользователя офиса",
+  "office-user.password-set": "Установка пароля офиса",
+  "terminal.create": "Создание терминала",
+  "terminal.update": "Изменение терминала",
+  "period-lock.create": "Закрытие периода",
+  "period-lock.reopen": "Повторное открытие периода",
+  "integration-job.retry": "Повтор задания обмена",
+  "integration-job.cancel": "Отмена задания обмена",
+}
+
+/**
+ * Suffixes of the dynamic `${moduleId}.<action>` codes written by the domain-record engine
+ * (convex/lib/domainRecords.ts): record create/update and the lifecycle transitions.
+ */
+export const AUDIT_ACTION_SUFFIX_LABELS: Record<string, string> = {
+  create: "Создание записи",
+  update: "Изменение записи",
+  post: "Проведение",
+  reverse: "Сторно",
+  cancel: "Отмена",
+  submit: "Отправка на согласование",
+  approve: "Согласование",
+  publish: "Публикация",
+  activate: "Активация",
+  deactivate: "Деактивация",
+  expire: "Завершение действия",
+}
+
+export type AuditActionLabel = {
+  label: string
+  known: boolean
+  /** For a dynamic `${moduleId}.<action>` code: the office section it belongs to. */
+  moduleId?: string
+}
+
+export function describeAuditAction(action: string): AuditActionLabel {
+  const exact = AUDIT_ACTION_LABELS[action]
+  if (exact) return { label: exact, known: true }
+  const dot = action.lastIndexOf(".")
+  const suffix = dot > 0 ? AUDIT_ACTION_SUFFIX_LABELS[action.slice(dot + 1)] : undefined
+  if (suffix) return { label: suffix, known: true, moduleId: action.slice(0, dot) }
+  return { label: action, known: false }
+}
+
+export type AuditSource = "pos" | "office" | "system"
+
+/** Where an event came from: the CLI maintenance account, a cashier on a terminal, or the office. */
+export function auditSource(event: { actorKey: string; action: string }): AuditSource {
+  if (event.actorKey === "system-cli") return "system"
+  if (/^(order|shift|session|kitchen)\./.test(event.action)) return "pos"
+  return "office"
+}
+
+export const SYSTEM_ACTOR_KEY = "system-cli"
