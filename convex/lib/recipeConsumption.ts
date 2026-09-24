@@ -185,5 +185,5 @@ export async function reverseOrderConsumption(ctx: MutationCtx, args: { order: D
   const source = String(args.order._id)
   await reverseSourceMovements(ctx, { sourceExternalId: source, occurredAt: args.occurredAt, reversalKey: args.refundKey, share: args.share, reason: "Возврат" })
   const hasCogs = await ctx.db.query("journalEntries").withIndex("by_source", (q) => q.eq("sourceExternalId", source)).first()
-  if (hasCogs) await reverseJournalEntries(ctx, { sourceExternalId: source, occurredAt: args.occurredAt, reversalKey: args.refundKey, share: args.share, businessDate: args.businessDate, description: `Возврат по заказу №${args.order.number}` })
+  if (hasCogs) await reverseJournalEntries(ctx, { sourceExternalId: source, occurredAt: args.occurredAt, reversalKey: args.refundKey, share: args.share, businessDate: args.businessDate, description: `Возврат по заказу №${args.order.number}`, only: (entry) => entry.debitAccountExternalId === SYSTEM_ACCOUNTS.cogs.externalId })
 }

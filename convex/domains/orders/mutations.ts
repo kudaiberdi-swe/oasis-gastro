@@ -6,7 +6,9 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import { requireManagerApproval, requireOpenShift, requireOperator, touchSession, type PosAccess } from "../../lib/auth"
 import { writeAudit } from "../../lib/audit"
 import { postLedgerEntry } from "../../lib/finance"
-import { accrueLoyaltyPoints, reverseLoyaltyPoints } from "../../lib/loyalty"
+import { journalReady, resolvePaymentType, settleOrder } from "../../lib/checkoutCore"
+import { postJournalEntry } from "../../lib/ledger"
+import { reverseLoyaltyPoints } from "../../lib/loyalty"
 import { calculateDiscountAmount, calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
 import { DISCOUNT_APPROVAL_PERCENT, SERVICE_CHARGE_PERCENT } from "../../lib/policy"
 import { draftLineInput, orderType as orderTypeValidator, paymentMethod as paymentMethodValidator } from "../../lib/validators"
@@ -14,7 +16,7 @@ import { assertPeriodOpen } from "../../lib/periods"
 import { businessDateFor } from "../../lib/time"
 import { resolvePrice } from "../../lib/pricing"
 import { isAvailable } from "../../lib/availability"
-import { consumeOrderStock, reverseOrderConsumption } from "../../lib/recipeConsumption"
+import { reverseOrderConsumption } from "../../lib/recipeConsumption"
 import { hydrateOrder } from "./queries"
 
 async function requireOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess, statuses: string[]) {
@@ -58,31 +60,6 @@ async function replaceLines(ctx: MutationCtx, orderId: Id<"orders">, lines: Arra
 
 function buildSearchText(number: number, comment: string, tableLabel: string | undefined, lines: Array<{ product: Doc<"products"> }>) {
   return `${number} ${comment} ${tableLabel ?? ""} ${lines.map((line) => `${line.product.name} ${line.product.nameKk}`).join(" ")}`.toLocaleLowerCase("ru")
-}
-
-async function ensurePosKitchenTicket(ctx: MutationCtx, order: Doc<"orders">, now: number) {
-  const existing = await ctx.db.query("kitchenTickets").withIndex("by_order", (q) => q.eq("orderId", order._id)).unique()
-  if (existing) return existing._id
-  const ticketId = await ctx.db.insert("kitchenTickets", {
-    orderId: order._id,
-    orderNumber: order.number,
-    status: "queued",
-    fulfillment: order.orderType,
-    source: "pos",
-    createdAt: now,
-    updatedAt: now,
-  })
-  const lines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(100)
-  for (const line of lines) {
-    await ctx.db.insert("kitchenTicketLines", {
-      ticketId,
-      productExternalId: line.productExternalId ?? String(line.productId),
-      productName: line.productName,
-      quantity: line.quantity,
-      instructions: line.modifiers,
-    })
-  }
-  return ticketId
 }
 
 async function buildCheckoutResult(ctx: MutationCtx, order: Doc<"orders">, duplicate: boolean) {
@@ -260,7 +237,8 @@ export const checkout = mutation({
     sessionToken: v.string(),
     orderId: v.id("orders"),
     idempotencyKey: v.string(),
-    payments: v.array(v.object({ method: paymentMethodValidator, amount: v.number(), tendered: v.optional(v.number()) })),
+    // paymentTypeExternalId from activeForPos; the legacy `method` maps to the seeded type until M-2 deploy 2.
+    payments: v.array(v.object({ paymentTypeExternalId: v.optional(v.string()), method: v.optional(paymentMethodValidator), amount: v.number(), tendered: v.optional(v.number()) })),
   },
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
@@ -280,59 +258,15 @@ export const checkout = mutation({
     }
     const order = await requireOrder(ctx, args.orderId, access, ["draft", "held"])
     if (order.currentShiftId !== shift._id) throw new ConvexError("Заказ принадлежит другой смене")
-    if (!args.payments.length) throw new ConvexError("Добавьте оплату")
-
-    const paymentTotal = args.payments.reduce((sum, payment) => sum + payment.amount, 0)
-    if (paymentTotal !== order.total) throw new ConvexError("Сумма оплат не равна сумме заказа")
-
-    const now = Date.now()
-    for (const [index, payment] of args.payments.entries()) {
-      if (!Number.isInteger(payment.amount) || payment.amount <= 0) throw new ConvexError("Сумма оплаты должна быть указана в целых тенге")
-      if (payment.tendered != null && !Number.isInteger(payment.tendered)) throw new ConvexError("Полученная сумма должна быть указана в целых тенге")
-      if (payment.method === "cash" && (payment.tendered ?? payment.amount) < payment.amount) throw new ConvexError("Полученной наличности недостаточно")
-      const paymentKey = args.payments.length === 1 ? args.idempotencyKey : `${args.idempotencyKey}:${index}`
-      await ctx.db.insert("payments", {
-        orderId: order._id,
-        shiftId: shift._id,
-        type: "sale",
-        method: payment.method,
-        processorKind: payment.method,
-        restaurantId: access.restaurant._id,
-        amount: payment.amount,
-        ...(payment.method === "cash" ? { tendered: payment.tendered ?? payment.amount, change: (payment.tendered ?? payment.amount) - payment.amount } : {}),
-        idempotencyKey: paymentKey,
-        status: "recorded",
-        createdBy: access.employee._id,
-        createdAt: now,
-      })
-    }
-
-    await ensurePosKitchenTicket(ctx, order, now)
-    await ctx.db.patch(order._id, {
-      status: "paid",
-      paymentMethod: args.payments.length === 1 ? args.payments[0].method : undefined,
-      checkoutIdempotencyKey: args.idempotencyKey,
-      paidAt: now,
-      updatedAt: now,
-      updatedBy: access.employee._id,
-      version: (order.version ?? 1) + 1,
+    await settleOrder(ctx, {
+      order,
+      shift,
+      actor: { employeeId: access.employee._id, restaurant: access.restaurant, terminal: access.terminal },
+      payments: args.payments,
+      idempotencyKey: args.idempotencyKey,
+      source: "pos",
+      occurredAt: Date.now(),
     })
-    await ctx.db.insert("shiftEvents", { shiftId: shift._id, type: "order-paid", amount: order.total, reason: `Заказ №${order.number}`, actorId: access.employee._id, orderId: order._id, createdAt: now })
-    await postLedgerEntry(ctx, {
-      restaurantExternalId: access.restaurant.externalId,
-      occurredAt: now,
-      kind: "revenue",
-      category: "Продажи",
-      amount: order.total,
-      sourceModuleId: "orders",
-      sourceExternalId: String(order._id),
-      description: `Заказ №${order.number}`,
-      businessDate: shift.businessDate,
-    })
-    // Sale write-off by recipe and cost of goods sold (W1-RCP-03); never fails the sale.
-    const soldLines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200)
-    await consumeOrderStock(ctx, { order, lines: soldLines, restaurantExternalId: access.restaurant.externalId, terminal: access.terminal, idempotencyKey: args.idempotencyKey, occurredAt: now, businessDate: shift.businessDate })
-    await accrueLoyaltyPoints(ctx, order, now)
     await touchSession(ctx, access.session._id)
     await writeAudit(ctx, access, { action: "order.checkout", summary: `Оплачен заказ №${order.number} на ${order.total} ₸`, shiftId: shift._id, orderId: order._id })
     return await buildCheckoutResult(ctx, (await ctx.db.get(args.orderId))!, false)
@@ -345,7 +279,8 @@ export const refund = mutation({
     orderId: v.id("orders"),
     idempotencyKey: v.string(),
     amount: v.number(),
-    method: paymentMethodValidator,
+    paymentTypeExternalId: v.optional(v.string()),
+    method: v.optional(paymentMethodValidator),
     reason: v.string(),
     managerApprovalToken: v.string(),
   },
@@ -370,17 +305,24 @@ export const refund = mutation({
     const paid = payments.filter((p) => p.type === "sale").reduce((sum, p) => sum + p.amount, 0)
     const refunded = payments.filter((p) => p.type === "refund").reduce((sum, p) => sum + p.amount, 0)
     if (args.amount > paid - refunded) throw new ConvexError("Сумма возврата превышает доступный остаток")
-    const paidByMethod = payments.filter((p) => p.type === "sale" && p.method === args.method).reduce((sum, p) => sum + p.amount, 0)
-    const refundedByMethod = payments.filter((p) => p.type === "refund" && p.method === args.method).reduce((sum, p) => sum + p.amount, 0)
-    if (args.amount > paidByMethod - refundedByMethod) throw new ConvexError("Возврат должен использовать исходный способ оплаты")
+    // A refund goes back the way it was paid: by payment type, or by kind for payments before M-2.
+    const original = payments.find((p) => p.type === "sale" && (args.paymentTypeExternalId ? p.paymentTypeExternalId === args.paymentTypeExternalId : p.method === args.method))
+    if (!original) throw new ConvexError("Возврат должен использовать исходный способ оплаты")
+    const sameWay = (p: Doc<"payments">) => (args.paymentTypeExternalId ? p.paymentTypeExternalId === args.paymentTypeExternalId : p.method === original.method)
+    const paidThisWay = payments.filter((p) => p.type === "sale" && sameWay(p)).reduce((sum, p) => sum + p.amount, 0)
+    const refundedThisWay = payments.filter((p) => p.type === "refund" && sameWay(p)).reduce((sum, p) => sum + p.amount, 0)
+    if (args.amount > paidThisWay - refundedThisWay) throw new ConvexError("Возврат должен использовать исходный способ оплаты")
+    const type = await refundPaymentType(ctx, access.restaurant.externalId, original)
 
     const now = Date.now()
     const paymentId = await ctx.db.insert("payments", {
       orderId: order._id,
       shiftId: shift._id,
       type: "refund",
-      method: args.method,
-      processorKind: args.method,
+      method: original.method,
+      processorKind: original.method,
+      paymentTypeExternalId: original.paymentTypeExternalId,
+      paymentTypeName: original.paymentTypeName ?? type.name,
       restaurantId: access.restaurant._id,
       amount: roundKzt(args.amount),
       idempotencyKey: args.idempotencyKey,
@@ -402,6 +344,22 @@ export const refund = mutation({
       description: `${args.reason.trim()} · заказ №${order.number}`,
       businessDate: shift.businessDate,
     })
+    if (await journalReady(ctx)) {
+      const entry = await postJournalEntry(ctx, {
+        externalId: `refund:${args.idempotencyKey}`,
+        restaurantExternalId: access.restaurant.externalId,
+        sourceModuleId: "orders",
+        sourceExternalId: String(order._id),
+        sourceNumber: String(order.number),
+        occurredAt: now,
+        businessDate: shift.businessDate,
+        debitAccount: "salesReturns",
+        creditAccount: type.account,
+        amount: roundKzt(args.amount),
+        description: `Возврат по заказу №${order.number}: ${type.name}`,
+      })
+      await ctx.db.patch(paymentId, { journalEntryId: entry.externalId })
+    }
     await reverseOrderConsumption(ctx, { order, refundKey: String(paymentId), share: Math.min(1, roundKzt(args.amount) / paid), occurredAt: now, businessDate: shift.businessDate })
     await reverseLoyaltyPoints(ctx, order, { paidTotal: paid, refundedTotal: totalRefunded, paymentId, occurredAt: now })
     await writeAudit(ctx, access, { action: "order.refund", summary: `Возврат ${roundKzt(args.amount)} ₸ по заказу №${order.number}: ${args.reason.trim()}`, shiftId: shift._id, orderId: order._id, managerId: manager._id })
@@ -436,4 +394,13 @@ export const transfer = mutation({
 /** Money postings of a POS order are checked against period locks of its organization and restaurant. */
 function posPeriodScope(access: PosAccess, businessDate: string) {
   return { organizationExternalId: access.restaurant.organizationExternalId, restaurantExternalId: access.restaurant.externalId, businessDate, moduleId: "orders" }
+}
+
+/** The account a refund leaves from: the original payment's type, or the seeded type of its kind. */
+async function refundPaymentType(ctx: MutationCtx, restaurantExternalId: string, original: Doc<"payments">) {
+  if (original.paymentTypeExternalId) {
+    const row = await ctx.db.query("retailSettings").withIndex("by_external_id", (q) => q.eq("externalId", original.paymentTypeExternalId!)).unique()
+    if (row?.data.kind === "payment-type") return { name: row.name, account: row.data.account }
+  }
+  return resolvePaymentType(ctx, restaurantExternalId, { method: original.method }, Date.now())
 }

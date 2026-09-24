@@ -82,6 +82,7 @@ import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_availability from "../lib/availability.js";
 import type * as lib_capabilities from "../lib/capabilities.js";
+import type * as lib_checkoutCore from "../lib/checkoutCore.js";
 import type * as lib_domainRecords from "../lib/domainRecords.js";
 import type * as lib_finance from "../lib/finance.js";
 import type * as lib_ledger from "../lib/ledger.js";
@@ -190,6 +191,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/availability": typeof lib_availability;
   "lib/capabilities": typeof lib_capabilities;
+  "lib/checkoutCore": typeof lib_checkoutCore;
   "lib/domainRecords": typeof lib_domainRecords;
   "lib/finance": typeof lib_finance;
   "lib/ledger": typeof lib_ledger;

@@ -85,7 +85,7 @@ const MAX_ENTRIES_PER_SOURCE = 400
  */
 export async function reverseJournalEntries(
   ctx: MutationCtx,
-  args: { sourceExternalId: string; occurredAt: number; reversalKey: string; share?: number; description?: string; businessDate?: string },
+  args: { sourceExternalId: string; occurredAt: number; reversalKey: string; share?: number; description?: string; businessDate?: string; only?: (entry: Doc<"journalEntries">) => boolean },
 ) {
   const share = args.share ?? 1
   if (!(share > 0 && share <= 1)) throw new ConvexError("Доля сторно должна быть от 0 до 1")
@@ -97,7 +97,7 @@ export async function reverseJournalEntries(
     .take(MAX_ENTRIES_PER_SOURCE + 1)
   if (entries.length > MAX_ENTRIES_PER_SOURCE) throw new ConvexError("Слишком много проводок у документа для сторно в одной операции")
   for (const entry of entries) {
-    if (entry.reversalOf) continue
+    if (entry.reversalOf || (args.only && !args.only(entry))) continue
     const amount = Math.round(entry.amount * share)
     if (amount <= 0) continue
     const externalId = `${entry.externalId}:reversal:${args.reversalKey}`
