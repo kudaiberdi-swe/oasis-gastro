@@ -2,14 +2,14 @@ import { usePaginatedQuery, useQuery } from "convex/react"
 
 import { api } from "../../../../../convex/_generated/api"
 
-export function useCategories() {
-  return useQuery(api.domains.catalog.queries.listCategories) ?? []
+export function useCategories(sessionToken: string) {
+  return useQuery(api.domains.catalog.queries.listCategories, { sessionToken }) ?? []
 }
 
-export function useProducts(args: { restaurantExternalId: string; category?: string; search?: string }) {
+export function useProducts(args: { sessionToken: string; category?: string; search?: string }) {
   const query = usePaginatedQuery(
     api.domains.catalog.queries.listProducts,
-    { restaurantExternalId: args.restaurantExternalId, category: args.category, search: args.search || undefined },
+    { sessionToken: args.sessionToken, category: args.category, search: args.search || undefined },
     { initialNumItems: 30 },
   )
   return {

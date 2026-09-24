@@ -179,7 +179,7 @@ function AuthenticatedPos({
             selectCheck(null, label)
           }}
         />
-        <CatalogPanel restaurantExternalId={access.restaurant.externalId} onAddProduct={draft.addItem} />
+        <CatalogPanel sessionToken={sessionToken} onAddProduct={draft.addItem} />
         <OrderPanel
           tableLabel={draft.tableLabel}
           lines={draft.lines}

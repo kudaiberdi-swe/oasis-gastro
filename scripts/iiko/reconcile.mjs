@@ -22,8 +22,8 @@ const rows = readJsonl(path.join(inputDir, "staging.jsonl"))
 const stagedDepartments = rows.filter((r) => r.domain === "organization").length
 const stagedEmployees = rows.filter((r) => r.domain === "workforce").length
 
-const result = spawnSync("npx", ["convex", "run", "domains/iiko/queries:mirrorCounts", "{}", "--typecheck", "disable"], { encoding: "utf8" })
-if (result.status !== 0) fail("convex run domains/iiko/queries:mirrorCounts failed")
+const result = spawnSync("npx", ["convex", "run", "domains/iiko/internal:mirrorCounts", "{}", "--typecheck", "disable"], { encoding: "utf8" })
+if (result.status !== 0) fail("convex run domains/iiko/internal:mirrorCounts failed")
 const mirrorCounts = JSON.parse(result.stdout.trim())
 
 console.log(`Staged:  ${stagedDepartments} department(s), ${stagedEmployees} employee(s)`)

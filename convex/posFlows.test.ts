@@ -1,7 +1,9 @@
 import { convexTest } from "convex-test"
 import { describe, expect, it } from "vitest"
 
-import { api } from "./_generated/api"
+import { makeFunctionReference } from "convex/server"
+
+import { api, internal } from "./_generated/api"
 import schema from "./schema"
 
 const modules = import.meta.glob("./**/*.ts")
@@ -242,6 +244,42 @@ describe("POS core flow", () => {
     })
     expect(retry._id).toBe(first._id)
     expect(retry.sequence).toBe(1)
+  })
+})
+
+describe("public function access (W0-BUG-01)", () => {
+  it("requires a POS session for the catalog and prices from the session's restaurant", async () => {
+    const t = convexTest(schema, modules)
+    const fixture = await seedFixture(t)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("productPrices", { productId: fixture.productId, restaurantExternalId: "sandyq-test", priceKzt: 1500 })
+      await ctx.db.insert("productPrices", { productId: fixture.productId, restaurantExternalId: "other-branch", priceKzt: 9999 })
+    })
+
+    await expect(t.query(api.domains.catalog.queries.listCategories, { sessionToken: "not-a-session" })).rejects.toThrow()
+    await expect(
+      t.query(api.domains.catalog.queries.listProducts, { sessionToken: "not-a-session", paginationOpts: { numItems: 10, cursor: null } }),
+    ).rejects.toThrow()
+
+    const categories = await t.query(api.domains.catalog.queries.listCategories, { sessionToken: fixture.cashierToken })
+    expect(categories.map((category) => category.externalId)).toEqual(["hot"])
+    const page = await t.query(api.domains.catalog.queries.listProducts, { sessionToken: fixture.cashierToken, paginationOpts: { numItems: 10, cursor: null } })
+    expect(page.page.map((product) => product.price)).toEqual([1500])
+    const product = await t.query(api.domains.catalog.queries.getProduct, { sessionToken: fixture.cashierToken, productId: fixture.productId })
+    expect(product?.price).toBe(1500)
+  })
+
+  it("keeps iiko sync bookkeeping and session revocation off the public API", async () => {
+    const t = convexTest(schema, modules)
+    const fixture = await seedFixture(t)
+    // The old public paths are gone. Public vs internal visibility itself is enforced statically by
+    // scripts/check-guards.mjs — convex-test lets tests call internal functions directly.
+    await expect(t.query(makeFunctionReference<"query">("domains/iiko/queries:mirrorCounts"), {})).rejects.toThrow()
+    await expect(
+      t.mutation(makeFunctionReference<"mutation">("domains/iiko/mutations:saveOverlay"), { entityType: "product", sourceExternalId: "x", data: {} }),
+    ).rejects.toThrow()
+    await expect(t.mutation(makeFunctionReference<"mutation">("domains/auth/mutations:revoke"), { sessionToken: fixture.cashierToken })).rejects.toThrow()
+    expect(await t.query(internal.domains.iiko.internal.mirrorCounts, {})).toEqual({ departments: 0, employees: 0 })
   })
 })
 

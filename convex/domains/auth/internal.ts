@@ -1,6 +1,7 @@
 import { v } from "convex/values"
 
 import { internalMutation, internalQuery } from "../../_generated/server"
+import { sha256 } from "../../lib/auth"
 import { LOCKOUT_DURATION_MS, LOCKOUT_THRESHOLD } from "../../lib/policy"
 import { sessionPurpose } from "../../lib/validators"
 
@@ -71,5 +72,18 @@ export const cleanupExpiredSessions = internalMutation({
       .take(200)
     for (const session of expired) await ctx.db.delete(session._id)
     return expired.length
+  },
+})
+
+// Revokes a session by raw token; internal because a public mutation must authenticate first.
+export const revoke = internalMutation({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const tokenHash = await sha256(args.sessionToken)
+    const session = await ctx.db
+      .query("posSessions")
+      .withIndex("by_token_hash", (q) => q.eq("tokenHash", tokenHash))
+      .unique()
+    if (session) await ctx.db.patch(session._id, { revokedAt: Date.now() })
   },
 })

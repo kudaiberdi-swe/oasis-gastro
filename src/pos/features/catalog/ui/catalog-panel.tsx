@@ -5,11 +5,11 @@ import { ProductCard } from "@/pos/components/product-card"
 import { Button } from "@/shared/components/ui/button"
 import { cn } from "@/shared/lib/utils"
 
-export function CatalogPanel({ restaurantExternalId, onAddProduct }: { restaurantExternalId: string; onAddProduct: (product: { productId: string; name: string; nameKk: string; price: number }) => void }) {
-  const categories = useCategories()
+export function CatalogPanel({ sessionToken, onAddProduct }: { sessionToken: string; onAddProduct: (product: { productId: string; name: string; nameKk: string; price: number }) => void }) {
+  const categories = useCategories(sessionToken)
   const [activeCategory, setActiveCategory] = useState<string | undefined>(undefined)
   const [search, setSearch] = useState("")
-  const { items, loading, canLoadMore, loadMore } = useProducts({ restaurantExternalId, category: search ? undefined : activeCategory, search })
+  const { items, loading, canLoadMore, loadMore } = useProducts({ sessionToken, category: search ? undefined : activeCategory, search })
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col gap-3">

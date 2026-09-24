@@ -1,6 +1,6 @@
 import { v } from "convex/values"
 
-import { internalMutation, mutation } from "../../_generated/server"
+import { internalMutation } from "../../_generated/server"
 
 // --- Run tracking (called from scripts/iiko/import-convex.mjs via `npx convex run`) -------
 
@@ -160,14 +160,3 @@ export const importBatch = internalMutation({
 
 // provisionPosAccess moved to domains/workforce/mutations.ts (office-gated, audited, and
 // restaurant-scope-checked) — this domain stays narrowly about read-only sync.
-
-export const saveOverlay = mutation({
-  args: { entityType: v.string(), sourceExternalId: v.string(), data: v.any() },
-  handler: async (ctx, args) => {
-    const overlayKey = `${args.entityType}:${args.sourceExternalId}`
-    const existing = await ctx.db.query("iikoEntityOverlays").withIndex("by_overlay_key", (q) => q.eq("overlayKey", overlayKey)).unique()
-    const value = { overlayKey, entityType: args.entityType, sourceExternalId: args.sourceExternalId, data: args.data }
-    if (existing) await ctx.db.patch(existing._id, value)
-    else await ctx.db.insert("iikoEntityOverlays", value)
-  },
-})

@@ -1,21 +1,9 @@
 {
-  "be/public-without-auth": {
-    "domains/auth/mutations:revoke": 1,
-    "domains/catalog/queries:listProducts": 1,
-    "domains/catalog/queries:getProduct": 1,
-    "domains/iiko/mutations:saveOverlay": 1,
-    "domains/iiko/queries:importRun": 1,
-    "domains/iiko/queries:endpointStates": 1,
-    "domains/iiko/queries:mirrorCounts": 1
-  },
   "be/office-without-restaurant-scope": {
     "domains/finance/queries:summary": 1,
     "domains/finance/queries:listEntries": 1,
     "domains/reports/queries:salesSummary": 1,
     "domains/reports/queries:listShiftReports": 1
-  },
-  "be/any-arg": {
-    "domains/iiko/mutations:saveOverlay": 1
   },
   "fe/heavy-weight": {
     "src/office/components/office-layout.tsx": 2,
