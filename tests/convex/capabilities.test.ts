@@ -16,7 +16,7 @@ describe("capability catalog (W1-ACL-01)", () => {
 
   it("validates the grammar and the section's actions", () => {
     for (const valid of ["*", "office.receipts.post", "office.receipts.*", "office.stock.view", "office.guests.pii", "office.payments.approve"]) expect(isValidCapability(valid), valid).toBe(true)
-    for (const invalid of ["office..view", "office.receipts", "office.nomenclature.post", "office.unknown.view", "stock.view", "office.receipts.delete"]) expect(isValidCapability(invalid), invalid).toBe(false)
+    for (const invalid of ["office..view", "office.receipts", "office.product-groups.post", "office.unknown.view", "stock.view", "office.receipts.delete"]) expect(isValidCapability(invalid), invalid).toBe(false)
   })
 
   it("allows *, a module wildcard and an exact right", () => {
