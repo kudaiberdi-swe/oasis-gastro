@@ -9,15 +9,18 @@ import { OfficePage, OfficeShell } from "@/office/components/office-shell"
 import { OfficeStatePage } from "@/office/components/state-page"
 import { FinanceWorkspace } from "@/office/features/finance/ui/finance-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
+import { ModifiersWorkspace } from "@/office/features/modifiers/ui/modifiers-workspace"
 import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomenclature-workspace"
 import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
 import { PeriodLocksWorkspace } from "@/office/features/platform/ui/period-locks-workspace"
+import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-orders-workspace"
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
 import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
 import { ReportsWorkspace } from "@/office/features/reports/ui/reports-workspace"
 import { useOfficeContext } from "@/office/features/session/data/use-office-context"
 import { OfficeBootstrap } from "@/office/features/session/ui/office-bootstrap"
 import { OfficeAccessDenied, OfficeSignIn } from "@/office/features/session/ui/office-sign-in"
+import { SizeScalesWorkspace } from "@/office/features/size-scales/ui/size-scales-workspace"
 import { StockWorkspace } from "@/office/features/stock/ui/stock-workspace"
 import { WorkforceWorkspace } from "@/office/features/workforce/ui/workforce-workspace"
 import { allowsCapability } from "@/office/model/capabilities"
@@ -30,6 +33,9 @@ import { NotFound } from "@/shared/routing/not-found"
 const WORKSPACES: Record<string, ComponentType> = {
   nomenclature: NomenclatureWorkspace,
   "product-groups": ProductGroupsWorkspace,
+  modifiers: ModifiersWorkspace,
+  "size-scales": SizeScalesWorkspace,
+  "price-orders": PriceOrdersWorkspace,
   stock: StockWorkspace,
   transactions: FinanceWorkspace,
   employees: WorkforceWorkspace,

@@ -1,9 +1,11 @@
 import type { ReactNode } from "react"
+import { Link } from "react-router"
 
-import { Combobox, Field, Input, MoneyInput, Select, Switch } from "@/shared/components/ui"
+import { Button, Combobox, Field, Input, MoneyInput, Select, Switch } from "@/shared/components/ui"
 
 import { ITEM_TYPE_LABELS, PREP_AREA_LABELS, WRITE_OFF_LABELS, type ItemType, type ProductCard, type WriteOffMethod } from "../../data/use-nomenclature"
 import type { DraftErrors, ProductDraft } from "../../model/use-product-draft"
+import { AvailabilityBlock } from "./availability-block"
 import { BranchPricesBlock, type BranchPricesBlockProps } from "./branch-prices-block"
 
 const ITEM_TYPE_OPTIONS = (Object.keys(ITEM_TYPE_LABELS) as ItemType[]).map((value) => ({ value, label: ITEM_TYPE_LABELS[value] }))
@@ -18,6 +20,10 @@ export interface MainTabProps {
   groupOptions: { value: string; label: string }[]
   readOnly: boolean
   prices: Omit<BranchPricesBlockProps, "basePrice">
+  /** office.nomenclature.edit: the stop-list switches work. */
+  canEditAvailability: boolean
+  /** office.modifiers.view: the «Модификаторы» tile links to the dish designer. */
+  canOpenModifiers: boolean
 }
 
 function plural(count: number, [one, few, many]: [string, string, string]) {
@@ -29,7 +35,7 @@ function plural(count: number, [one, few, many]: [string, string, string]) {
 }
 
 /** «Основные свойства»: основные параметры, цена по филиалам, публикация. */
-export function MainTab({ card, draft, errors, set, groupOptions, readOnly, prices }: MainTabProps) {
+export function MainTab({ card, draft, errors, set, groupOptions, readOnly, prices, canEditAvailability, canOpenModifiers }: MainTabProps) {
   const iiko = card.source === "iiko-server"
   const prepAreaOptions = Object.entries(PREP_AREA_LABELS).map(([value, label]) => ({ value, label }))
   if (!PREP_AREA_LABELS[draft.prepArea]) prepAreaOptions.push({ value: draft.prepArea, label: draft.prepArea })
@@ -86,6 +92,10 @@ export function MainTab({ card, draft, errors, set, groupOptions, readOnly, pric
         <BranchPricesBlock {...prices} basePrice={draft.basePrice} />
       </Block>
 
+      <Block>
+        <AvailabilityBlock productExternalId={card.externalId} restaurants={card.branchPrices} canEdit={canEditAvailability} />
+      </Block>
+
       <Block title="Публикация">
         <div className="grid gap-3 sm:grid-cols-3">
           <Tile label="Статус" value={draft.enabled ? "Активна" : "Скрыта"} />
@@ -93,6 +103,13 @@ export function MainTab({ card, draft, errors, set, groupOptions, readOnly, pric
           <Tile
             label="Модификаторы"
             value={card.modifierGroupCount > 0 ? `${card.modifierGroupCount} ${plural(card.modifierGroupCount, ["группа", "группы", "групп"])}` : "Не настроены"}
+            action={
+              canOpenModifiers ? (
+                <Button variant="link" size="sm" asChild>
+                  <Link to={`/office/modifiers?tab=rules&product=${encodeURIComponent(card.externalId)}`}>Конструктор блюда</Link>
+                </Button>
+              ) : undefined
+            }
           />
         </div>
       </Block>
@@ -109,11 +126,12 @@ export function Block({ title, children }: { title?: string; children: ReactNode
   )
 }
 
-function Tile({ label, value }: { label: string; value: string }) {
+function Tile({ label, value, action }: { label: string; value: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col gap-1 rounded-card border border-border px-4 py-3">
       <span className="text-caption text-muted-foreground">{label}</span>
       <span className="text-body-sm font-semibold text-foreground">{value}</span>
+      {action ? <span className="self-start">{action}</span> : null}
     </div>
   )
 }

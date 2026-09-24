@@ -104,3 +104,12 @@ export const PREP_AREA_LABELS: Record<string, string> = { hot: "Горячий �
 export const WRITE_OFF_LABELS: Record<WriteOffMethod, string> = { ingredients: "По ингредиентам техкарты", "finished-product": "Готовым продуктом" }
 
 export const UNITS: readonly ProductUnit[] = ["порц.", "шт", "кг", "л"]
+
+/** Dish pickers (size scales, modifier rules, price orders): one large page of the register by name. */
+export const PRODUCT_PICKER_SIZE = 200
+
+export function useProductPicker(enabled = true) {
+  const list = usePaginatedQuery(office.listNomenclature, enabled ? { status: "all", sort: "name" } : "skip", { initialNumItems: PRODUCT_PICKER_SIZE })
+  const options = list.results.map((row) => ({ value: row.externalId, label: row.name, hint: row.sku || undefined }))
+  return { loading: enabled && list.status === "LoadingFirstPage", rows: list.results, options }
+}

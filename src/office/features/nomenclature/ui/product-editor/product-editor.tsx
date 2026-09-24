@@ -17,6 +17,7 @@ import { ITEM_TYPE_LABELS, useNomenclatureMutations, useProductCard, useProductI
 import { areFieldsDirty, changedBranchPrices, saveArgs, useProductDraft, validateDraft, type DraftErrors } from "../../model/use-product-draft"
 import { ImageTab } from "./image-tab"
 import { MainTab } from "./main-tab"
+import { SizeScaleTab } from "./size-scale-tab"
 import { TechnologyTab } from "./technology-tab"
 import { UnitsTab } from "./units-tab"
 
@@ -69,6 +70,9 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
   const blocker = useUnsavedChanges(dirty)
   const canEdit = useCan("office.nomenclature.edit")
   const canEditPrices = useCan("office.price-lists.edit")
+  const canViewScales = useCan("office.size-scales.view")
+  const canEditScales = useCan("office.size-scales.edit")
+  const canOpenModifiers = useCan("office.modifiers.view")
   const productId = useProductId(card, productIdFromState)
   const groups = useProductGroups()
   const { saveProductCard, setProductPrice } = useNomenclatureMutations()
@@ -134,6 +138,8 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
           groupOptions={options}
           readOnly={readOnly}
           prices={{ rows: card.branchPrices, values: draft.branchPrices, onChange: setBranchPrice, editable: canEditPrices && productId !== undefined, notice: priceNotice }}
+          canEditAvailability={canEdit}
+          canOpenModifiers={canOpenModifiers}
         />
       </TabsContent>
       <TabsContent value="units" className={cn(vertical && "min-w-0 flex-1 pt-0")}>
@@ -143,7 +149,7 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
         <ImageTab card={card} canEdit={canEdit} />
       </TabsContent>
       <TabsContent value="sizes" className={cn(vertical && "min-w-0 flex-1 pt-0")}>
-        <EmptyState title="Появится в следующих задачах" description="Шкала размеров подключается вместе с размерами блюд." />
+        <SizeScaleTab card={card} canEdit={canEdit} canEditScales={canEditScales} canViewScales={canViewScales} />
       </TabsContent>
       <TabsContent value="recipe" className={cn(vertical && "min-w-0 flex-1 pt-0")}>
         <EmptyState title="Появится в следующих задачах" description="Технологическая карта подключается вместе с рецептурами." />

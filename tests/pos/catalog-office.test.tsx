@@ -63,6 +63,7 @@ function row(overrides: Record<string, unknown> = {}) {
 function card(overrides: Record<string, unknown> = {}) {
   return {
     productId: "id-beshbarmak" as Id<"products">,
+    sizeScaleExternalId: null,
     externalId: "beshbarmak",
     name: "Бешбармак",
     nameKk: "Бешбармақ",
@@ -80,8 +81,8 @@ function card(overrides: Record<string, unknown> = {}) {
     enabled: true,
     imageUrl: null,
     branchPrices: [
-      { restaurantExternalId: "r1", name: "Sandyq Абая", priceKzt: null, resolvedPriceNow: { price: 3200, source: "base" as const } },
-      { restaurantExternalId: "r2", name: "Sandyq Достык", priceKzt: 3500, resolvedPriceNow: { price: 3500, source: "branch" as const } },
+      { restaurantExternalId: "r1", name: "Sandyq Абая", priceKzt: null, resolvedPriceNow: { price: 3200, source: "base" as const }, availability: { available: true, reason: null, until: null } },
+      { restaurantExternalId: "r2", name: "Sandyq Достык", priceKzt: 3500, resolvedPriceNow: { price: 3500, source: "branch" as const }, availability: { available: true, reason: null, until: null } },
     ],
     modifierGroupCount: 0,
     source: "sandyq" as const,

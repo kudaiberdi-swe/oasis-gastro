@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values"
 import { mutation, query, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { getOfficeAuthEmail, requireOfficeCapability, restaurantScopeFilter, scopedRestaurants, writeOfficeAudit } from "../../lib/officeAccess"
+import { stopListActive, stopListRow } from "../../lib/availability"
 import { resolvePrice } from "../../lib/pricing"
 import { unit } from "../../lib/validators"
 
@@ -174,7 +175,14 @@ export const getProductCard = query({
           .withIndex("by_product_restaurant", (q) => q.eq("productId", product._id).eq("restaurantExternalId", restaurant.externalId))
           .unique()
         const resolved = await resolvePrice(ctx, { product, restaurantExternalId: restaurant.externalId, at: now })
-        return { restaurantExternalId: restaurant.externalId, name: restaurant.name, priceKzt: own?.priceKzt ?? null, resolvedPriceNow: resolved }
+        const stop = await stopListRow(ctx, product._id, restaurant.externalId)
+        return {
+          restaurantExternalId: restaurant.externalId,
+          name: restaurant.name,
+          priceKzt: own?.priceKzt ?? null,
+          resolvedPriceNow: resolved,
+          availability: { available: !stopListActive(stop, now), reason: stop?.reason ?? null, until: stop?.until ?? null },
+        }
       }),
     )
     const category = await categoryByExternalId(ctx, product.category)
@@ -197,7 +205,8 @@ export const getProductCard = query({
       enabled: overlay?.visibleInPos ?? product.enabled,
       imageUrl: await imageUrlOf(ctx, product, overlay),
       branchPrices,
-      modifierGroupCount: 0,
+      modifierGroupCount: (await ctx.db.query("productModifierGroups").withIndex("by_product", (q) => q.eq("productId", product._id)).take(20)).length,
+      sizeScaleExternalId: product.sizeScaleId ? ((await ctx.db.get(product.sizeScaleId))?.externalId ?? null) : null,
       source: product.sourceSystem === "iiko-server" ? ("iiko-server" as const) : ("sandyq" as const),
     }
   },

@@ -5,8 +5,9 @@ import { query } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
 import { requireOfficeCapability } from "../../lib/officeAccess"
 
-function modifierRow(modifier: Doc<"modifiers">, group?: Doc<"modifierGroups"> | null) {
+function modifierRow(modifier: Doc<"modifiers">, group?: Doc<"modifierGroups"> | null, ingredient?: Doc<"inventoryItems"> | null) {
   return {
+    ingredientInventoryItemExternalId: ingredient?.externalId ?? null,
     externalId: modifier.externalId,
     groupExternalId: group?.externalId ?? null,
     groupName: group?.name ?? null,
@@ -46,7 +47,7 @@ export const list = query({
     const rows = []
     for (const modifier of page.page) {
       if (!groups.has(modifier.groupId)) groups.set(modifier.groupId, await ctx.db.get(modifier.groupId))
-      rows.push(modifierRow(modifier, groups.get(modifier.groupId)))
+      rows.push(modifierRow(modifier, groups.get(modifier.groupId), modifier.ingredientInventoryItemId ? await ctx.db.get(modifier.ingredientInventoryItemId) : null))
     }
     return { ...page, page: rows }
   },
@@ -57,7 +58,7 @@ export const get = query({
   handler: async (ctx, args) => {
     await requireOfficeCapability(ctx, "office.modifiers.view")
     const modifier = await ctx.db.query("modifiers").withIndex("by_external_id", (q) => q.eq("externalId", args.externalId)).unique()
-    return modifier ? modifierRow(modifier, await ctx.db.get(modifier.groupId)) : null
+    return modifier ? modifierRow(modifier, await ctx.db.get(modifier.groupId), modifier.ingredientInventoryItemId ? await ctx.db.get(modifier.ingredientInventoryItemId) : null) : null
   },
 })
 
