@@ -191,24 +191,49 @@ export function recordsFromPayload(payload) {
 }
 
 /**
- * Field allowlists — identical to bahandi-pos's proven sanitizeRecord for these two domains.
- * Nothing outside these keys is ever read out of the source response, so there's no PII-strip
- * regex to keep in sync — a field simply can't leak if it was never selected in the first place.
+ * Field allowlists per domain. Nothing outside these keys is ever read out of the source response, so
+ * there's no PII-strip regex to keep in sync — a field can't leak if it was never selected. Dotted keys
+ * select nested values ("groupInfo.id"); "[]" selects that key of every array element ("modifiers[].id").
+ * Suppliers never bring phone, email, IIN or address.
  */
+export const ALLOWLISTS = {
+  workforce: ["id", "code", "name", "mainRoleId", "rolesIds", "mainRoleCode", "roleCodes", "departmentCodes", "responsibilityDepartmentCodes", "deleted", "supplier", "client", "employee"],
+  organization: ["id", "parentId", "code", "name", "type", "deleted"],
+  warehouse: ["id", "parentId", "code", "name", "type", "deleted"],
+  terminal: ["id", "name", "anonymous", "groupInfo.id", "groupInfo.name", "deleted"],
+  unit: ["id", "code", "name", "fullName", "systemName", "deleted"],
+  supplier: ["id", "code", "name", "supplier", "representsStore", "deleted"],
+  "product-group": ["id", "name", "parent", "position", "deleted"],
+  product: ["id", "name", "num", "code", "description", "parent", "category", "type", "mainUnit", "defaultSalePrice", "defaultIncludedInMenu", "unitWeight", "productWriteoffStrategy", "placeType.id", "placeType.name", "modifiers[].id", "deleted"],
+  balance: ["store", "product", "amount", "sum"],
+}
+
 export function sanitizeRecord(record, domain) {
   if (!record || typeof record !== "object") return record
-  if (domain === "workforce") {
-    return select(record, ["id", "code", "name", "mainRoleId", "rolesIds", "mainRoleCode", "roleCodes", "departmentCodes", "responsibilityDepartmentCodes", "deleted", "supplier", "client", "employee"])
-  }
-  if (domain === "organization") {
-    return select(record, ["id", "parentId", "code", "name", "type", "deleted"])
-  }
-  throw new Error(`No sanitizer for domain: ${domain}`)
+  const keys = ALLOWLISTS[domain]
+  if (!keys) throw new Error(`No sanitizer for domain: ${domain}`)
+  return select(record, keys)
 }
 
 function select(record, keys) {
   const result = {}
-  for (const key of keys) if (record[key] !== undefined) result[key] = record[key]
+  for (const key of keys) {
+    const arrayMatch = /^([^.[\]]+)\[\]\.(.+)$/.exec(key)
+    if (arrayMatch) {
+      const [, field, inner] = arrayMatch
+      const list = record[field]
+      if (!Array.isArray(list)) continue
+      result[field] = list.map((item, index) => ({ ...(result[field]?.[index] ?? {}), ...select(item ?? {}, [inner]) }))
+      continue
+    }
+    const [head, ...rest] = key.split(".")
+    if (!rest.length) {
+      if (record[head] !== undefined) result[head] = record[head]
+      continue
+    }
+    const nested = record[head]
+    if (nested && typeof nested === "object") result[head] = { ...(result[head] ?? {}), ...select(nested, [rest.join(".")]) }
+  }
   return result
 }
 

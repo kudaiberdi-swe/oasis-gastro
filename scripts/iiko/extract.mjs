@@ -36,14 +36,18 @@ try {
     const endpoints = parseWadl(wadl.text)
     const nonOptions = endpoints.filter((e) => e.method !== "OPTIONS")
     console.log(`\n✔ Discovered ${nonOptions.length} operations (excluding OPTIONS) at ${config.host}`)
-    console.log(`  This project only ever calls: ${ENDPOINTS.map((e) => `GET /${e.path}`).join(", ")}`)
+    console.log(`  This project only ever calls (GET): ${ENDPOINTS.map((e) => `/${e.path}`).join(", ")}`)
   } else {
     console.log(`Extracting ${ENDPOINTS.length} endpoint(s) into ${outputRoot}, scoped to brand aliases [${BRAND_ALIASES.join(", ")}]…`)
     const rows = []
     const endpointResults = []
     let matchedDepartmentCodes = new Set()
 
-    for (const endpoint of ENDPOINTS) {
+    // Departments and employees by default. Stores, terminals, units and suppliers only with
+    // --with-stock-master (their Convex projections come with W1-IIKO-03); products and balances also
+    // need --with-products / --with-balances (blocker Б-B4). Every call is still a GET.
+    const selected = ENDPOINTS.filter((endpoint) => (endpoint.domain === "organization" || endpoint.domain === "workforce" ? true : Boolean(args.withStockMaster) && (!endpoint.flag || Boolean(args[endpoint.flag]))))
+    for (const endpoint of selected) {
       try {
         const response = await client.get(endpoint.path, { accept: "application/xml" })
         const payload = parseResponse(response)
@@ -55,6 +59,11 @@ try {
           matchedDepartmentCodes = new Set(records.map((r) => r.code).filter(Boolean).map(String))
           console.log(`  Matched ${records.length}/${allRecords.length} department(s); codes: ${[...matchedDepartmentCodes].join(", ") || "(none — a JURPERSON row has no own code)"}`)
           console.log(`  Matched names: ${records.map((r) => r.name).join(" | ")}`)
+        } else if (endpoint.domain === "warehouse" || endpoint.domain === "terminal") {
+          // Only the stores and terminals of Sandyq departments — other brands never reach staging.
+          const departmentIds = new Set(rows.filter((row) => row.domain === "organization").map((row) => String(row.payload.id)))
+          records = allRecords.filter((r) => departmentIds.has(String(endpoint.domain === "warehouse" ? r.parentId : r.groupInfo?.id)) || matchesBrand(r.name))
+          console.log(`  Matched ${records.length}/${allRecords.length} ${endpoint.domain} record(s) of Sandyq departments`)
         } else if (endpoint.domain === "workforce") {
           records = allRecords.filter((r) => {
             const codes = [r.departmentCodes ?? [], r.responsibilityDepartmentCodes ?? []].flat().map(String)
