@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-// Office navigation: 12 groups and 90 items in the same order and with the same ids as bahandi-pos
+// Office navigation: 12 groups and 91 items in the same order and with the same ids as bahandi-pos
 // (src/features/office-platform/model/navigation.ts). Capabilities are `office.<id>.view`, except the
 // sections that already have a sandyq backend module, which use that module's capability.
 // ЕГАИС is always listed (decision D4: its page says it is not used in Kazakhstan).

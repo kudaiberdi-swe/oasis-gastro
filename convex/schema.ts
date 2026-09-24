@@ -106,7 +106,7 @@ export default defineSchema({
     failedAttempts: v.number(),
     lockedUntil: v.optional(v.number()),
     // Set when this POS login was provisioned for a real iiko-imported person — the PIN itself
-    // is always generated locally (see domains/iiko/mutations.ts provisionPosAccess); iiko never
+    // is always generated locally (see domains/workforce/mutations.ts provisionPosAccess); iiko never
     // supplies or sees a credential.
     iikoEmployeeExternalId: v.optional(v.string()),
   })

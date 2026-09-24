@@ -19,7 +19,7 @@ export function bytesToHex(bytes: Uint8Array): string {
 
 /**
  * PBKDF2-SHA256/120k/256-bit, salted per employee. Shared by the login action
- * (domains/auth/actions.ts) and provisionPosAccess (domains/iiko/mutations.ts) so a PIN
+ * (domains/auth/actions.ts) and provisionPosAccess (domains/workforce/mutations.ts) so a PIN
  * created either way verifies identically. Plain Web Crypto — works in both the Node
  * action runtime and the regular mutation runtime, no "use node" required here.
  */

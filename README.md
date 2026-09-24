@@ -6,8 +6,8 @@ Two people can read this repo cold from here: this file gets you running locally
 
 ## What's here
 
-- **`/pos`** — the cashier screen. PIN login, open/close shifts, take orders across several open tables at once, checkout, kitchen display, X-reports.
-- **`/office`** — the back office. Email/password login (separate from POS PINs). Menu & pricing, stock, finance (P&L), workforce (bridges real iiko staff into POS logins), loyalty, sales & shift-report analytics.
+- **`/pos`** — the cashier screen. Terminal picker (branch → register), code + PIN login, idle lock, open/close shifts, take orders across several open tables at once, checkout, kitchen display, X-reports.
+- **`/office`** — the back office. Email/password login (separate from POS PINs). A dark-sidebar shell with 12 groups / 91 sections (the bahandi-pos structure), filtered by the user's rights; six sections work today: menu & pricing, stock, finance (P&L), workforce (bridges real iiko staff into POS logins), loyalty, sales & shift-report analytics — the rest show a placeholder. Every office query and change is limited to the user's restaurants.
 - **`convex/`** — the backend: schema, one folder per business domain (`domains/<name>/{queries,mutations}.ts`), shared helpers in `lib/`.
 - **`scripts/iiko/`** — a read-only sync toolkit against the real iiko Server API (GET only, enforced by design — see the rule below).
 - **`scripts/seed-sandyq.mjs`** — seeds the real menu (parsed from `public/menu-data/*.json`) plus org/restaurants/terminals.
@@ -40,9 +40,12 @@ npm run iiko:seed       # extract → import → reconcile, scoped to Sandyq onl
 | `npx convex dev` | Watches `convex/` and pushes to the dev deployment on save |
 | `npm run build` | Typecheck + production frontend build |
 | `npm run typecheck` | `tsc -b` across the whole repo (frontend + convex) |
-| `npm run test` | Runs every test under `tests/` (vitest): `tests/convex` (backend, `convex-test`), `tests/pos` (UI, jsdom), `tests/scripts` (guards) |
+| `npm run test` | Runs every test under `tests/` (vitest): `tests/convex` (backend, `convex-test`), `tests/pos` and `tests/office` (UI, jsdom), `tests/scripts` (guard/contrast/compare scripts) |
 | `npm run contrast` | WCAG contrast of the day/night theme tokens in `src/shared/styles/theme.css` |
-| `npm run guards` | Static checks for the hard rules (auth on public functions, `ConvexError`, design tokens) against `scripts/guards/baseline.json` |
+| `npm run guards` | Static checks for the hard rules (auth on public functions, `ConvexError`, office restaurant scope, design tokens) — ratchet against `scripts/guards/baseline.json` (now empty, so any violation fails); public functions without a session must be listed in `scripts/guards/public-allowlist.json` |
+| `npm run e2e` | Playwright e2e (`e2e/`), local only: starts its own Vite dev server on :5198 against the dev deployment, installed Chrome, 4 surfaces × day/night |
+| `npm run e2e:screens` | Screenshot run → `docs/app-screenshots/W0/…`, then `scripts/compare-screens.mjs` builds the bahandi-vs-sandyq parity page `docs/app-screenshots/W0/compare.html` |
+| `npm run seed:e2e` | Seeds the dev deployment for e2e and writes the cashier login for the sale smoke test to a gitignored local env file (never printed). Refuses any non-dev deployment |
 | `npm run seed` | Idempotent — safe to re-run. Refuses to run against anything but a dev deployment unless `--prod` is passed (and `--prod` never creates PIN credentials — see below) |
 | `npm run iiko:discover` / `iiko:extract` / `iiko:import` / `iiko:reconcile` / `iiko:seed` | iiko sync pipeline stages — see the runbook |
 
@@ -64,11 +67,12 @@ npx convex deployment token delete some-name --deployment prod   # never leave a
 Frontend is hosted on an Azure Static Web App (`sandyq-frontend`, resource group `sandyq-prod`, Free tier, East US 2) — no custom domain yet:
 
 - Office (sign-in/sign-up): https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/office
+- POS (terminal picker): https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/pos
 - POS — Алматы: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-almaty-01
 - POS — Шымкент: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-shymkent-01
 - POS — Түркістан: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-turkistan-01
 
-The bare root URL (no `?terminal=`) currently throws — the POS has no branch context to render without one. `.github/workflows/deploy-frontend.yml` and `deploy-backend.yml` redeploy frontend/backend independently on every push to `main` that touches their respective paths; see [CI/CD](#ci-cd) below.
+The bare root URL `/` redirects to `/pos` and keeps the query string, so the `?terminal=` links above still pick their register directly. Without `?terminal=` (and no remembered choice in the browser) `/pos` shows a terminal picker fed by the public query `domains/auth/queries:posTerminalOptions` — active branches and registers only, no ids or staff. `.github/workflows/deploy-frontend.yml` and `deploy-backend.yml` redeploy frontend/backend independently on pushes to `main` that touch their respective paths; see [CI/CD](#cicd) below.
 
 **Test office account** (created via the real sign-up flow, then bootstrapped as administrator — not a raw DB insert): `test@sandyq.local` / `TestPass123`. Synthetic, not a real staff member — rotate or delete before any real handoff. `OFFICE_BOOTSTRAP_EMAIL` on prod is currently set to this address.
 
@@ -76,10 +80,12 @@ The bare root URL (no `?terminal=`) currently throws — the POS has no branch c
 
 ## CI/CD
 
-Two independent GitHub Actions workflows on `goecho-ai/sandyq`. Each has a `verify` job (`npm ci` → `npm run typecheck` → `npm test`) that runs on every push to `main` and on every pull request touching its paths. The deploy job has `needs: verify`, runs only for pushes to `main`, and uses the `production` GitHub Environment. Nothing reaches prod unless typecheck and tests are green; a pull request only verifies and never deploys.
+> On 2026-09-24 the owner briefly paused all prod deploys and CI runs (commits stayed local, and a PreToolUse hook `.claude/hooks/block-prod-and-ci.sh` blocked pushes and deploys). The pause was lifted the same day — commit `31e04aa` removed the hook and its `.claude/settings.json` entry — so pushes to `main` run the workflows below again.
 
-- **`deploy-frontend.yml`** — path-filtered to `src/**`, `public/**`, and other frontend files. Builds with `VITE_CONVEX_URL` pointed at prod, deploys `dist/` to the Azure Static Web App above via `Azure/static-web-apps-deploy@v1`.
-- **`deploy-backend.yml`** — path-filtered to `convex/**` and `package*.json`. Runs `npx convex deploy` against prod.
+Two independent GitHub Actions workflows on `goecho-ai/sandyq`. Each has a `verify` job that runs on every push to `main` and on every pull request touching its paths: `npm ci` → `npm run typecheck` → `npm test` → `npm run guards`, plus `npm run contrast` in the frontend workflow. The deploy job has `needs: verify`, runs only for pushes to `main` (never for a pull request), and uses the `production` GitHub Environment. Nothing reaches prod unless typecheck, tests and guards (and, for the frontend, contrast) are green; a pull request only verifies and never deploys. Playwright e2e is **not** a CI job yet — it runs locally only.
+
+- **`deploy-frontend.yml`** — path-filtered to `src/**`, `public/**`, `tests/**`, the guard/contrast scripts and other frontend files. Builds with `VITE_CONVEX_URL` pointed at prod, deploys `dist/` to the Azure Static Web App above via `Azure/static-web-apps-deploy@v1`.
+- **`deploy-backend.yml`** — path-filtered to `convex/**`, `tests/**`, the guard scripts, `package*.json` and the TS/Vite configs. Runs `npx convex deploy` against prod.
 
 `npm run typecheck` checks both the frontend (`tsc -b`) and the Convex functions (`tsc -p convex`); `tsc -b` alone never looked at `convex/`.
 
@@ -91,11 +97,16 @@ Secrets (`goecho-ai/sandyq` repo settings): `AZURE_STATIC_WEB_APPS_API_TOKEN` an
 
 ## Testing
 
-All tests live in `tests/` (vitest picks up only `tests/**/*.test.{ts,tsx,mjs}`; `npm run typecheck` also typechecks them via `tsconfig.test.json`):
+All unit/integration tests live in `tests/` (vitest picks up only `tests/**/*.test.{ts,tsx,mjs}`, setup in `tests/setup.ts`; `npm run typecheck` also typechecks them via `tsconfig.test.json`):
 
-- `tests/convex/` — backend against an in-memory Convex (`convex-test`). `posFlows.test.ts`: parallel table checks and service-charge math, checkout, optimistic concurrency, loyalty accrual and reversal on refund, refund + ledger posting, X-report approval/idempotency and rounded discounts, sales report net of refunds, ledger backfill of split payments, kitchen isolation by restaurant, catalog and iiko access. `officeScope.test.ts`: a branch-scoped office user never sees or changes another branch.
-- `tests/pos/` — UI with `@testing-library/react` + jsdom. `use-order-draft.test.ts` pins the check-selection-sync bug (commit `a1ebcc9`); `pos-dialogs.test.tsx` covers the blind shift count, discount re-sync, guest-detach errors and payment rows/cash presets.
-- `tests/scripts/` — the guard script itself.
+- `tests/convex/` — backend against an in-memory Convex (`convex-test`). `posFlows.test.ts`: parallel table checks and service-charge math, checkout, optimistic concurrency, loyalty accrual and reversal on refund, refund + ledger posting, X-report approval/idempotency and rounded discounts, sales report net of refunds, ledger backfill of split payments, kitchen isolation by restaurant, catalog and iiko access. `officeScope.test.ts`: a branch-scoped office user never sees or changes another branch. `posAccess.test.ts`: the terminal picker query and the 4–6 digit PIN rule.
+- `tests/pos/` — UI with `@testing-library/react` + jsdom. `use-order-draft.test.ts` pins the check-selection-sync bug (commit `a1ebcc9`); `pos-dialogs.test.tsx` covers the blind shift count, discount re-sync, guest-detach errors and payment rows/cash presets; `pos-session.test.tsx` the terminal picker and login screen; plus routes, UI primitives, formatting/status dictionary and the office navigation, sign-in, states and workspaces.
+- `tests/office/` — the register engine (`engine.test.tsx`).
+- `tests/scripts/` — the guard, contrast and screen-compare scripts themselves.
+
+Static checks: `npm run guards` and `npm run contrast` (see [Common commands](#common-commands)).
+
+End-to-end, local only (not in CI): `npm run seed:e2e` once against the dev deployment, load the env file it writes, then `npm run e2e` (smoke sale POS → kitchen, every office section, axe accessibility checks, dialog regressions). `npm run e2e:screens` captures screenshots and builds the parity report. Details: [docs/ARCHITECTURE.md § Quality gates](docs/ARCHITECTURE.md#quality-gates).
 
 ## Known gaps
 
