@@ -194,7 +194,7 @@ export default defineSchema({
     unitWeightKg: v.optional(v.number()),
     markupPercent: v.optional(v.number()),
     customizable: v.optional(v.boolean()),
-    // sizeScaleId arrives with the sizeScales table (W1-CAT-09).
+    sizeScaleId: v.optional(v.id("sizeScales")),
     firstSaleAt: v.optional(v.number()),
     technology: v.optional(v.string()),
     sourceSystem: v.optional(v.string()),
@@ -210,6 +210,7 @@ export default defineSchema({
     .index("by_enabled_and_popular_and_name", ["enabled", "popular", "nameSort"])
     .index("by_category_name", ["category", "nameSort"])
     .index("by_price", ["basePrice"])
+    .index("by_size_scale", ["sizeScaleId"])
     .searchIndex("search_products", {
       searchField: "searchText",
       filterFields: ["category", "popular", "enabled"],
@@ -803,4 +804,139 @@ export default defineSchema({
     .index("by_module_restaurant_date", ["moduleId", "restaurantExternalId", "businessDate"])
     .index("by_counterparty_module", ["counterpartyExternalId", "moduleId"])
     .searchIndex("search_finance_records", { searchField: "searchText", filterFields: ["moduleId", "status", "restaurantExternalId"] }),
+  // ── Catalog: sizes, price orders, modifiers (W1-CAT-07/09/10; new tables, strict from the start) ──
+  sizeScales: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    nameSort: v.string(),
+    searchText: v.string(),
+    sortOrder: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_name", ["nameSort"])
+    .searchIndex("search_size_scales", { searchField: "searchText" }),
+
+  sizeOptions: defineTable({
+    externalId: v.string(),
+    scaleId: v.id("sizeScales"),
+    label: v.string(),
+    labelKk: v.optional(v.string()),
+    kitchenLabel: v.string(),
+    coefficient: v.number(), // price coefficient over the base price
+    writeOffCoefficient: v.optional(v.number()), // stock write-off coefficient, defaults to coefficient
+    sortOrder: v.number(),
+    isDefault: v.boolean(),
+    available: v.boolean(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_scale_sort", ["scaleId", "sortOrder"]),
+
+  priceOrders: defineTable({
+    externalId: v.string(),
+    number: v.string(), // ЦЕН-<год>-<NNNNN>
+    name: v.string(),
+    nameSort: v.string(),
+    searchText: v.string(),
+    effectiveFrom: v.number(),
+    effectiveTo: v.optional(v.number()),
+    status: v.union(v.literal("draft"), v.literal("scheduled"), v.literal("active"), v.literal("expired"), v.literal("cancelled")),
+    comment: v.string(),
+    posName: v.string(),
+    replacesPreviousMenu: v.boolean(),
+    restaurantExternalIds: v.array(v.string()), // empty = every restaurant
+    organizationExternalId: v.string(),
+    nextTransitionAt: v.optional(v.number()),
+    createdBy: v.string(),
+    updatedAt: v.number(),
+    cancelReason: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_number", ["number"])
+    .index("by_status_start", ["status", "effectiveFrom"])
+    .index("by_next_transition", ["nextTransitionAt"])
+    .searchIndex("search_price_orders", { searchField: "searchText", filterFields: ["status"] }),
+
+  priceOrderLines: defineTable({
+    orderId: v.id("priceOrders"),
+    productId: v.id("products"),
+    productExternalId: v.string(),
+    sizeOptionId: v.optional(v.id("sizeOptions")),
+    included: v.boolean(),
+    previousPrice: v.number(),
+    newPrice: v.number(),
+    costAtSave: v.number(),
+    productName: v.string(),
+    sizeLabel: v.optional(v.string()),
+  })
+    .index("by_order", ["orderId"])
+    .index("by_order_product", ["orderId", "productExternalId"])
+    .index("by_size_option", ["sizeOptionId"]),
+
+  priceSchedules: defineTable({
+    orderId: v.id("priceOrders"),
+    name: v.string(),
+    startMinute: v.number(),
+    endMinute: v.number(),
+    weekdays: v.array(v.number()), // 1 = Monday … 7 = Sunday
+  }).index("by_order", ["orderId"]),
+
+  modifierGroups: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    nameKk: v.optional(v.string()),
+    nameSort: v.string(),
+    searchText: v.string(),
+    sortOrder: v.number(),
+    active: v.boolean(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_name", ["nameSort"])
+    .searchIndex("search_modifier_groups", { searchField: "searchText" }),
+
+  modifiers: defineTable({
+    externalId: v.string(),
+    groupId: v.id("modifierGroups"),
+    name: v.string(),
+    nameKk: v.optional(v.string()),
+    nameSort: v.string(),
+    searchText: v.string(),
+    price: v.number(),
+    ingredientInventoryItemId: v.optional(v.id("inventoryItems")),
+    ingredientName: v.string(),
+    ingredientQuantity: v.number(),
+    unit,
+    imagePath: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
+    available: v.boolean(),
+    sortOrder: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_group_name", ["groupId", "nameSort"])
+    .index("by_price", ["price"])
+    .index("by_group_price", ["groupId", "price"])
+    .searchIndex("search_modifiers", { searchField: "searchText", filterFields: ["groupId"] }),
+
+  productModifierGroups: defineTable({
+    productId: v.id("products"),
+    groupId: v.id("modifierGroups"),
+    required: v.boolean(),
+    minQuantity: v.number(),
+    maxQuantity: v.number(),
+    freeQuantity: v.number(),
+    enforceItemLimits: v.boolean(),
+    sortOrder: v.number(),
+  })
+    .index("by_product", ["productId", "sortOrder"])
+    .index("by_product_group", ["productId", "groupId"])
+    .index("by_group", ["groupId"]),
+
+  productModifierRules: defineTable({
+    productModifierGroupId: v.id("productModifierGroups"),
+    modifierId: v.id("modifiers"),
+    minQuantity: v.number(),
+    maxQuantity: v.number(),
+    defaultQuantity: v.number(),
+    freeQuantity: v.number(),
+    sortOrder: v.number(),
+  }).index("by_assignment_sort", ["productModifierGroupId", "sortOrder"]),
 })
