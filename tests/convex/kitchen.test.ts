@@ -139,4 +139,21 @@ describe("kitchen before payment (W1-POS-04, W1-KDS-01)", () => {
     expect((await tickets(t, paid._id))[0].status).toBe("cancelled")
     expect(await t.query(kitchen.queries.board, { sessionToken: cashier })).toEqual([])
   })
+
+  it("the kitchen picker offers kds terminals, and a kds terminal refuses till functions", async () => {
+    const { t, productId } = await setup()
+    const order = await draft(t, productId)
+    expect((await t.query(api.domains.auth.queries.posTerminalOptions, { purpose: "kitchen" }))[0].terminals.map((row) => row.externalId)).toEqual(["t1"])
+    await t.run(async (ctx) => {
+      const terminal = (await ctx.db.query("posTerminals").withIndex("by_external_id", (q) => q.eq("externalId", "t1")).unique())!
+      const kds = await ctx.db.insert("posTerminals", { externalId: "kds-1", restaurantId: terminal.restaurantId, name: "Кухня", terminalNumber: 90, nextOrderNumber: 1, active: true, kind: "kds" })
+      const cashierId = (await ctx.db.query("employees").withIndex("by_code", (q) => q.eq("code", "101")).unique())!._id
+      await ctx.db.insert("posSessions", { tokenHash: await digest("on-kds"), purpose: "operator", employeeId: cashierId, terminalId: kds, createdAt: Date.now(), lastActivityAt: Date.now(), expiresAt: Date.now() + 3_600_000 })
+    })
+    expect((await t.query(api.domains.auth.queries.posTerminalOptions, { purpose: "kitchen" }))[0].terminals.map((row) => row.externalId)).toEqual(["kds-1"])
+    expect((await t.query(api.domains.auth.queries.posTerminalOptions, {}))[0].terminals.map((row) => row.externalId)).toEqual(["t1"])
+    await t.mutation(orders.sendToKitchen, { sessionToken: cashier, orderId: order._id })
+    expect(await t.query(kitchen.queries.board, { sessionToken: "on-kds" })).toHaveLength(1)
+    await expect(t.mutation(orders.saveDraft, { sessionToken: "on-kds", clientOrderId: "x", orderType: "dine-in", discountPercent: 0, comment: "", lines: [] })).rejects.toThrow(/терминал кухни/)
+  })
 })

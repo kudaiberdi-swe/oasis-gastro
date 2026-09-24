@@ -37,7 +37,7 @@ class BoardBoundary extends Component<{ onError: (reason: string) => void; child
 /** `/kitchen`: its own full-screen surface, no POS header. Terminal → PIN (POS-DESIGN §11.1) → board. */
 export function KitchenRouter() {
   const session = useKitchenSession()
-  const terminalOptions = useTerminalOptions()
+  const terminalOptions = useTerminalOptions("kitchen")
 
   if (!session.terminalExternalId) {
     return <TerminalPicker options={terminalOptions} onChoose={session.chooseTerminal} />

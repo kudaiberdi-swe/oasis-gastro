@@ -70,6 +70,7 @@ export type PosAccess = Awaited<ReturnType<typeof requireSession>>
 export async function requireOperator(ctx: AnyCtx, sessionToken: string): Promise<PosAccess> {
   const access = await requireSession(ctx, sessionToken, "operator")
   if (access.employee.role === "kitchen") throw new ConvexError("Роль «Кухня» работает только с экраном кухни")
+  if (access.terminal.kind === "kds") throw new ConvexError("Это терминал кухни — кассовые операции на нём недоступны")
   return access
 }
 
