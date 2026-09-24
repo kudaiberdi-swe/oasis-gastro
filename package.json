@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false && tsc -p convex --pretty false",
     "convex:check": "convex dev --once --typecheck enable",
     "seed": "node scripts/seed-sandyq.mjs",
     "iiko:discover": "node --env-file=.env scripts/iiko/extract.mjs --discover-only",

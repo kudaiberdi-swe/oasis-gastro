@@ -13,15 +13,47 @@ on:
       - "package-lock.json"
       - "staticwebapp.config.json"
       - ".github/workflows/deploy-frontend.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "tsconfig*.json"
+      - "package.json"
+      - "package-lock.json"
+      - "staticwebapp.config.json"
+      - ".github/workflows/deploy-frontend.yml"
   workflow_dispatch: {}
 
 concurrency:
   group: deploy-frontend-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  build_and_deploy:
+  verify:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck (frontend + convex)
+        run: npm run typecheck
+
+      - name: Tests (vitest + convex-test)
+        run: npm test
+
+  build_and_deploy:
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -48,4 +80,3 @@ jobs:
           action: upload
           app_location: dist
           skip_app_build: true
-          skip_api_build: true

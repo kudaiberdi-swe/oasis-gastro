@@ -74,10 +74,16 @@ The bare root URL (no `?terminal=`) currently throws — the POS has no branch c
 
 ## CI/CD
 
-Two independent GitHub Actions workflows on `goecho-ai/sandyq`, both push-triggered on `main`:
+Two independent GitHub Actions workflows on `goecho-ai/sandyq`. Each has a `verify` job (`npm ci` → `npm run typecheck` → `npm test`) that runs on every push to `main` and on every pull request touching its paths. The deploy job has `needs: verify`, runs only for pushes to `main`, and uses the `production` GitHub Environment. Nothing reaches prod unless typecheck and tests are green; a pull request only verifies and never deploys.
 
 - **`deploy-frontend.yml`** — path-filtered to `src/**`, `public/**`, and other frontend files. Builds with `VITE_CONVEX_URL` pointed at prod, deploys `dist/` to the Azure Static Web App above via `Azure/static-web-apps-deploy@v1`.
-- **`deploy-backend.yml`** — path-filtered to `convex/**`. Runs `npx convex deploy` against prod.
+- **`deploy-backend.yml`** — path-filtered to `convex/**` and `package*.json`. Runs `npx convex deploy` against prod.
+
+`npm run typecheck` checks both the frontend (`tsc -b`) and the Convex functions (`tsc -p convex`); `tsc -b` alone never looked at `convex/`.
+
+Not done yet (blocker D9 in `docs/IMPLEMENTATION-PLAN.md`):
+- **Manual approval before a prod deploy:** add required reviewers to the `production` environment in GitHub repo settings. This needs repo admin rights.
+- **Preview deployments per pull request:** Convex preview deployments need a paid Convex plan. Otherwise a separate staging Convex project is needed.
 
 Secrets (`goecho-ai/sandyq` repo settings): `AZURE_STATIC_WEB_APPS_API_TOKEN` and `CONVEX_DEPLOY_KEY`. The latter is a deliberate exception to the mint-use-delete rule above — CI needs a standing credential. Rotate it with `scripts/rotate-ci-deploy-key.sh` (writes the key to a local file via `--save-env`, never prints it, feeds it straight to `gh secret set -f`, then deletes the file).
 
