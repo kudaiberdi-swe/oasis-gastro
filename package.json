@@ -15,7 +15,8 @@
     "iiko:extract": "node --env-file=.env scripts/iiko/extract.mjs",
     "iiko:import": "node --env-file=.env scripts/iiko/import-convex.mjs",
     "iiko:reconcile": "node --env-file=.env scripts/iiko/reconcile.mjs",
-    "iiko:seed": "node --env-file=.env scripts/iiko/seed.mjs"
+    "iiko:seed": "node --env-file=.env scripts/iiko/seed.mjs",
+    "guards": "node scripts/check-guards.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

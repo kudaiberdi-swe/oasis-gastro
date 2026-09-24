@@ -7,12 +7,16 @@ on:
       - "convex/**"
       - "package.json"
       - "package-lock.json"
+      - "scripts/check-guards.mjs"
+      - "scripts/guards/**"
       - ".github/workflows/deploy-backend.yml"
   pull_request:
     paths:
       - "convex/**"
       - "package.json"
       - "package-lock.json"
+      - "scripts/check-guards.mjs"
+      - "scripts/guards/**"
       - ".github/workflows/deploy-backend.yml"
   workflow_dispatch: {}
 
@@ -38,6 +42,9 @@ jobs:
 
       - name: Tests (vitest + convex-test)
         run: npm test
+
+      - name: Guards (auth, ConvexError, design tokens — no new violations)
+        run: npm run guards
 
   # Production holds real data: nothing reaches it unless verify is green, and only from main.
   deploy:

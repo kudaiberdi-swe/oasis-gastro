@@ -1,0 +1,7 @@
+{
+  "_comment": "Public Convex functions allowed to run without requireOperator / requireOfficeCapability. Each entry needs a reason; review every change in the PR.",
+  "functions": [
+    { "id": "domains/auth/actions:login", "reason": "PIN login itself: verifies code + PIN and creates the session" },
+    { "id": "domains/catalog/queries:listCategories", "reason": "Shown before sign-in; category labels only (PLAN §3 explicit exception)" }
+  ]
+}

@@ -11,6 +11,8 @@ on:
       - "tsconfig*.json"
       - "package.json"
       - "package-lock.json"
+      - "scripts/check-guards.mjs"
+      - "scripts/guards/**"
       - "staticwebapp.config.json"
       - ".github/workflows/deploy-frontend.yml"
   pull_request:
@@ -22,6 +24,8 @@ on:
       - "tsconfig*.json"
       - "package.json"
       - "package-lock.json"
+      - "scripts/check-guards.mjs"
+      - "scripts/guards/**"
       - "staticwebapp.config.json"
       - ".github/workflows/deploy-frontend.yml"
   workflow_dispatch: {}
@@ -48,6 +52,9 @@ jobs:
 
       - name: Tests (vitest + convex-test)
         run: npm test
+
+      - name: Guards (auth, ConvexError, design tokens — no new violations)
+        run: npm run guards
 
   build_and_deploy:
     needs: verify
