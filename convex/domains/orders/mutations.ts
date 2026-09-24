@@ -14,6 +14,7 @@ import { assertPeriodOpen } from "../../lib/periods"
 import { businessDateFor } from "../../lib/time"
 import { resolvePrice } from "../../lib/pricing"
 import { isAvailable } from "../../lib/availability"
+import { consumeOrderStock, reverseOrderConsumption } from "../../lib/recipeConsumption"
 import { hydrateOrder } from "./queries"
 
 async function requireOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess, statuses: string[]) {
@@ -325,6 +326,9 @@ export const checkout = mutation({
       description: `Заказ №${order.number}`,
       businessDate: shift.businessDate,
     })
+    // Sale write-off by recipe and cost of goods sold (W1-RCP-03); never fails the sale.
+    const soldLines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200)
+    await consumeOrderStock(ctx, { order, lines: soldLines, restaurantExternalId: access.restaurant.externalId, terminal: access.terminal, idempotencyKey: args.idempotencyKey, occurredAt: now, businessDate: shift.businessDate })
     await accrueLoyaltyPoints(ctx, order, now)
     await touchSession(ctx, access.session._id)
     await writeAudit(ctx, access, { action: "order.checkout", summary: `Оплачен заказ №${order.number} на ${order.total} ₸`, shiftId: shift._id, orderId: order._id })
@@ -393,6 +397,7 @@ export const refund = mutation({
       description: `${args.reason.trim()} · заказ №${order.number}`,
       businessDate: shift.businessDate,
     })
+    await reverseOrderConsumption(ctx, { order, refundKey: String(paymentId), share: Math.min(1, roundKzt(args.amount) / paid), occurredAt: now, businessDate: shift.businessDate })
     await reverseLoyaltyPoints(ctx, order, { paidTotal: paid, refundedTotal: totalRefunded, paymentId, occurredAt: now })
     await writeAudit(ctx, access, { action: "order.refund", summary: `Возврат ${roundKzt(args.amount)} ₸ по заказу №${order.number}: ${args.reason.trim()}`, shiftId: shift._id, orderId: order._id, managerId: manager._id })
     return paymentId

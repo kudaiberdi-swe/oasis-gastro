@@ -92,6 +92,7 @@ import type * as lib_periods from "../lib/periods.js";
 import type * as lib_policy from "../lib/policy.js";
 import type * as lib_priceChecks from "../lib/priceChecks.js";
 import type * as lib_pricing from "../lib/pricing.js";
+import type * as lib_recipeConsumption from "../lib/recipeConsumption.js";
 import type * as lib_recipeMath from "../lib/recipeMath.js";
 import type * as lib_recipes from "../lib/recipes.js";
 import type * as lib_restaurants from "../lib/restaurants.js";
@@ -193,6 +194,7 @@ declare const fullApi: ApiFromModules<{
   "lib/policy": typeof lib_policy;
   "lib/priceChecks": typeof lib_priceChecks;
   "lib/pricing": typeof lib_pricing;
+  "lib/recipeConsumption": typeof lib_recipeConsumption;
   "lib/recipeMath": typeof lib_recipeMath;
   "lib/recipes": typeof lib_recipes;
   "lib/restaurants": typeof lib_restaurants;

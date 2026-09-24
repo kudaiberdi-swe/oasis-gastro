@@ -107,7 +107,7 @@ export default defineSchema({
     importedAt: v.optional(v.number()),
     sourceReadOnly: v.optional(v.boolean()),
     departmentExternalId: v.optional(v.string()),
-    // salesWarehouseId arrives with the warehouses table (W1 stock).
+    salesWarehouseId: v.optional(v.id("warehouses")), // sale write-off warehouse; else the restaurant's isSalesDefault one
     kind: v.optional(v.union(v.literal("pos"), v.literal("kds"), v.literal("office"))),
     lastLoginAt: v.optional(v.number()),
     appVersion: v.optional(v.string()),
@@ -279,8 +279,12 @@ export default defineSchema({
     productName: v.string(),
     quantity: v.number(),
     unitPrice: v.number(),
-    sizeLabel: v.optional(v.string()), // reserved for Phase 3 size scales — unused in Phase 1
-    modifiers: v.array(v.string()), // free-text kitchen notes; no modifier catalog yet
+    sizeLabel: v.optional(v.string()),
+    modifiers: v.array(v.string()), // legacy free-text kitchen notes
+    // W1-POS-01 (optional until M-2): the chosen size and modifiers, priced by the server.
+    sizeOptionId: v.optional(v.id("sizeOptions")),
+    modifierSelections: v.optional(v.array(v.object({ externalId: v.string(), name: v.string(), quantity: v.number(), unitPrice: v.number() }))),
+    kitchenModifiers: v.optional(v.array(v.object({ externalId: v.string(), label: v.string(), quantity: v.number(), defaultQuantity: v.number() }))),
   }).index("by_order", ["orderId"]),
 
   orderDeletionEvents: defineTable({
@@ -1185,4 +1189,15 @@ export default defineSchema({
     unitCost: v.number(),
     vatRate: v.number(),
   }).index("by_document", ["documentId", "lineNo"]),
+  // Sales that could not write off stock (W1-RCP-03) — the source of «Продажи без техкарты».
+  salesWithoutRecipe: defineTable({
+    orderId: v.id("orders"),
+    orderLineId: v.optional(v.id("orderLines")),
+    productId: v.optional(v.id("products")),
+    restaurantExternalId: v.string(),
+    code: v.union(v.literal("no-recipe"), v.literal("no-inventory-item"), v.literal("zero-weight"), v.literal("no-warehouse"), v.literal("no-accounts")),
+    occurredAt: v.number(),
+  })
+    .index("by_order", ["orderId"])
+    .index("by_restaurant_occurred", ["restaurantExternalId", "occurredAt"]),
 })
