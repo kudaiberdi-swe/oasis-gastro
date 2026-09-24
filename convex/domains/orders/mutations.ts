@@ -13,6 +13,7 @@ import { draftLineInput, orderType as orderTypeValidator, paymentMethod as payme
 import { assertPeriodOpen } from "../../lib/periods"
 import { businessDateFor } from "../../lib/time"
 import { resolvePrice } from "../../lib/pricing"
+import { isAvailable } from "../../lib/availability"
 import { hydrateOrder } from "./queries"
 
 async function requireOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess, statuses: string[]) {
@@ -30,6 +31,7 @@ async function priceLines(ctx: MutationCtx, restaurantExternalId: string, lines:
     if (!Number.isInteger(input.quantity) || input.quantity <= 0 || input.quantity > 99) throw new ConvexError("Некорректное количество")
     const product = await ctx.db.get(input.productId)
     if (!product?.enabled) throw new ConvexError("Позиция недоступна")
+    if (!(await isAvailable(ctx, product._id, restaurantExternalId, Date.now()))) throw new ConvexError(`«${product.name}» сейчас нет в наличии`)
     const { price: unitPrice } = await resolvePrice(ctx, { product, restaurantExternalId, at: Date.now() })
     result.push({ clientLineId: input.clientLineId, productId: product._id, product, quantity: input.quantity, unitPrice, modifiers: input.modifiers ?? [] })
   }

@@ -111,6 +111,22 @@ export const seedAll = internalMutation({
       else await ctx.db.insert("productPrices", { productId, restaurantExternalId: price.restaurantExternalId, priceKzt: price.priceKzt })
     }
 
+    // Branch-exclusive dishes (no price in a branch's menu) go on that branch's stop list (W1-CAT-14),
+    // so the POS shows them as unavailable there instead of silently selling at the base price.
+    const pricedAt = new Set(args.prices.map((price) => `${price.productExternalId}:${price.restaurantExternalId}`))
+    for (const [productExternalId, productId] of productIds) {
+      for (const restaurant of args.restaurants) {
+        if (pricedAt.has(`${productExternalId}:${restaurant.externalId}`)) continue
+        const existing = await ctx.db
+          .query("productAvailability")
+          .withIndex("by_restaurant_product", (q) => q.eq("restaurantExternalId", restaurant.externalId).eq("productId", productId))
+          .unique()
+        if (!existing) {
+          await ctx.db.insert("productAvailability", { productId, restaurantExternalId: restaurant.externalId, available: false, reason: "Нет в меню филиала", updatedBy: "seed", updatedAt: Date.now() })
+        }
+      }
+    }
+
     const createdEmployees: Array<{ code: string; created: boolean }> = []
     for (const employee of args.employees) {
       const existing = await ctx.db.query("employees").withIndex("by_code", (q) => q.eq("code", employee.code)).unique()

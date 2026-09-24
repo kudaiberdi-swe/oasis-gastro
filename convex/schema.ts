@@ -939,4 +939,27 @@ export default defineSchema({
     freeQuantity: v.number(),
     sortOrder: v.number(),
   }).index("by_assignment_sort", ["productModifierGroupId", "sortOrder"]),
+  // Cashier favorites (W1-CAT-13): no price copy — prices always come from resolvePrice.
+  employeeFavorites: defineTable({
+    employeeId: v.id("employees"),
+    productId: v.id("products"),
+    createdAt: v.number(),
+  })
+    .index("by_employee", ["employeeId", "createdAt"])
+    .index("by_employee_product", ["employeeId", "productId"])
+    .index("by_product", ["productId"]),
+
+  // Stop list per branch (W1-CAT-14).
+  productAvailability: defineTable({
+    productId: v.id("products"),
+    restaurantExternalId: v.string(),
+    available: v.boolean(),
+    reason: v.optional(v.string()),
+    until: v.optional(v.number()), // unavailable until this moment; in the past = available again
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_restaurant_product", ["restaurantExternalId", "productId"])
+    .index("by_product", ["productId"])
+    .index("by_restaurant_available", ["restaurantExternalId", "available"]),
 })
