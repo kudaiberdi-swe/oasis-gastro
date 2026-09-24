@@ -141,7 +141,7 @@ export const current = query({
     if (!shift) return null
     const [summary, openedBy] = await Promise.all([calculateSummary(ctx, shift), ctx.db.get(shift.openedBy)])
     const ageHours = (Date.now() - shift.openedAt) / 3_600_000
-    return { ...shift, openedByName: openedBy?.displayName ?? "Сотрудник", summary, ageHours, requiresAttention: ageHours >= 24 }
+    return { ...shift, openedByName: openedBy?.displayName ?? "Сотрудник", summary, ageHours, requiresAttention: ageHours >= 24, openedOver24h: ageHours >= 24 }
   },
 })
 
@@ -171,6 +171,7 @@ export const history = query({
           ...shift,
           openedByName: (await ctx.db.get(shift.openedBy))?.displayName ?? "Сотрудник",
           summary: await calculateSummary(ctx, shift),
+          zReportId: (await ctx.db.query("zReports").withIndex("by_shift", (q) => q.eq("shiftId", shift._id)).first())?._id ?? null,
         })),
       ),
     }
@@ -190,5 +191,16 @@ export const availableTransferTargets = query({
       if (shift) targets.push({ terminalId: terminal._id, externalId: terminal.externalId, name: terminal.name, terminalNumber: terminal.terminalNumber, shiftNumber: shift.number })
     }
     return targets
+  },
+})
+
+/** The Z-report of a closed shift of this terminal (W1-POS-08). */
+export const getZReport = query({
+  args: { sessionToken: v.string(), shiftId: v.id("shifts") },
+  handler: async (ctx, args) => {
+    const access = await requireOperator(ctx, args.sessionToken)
+    const report = await ctx.db.query("zReports").withIndex("by_shift", (q) => q.eq("shiftId", args.shiftId)).first()
+    if (!report || report.restaurantId !== access.restaurant._id) return null
+    return report
   },
 })

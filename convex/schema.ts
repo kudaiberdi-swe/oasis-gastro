@@ -30,6 +30,43 @@ const kitchenStatus = v.union(
   v.literal("cancelled"),
 )
 
+// Totals of a shift as printed on X- and Z-reports (shifts/queries buildXReportSnapshot).
+const shiftReportSnapshot = {
+  catalogGrossSales: v.number(),
+  discounts: v.number(),
+  serviceCharge: v.number(),
+  sales: v.number(),
+  refunds: v.number(),
+  netSales: v.number(),
+  averageCheck: v.number(),
+  expectedCash: v.number(),
+  payments: v.object({
+    cash: v.object({ sales: v.number(), refunds: v.number(), net: v.number(), saleCount: v.number(), refundCount: v.number() }),
+    card: v.object({ sales: v.number(), refunds: v.number(), net: v.number(), saleCount: v.number(), refundCount: v.number() }),
+    qr: v.object({ sales: v.number(), refunds: v.number(), net: v.number(), saleCount: v.number(), refundCount: v.number() }),
+  }),
+  cashMovements: v.object({
+    cashIn: v.number(),
+    cashOut: v.number(),
+    cashInCount: v.number(),
+    cashOutCount: v.number(),
+  }),
+  orderCounts: v.object({
+    paid: v.number(),
+    partiallyRefunded: v.number(),
+    refunded: v.number(),
+    cancelled: v.number(),
+    draft: v.number(),
+    held: v.number(),
+    discounted: v.number(),
+  }),
+  openOrders: v.object({ count: v.number(), total: v.number() }),
+  heldOrders: v.object({ count: v.number(), total: v.number() }),
+  cancelledAmount: v.number(),
+  saleOrderCount: v.number(),
+  refundOrderCount: v.number(),
+}
+
 export default defineSchema({
   ...authTables,
 
@@ -406,44 +443,35 @@ export default defineSchema({
     generatedByName: v.string(),
     generatedByRole: employeeRole,
     openingCash: v.number(),
-    catalogGrossSales: v.number(),
-    discounts: v.number(),
-    serviceCharge: v.number(),
-    sales: v.number(),
-    refunds: v.number(),
-    netSales: v.number(),
-    averageCheck: v.number(),
-    expectedCash: v.number(),
-    payments: v.object({
-      cash: v.object({ sales: v.number(), refunds: v.number(), net: v.number(), saleCount: v.number(), refundCount: v.number() }),
-      card: v.object({ sales: v.number(), refunds: v.number(), net: v.number(), saleCount: v.number(), refundCount: v.number() }),
-      qr: v.object({ sales: v.number(), refunds: v.number(), net: v.number(), saleCount: v.number(), refundCount: v.number() }),
-    }),
-    cashMovements: v.object({
-      cashIn: v.number(),
-      cashOut: v.number(),
-      cashInCount: v.number(),
-      cashOutCount: v.number(),
-    }),
-    orderCounts: v.object({
-      paid: v.number(),
-      partiallyRefunded: v.number(),
-      refunded: v.number(),
-      cancelled: v.number(),
-      draft: v.number(),
-      held: v.number(),
-      discounted: v.number(),
-    }),
-    openOrders: v.object({ count: v.number(), total: v.number() }),
-    heldOrders: v.object({ count: v.number(), total: v.number() }),
-    cancelledAmount: v.number(),
-    saleOrderCount: v.number(),
-    refundOrderCount: v.number(),
+    ...shiftReportSnapshot,
     nonFiscal: v.literal(true),
   })
     .index("by_shift_sequence", ["shiftId", "sequence"])
     .index("by_terminal_generated", ["terminalId", "generatedAt"])
     .index("by_idempotency_key", ["idempotencyKey"]),
+
+  // Z-report as its own immutable record (W1-POS-08), written by shifts.close in the same transaction.
+  zReports: defineTable({
+    shiftId: v.id("shifts"),
+    number: v.string(), // Z-YYYYMMDD-TT-NNN
+    restaurantId: v.id("restaurants"),
+    terminalId: v.id("posTerminals"),
+    businessDate: v.string(),
+    shiftNumber: v.number(),
+    openedAt: v.number(),
+    closedAt: v.number(),
+    closedBy: v.id("employees"),
+    closedByName: v.string(),
+    openingCash: v.number(),
+    countedCash: v.number(),
+    variance: v.number(),
+    snapshot: v.object(shiftReportSnapshot),
+    nonFiscal: v.literal(true),
+    createdAt: v.number(),
+  })
+    .index("by_shift", ["shiftId"])
+    .index("by_terminal_closed", ["terminalId", "closedAt"])
+    .index("by_restaurant_date", ["restaurantId", "businessDate"]),
 
   payments: defineTable({
     orderId: v.id("orders"),
