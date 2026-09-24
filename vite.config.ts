@@ -6,8 +6,9 @@ import { defineConfig } from "vite"
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   test: {
-    // Every test lives under tests/: tests/convex (convex-test), tests/pos (UI, jsdom), tests/scripts.
+    // Every test lives under tests/: tests/convex (convex-test), tests/pos and tests/office (UI, jsdom), tests/scripts.
     include: ["tests/**/*.test.{ts,tsx,mjs}"],
+    setupFiles: ["tests/setup.ts"],
   },
   resolve: {
     alias: {

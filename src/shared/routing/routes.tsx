@@ -16,11 +16,13 @@ function RootRedirect() {
 // Primitive showcase for screenshot checks; the dynamic import is dropped from production builds.
 const UiShowcase = import.meta.env.DEV ? lazy(() => import("@/dev/ui-showcase").then((module) => ({ default: module.UiShowcase }))) : null
 const OfficeShowcase = import.meta.env.DEV ? lazy(() => import("@/dev/office-showcase").then((module) => ({ default: module.OfficeShowcase }))) : null
+const EngineShowcase = import.meta.env.DEV ? lazy(() => import("@/dev/engine-showcase").then((module) => ({ default: module.EngineShowcase }))) : null
 const devRoutes: RouteObject[] =
-  UiShowcase && OfficeShowcase
+  UiShowcase && OfficeShowcase && EngineShowcase
     ? [
         { path: "/dev/ui", element: <Suspense><UiShowcase /></Suspense> },
         { path: "/dev/office/:section?", element: <Suspense><OfficeShowcase /></Suspense> },
+        { path: "/dev/engine/:module?/:id?", element: <Suspense><EngineShowcase /></Suspense> },
       ]
     : []
 
