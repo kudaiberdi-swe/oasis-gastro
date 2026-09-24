@@ -17,7 +17,7 @@ vi.mock("@/office/features/session/data/use-office-context", () => ({
   }),
 }))
 vi.mock("@/pos/router", () => ({ PosRouter: () => <p>POS screen</p> }))
-vi.mock("@/office/features/catalog/ui/catalog-workspace", () => ({ CatalogWorkspace: () => <p>CatalogWorkspace</p> }))
+vi.mock("@/office/features/nomenclature/ui/nomenclature-workspace", () => ({ NomenclatureWorkspace: () => <p>NomenclatureWorkspace</p> }))
 vi.mock("@/office/features/stock/ui/stock-workspace", () => ({ StockWorkspace: () => <p>StockWorkspace</p> }))
 vi.mock("@/office/features/finance/ui/finance-workspace", () => ({ FinanceWorkspace: () => <p>FinanceWorkspace</p> }))
 vi.mock("@/office/features/workforce/ui/workforce-workspace", () => ({ WorkforceWorkspace: () => <p>WorkforceWorkspace</p> }))
@@ -44,7 +44,7 @@ describe("app routes (W0-FND-01)", () => {
 
   it("sends /office to the default section and unknown sections to Not Found", async () => {
     const router = renderAt("/office")
-    expect(await screen.findByText("CatalogWorkspace")).toBeTruthy()
+    expect(await screen.findByText("NomenclatureWorkspace")).toBeTruthy()
     expect(router.state.location.pathname).toBe("/office/nomenclature")
 
     cleanup()
@@ -54,7 +54,7 @@ describe("app routes (W0-FND-01)", () => {
 
   it("keeps old section URLs working and shows a placeholder for sections not built yet", async () => {
     const router = renderAt("/office/catalog")
-    expect(await screen.findByText("CatalogWorkspace")).toBeTruthy()
+    expect(await screen.findByText("NomenclatureWorkspace")).toBeTruthy()
     expect(router.state.location.pathname).toBe("/office/nomenclature")
 
     cleanup()

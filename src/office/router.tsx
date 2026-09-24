@@ -7,12 +7,13 @@ import { CapabilitiesProvider } from "@/office/components/can"
 import { AccessControlWorkspace } from "@/office/features/access-control/ui/access-control-workspace"
 import { OfficePage, OfficeShell } from "@/office/components/office-shell"
 import { OfficeStatePage } from "@/office/components/state-page"
-import { CatalogWorkspace } from "@/office/features/catalog/ui/catalog-workspace"
 import { FinanceWorkspace } from "@/office/features/finance/ui/finance-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
+import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomenclature-workspace"
 import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
 import { PeriodLocksWorkspace } from "@/office/features/platform/ui/period-locks-workspace"
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
+import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
 import { ReportsWorkspace } from "@/office/features/reports/ui/reports-workspace"
 import { useOfficeContext } from "@/office/features/session/data/use-office-context"
 import { OfficeBootstrap } from "@/office/features/session/ui/office-bootstrap"
@@ -27,7 +28,8 @@ import { NotFound } from "@/shared/routing/not-found"
 
 /** Sections with a working screen today; the rest of the 91 show a "coming" page until their W1+ task. */
 const WORKSPACES: Record<string, ComponentType> = {
-  nomenclature: CatalogWorkspace,
+  nomenclature: NomenclatureWorkspace,
+  "product-groups": ProductGroupsWorkspace,
   stock: StockWorkspace,
   transactions: FinanceWorkspace,
   employees: WorkforceWorkspace,

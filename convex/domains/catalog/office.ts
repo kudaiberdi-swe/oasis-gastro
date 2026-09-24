@@ -179,6 +179,7 @@ export const getProductCard = query({
     )
     const category = await categoryByExternalId(ctx, product.category)
     return {
+      productId: product._id,
       externalId: product.externalId,
       name: overlay?.label ?? product.name,
       nameKk: overlay?.labelKk ?? product.nameKk,
