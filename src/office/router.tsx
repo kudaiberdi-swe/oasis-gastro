@@ -17,6 +17,8 @@ import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-or
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
 import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
 import { ReportsWorkspace } from "@/office/features/reports/ui/reports-workspace"
+import { CashOperationsWorkspace } from "@/office/features/retail-settings/ui/cash-operations-workspace"
+import { DeletionReasonsWorkspace, DiscountTypesWorkspace, OrderTypesWorkspace, PaymentTypesWorkspace } from "@/office/features/retail-settings/ui/retail-settings-workspace"
 import { useOfficeContext } from "@/office/features/session/data/use-office-context"
 import { OfficeBootstrap } from "@/office/features/session/ui/office-bootstrap"
 import { OfficeAccessDenied, OfficeSignIn } from "@/office/features/session/ui/office-sign-in"
@@ -36,6 +38,11 @@ import { NotFound } from "@/shared/routing/not-found"
 
 /** Sections with a working screen today; the rest of the 91 show a "coming" page until their W1+ task. */
 const WORKSPACES: Record<string, ComponentType> = {
+  "payment-types": PaymentTypesWorkspace,
+  "order-types": OrderTypesWorkspace,
+  "discount-types": DiscountTypesWorkspace,
+  "deletion-reasons": DeletionReasonsWorkspace,
+  "cash-operations": CashOperationsWorkspace,
   nomenclature: NomenclatureWorkspace,
   "product-groups": ProductGroupsWorkspace,
   modifiers: ModifiersWorkspace,
