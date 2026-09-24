@@ -7,7 +7,7 @@ import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, wr
 export const recordExpense = mutation({
   args: { restaurantExternalId: v.string(), amount: v.number(), category: v.string(), description: v.string() },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.finance.*")
+    const { user } = await requireOfficeCapability(ctx, "office.transactions.edit")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     if (args.amount <= 0) throw new ConvexError("Сумма должна быть больше нуля")
     if (!args.category.trim()) throw new ConvexError("Укажите статью расхода")

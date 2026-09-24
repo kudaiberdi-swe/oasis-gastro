@@ -8,7 +8,7 @@ import { listOperationalRestaurants } from "../../lib/restaurants"
 export const listInventoryForOffice = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await requireOfficeCapability(ctx, "office.stock.*")
+    const { user } = await requireOfficeCapability(ctx, "office.stock.view")
     const inScope = restaurantScopeFilter(user)
     const [items, allBalances, allRestaurants] = await Promise.all([
       ctx.db.query("inventoryItems").withIndex("by_active_and_name", (q) => q.eq("active", true)).collect(),
@@ -34,7 +34,7 @@ export const listInventoryForOffice = query({
 export const listRecentMovements = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.stock.*")
+    const { user } = await requireOfficeCapability(ctx, "office.stock.view")
     const inScope = restaurantScopeFilter(user)
     const recent = await ctx.db.query("stockMovements").withIndex("by_occurred_at").order("desc").take(args.limit ?? 100)
     const movements = recent.filter((movement) => inScope(movement.restaurantExternalId))

@@ -11,7 +11,7 @@ function deriveNameSort(name: string, nameKk: string) {
 export const createCategory = mutation({
   args: { label: v.string(), shortLabel: v.string(), sortOrder: v.number() },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.catalog.*")
+    await requireOfficeCapability(ctx, "office.product-groups.edit")
     const email = await getOfficeAuthEmail(ctx)
     const externalId = crypto.randomUUID()
     const categoryId = await ctx.db.insert("categories", { externalId, label: args.label, shortLabel: args.shortLabel, sortOrder: args.sortOrder, active: true })
@@ -23,7 +23,7 @@ export const createCategory = mutation({
 export const updateCategory = mutation({
   args: { categoryId: v.id("categories"), label: v.string(), shortLabel: v.string(), sortOrder: v.number(), active: v.boolean() },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.catalog.*")
+    await requireOfficeCapability(ctx, "office.product-groups.edit")
     const email = await getOfficeAuthEmail(ctx)
     const category = await ctx.db.get(args.categoryId)
     if (!category) throw new ConvexError("Категория не найдена")
@@ -46,7 +46,7 @@ export const createProduct = mutation({
     baseUnit: unit,
   },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.catalog.*")
+    await requireOfficeCapability(ctx, "office.nomenclature.edit")
     const email = await getOfficeAuthEmail(ctx)
     const externalId = crypto.randomUUID()
     const productId = await ctx.db.insert("products", {
@@ -76,7 +76,7 @@ export const updateProduct = mutation({
     enabled: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.catalog.*")
+    await requireOfficeCapability(ctx, "office.nomenclature.edit")
     const email = await getOfficeAuthEmail(ctx)
     const { productId, ...rest } = args
     const product = await ctx.db.get(productId)
@@ -89,7 +89,7 @@ export const updateProduct = mutation({
 export const setProductPrice = mutation({
   args: { productId: v.id("products"), restaurantExternalId: v.string(), priceKzt: v.number() },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.catalog.*")
+    const { user } = await requireOfficeCapability(ctx, "office.price-lists.edit")
     const email = await getOfficeAuthEmail(ctx)
     const product = await ctx.db.get(args.productId)
     if (!product) throw new ConvexError("Блюдо не найдено")

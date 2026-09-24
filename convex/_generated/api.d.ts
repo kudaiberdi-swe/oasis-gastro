@@ -33,6 +33,10 @@ import type * as domains_kitchen_mutations from "../domains/kitchen/mutations.js
 import type * as domains_kitchen_queries from "../domains/kitchen/queries.js";
 import type * as domains_loyalty_mutations from "../domains/loyalty/mutations.js";
 import type * as domains_loyalty_queries from "../domains/loyalty/queries.js";
+import type * as domains_office_access from "../domains/office/access.js";
+import type * as domains_office_adminMaintenance from "../domains/office/adminMaintenance.js";
+import type * as domains_office_internal from "../domains/office/internal.js";
+import type * as domains_office_migrations from "../domains/office/migrations.js";
 import type * as domains_office_mutations from "../domains/office/mutations.js";
 import type * as domains_office_queries from "../domains/office/queries.js";
 import type * as domains_orders_mutations from "../domains/orders/mutations.js";
@@ -65,6 +69,7 @@ import type * as lib_outbox from "../lib/outbox.js";
 import type * as lib_periods from "../lib/periods.js";
 import type * as lib_policy from "../lib/policy.js";
 import type * as lib_restaurants from "../lib/restaurants.js";
+import type * as lib_systemRoles from "../lib/systemRoles.js";
 import type * as lib_time from "../lib/time.js";
 import type * as lib_validators from "../lib/validators.js";
 
@@ -100,6 +105,10 @@ declare const fullApi: ApiFromModules<{
   "domains/kitchen/queries": typeof domains_kitchen_queries;
   "domains/loyalty/mutations": typeof domains_loyalty_mutations;
   "domains/loyalty/queries": typeof domains_loyalty_queries;
+  "domains/office/access": typeof domains_office_access;
+  "domains/office/adminMaintenance": typeof domains_office_adminMaintenance;
+  "domains/office/internal": typeof domains_office_internal;
+  "domains/office/migrations": typeof domains_office_migrations;
   "domains/office/mutations": typeof domains_office_mutations;
   "domains/office/queries": typeof domains_office_queries;
   "domains/orders/mutations": typeof domains_orders_mutations;
@@ -132,6 +141,7 @@ declare const fullApi: ApiFromModules<{
   "lib/periods": typeof lib_periods;
   "lib/policy": typeof lib_policy;
   "lib/restaurants": typeof lib_restaurants;
+  "lib/systemRoles": typeof lib_systemRoles;
   "lib/time": typeof lib_time;
   "lib/validators": typeof lib_validators;
 }>;

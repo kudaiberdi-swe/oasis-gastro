@@ -22,7 +22,7 @@ async function getOrCreateBalance(ctx: MutationCtx, restaurantExternalId: string
 export const createInventoryItem = mutation({
   args: { name: v.string(), unit, minimumStock: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireOfficeCapability(ctx, "office.stock.*")
+    await requireOfficeCapability(ctx, "office.nomenclature.edit")
     const email = await getOfficeAuthEmail(ctx)
     const externalId = crypto.randomUUID()
     const itemId = await ctx.db.insert("inventoryItems", {
@@ -42,7 +42,7 @@ export const createInventoryItem = mutation({
 export const receiveStock = mutation({
   args: { inventoryItemId: v.id("inventoryItems"), restaurantExternalId: v.string(), quantity: v.number(), unitCost: v.number() },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.stock.*")
+    const { user } = await requireOfficeCapability(ctx, "office.receipts.edit")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     await assertStockPeriodOpen(ctx, args.restaurantExternalId)
     if (args.quantity <= 0) throw new ConvexError("Количество должно быть больше нуля")
@@ -91,7 +91,7 @@ export const receiveStock = mutation({
 export const writeOffStock = mutation({
   args: { inventoryItemId: v.id("inventoryItems"), restaurantExternalId: v.string(), quantity: v.number(), reason: v.string() },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.stock.*")
+    const { user } = await requireOfficeCapability(ctx, "office.writeoffs.edit")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     await assertStockPeriodOpen(ctx, args.restaurantExternalId)
     if (args.quantity <= 0) throw new ConvexError("Количество должно быть больше нуля")
@@ -130,7 +130,7 @@ export const writeOffStock = mutation({
 export const adjustStock = mutation({
   args: { inventoryItemId: v.id("inventoryItems"), restaurantExternalId: v.string(), actualQuantity: v.number(), reason: v.string() },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.stock.*")
+    const { user } = await requireOfficeCapability(ctx, "office.inventories.edit")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     await assertStockPeriodOpen(ctx, args.restaurantExternalId)
     if (args.actualQuantity < 0) throw new ConvexError("Остаток не может быть отрицательным")

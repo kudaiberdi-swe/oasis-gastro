@@ -15,8 +15,8 @@ import {
 } from "lucide-react"
 
 // Office navigation: 12 groups and 91 items in the same order and with the same ids as bahandi-pos
-// (src/features/office-platform/model/navigation.ts). Capabilities are `office.<id>.view`, except the
-// sections that already have a sandyq backend module, which use that module's capability.
+// (src/features/office-platform/model/navigation.ts). Capabilities are `office.<id>.view`
+// (convex/lib/capabilities.ts; old module rights still open their sections through the aliases).
 // ЕГАИС is always listed (decision D4: its page says it is not used in Kazakhstan).
 
 export type OfficeNavigationItem = {
@@ -78,14 +78,14 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     icon: Boxes,
     whisper: "Учёт",
     items: [
-      item("nomenclature", "Номенклатура", "Блюда, товары, рецептуры и правила продажи", "office.catalog.view"),
+      item("nomenclature", "Номенклатура", "Блюда, товары, рецептуры и правила продажи"),
       item("product-groups", "Группы товаров", "Иерархия номенклатурных групп и категорий"),
       item("modifiers", "Модификаторы", "Группы модификаторов и правила выбора"),
       item("size-scales", "Шкалы размеров", "Размеры, коэффициенты и кухонные названия"),
       item("price-orders", "Приказы об изменении цен", "Датированные изменения прейскуранта"),
       item("price-lists", "Прайс-листы", "Внутренние и поставщицкие прайс-листы"),
       item("warehouses", "Склады", "Места хранения и материально ответственные"),
-      item("stock", "Остатки", "Текущие остатки, стоимость и контроль минимумов", "office.stock.view"),
+      item("stock", "Остатки", "Текущие остатки, стоимость и контроль минимумов"),
       item("receipts", "Приходные накладные", "Поступления поставщиков и складские партии"),
       item("outgoing-invoices", "Расходные накладные", "Отгрузки контрагентам и списание партий"),
       item("supplier-returns", "Возвраты поставщикам", "Возврат товаров и корректировка задолженности"),
@@ -121,7 +121,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     items: [
       item("cashflow-categories", "Статьи ДДС", "Категории движения денежных средств"),
       item("chart-of-accounts", "План счетов", "Финансовые, складские и расчётные счета"),
-      item("transactions", "Проводки", "Ручные и системные финансовые операции", "office.finance.view"),
+      item("transactions", "Проводки", "Ручные и системные финансовые операции"),
       item("shift-acceptance", "Принятие смен", "Сверка и принятие кассовой выручки"),
       item("services", "Акты услуг", "Полученные и оказанные услуги"),
       item("counterparties", "Контрагенты", "Юридические лица и договорные реквизиты"),
@@ -138,7 +138,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     icon: Users,
     whisper: "Команда",
     items: [
-      item("employees", "Сотрудники", "Карточки, подразделения, ставки и доступ", "office.workforce.view"),
+      item("employees", "Сотрудники", "Карточки, подразделения, ставки и доступ"),
       item("positions", "Должности", "Должности, тарифы и нормативы"),
       item("shift-types", "Типы смен", "Рабочие смены и правила оплаты"),
       item("schedule", "Расписание", "Планирование рабочих смен"),
@@ -154,7 +154,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     icon: HeartHandshake,
     whisper: "Гости",
     items: [
-      item("guests", "Гости", "Профили, контакты, согласия и история", "office.loyalty.view"),
+      item("guests", "Гости", "Профили, контакты, согласия и история"),
       item("loyalty-programs", "Программы лояльности", "Бонусные и депозитные программы"),
       item("guest-categories", "Категории гостей", "Сегменты, условия и уровни"),
       item("campaigns", "Рассылки и акции", "Кампании, аудитории и коммуникации"),
@@ -228,7 +228,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     icon: ChartColumn,
     whisper: "Аналитика",
     items: [
-      item("reports", "Все отчёты", "Полный каталог iiko и конструктор OLAP", "office.reports.view", "report"),
+      item("reports", "Все отчёты", "Полный каталог iiko и конструктор OLAP", "report"),
       item("report-favorites", "Избранные отчёты", "Закреплённые представления", undefined, "report"),
       item("report-schedules", "Рассылки отчётов", "Расписание XLSX, CSV и PDF", undefined, "report"),
     ],

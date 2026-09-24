@@ -52,6 +52,9 @@ export async function writeAudit(
   })
 }
 
+/** organizationExternalId of events that belong to the whole network rather than one organization. */
+export const NETWORK_ORGANIZATION = "*"
+
 /**
  * The organization an office event belongs to: the restaurant's, else the user's organization scope,
  * else the organization of the user's restaurants — never an arbitrary "first active" one.
@@ -70,9 +73,11 @@ export async function resolveAuditOrganization(ctx: MutationCtx, actorEmail: str
     const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", restaurantScope)).unique()
     if (restaurant) return restaurant.organizationExternalId
   }
-  // Network-wide users (["*"]) of a single-organization deployment.
+  // Network-wide users (["*"]): the single organization, or "*" for a network-level event (roles,
+  // users) in a multi-organization account.
   const organizations = await ctx.db.query("organizations").take(3)
   const active = organizations.filter((organization) => organization.active)
   if (active.length === 1) return active[0].externalId
+  if (user && (user.restaurantScopes.includes("*") || user.organizationScopes?.includes("*"))) return NETWORK_ORGANIZATION
   throw new ConvexError("Не удалось определить организацию для журнала событий — укажите ресторан")
 }

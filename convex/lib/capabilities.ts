@@ -92,14 +92,15 @@ function grants(candidate: string, capability: string) {
   return candidate === "*" || candidate === capability || (candidate.endsWith(".*") && capability.startsWith(candidate.slice(0, -1)))
 }
 
-/** Expands a legacy module right into the section rights it covers. */
+/**
+ * Expands a legacy module wildcard (office.catalog.*, office.finance.* …) into the section rights it
+ * covers. Only the wildcard form is legacy: office.reports.view / office.stock.view are new section
+ * rights and grant just their own section.
+ */
 function expandLegacy(candidate: string): string[] {
-  const match = /^(office\.[a-z]+)\.(.+)$/.exec(candidate)
-  if (!match) return []
-  const sections = LEGACY_CAPABILITY_ALIASES[match[1]]
-  // office.stock is both a legacy module and a section: it keeps the section and gains the group.
-  if (!sections) return []
-  return sections.map((section) => `office.${section}.${match[2]}`)
+  const match = /^(office\.[a-z]+)\.\*$/.exec(candidate)
+  const sections = match ? LEGACY_CAPABILITY_ALIASES[match[1]] : undefined
+  return sections ? sections.map((section) => `office.${section}.*`) : []
 }
 
 /** The one capability rule for backend and office UI. */

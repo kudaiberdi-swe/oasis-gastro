@@ -34,7 +34,7 @@ export const provisionPosAccess = mutation({
     restaurantExternalIds: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.employees.edit")
     if (!/^\d{4,12}$/.test(args.employeeCode)) throw new ConvexError("Код сотрудника должен состоять из 4–12 цифр")
     if (!isValidPin(args.pin)) throw new ConvexError(`PIN должен состоять из ${PIN_MIN}–${PIN_MAX} цифр`)
     const email = await getOfficeAuthEmail(ctx)
@@ -78,7 +78,7 @@ export const provisionPosAccess = mutation({
 export const setEmployeeActive = mutation({
   args: { employeeId: v.id("employees"), active: v.boolean() },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.employees.edit")
     const email = await getOfficeAuthEmail(ctx)
     const employee = await ctx.db.get(args.employeeId)
     if (!employee) throw new ConvexError("Сотрудник не найден")
@@ -96,7 +96,7 @@ export const setEmployeeActive = mutation({
 export const updateEmployeeAssignment = mutation({
   args: { employeeId: v.id("employees"), role: employeeRole, restaurantExternalIds: v.array(v.string()) },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.employees.edit")
     const email = await getOfficeAuthEmail(ctx)
     const employee = await ctx.db.get(args.employeeId)
     if (!employee) throw new ConvexError("Сотрудник не найден")
@@ -115,7 +115,7 @@ export const updateEmployeeAssignment = mutation({
 export const resetPin = mutation({
   args: { employeeId: v.id("employees"), pin: v.string() },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.employees.edit")
     if (!isValidPin(args.pin)) throw new ConvexError(`PIN должен состоять из ${PIN_MIN}–${PIN_MAX} цифр`)
     const email = await getOfficeAuthEmail(ctx)
     const employee = await ctx.db.get(args.employeeId)

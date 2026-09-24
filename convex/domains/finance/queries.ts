@@ -15,7 +15,7 @@ async function loadEntries(ctx: QueryCtx, inScope: (restaurantExternalId: string
 export const summary = query({
   args: { restaurantExternalId: v.optional(v.string()), from: v.optional(v.string()), to: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.finance.*")
+    const { user } = await requireOfficeCapability(ctx, "office.transactions.view")
     const entries = await loadEntries(ctx, restaurantScopeFilter(user, args.restaurantExternalId), args)
     const revenue = entries.filter((entry) => entry.kind === "revenue").reduce((sum, entry) => sum + entry.amount, 0)
     const expense = entries.filter((entry) => entry.kind === "expense").reduce((sum, entry) => sum + entry.amount, 0)
@@ -36,7 +36,7 @@ export const summary = query({
 export const listEntries = query({
   args: { restaurantExternalId: v.optional(v.string()), from: v.optional(v.string()), to: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.finance.*")
+    const { user } = await requireOfficeCapability(ctx, "office.transactions.view")
     const entries = await loadEntries(ctx, restaurantScopeFilter(user, args.restaurantExternalId), args)
     return entries.sort((left, right) => right.occurredAt - left.occurredAt).slice(0, args.limit ?? 200)
   },
@@ -45,7 +45,7 @@ export const listEntries = query({
 export const restaurantsForFilter = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await requireOfficeCapability(ctx, "office.finance.*")
+    const { user } = await requireOfficeCapability(ctx, "office.transactions.view")
     const inScope = restaurantScopeFilter(user)
     return (await listOperationalRestaurants(ctx)).filter((restaurant) => inScope(restaurant.externalId))
   },

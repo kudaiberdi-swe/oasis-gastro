@@ -30,7 +30,7 @@ export const findGuestByPhone = query({
 export const listGuests = query({
   args: { search: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { user, role } = await requireOfficeCapability(ctx, "office.loyalty.*")
+    const { user, role } = await requireOfficeCapability(ctx, "office.guests.view")
     requireNetworkScope(user, role) // guests are network-wide; branch-scoped guest access comes with W1-LOY-04
     const guests = await ctx.db.query("guests").order("desc").take(500)
     const search = args.search?.trim().toLocaleLowerCase("ru")
@@ -42,7 +42,7 @@ export const listGuests = query({
 export const guestHistory = query({
   args: { guestId: v.id("guests") },
   handler: async (ctx, args) => {
-    const { user, role } = await requireOfficeCapability(ctx, "office.loyalty.*")
+    const { user, role } = await requireOfficeCapability(ctx, "office.guests.view")
     requireNetworkScope(user, role)
     return ctx.db.query("loyaltyTransactions").withIndex("by_guest_occurred", (q) => q.eq("guestId", args.guestId)).order("desc").take(100)
   },

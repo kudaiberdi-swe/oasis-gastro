@@ -55,7 +55,7 @@ async function resolveBranchesByDepartmentCode(ctx: QueryCtx) {
 export const listBranches = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.employees.view")
     const inScope = restaurantScopeFilter(user)
     return (await listOperationalRestaurants(ctx)).filter((restaurant) => inScope(restaurant.externalId))
   },
@@ -64,7 +64,7 @@ export const listBranches = query({
 export const listPosEmployees = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.employees.view")
     const employees = await ctx.db.query("employees").withIndex("by_role_name").collect()
     const restaurants = await ctx.db.query("restaurants").collect()
     const restaurantById = new Map(restaurants.map((restaurant) => [restaurant._id, restaurant]))
@@ -85,7 +85,7 @@ export const listPosEmployees = query({
 export const listUnprovisioned = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
+    const { user } = await requireOfficeCapability(ctx, "office.employees.view")
     const [iikoEmployees, posEmployees, branchesByCode] = await Promise.all([
       ctx.db.query("iikoEmployees").withIndex("by_active_and_display_name", (q) => q.eq("active", true)).take(1000),
       ctx.db.query("employees").collect(),
@@ -110,7 +110,7 @@ export const listUnprovisioned = query({
 export const suggestCredentials = query({
   args: {},
   handler: async (ctx) => {
-    await requireOfficeCapability(ctx, "office.workforce.*")
+    await requireOfficeCapability(ctx, "office.employees.view")
     let code = randomDigits(6)
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const existing = await ctx.db.query("employees").withIndex("by_code", (q) => q.eq("code", code)).unique()

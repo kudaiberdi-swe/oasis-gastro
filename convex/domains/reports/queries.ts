@@ -9,7 +9,7 @@ import { listOperationalRestaurants } from "../../lib/restaurants"
 export const restaurantsForFilter = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await requireOfficeCapability(ctx, "office.reports.*")
+    const { user } = await requireOfficeCapability(ctx, "office.reports.view")
     const inScope = restaurantScopeFilter(user)
     return (await listOperationalRestaurants(ctx)).filter((restaurant) => inScope(restaurant.externalId))
   },
@@ -24,7 +24,7 @@ export const restaurantsForFilter = query({
 export const salesSummary = query({
   args: { restaurantExternalId: v.optional(v.string()), from: v.optional(v.string()), to: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.reports.*")
+    const { user } = await requireOfficeCapability(ctx, "office.reports.view")
     const inScope = restaurantScopeFilter(user, args.restaurantExternalId)
 
     const rangeStart = args.from ? almatyDayStart(args.from) : 0
@@ -95,7 +95,7 @@ export const salesSummary = query({
 export const listShiftReports = query({
   args: { restaurantExternalId: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.reports.*")
+    const { user } = await requireOfficeCapability(ctx, "office.reports.view")
     const inScope = restaurantScopeFilter(user, args.restaurantExternalId)
     const restaurants = await ctx.db.query("restaurants").collect()
     const restaurantExternalById = new Map(restaurants.map((restaurant) => [restaurant._id, restaurant.externalId]))

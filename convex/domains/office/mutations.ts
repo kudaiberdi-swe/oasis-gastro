@@ -4,6 +4,7 @@ import { mutation } from "../../_generated/server"
 import { getOfficeAuthEmail } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 import { seedChartOfAccountsRows } from "../finance/seed"
+import { upsertSystemRoles } from "../../lib/systemRoles"
 
 declare const process: { env: Record<string, string | undefined> }
 
@@ -25,10 +26,8 @@ export const bootstrap = mutation({
     const restaurants = await listOperationalRestaurants(ctx)
     if (!restaurants.length) throw new ConvexError("Сначала должен быть хотя бы один активный ресторан с терминалом")
 
-    const existingRole = await ctx.db.query("officeRoles").withIndex("by_external_id", (q) => q.eq("externalId", "administrator")).unique()
-    const roleValue = { externalId: "administrator", name: "Администратор", capabilities: ["*"], system: true }
-    if (existingRole) await ctx.db.patch(existingRole._id, roleValue)
-    else await ctx.db.insert("officeRoles", roleValue)
+    // The seven system roles; the administrator is always "*".
+    await upsertSystemRoles(ctx)
 
     const existingOwner = await ctx.db.query("officeUsers").withIndex("by_email", (q) => q.eq("email", email)).unique()
     const ownerValue = {
@@ -37,6 +36,8 @@ export const bootstrap = mutation({
       name: existingOwner?.name ?? "Администратор",
       roleExternalId: "administrator",
       restaurantScopes: ["*"], // the bootstrapped administrator is network-wide, including branches added later
+      organizationScopes: [...new Set(restaurants.map((restaurant) => restaurant.organizationExternalId))],
+      warehouseScopes: ["*"],
       active: true,
     }
     if (existingOwner) await ctx.db.patch(existingOwner._id, ownerValue)

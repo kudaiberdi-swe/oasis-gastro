@@ -80,7 +80,7 @@ export const getProduct = query({
 export const listAllForOffice = query({
   args: {},
   handler: async (ctx) => {
-    await requireOfficeCapability(ctx, "office.catalog.*")
+    await requireOfficeCapability(ctx, "office.nomenclature.view")
     const [categories, products, prices, restaurants] = await Promise.all([
       ctx.db.query("categories").withIndex("by_sort_order").collect(),
       ctx.db.query("products").collect(),

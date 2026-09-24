@@ -46,7 +46,7 @@ export const detachGuestFromOrder = mutation({
 export const adjustPoints = mutation({
   args: { guestId: v.id("guests"), points: v.number(), reason: v.string() },
   handler: async (ctx, args) => {
-    const { user, role } = await requireOfficeCapability(ctx, "office.loyalty.*")
+    const { user, role } = await requireOfficeCapability(ctx, "office.guests.edit")
     requireNetworkScope(user, role)
     if (!Number.isInteger(args.points) || args.points === 0) throw new ConvexError("Укажите ненулевое целое число баллов")
     if (!args.reason.trim()) throw new ConvexError("Укажите причину корректировки")
