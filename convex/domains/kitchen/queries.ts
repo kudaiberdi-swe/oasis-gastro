@@ -2,6 +2,7 @@ import { v } from "convex/values"
 
 import { query } from "../../_generated/server"
 import { requireOperator } from "../../lib/auth"
+import { ticketRestaurantId } from "./access"
 
 /**
  * The kitchen board runs on a terminal-bound device using a regular POS operator session —
@@ -10,13 +11,15 @@ import { requireOperator } from "../../lib/auth"
 export const board = query({
   args: { sessionToken: v.string() },
   handler: async (ctx, args) => {
-    await requireOperator(ctx, args.sessionToken)
-    const tickets = await ctx.db
+    const access = await requireOperator(ctx, args.sessionToken)
+    const recent = await ctx.db
       .query("kitchenTickets")
       .withIndex("by_status_created")
       .filter((q) => q.neq(q.field("status"), "completed"))
       .order("asc")
       .take(200)
+    const owners = await Promise.all(recent.map((ticket) => ticketRestaurantId(ctx, ticket)))
+    const tickets = recent.filter((_, index) => owners[index] === access.restaurant._id)
     return Promise.all(
       tickets.map(async (ticket) => ({
         ...ticket,

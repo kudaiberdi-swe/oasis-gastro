@@ -21,6 +21,7 @@ import type * as domains_finance_mutations from "../domains/finance/mutations.js
 import type * as domains_finance_queries from "../domains/finance/queries.js";
 import type * as domains_iiko_internal from "../domains/iiko/internal.js";
 import type * as domains_iiko_mutations from "../domains/iiko/mutations.js";
+import type * as domains_kitchen_access from "../domains/kitchen/access.js";
 import type * as domains_kitchen_mutations from "../domains/kitchen/mutations.js";
 import type * as domains_kitchen_queries from "../domains/kitchen/queries.js";
 import type * as domains_loyalty_mutations from "../domains/loyalty/mutations.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   "domains/finance/queries": typeof domains_finance_queries;
   "domains/iiko/internal": typeof domains_iiko_internal;
   "domains/iiko/mutations": typeof domains_iiko_mutations;
+  "domains/kitchen/access": typeof domains_kitchen_access;
   "domains/kitchen/mutations": typeof domains_kitchen_mutations;
   "domains/kitchen/queries": typeof domains_kitchen_queries;
   "domains/loyalty/mutations": typeof domains_loyalty_mutations;

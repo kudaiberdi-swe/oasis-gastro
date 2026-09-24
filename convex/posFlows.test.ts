@@ -283,6 +283,51 @@ describe("public function access (W0-BUG-01)", () => {
   })
 })
 
+describe("kitchen isolation (W0-BUG-02)", () => {
+  it("shows and advances tickets only within the operator's restaurant, with an audit trail", async () => {
+    const t = convexTest(schema, modules)
+    const fixture = await seedFixture(t)
+    const otherToken = "other-restaurant-token"
+    await t.run(async (ctx) => {
+      const restaurantId = await ctx.db.insert("restaurants", {
+        externalId: "sandyq-other",
+        organizationExternalId: "sandyq",
+        name: "Sandyq · Другой",
+        address: "Другая, 2",
+        timezone: "Asia/Almaty",
+        city: "Шымкент",
+        currency: "KZT",
+        active: true,
+      })
+      const terminalId = await ctx.db.insert("posTerminals", { externalId: "terminal-other-1", restaurantId, name: "Касса 1", terminalNumber: 1, nextOrderNumber: 1, active: true })
+      const employeeId = await ctx.db.insert("employees", { code: "201", displayName: "Кассир 2", role: "cashier" as const, restaurantIds: [restaurantId], pinSalt: "test", pinHash: "test", active: true, failedAttempts: 0 })
+      await ctx.db.insert("posSessions", { tokenHash: await digest(otherToken), purpose: "operator", employeeId, terminalId, createdAt: Date.now(), lastActivityAt: Date.now(), expiresAt: Date.now() + 60_000 })
+    })
+
+    await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 0, note: "" })
+    const draft = await t.mutation(api.domains.orders.mutations.saveDraft, {
+      sessionToken: fixture.cashierToken,
+      clientOrderId: "kitchen-1",
+      orderType: "dine-in",
+      tableLabel: "Стол 1",
+      discountPercent: 0,
+      comment: "",
+      lines: [{ productId: fixture.productId, quantity: 1 }],
+    })
+    await t.mutation(api.domains.orders.mutations.checkout, { sessionToken: fixture.cashierToken, orderId: draft._id, idempotencyKey: "kitchen-checkout", payments: [{ method: "card", amount: 1150 }] })
+
+    const own = await t.query(api.domains.kitchen.queries.board, { sessionToken: fixture.cashierToken })
+    expect(own).toHaveLength(1)
+    expect(await t.query(api.domains.kitchen.queries.board, { sessionToken: otherToken })).toEqual([])
+
+    await expect(t.mutation(api.domains.kitchen.mutations.setStatus, { sessionToken: otherToken, ticketId: own[0]._id, status: "preparing" })).rejects.toThrow("Тикет не найден")
+    await t.mutation(api.domains.kitchen.mutations.setStatus, { sessionToken: fixture.cashierToken, ticketId: own[0]._id, status: "preparing" })
+
+    const audit = await t.run(async (ctx) => ctx.db.query("auditEvents").collect())
+    expect(audit.filter((event) => event.action === "kitchen.status")).toHaveLength(1)
+  })
+})
+
 async function seedFixture(t: ReturnType<typeof convexTest>) {
   const cashierToken = "cashier-test-token"
   const result = await t.run(async (ctx) => {
