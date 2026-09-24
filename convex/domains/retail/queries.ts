@@ -4,6 +4,7 @@ import { v } from "convex/values"
 import { query } from "../../_generated/server"
 import { requireOperator } from "../../lib/auth"
 import { requireOfficeCapability } from "../../lib/officeAccess"
+import { SYSTEM_ACCOUNTS } from "../../lib/accounts"
 import { activeSettingsAt } from "../../lib/retailSettings"
 import { RETAIL_MODULES, retailKind } from "./validators"
 
@@ -52,5 +53,19 @@ export const activeForPos = query({
       deletionReasons: deletionReasons.map(pick),
       cashOperationTypes: cashOperationTypes.map(pick),
     }
+  },
+})
+
+/**
+ * Accounts a retail setting can point at (payment type account, deletion expense, cash operation
+ * accounts). `value` is what the setting stores: the system key for system accounts, else the externalId.
+ */
+export const accountOptions = query({
+  args: { kind: retailKind },
+  handler: async (ctx, args) => {
+    await requireOfficeCapability(ctx, `office.${RETAIL_MODULES[args.kind]}.view`)
+    const keyByExternalId = new Map(Object.entries(SYSTEM_ACCOUNTS).map(([key, account]) => [account.externalId, key]))
+    const accounts = await ctx.db.query("accounts").withIndex("by_code").take(200)
+    return accounts.filter((account) => account.active).map((account) => ({ value: keyByExternalId.get(account.externalId) ?? account.externalId, code: account.code, name: account.name, type: account.type }))
   },
 })
