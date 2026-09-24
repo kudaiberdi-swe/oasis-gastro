@@ -5,3 +5,4 @@ npm run typecheck
 npm test
 npm run guards
 npm run contrast
+npm run lint:convex

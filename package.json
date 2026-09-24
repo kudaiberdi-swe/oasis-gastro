@@ -20,7 +20,8 @@
     "contrast": "node scripts/check-contrast.mjs",
     "e2e": "playwright test",
     "e2e:screens": "SCREENS=1 playwright test e2e/screens && node scripts/compare-screens.mjs",
-    "seed:e2e": "node scripts/seed-e2e.mjs"
+    "seed:e2e": "node scripts/seed-e2e.mjs",
+    "lint:convex": "node scripts/check-unbounded-queries.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

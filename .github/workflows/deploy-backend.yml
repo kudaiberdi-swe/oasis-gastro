@@ -9,6 +9,7 @@ on:
       - "package-lock.json"
       - "scripts/check-guards.mjs"
       - "scripts/guards/**"
+      - "scripts/check-unbounded-queries.mjs"
       - "tests/**"
       - "vite.config.ts"
       - "tsconfig*.json"
@@ -20,6 +21,7 @@ on:
       - "package-lock.json"
       - "scripts/check-guards.mjs"
       - "scripts/guards/**"
+      - "scripts/check-unbounded-queries.mjs"
       - "tests/**"
       - "vite.config.ts"
       - "tsconfig*.json"
@@ -51,6 +53,9 @@ jobs:
 
       - name: Guards (auth, ConvexError, design tokens — no new violations)
         run: npm run guards
+
+      - name: No unbounded Convex queries (W1-PLT-09)
+        run: npm run lint:convex
 
   # Production holds real data: nothing reaches it unless verify is green, and only from main.
   deploy:

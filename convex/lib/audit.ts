@@ -71,7 +71,8 @@ export async function resolveAuditOrganization(ctx: MutationCtx, actorEmail: str
     if (restaurant) return restaurant.organizationExternalId
   }
   // Network-wide users (["*"]) of a single-organization deployment.
-  const organizations = (await ctx.db.query("organizations").take(3)).filter((organization) => organization.active)
-  if (organizations.length === 1) return organizations[0].externalId
+  const organizations = await ctx.db.query("organizations").take(3)
+  const active = organizations.filter((organization) => organization.active)
+  if (active.length === 1) return active[0].externalId
   throw new ConvexError("Не удалось определить организацию для журнала событий — укажите ресторан")
 }

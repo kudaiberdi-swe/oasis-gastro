@@ -12,7 +12,7 @@ type QueryCtx = GenericQueryCtx<DataModel>
  * branches staff can actually take orders at.
  */
 export async function listOperationalRestaurants(ctx: QueryCtx): Promise<Doc<"restaurants">[]> {
-  const restaurants = (await ctx.db.query("restaurants").take(500)).filter((restaurant) => restaurant.active)
+  const restaurants = await ctx.db.query("restaurants").withIndex("by_active_and_name", (q) => q.eq("active", true)).take(200)
   const flags = await Promise.all(
     restaurants.map((restaurant) =>
       ctx.db

@@ -1,0 +1,45 @@
+{
+  "_comment": "Existing unbounded Convex queries (W1-PLT-09) and the task that removes each. Counts may only go down.",
+  "entries": {
+    "q/unbounded-collect convex/domains/catalog/queries.ts": {
+      "count": 4,
+      "task": "W1-CAT-04 (paginated nomenclature register)"
+    },
+    "q/unbounded-collect convex/domains/finance/mutations.ts": {
+      "count": 3,
+      "task": "W1-FIN-07 (M-4 moves backfill to batched migration)"
+    },
+    "q/unbounded-collect convex/domains/finance/queries.ts": {
+      "count": 1,
+      "task": "W1-FIN-05 (journal register replaces the flat P&L)"
+    },
+    "q/unbounded-collect convex/domains/iiko/internal.ts": {
+      "count": 3,
+      "task": "W1-IIKO-06 (paginated office iiko queries)"
+    },
+    "q/take-over-200 convex/domains/loyalty/queries.ts": {
+      "count": 1,
+      "task": "W1-LOY-04 (paginated guest register)"
+    },
+    "q/unbounded-collect convex/domains/reports/queries.ts": {
+      "count": 2,
+      "task": "W1-RPT (S-9: reports from daily facts)"
+    },
+    "q/unbounded-collect convex/domains/stock/queries.ts": {
+      "count": 1,
+      "task": "W1-STK-01 (stock by warehouse, paginated)"
+    },
+    "q/unbounded-collect convex/domains/workforce/queries.ts": {
+      "count": 5,
+      "task": "W1-HR-01 (paginated employee register)"
+    },
+    "q/take-over-200 convex/domains/workforce/queries.ts": {
+      "count": 1,
+      "task": "W1-HR-01 (paginated employee register)"
+    },
+    "q/take-over-200 convex/lib/loyalty.ts": {
+      "count": 1,
+      "task": "W1-LOY-03 (loyalty core v2)"
+    }
+  }
+}
