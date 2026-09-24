@@ -340,7 +340,7 @@ export default defineSchema({
     .index("by_shift_status_created", ["currentShiftId", "status", "createdAt"])
     .searchIndex("search_orders", {
       searchField: "searchText",
-      filterFields: ["status", "terminalId", "currentShiftId"],
+      filterFields: ["status", "terminalId", "currentShiftId", "restaurantId"],
     }),
 
   orderLines: defineTable({

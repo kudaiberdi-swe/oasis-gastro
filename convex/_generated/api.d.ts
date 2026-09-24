@@ -67,6 +67,7 @@ import type * as domains_reports_queries from "../domains/reports/queries.js";
 import type * as domains_reports_registry from "../domains/reports/registry.js";
 import type * as domains_retail_internal from "../domains/retail/internal.js";
 import type * as domains_retail_mutations from "../domains/retail/mutations.js";
+import type * as domains_retail_office from "../domains/retail/office.js";
 import type * as domains_retail_queries from "../domains/retail/queries.js";
 import type * as domains_retail_validators from "../domains/retail/validators.js";
 import type * as domains_seed_mutations from "../domains/seed/mutations.js";
@@ -195,6 +196,7 @@ declare const fullApi: ApiFromModules<{
   "domains/reports/registry": typeof domains_reports_registry;
   "domains/retail/internal": typeof domains_retail_internal;
   "domains/retail/mutations": typeof domains_retail_mutations;
+  "domains/retail/office": typeof domains_retail_office;
   "domains/retail/queries": typeof domains_retail_queries;
   "domains/retail/validators": typeof domains_retail_validators;
   "domains/seed/mutations": typeof domains_seed_mutations;
