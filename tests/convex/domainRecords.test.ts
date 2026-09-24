@@ -99,7 +99,10 @@ describe("domain record lifecycle (W1-PLT-05)", () => {
     let cursor: string | null = null
     const seen: string[] = []
     for (let pageIndex = 0; pageIndex < 3; pageIndex += 1) {
-      const page = await admin.query(records.list, { moduleId: "transactions", paginationOpts: { numItems: 25, cursor } })
+      const page: { page: { number: string }[]; continueCursor: string; isDone: boolean } = await admin.query(records.list, {
+        moduleId: "transactions",
+        paginationOpts: { numItems: 25, cursor },
+      })
       seen.push(...page.page.map((row) => row.number))
       cursor = page.continueCursor
       if (pageIndex === 2) expect(page.isDone).toBe(true)
