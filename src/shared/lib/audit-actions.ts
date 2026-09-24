@@ -12,6 +12,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "order.resume": "Заказ возобновлён",
   "order.cancel": "Отмена заказа",
   "order.refund": "Возврат заказа",
+  "order.split": "Разделение чека",
+  "order.move-table": "Перенос на другой стол",
   "order.transfer": "Перенос заказа",
   "order.manager-override": "Подтверждение менеджера",
   "shift.open": "Открытие смены",

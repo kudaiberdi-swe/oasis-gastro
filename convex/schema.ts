@@ -280,6 +280,8 @@ export default defineSchema({
   })
     .index("by_number", ["number"])
     .index("by_restaurant_business_date", ["restaurantId", "businessDate"])
+    .index("by_restaurant_status_created", ["restaurantId", "status", "createdAt"])
+    .index("by_split_from", ["splitFromOrderId"])
     .index("by_client_order_id", ["clientOrderId"])
     .index("by_status_created", ["status", "createdAt"])
     .index("by_restaurant_created", ["restaurantId", "createdAt"])
@@ -326,6 +328,8 @@ export default defineSchema({
     actorId: v.id("employees"),
     managerId: v.optional(v.id("employees")),
     createdAt: v.number(),
+    deletionReasonExternalId: v.optional(v.string()), // W1-POS-04/06: the reason from retail settings
+    deletionReasonVersion: v.optional(v.number()),
   }).index("by_order", ["orderId", "createdAt"]),
 
   // --- Shifts & money ---------------------------------------------------------
@@ -372,10 +376,15 @@ export default defineSchema({
     orderId: v.optional(v.id("orders")),
     idempotencyKey: v.optional(v.string()),
     createdAt: v.number(),
+    // W1-POS-08 (optional): cash operations by type from the retail settings, with their posting.
+    cashOperationTypeExternalId: v.optional(v.string()),
+    cashOperationTypeName: v.optional(v.string()),
+    journalEntryId: v.optional(v.string()),
   })
     .index("by_shift_created", ["shiftId", "createdAt"])
     .index("by_order", ["orderId"])
-    .index("by_idempotency_key", ["idempotencyKey"]),
+    .index("by_idempotency_key", ["idempotencyKey"])
+    .index("by_type_created", ["type", "createdAt"]),
 
   xReports: defineTable({
     reportVersion: v.number(),

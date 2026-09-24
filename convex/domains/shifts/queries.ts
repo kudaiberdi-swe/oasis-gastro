@@ -176,3 +176,19 @@ export const history = query({
     }
   },
 })
+
+/** Terminals of the same restaurant with an open shift — where a held check can be transferred (W1-POS-05). */
+export const availableTransferTargets = query({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const access = await requireOperator(ctx, args.sessionToken)
+    const terminals = await ctx.db.query("posTerminals").withIndex("by_restaurant_active_and_number", (q) => q.eq("restaurantId", access.restaurant._id).eq("active", true)).take(50)
+    const targets = []
+    for (const terminal of terminals) {
+      if (terminal._id === access.terminal._id) continue
+      const shift = await getOpenShift(ctx, terminal._id)
+      if (shift) targets.push({ terminalId: terminal._id, externalId: terminal.externalId, name: terminal.name, terminalNumber: terminal.terminalNumber, shiftNumber: shift.number })
+    }
+    return targets
+  },
+})
