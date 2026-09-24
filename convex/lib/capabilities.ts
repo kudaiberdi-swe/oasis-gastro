@@ -5,11 +5,13 @@
 export const ACTIONS = ["view", "edit", "post", "approve", "reverse", "cancel"] as const
 export type CapabilityAction = (typeof ACTIONS)[number]
 
-type SectionKind = "view" | "reference" | "document" | "approval"
+type SectionKind = "view" | "reference" | "versioned" | "document" | "approval"
 
 const KIND_ACTIONS: Record<SectionKind, CapabilityAction[]> = {
   view: ["view"],
   reference: ["view", "edit"],
+  // Reference data with versions that go live separately (nomenclature: recipe versions, W1-RCP-01).
+  versioned: ["view", "edit", "post"],
   document: ["view", "edit", "post", "reverse", "cancel"],
   approval: ["view", "edit", "approve", "post", "reverse", "cancel"],
 }
@@ -23,7 +25,7 @@ const GROUPS: { id: string; sections: [id: string, kind: SectionKind][] }[] = [
   {
     id: "stock",
     sections: [
-      ["nomenclature", "reference"], ["product-groups", "reference"], ["modifiers", "reference"], ["size-scales", "reference"], ["price-orders", "document"], ["price-lists", "reference"],
+      ["nomenclature", "versioned"], ["product-groups", "reference"], ["modifiers", "reference"], ["size-scales", "reference"], ["price-orders", "document"], ["price-lists", "reference"],
       ["warehouses", "reference"], ["stock", "view"], ["receipts", "document"], ["outgoing-invoices", "document"], ["supplier-returns", "document"], ["inventories", "document"],
       ["transfers", "document"], ["writeoffs", "document"], ["suppliers", "reference"], ["units", "reference"],
     ],

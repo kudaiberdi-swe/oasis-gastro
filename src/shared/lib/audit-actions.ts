@@ -40,6 +40,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "modifier.unassign": "Снятие модификаторов с блюда",
   "modifier.rules": "Правила модификаторов блюда",
   "catalog.stop-list": "Стоп-лист",
+  "recipe.save": "Сохранение техкарты",
+  "recipe.activate": "Активация версии техкарты",
   "pos.favorite.add": "Добавлено в избранное кассира",
   "pos.favorite.remove": "Убрано из избранного кассира",
   "catalog.price.set": "Изменение цены",

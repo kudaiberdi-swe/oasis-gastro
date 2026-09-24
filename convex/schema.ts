@@ -651,7 +651,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_restaurant_item", ["restaurantExternalId", "inventoryItemId"])
-    .index("by_restaurant", ["restaurantExternalId"]),
+    .index("by_restaurant", ["restaurantExternalId"])
+    .index("by_item", ["inventoryItemId"]),
 
   stockMovements: defineTable({
     restaurantExternalId: v.string(),
@@ -962,4 +963,41 @@ export default defineSchema({
     .index("by_restaurant_product", ["restaurantExternalId", "productId"])
     .index("by_product", ["productId"])
     .index("by_restaurant_available", ["restaurantExternalId", "available"]),
+  // Recipe cards with versions (W1-RCP-01). Line costs are never stored — computed from average stock cost.
+  recipes: defineTable({
+    productId: v.id("products"),
+    activeVersionId: v.optional(v.id("recipeVersions")),
+    createdAt: v.number(),
+  }).index("by_product", ["productId"]),
+
+  recipeVersions: defineTable({
+    recipeId: v.id("recipes"),
+    productId: v.id("products"),
+    version: v.number(),
+    effectiveFrom: v.number(),
+    batchYield: v.number(), // portions from one batch
+    technology: v.string(),
+    status: v.union(v.literal("draft"), v.literal("active"), v.literal("superseded")),
+    createdBy: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_product_effective", ["productId", "effectiveFrom"])
+    .index("by_recipe_version", ["recipeId", "version"])
+    .index("by_product_status_effective", ["productId", "status", "effectiveFrom"]),
+
+  recipeLines: defineTable({
+    versionId: v.id("recipeVersions"),
+    kind: v.union(v.literal("item"), v.literal("preparation")),
+    inventoryItemId: v.optional(v.id("inventoryItems")),
+    componentProductId: v.optional(v.id("products")), // a preparation (заготовка) with its own recipe
+    name: v.string(),
+    unit: v.union(v.literal("кг"), v.literal("л"), v.literal("шт")),
+    quantity: v.number(),
+    unitWeightKg: v.number(),
+    coldLossPercent: v.number(),
+    hotLossPercent: v.number(),
+    sortOrder: v.number(),
+  })
+    .index("by_version", ["versionId", "sortOrder"])
+    .index("by_component", ["componentProductId"]),
 })
