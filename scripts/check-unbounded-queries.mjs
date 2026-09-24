@@ -17,31 +17,27 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const ALLOWLIST_PATH = path.join(ROOT, "scripts/guards/unbounded-allowlist.json")
 const TERMINALS = [".collect()", ".take(", ".paginate(", ".first()", ".unique()"]
 
-/** Every ctx.db.query(...) chain in a source, from the query call to its terminal call. */
+/** Every ctx.db.query(...) chain in a source (also when split across lines), from the query to its terminal call. */
 function chains(source) {
   const result = []
-  let index = source.indexOf("db.query(")
-  while (index >= 0) {
+  const starts = [...source.matchAll(/\bdb\s*\.\s*query\(/g)].map((match) => match.index)
+  for (let i = 0; i < starts.length; i += 1) {
+    const index = starts[i]
+    const limit = starts[i + 1] ?? source.length
     let end = -1
     let terminal = null
     for (const candidate of TERMINALS) {
       const at = source.indexOf(candidate, index)
-      if (at >= 0 && (end < 0 || at < end)) {
+      if (at >= 0 && at < limit && (end < 0 || at < end)) {
         end = at
         terminal = candidate
       }
     }
-    if (end < 0) break
-    const next = source.indexOf("db.query(", index + 1)
-    if (next >= 0 && next < end) {
-      index = next
-      continue
-    }
+    if (end < 0) continue
     const afterTerminal = source.slice(end, end + 160)
     const line = source.slice(0, index).split("\n").length
     const before = source.slice(0, index).split("\n").slice(-4).join("\n")
     result.push({ chain: source.slice(index, end), terminal, afterTerminal, line, exempt: before.includes("migration-batch") })
-    index = source.indexOf("db.query(", end)
   }
   return result
 }

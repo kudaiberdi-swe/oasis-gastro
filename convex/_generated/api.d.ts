@@ -61,6 +61,7 @@ import type * as domains_shifts_mutations from "../domains/shifts/mutations.js";
 import type * as domains_shifts_queries from "../domains/shifts/queries.js";
 import type * as domains_sizeScales_mutations from "../domains/sizeScales/mutations.js";
 import type * as domains_sizeScales_queries from "../domains/sizeScales/queries.js";
+import type * as domains_stock_internal from "../domains/stock/internal.js";
 import type * as domains_stock_mutations from "../domains/stock/mutations.js";
 import type * as domains_stock_queries from "../domains/stock/queries.js";
 import type * as domains_workforce_mutations from "../domains/workforce/mutations.js";
@@ -87,9 +88,11 @@ import type * as lib_pricing from "../lib/pricing.js";
 import type * as lib_recipeMath from "../lib/recipeMath.js";
 import type * as lib_recipes from "../lib/recipes.js";
 import type * as lib_restaurants from "../lib/restaurants.js";
+import type * as lib_stockAccounting from "../lib/stockAccounting.js";
 import type * as lib_systemRoles from "../lib/systemRoles.js";
 import type * as lib_time from "../lib/time.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as migrations_m3StockWarehouses from "../migrations/m3StockWarehouses.js";
 
 import type {
   ApiFromModules,
@@ -151,6 +154,7 @@ declare const fullApi: ApiFromModules<{
   "domains/shifts/queries": typeof domains_shifts_queries;
   "domains/sizeScales/mutations": typeof domains_sizeScales_mutations;
   "domains/sizeScales/queries": typeof domains_sizeScales_queries;
+  "domains/stock/internal": typeof domains_stock_internal;
   "domains/stock/mutations": typeof domains_stock_mutations;
   "domains/stock/queries": typeof domains_stock_queries;
   "domains/workforce/mutations": typeof domains_workforce_mutations;
@@ -177,9 +181,11 @@ declare const fullApi: ApiFromModules<{
   "lib/recipeMath": typeof lib_recipeMath;
   "lib/recipes": typeof lib_recipes;
   "lib/restaurants": typeof lib_restaurants;
+  "lib/stockAccounting": typeof lib_stockAccounting;
   "lib/systemRoles": typeof lib_systemRoles;
   "lib/time": typeof lib_time;
   "lib/validators": typeof lib_validators;
+  "migrations/m3StockWarehouses": typeof migrations_m3StockWarehouses;
 }>;
 
 /**

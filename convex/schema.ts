@@ -635,9 +635,19 @@ export default defineSchema({
     unit,
     minimumStock: v.optional(v.number()),
     active: v.boolean(),
+    // W1-STK-01 (optional until M-3): the unit reference is the source of truth, `unit` stays for prod data.
+    unitExternalId: v.optional(v.string()),
+    maximumStock: v.optional(v.number()),
+    shelfLifeHours: v.optional(v.number()),
+    kind: v.optional(v.union(v.literal("ingredient"), v.literal("preparation"), v.literal("good"), v.literal("service"), v.literal("modifier"))),
+    productExternalId: v.optional(v.string()), // the preparation/good product this item stocks
+    defaultVatRate: v.optional(v.number()),
+    sourceSystem: v.optional(v.string()),
+    importedAt: v.optional(v.number()),
   })
     .index("by_external_id", ["externalId"])
     .index("by_active_and_name", ["active", "nameSort"])
+    .index("by_product", ["productExternalId"])
     .searchIndex("search_inventory_items", { searchField: "searchText", filterFields: ["active"] }),
 
   // Denormalized current quantity + weighted-average cost per (branch, item) — avoids summing
@@ -649,15 +659,18 @@ export default defineSchema({
     quantity: v.number(),
     averageUnitCost: v.number(),
     updatedAt: v.number(),
+    warehouseId: v.optional(v.id("warehouses")), // required after M-3
+    recalculating: v.optional(v.boolean()), // a backdated movement is re-chaining this balance (B-12)
   })
     .index("by_restaurant_item", ["restaurantExternalId", "inventoryItemId"])
+    .index("by_warehouse_item", ["warehouseId", "inventoryItemId"])
     .index("by_restaurant", ["restaurantExternalId"])
     .index("by_item", ["inventoryItemId"]),
 
   stockMovements: defineTable({
     restaurantExternalId: v.string(),
     inventoryItemId: v.id("inventoryItems"),
-    kind: v.union(v.literal("receipt"), v.literal("writeoff"), v.literal("adjustment")),
+    kind: v.union(v.literal("receipt"), v.literal("writeoff"), v.literal("adjustment"), v.literal("document"), v.literal("production"), v.literal("sale"), v.literal("reversal")),
     quantityDelta: v.number(), // positive for receipt/upward adjustment, negative for writeoff/downward adjustment
     unitCost: v.number(), // receipt: the price paid; writeoff/adjustment: the balance's averageUnitCost at the time (for COGS reporting)
     balanceAfter: v.number(),
@@ -665,9 +678,19 @@ export default defineSchema({
     reason: v.optional(v.string()), // required for writeoff/adjustment
     actorEmail: v.string(),
     occurredAt: v.number(),
+    warehouseId: v.optional(v.id("warehouses")), // required after M-3
+    externalId: v.optional(v.string()), // idempotency key of lib/stockAccounting
+    sourceModuleId: v.optional(v.string()),
+    sourceExternalId: v.optional(v.string()),
+    sourceNumber: v.optional(v.string()),
+    amount: v.optional(v.number()),
+    reversalOf: v.optional(v.id("stockMovements")),
   })
     .index("by_restaurant_item_occurred", ["restaurantExternalId", "inventoryItemId", "occurredAt"])
-    .index("by_occurred_at", ["occurredAt"]),
+    .index("by_occurred_at", ["occurredAt"])
+    .index("by_external_id", ["externalId"])
+    .index("by_source", ["sourceExternalId", "occurredAt"])
+    .index("by_warehouse_item_occurred", ["warehouseId", "inventoryItemId", "occurredAt"]),
   // ── Accounting platform (W1-PLT-01) ─────────────────────────────────────────────────────────
   // Chart of accounts (Kazakhstan standard chart, reference model; UI in W1 finance).
   accounts: defineTable({
@@ -1000,4 +1023,161 @@ export default defineSchema({
   })
     .index("by_version", ["versionId", "sortOrder"])
     .index("by_component", ["componentProductId"]),
+  // ── Stock (W1-STK-01; new tables, empty on prod) ──────────────────────────────────────────────
+  units: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    shortName: v.string(),
+    dimension: v.union(v.literal("mass"), v.literal("volume"), v.literal("count"), v.literal("portion")),
+    precision: v.number(),
+    baseUnitExternalId: v.optional(v.string()),
+    coefficient: v.number(), // to the base unit
+    active: v.boolean(),
+    searchText: v.string(),
+    sourceSystem: v.optional(v.string()),
+    importedAt: v.optional(v.number()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_active_name", ["active", "name"]),
+
+  warehouses: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    shortName: v.string(),
+    restaurantExternalId: v.string(),
+    organizationExternalId: v.string(),
+    kind: v.union(v.literal("storage"), v.literal("kitchen"), v.literal("bar"), v.literal("distribution")),
+    responsibleName: v.optional(v.string()),
+    allowNegativeStock: v.boolean(),
+    internalTransfers: v.boolean(),
+    isSalesDefault: v.boolean(), // the branch's sales write-off warehouse (W1-RCP-03)
+    active: v.boolean(),
+    searchText: v.string(),
+    iikoStoreExternalId: v.optional(v.string()),
+    sourceSystem: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_active", ["restaurantExternalId", "active"])
+    .index("by_iiko_store", ["iikoStoreExternalId"]),
+
+  suppliers: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    bin: v.string(),
+    supplierType: v.union(v.literal("external"), v.literal("internal")),
+    vatPayer: v.optional(v.boolean()),
+    contactName: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+    legalAddress: v.optional(v.string()),
+    bankAccount: v.optional(v.string()),
+    paymentDelayDays: v.optional(v.number()),
+    minimumOrder: v.optional(v.number()),
+    priceDeviationPolicy: v.union(v.literal("ignore"), v.literal("warn"), v.literal("block"), v.literal("block-higher")),
+    allowedDeviationPercent: v.number(),
+    restaurantExternalIds: v.array(v.string()),
+    counterpartyExternalId: v.optional(v.string()),
+    active: v.boolean(),
+    searchText: v.string(),
+    sourceSystem: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_bin", ["bin"])
+    .index("by_active_name", ["active", "name"])
+    .searchIndex("search_suppliers", { searchField: "searchText", filterFields: ["active"] }),
+
+  stockLots: defineTable({
+    externalId: v.string(),
+    inventoryItemId: v.id("inventoryItems"),
+    warehouseId: v.id("warehouses"),
+    quantity: v.number(),
+    remainingQuantity: v.number(),
+    unitCost: v.number(),
+    sourceModuleId: v.string(),
+    sourceExternalId: v.string(),
+    sourceNumber: v.string(),
+    receivedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_warehouse_item_received", ["warehouseId", "inventoryItemId", "receivedAt"])
+    .index("by_source", ["sourceExternalId"]),
+
+  receipts: defineTable({
+    externalId: v.string(),
+    number: v.string(),
+    date: v.number(),
+    supplierId: v.id("suppliers"),
+    warehouseId: v.id("warehouses"),
+    restaurantExternalId: v.string(),
+    organizationExternalId: v.string(),
+    invoiceNumber: v.string(),
+    purchaseOrderExternalId: v.optional(v.string()),
+    status: v.union(v.literal("draft"), v.literal("posted"), v.literal("reversed")),
+    totalGross: v.number(),
+    totalVat: v.number(),
+    totalNet: v.number(),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    postedAt: v.optional(v.number()),
+    reversedAt: v.optional(v.number()),
+    reverseReason: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_status_date", ["restaurantExternalId", "status", "date"])
+    .index("by_restaurant_date", ["restaurantExternalId", "date"])
+    .index("by_number", ["number"])
+    .searchIndex("search_receipts", { searchField: "searchText", filterFields: ["status", "restaurantExternalId"] }),
+
+  receiptLines: defineTable({
+    receiptId: v.id("receipts"),
+    lineNo: v.number(),
+    inventoryItemId: v.id("inventoryItems"),
+    quantity: v.number(),
+    unitCostGross: v.number(),
+    vatRate: v.number(),
+    amountGross: v.number(),
+  }).index("by_receipt", ["receiptId", "lineNo"]),
+
+  stockDocuments: defineTable({
+    externalId: v.string(),
+    type: v.union(v.literal("outgoing-invoice"), v.literal("supplier-return"), v.literal("inventory"), v.literal("transfer"), v.literal("writeoff")),
+    number: v.string(),
+    date: v.number(),
+    status: v.union(v.literal("draft"), v.literal("posted"), v.literal("reversed")),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    sourceWarehouseId: v.optional(v.id("warehouses")),
+    destinationWarehouseId: v.optional(v.id("warehouses")),
+    sourceWarehouseExternalId: v.optional(v.string()),
+    destinationWarehouseExternalId: v.optional(v.string()),
+    supplierId: v.optional(v.id("suppliers")),
+    counterpartyName: v.string(),
+    reason: v.string(),
+    comment: v.string(),
+    totalQuantity: v.number(),
+    totalAmount: v.number(),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    postedAt: v.optional(v.number()),
+    reversedAt: v.optional(v.number()),
+    reverseReason: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_type_restaurant_status_date", ["type", "restaurantExternalId", "status", "date"])
+    .index("by_type_restaurant_date", ["type", "restaurantExternalId", "date"])
+    .index("by_type_status_date", ["type", "status", "date"])
+    .searchIndex("search_stock_documents", { searchField: "searchText", filterFields: ["type", "status", "restaurantExternalId"] }),
+
+  stockDocumentLines: defineTable({
+    documentId: v.id("stockDocuments"),
+    lineNo: v.number(),
+    inventoryItemId: v.id("inventoryItems"),
+    quantity: v.number(),
+    expectedQuantity: v.optional(v.number()),
+    actualQuantity: v.optional(v.number()),
+    unitCost: v.number(),
+    vatRate: v.number(),
+  }).index("by_document", ["documentId", "lineNo"]),
 })

@@ -25,3 +25,10 @@ describe("unbounded query gate (W1-PLT-09)", () => {
     expect(rules(`// migration-batch\nawait ctx.db.query("auditEvents").collect()`)).toEqual([])
   })
 })
+
+describe("chains split across lines", () => {
+  it("still sees the query", () => {
+    expect(rules(`await ctx.db\n  .query("products")\n  .collect()`)).toEqual(["q/unbounded-collect"])
+    expect(rules(`await ctx.db\n  .query("x")\n  .withIndex("by_a", (q) => q.eq("a", 1))\n  .take(5000)`)).toEqual(["q/take-over-200"])
+  })
+})
