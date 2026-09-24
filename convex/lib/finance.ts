@@ -5,6 +5,9 @@ import { almatyBusinessDate } from "./time"
 type MutationCtx = GenericMutationCtx<DataModel>
 
 /**
+ * LEGACY (flat P&L ledger) — new postings go through lib/ledger.ts postJournalEntry; this and
+ * ledgerEntries are removed after migration M-4 (W1-FIN-07).
+ *
  * Posts one line to the flat P&L ledger. Called directly from the domains that produce money
  * events — orders/mutations.ts (checkout, refund) and stock/mutations.ts (receiveStock) — rather
  * than routed through a separate finance mutation, so a sale or a stock receipt always posts

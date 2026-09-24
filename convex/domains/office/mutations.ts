@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values"
 import { mutation } from "../../_generated/server"
 import { getOfficeAuthEmail } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
+import { seedChartOfAccountsRows } from "../finance/seed"
 
 declare const process: { env: Record<string, string | undefined> }
 
@@ -41,6 +42,8 @@ export const bootstrap = mutation({
     if (existingOwner) await ctx.db.patch(existingOwner._id, ownerValue)
     else await ctx.db.insert("officeUsers", ownerValue)
 
-    return { restaurants: restaurants.length }
+    // The chart of accounts every posting refers to (idempotent).
+    const accounts = await seedChartOfAccountsRows(ctx)
+    return { restaurants: restaurants.length, accounts: accounts.total }
   },
 })
