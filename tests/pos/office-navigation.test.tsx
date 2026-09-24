@@ -70,3 +70,12 @@ describe("office navigation model (W0-UI-01)", () => {
     expect(again.result.current.expanded).toEqual(expect.arrayContaining(["stock", "finance"]))
   })
 })
+
+describe("navigation rights", () => {
+  it("every item's right is office.<section>.view or a documented exception", () => {
+    for (const item of officeItems) {
+      expect(item.capability, item.id).toMatch(/^office\.[a-z0-9-]+\.view$/)
+      if (item.kind !== undefined) expect(["report", "integration", "link"]).toContain(item.kind)
+    }
+  })
+})

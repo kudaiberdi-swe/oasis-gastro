@@ -4,6 +4,7 @@ import { useMemo, type ComponentType } from "react"
 import { Navigate, useParams } from "react-router"
 
 import { CapabilitiesProvider } from "@/office/components/can"
+import { AccessControlWorkspace } from "@/office/features/access-control/ui/access-control-workspace"
 import { OfficePage, OfficeShell } from "@/office/components/office-shell"
 import { OfficeStatePage } from "@/office/components/state-page"
 import { CatalogWorkspace } from "@/office/features/catalog/ui/catalog-workspace"
@@ -29,6 +30,8 @@ const WORKSPACES: Record<string, ComponentType> = {
   employees: WorkforceWorkspace,
   guests: LoyaltyWorkspace,
   reports: ReportsWorkspace,
+  roles: AccessControlWorkspace,
+  users: AccessControlWorkspace,
 }
 
 export function OfficeRouter() {

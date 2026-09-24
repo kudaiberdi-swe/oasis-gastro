@@ -212,8 +212,8 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     icon: Settings,
     whisper: "Система",
     items: [
-      item("users", "Пользователи", "Учётные записи и область ответственности"),
-      item("roles", "Роли и права", "Гранулярные разрешения и ресурсные области"),
+      item("users", "Пользователи", "Роли и области ответственности по ресторанам и складам"),
+      item("roles", "Роли и права", "Разрешения на просмотр, изменение и проведение по каждому модулю"),
       item("terminals", "Терминалы", "Кассовые и кухонные рабочие места"),
       item("equipment", "Оборудование", "Принтеры, весы, экраны и процессинг"),
       item("print-templates", "Шаблоны печати", "Чеки, этикетки и печатные формы"),
@@ -228,7 +228,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     icon: ChartColumn,
     whisper: "Аналитика",
     items: [
-      item("reports", "Все отчёты", "Полный каталог iiko и конструктор OLAP", "report"),
+      item("reports", "Все отчёты", "Полный каталог iiko и конструктор OLAP", undefined, "report"),
       item("report-favorites", "Избранные отчёты", "Закреплённые представления", undefined, "report"),
       item("report-schedules", "Рассылки отчётов", "Расписание XLSX, CSV и PDF", undefined, "report"),
     ],
