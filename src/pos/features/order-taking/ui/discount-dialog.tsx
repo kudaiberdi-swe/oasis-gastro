@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { errorMessage } from "@/shared/lib/error-message"
+import { cn, focusRingClass } from "@/shared/lib/utils"
 
 const QUICK_PERCENTS = [5, 10, 15, 20]
 
@@ -23,6 +24,16 @@ export function DiscountDialog({
   const [reason, setReason] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const wasOpen = useRef(open)
+
+  // Re-sync with the selected check every time the dialog opens — switching checks between two
+  // openings used to keep the previous check's percent (S-13).
+  if (open && !wasOpen.current) {
+    setPercent(currentPercent)
+    setReason("")
+    setError(null)
+  }
+  wasOpen.current = open
 
   async function submit() {
     if (percent > 0 && reason.trim().length < 3) {
@@ -73,12 +84,12 @@ export function DiscountDialog({
           type="number"
           value={percent}
           onChange={(event) => setPercent(Math.max(0, Math.min(100, Math.round(Number(event.target.value)))))}
-          className="h-11 rounded-[var(--radius-control)] border border-border bg-card px-3 text-right text-lg font-bold outline-none"
+          className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3 text-right text-lg font-bold", focusRingClass)}
         />
         {percent > 0 && (
           <>
             <label className="text-sm text-muted-foreground">Причина</label>
-            <input value={reason} onChange={(event) => setReason(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-card px-3 outline-none" />
+            <input value={reason} onChange={(event) => setReason(event.target.value)} className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3", focusRingClass)} />
           </>
         )}
         {error && <p className="text-sm font-semibold text-destructive">{error}</p>}

@@ -19,7 +19,7 @@ import {
 const ROLES = ["cashier", "manager", "administrator"] as const
 const ROLE_LABEL: Record<string, string> = { cashier: "Кассир", manager: "Менеджер", administrator: "Администратор" }
 
-const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus:border-primary/50"
+const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50"
 
 export function WorkforceWorkspace() {
   const [tab, setTab] = useState<"employees" | "candidates">("employees")
@@ -257,7 +257,7 @@ function ProvisionDialog({
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-muted-foreground">PIN</span>
-              <input value={effectivePin} onChange={(event) => setPin(event.target.value)} className={inputClass} required pattern="\d{4,12}" />
+              <input value={effectivePin} onChange={(event) => setPin(event.target.value)} className={inputClass} required pattern="\d{4,6}" />
             </label>
           </div>
           <label className="flex flex-col gap-1">
@@ -391,7 +391,7 @@ function ResetPinDialog({ employee, onClose, onReset }: { employee: PosEmployee;
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-muted-foreground">Новый PIN</span>
-            <input value={effectivePin} onChange={(event) => setPin(event.target.value)} className={inputClass} required pattern="\d{4,12}" />
+            <input value={effectivePin} onChange={(event) => setPin(event.target.value)} className={inputClass} required pattern="\d{4,6}" />
           </label>
           {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
           <Button type="submit" disabled={submitting} className="mt-1">{submitting ? "Сохранение…" : "Сбросить"}</Button>

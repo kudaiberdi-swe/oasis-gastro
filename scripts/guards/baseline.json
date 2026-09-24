@@ -21,25 +21,14 @@
     "src/office/features/stock/ui/stock-workspace.tsx": 2,
     "src/office/features/workforce/ui/workforce-workspace.tsx": 2
   },
-  "fe/outline-none-without-focus": {
-    "src/office/features/catalog/ui/catalog-workspace.tsx": 1,
-    "src/office/features/finance/ui/finance-workspace.tsx": 1,
-    "src/office/features/loyalty/ui/loyalty-workspace.tsx": 1,
-    "src/office/features/reports/ui/reports-workspace.tsx": 1,
-    "src/office/features/session/ui/office-sign-in.tsx": 3,
-    "src/office/features/stock/ui/stock-workspace.tsx": 1,
-    "src/office/features/workforce/ui/workforce-workspace.tsx": 1,
-    "src/pos/features/checkout/ui/payment-dialog.tsx": 2,
-    "src/pos/features/loyalty/ui/guest-dialog.tsx": 2,
-    "src/pos/features/order-taking/ui/discount-dialog.tsx": 2,
-    "src/pos/features/shifts/ui/shift-dialog.tsx": 4,
-    "src/shared/components/ui/dialog.tsx": 1
-  },
   "fe/white-literal": {
     "src/pos/components/app-header.tsx": 2,
     "src/shared/components/ui/button.tsx": 1
   },
   "fe/tiny-text": {
     "src/shared/components/ui/badge.tsx": 1
+  },
+  "fe/outline-none-without-focus": {
+    "src/shared/components/ui/dialog.tsx": 1
   }
 }

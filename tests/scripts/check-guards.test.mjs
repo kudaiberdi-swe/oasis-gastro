@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { compareWithBaseline, scanBackendSource, scanFrontendSource } from "./check-guards.mjs"
+import { compareWithBaseline, scanBackendSource, scanFrontendSource } from "../../scripts/check-guards.mjs"
 
 const rules = (violations) => violations.map((v) => `${v.rule} ${v.file}`)
 

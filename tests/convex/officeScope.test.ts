@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test"
 import { describe, expect, it } from "vitest"
 
-import { api } from "./_generated/api"
-import schema from "./schema"
+import { api } from "../../convex/_generated/api"
+import schema from "../../convex/schema"
 
-const modules = import.meta.glob("./**/*.ts")
+const modules = import.meta.glob("../../convex/**/*.ts")
 
 // An office user scoped to branch A must never see or change branch B (S-6, S-7).
 async function seedTwoBranches(t: ReturnType<typeof convexTest>) {

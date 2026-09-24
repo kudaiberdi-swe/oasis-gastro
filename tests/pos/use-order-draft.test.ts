@@ -3,11 +3,11 @@
 import { act, renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { useOrderDraft } from "./use-order-draft"
+import { useOrderDraft } from "@/pos/features/order-taking/model/use-order-draft"
 
 const backend = vi.hoisted(() => ({ saveDraft: vi.fn() }))
 
-vi.mock("../data/use-orders", () => ({
+vi.mock("@/pos/features/order-taking/data/use-orders", () => ({
   useOrderMutations: () => backend,
 }))
 

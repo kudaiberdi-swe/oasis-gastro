@@ -7,7 +7,7 @@ import { cn } from "@/shared/lib/utils"
 
 import { useAdjustPoints, useGuestHistory, useGuests, type Guest } from "../data/use-office-loyalty"
 
-const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus:border-primary/50"
+const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50"
 
 const KIND_LABEL: Record<string, string> = { accrual: "Начисление", redemption: "Списание", adjustment: "Корректировка" }
 

@@ -10,7 +10,7 @@ import { useOfficeCatalog, useOfficeCatalogMutations, type CategoryId, type Offi
 
 const UNITS = ["порц.", "шт", "кг", "л"] as const
 
-const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus:border-primary/50"
+const inputClass = "h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50"
 
 export function CatalogWorkspace() {
   const { categories, products, restaurants, loading } = useOfficeCatalog()

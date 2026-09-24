@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/compo
 import { errorMessage } from "@/shared/lib/error-message"
 
 import { useFindGuestByPhone } from "../data/use-loyalty"
+import { cn, focusRingClass } from "@/shared/lib/utils"
 
 export function GuestDialog({
   open,
@@ -44,9 +45,12 @@ export function GuestDialog({
 
   async function handleDetach() {
     setSubmitting(true)
+    setError(null)
     try {
       await onDetach()
       onOpenChange(false)
+    } catch (caught) {
+      setError(errorMessage(caught, "Не удалось открепить гостя"))
     } finally {
       setSubmitting(false)
     }
@@ -65,6 +69,7 @@ export function GuestDialog({
             {currentGuest.name && <p className="text-sm text-muted-foreground">{currentGuest.phone}</p>}
             <p className="mt-1 text-sm text-accent">{currentGuest.points} баллов</p>
             <Button variant="outline" size="sm" className="mt-2" onClick={handleDetach} disabled={submitting}>Убрать гостя</Button>
+            {error && <p className="mt-2 text-sm font-semibold text-destructive">{error}</p>}
           </div>
         ) : (
           <>
@@ -73,7 +78,7 @@ export function GuestDialog({
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               placeholder="+7 700 000 00 00"
-              className="h-11 rounded-[var(--radius-control)] border border-border bg-card px-3 text-lg outline-none"
+              className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3 text-lg", focusRingClass)}
               inputMode="tel"
             />
             {found ? (
@@ -82,7 +87,7 @@ export function GuestDialog({
               <>
                 <p className="text-sm text-muted-foreground">Новый гость</p>
                 <label className="text-sm text-muted-foreground">Имя (необязательно)</label>
-                <input value={name} onChange={(event) => setName(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-card px-3 outline-none" />
+                <input value={name} onChange={(event) => setName(event.target.value)} className={cn("h-11 rounded-[var(--radius-control)] border border-border bg-card px-3", focusRingClass)} />
               </>
             ) : null}
             {error && <p className="text-sm font-semibold text-destructive">{error}</p>}

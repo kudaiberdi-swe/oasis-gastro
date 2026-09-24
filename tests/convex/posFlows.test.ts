@@ -1,13 +1,22 @@
 import { convexTest } from "convex-test"
 import { describe, expect, it } from "vitest"
 
-import { makeFunctionReference } from "convex/server"
+import { makeFunctionReference, type FunctionArgs } from "convex/server"
 
-import { api, internal } from "./_generated/api"
-import type { Id } from "./_generated/dataModel"
-import schema from "./schema"
+import { api, internal } from "../../convex/_generated/api"
+import type { Id } from "../../convex/_generated/dataModel"
+import schema from "../../convex/schema"
 
-const modules = import.meta.glob("./**/*.ts")
+const modules = import.meta.glob("../../convex/**/*.ts")
+
+type TestConvex = ReturnType<typeof convexTest>
+
+/** saveDraft returns `{ outcome: "not-editable" }` for closed checks; tests only ever expect a saved draft. */
+async function saveDraft(t: TestConvex, args: FunctionArgs<typeof api.domains.orders.mutations.saveDraft>) {
+  const result = await t.mutation(api.domains.orders.mutations.saveDraft, args)
+  if ("outcome" in result) throw new Error(`saveDraft returned ${result.outcome}`)
+  return result
+}
 
 describe("POS core flow", () => {
   it("handles two parallel table checks, service-charge math, checkout, and shift close", async () => {
@@ -20,7 +29,7 @@ describe("POS core flow", () => {
       note: "Открытие",
     })
 
-    const tableOne = await t.mutation(api.domains.orders.mutations.saveDraft, {
+    const tableOne = await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: "table-1",
       orderType: "dine-in",
@@ -29,7 +38,7 @@ describe("POS core flow", () => {
       comment: "",
       lines: [{ productId: fixture.productId, quantity: 2 }],
     })
-    const tableTwo = await t.mutation(api.domains.orders.mutations.saveDraft, {
+    const tableTwo = await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: "table-2",
       orderType: "dine-in",
@@ -94,7 +103,7 @@ describe("POS core flow", () => {
     const fixture = await seedFixture(t)
     await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 10_000, note: "Открытие" })
 
-    const created = await t.mutation(api.domains.orders.mutations.saveDraft, {
+    const created = await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: "occ-check",
       orderType: "dine-in",
@@ -105,7 +114,7 @@ describe("POS core flow", () => {
     expect(created.version).toBe(1)
 
     // Simulates a second terminal having already saved an edit — this order's real version is now 2.
-    await t.mutation(api.domains.orders.mutations.saveDraft, {
+    await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: "occ-check",
       orderId: created._id,
@@ -135,7 +144,7 @@ describe("POS core flow", () => {
     const fixture = await seedFixture(t)
     await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 10_000, note: "Открытие" })
 
-    const order = await t.mutation(api.domains.orders.mutations.saveDraft, {
+    const order = await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: "guest-check",
       orderType: "dine-in",
@@ -172,7 +181,7 @@ describe("POS core flow", () => {
     const fixture = await seedFixture(t)
     await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 10_000, note: "Открытие" })
 
-    const order = await t.mutation(api.domains.orders.mutations.saveDraft, {
+    const order = await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: "refund-check",
       orderType: "dine-in",
@@ -253,7 +262,7 @@ describe("loyalty reversal on refund (W0-BUG-04, S-8)", () => {
     const t = convexTest(schema, modules)
     const fixture = await seedFixture(t)
     await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 10_000, note: "" })
-    const order = await t.mutation(api.domains.orders.mutations.saveDraft, {
+    const order = await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: "refund-points",
       orderType: "dine-in",
@@ -302,7 +311,7 @@ describe("reports, X-report and ledger backfill agree (W0-BUG-05)", () => {
   }
 
   async function paidOrder(t: ReturnType<typeof convexTest>, fixture: Awaited<ReturnType<typeof seedFixture>>, key: string, lines: { productId: Id<"products">; quantity: number }[], payments: { method: "cash" | "card" | "qr"; amount: number }[], discountPercent = 0) {
-    const draft = await t.mutation(api.domains.orders.mutations.saveDraft, {
+    const draft = await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: key,
       orderType: "dine-in",
@@ -359,7 +368,7 @@ describe("reports, X-report and ledger backfill agree (W0-BUG-05)", () => {
     await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 0, note: "" })
     // 7 % of 1 999 = 139.93 → each order discounts 140 ₸; the old X-report summed the raw 279.86.
     for (const key of ["disc-1", "disc-2"]) {
-      const draft = await t.mutation(api.domains.orders.mutations.saveDraft, {
+      const draft = await saveDraft(t, {
         sessionToken: fixture.cashierToken,
         clientOrderId: key,
         orderType: "dine-in",
@@ -454,7 +463,7 @@ describe("kitchen isolation (W0-BUG-02)", () => {
     })
 
     await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 0, note: "" })
-    const draft = await t.mutation(api.domains.orders.mutations.saveDraft, {
+    const draft = await saveDraft(t, {
       sessionToken: fixture.cashierToken,
       clientOrderId: "kitchen-1",
       orderType: "dine-in",

@@ -57,16 +57,16 @@ export function OfficeSignIn() {
           {flow === "signUp" && (
             <label className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-muted-foreground">Имя</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus:border-primary/50" required />
+              <input value={name} onChange={(event) => setName(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50" required />
             </label>
           )}
           <label className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-muted-foreground">Email</span>
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus:border-primary/50" required />
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50" required />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-muted-foreground">Пароль</span>
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus:border-primary/50" required minLength={10} />
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-11 rounded-[var(--radius-control)] border border-border bg-background px-3 text-sm outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary/50" required minLength={10} />
           </label>
         </div>
 

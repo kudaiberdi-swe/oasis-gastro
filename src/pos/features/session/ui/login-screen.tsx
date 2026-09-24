@@ -31,7 +31,8 @@ export function LoginScreen({ onLogin, restaurantHint }: { onLogin: (code: strin
 
   function handleDigit(digit: string) {
     setError(null)
-    if (active.length >= 6) return
+    // Employee codes are 3–12 digits; PINs 4–6 (the server rule in domains/workforce).
+    if (active.length >= (stage === "code" ? 12 : 6)) return
     setActive(active + digit)
   }
 

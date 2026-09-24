@@ -9,6 +9,9 @@ on:
       - "package-lock.json"
       - "scripts/check-guards.mjs"
       - "scripts/guards/**"
+      - "tests/**"
+      - "vite.config.ts"
+      - "tsconfig*.json"
       - ".github/workflows/deploy-backend.yml"
   pull_request:
     paths:
@@ -17,6 +20,9 @@ on:
       - "package-lock.json"
       - "scripts/check-guards.mjs"
       - "scripts/guards/**"
+      - "tests/**"
+      - "vite.config.ts"
+      - "tsconfig*.json"
       - ".github/workflows/deploy-backend.yml"
   workflow_dispatch: {}
 
