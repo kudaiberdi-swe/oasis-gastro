@@ -10,6 +10,11 @@ export function calculateDiscountAmount(subtotal: number, discountPercent: numbe
   return roundKzt(subtotal * (discountPercent / 100))
 }
 
+/** An order's discount: stored since W1-POS-03 (fixed and markup types), else derived from the percent. */
+export function orderDiscountAmount(order: { subtotal: number; discountPercent: number; discountAmount?: number }): number {
+  return order.discountAmount ?? calculateDiscountAmount(order.subtotal, order.discountPercent)
+}
+
 export function calculateServiceCharge(subtotal: number, discountAmount: number, percent = SERVICE_CHARGE_PERCENT): number {
   return roundKzt(Math.max(0, subtotal - discountAmount) * (percent / 100))
 }

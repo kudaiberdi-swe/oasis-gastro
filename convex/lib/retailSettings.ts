@@ -51,3 +51,13 @@ export async function activeSettingsAt(ctx: QueryCtx, kind: Doc<"retailSettings"
     .filter((row) => (row.effectiveTo === undefined || at < row.effectiveTo) && (row.restaurantExternalIds.length === 0 || row.restaurantExternalIds.includes(restaurantExternalId)))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "ru"))
 }
+
+/** One published setting in force for the restaurant, or a user-facing error. */
+export async function settingInForce(ctx: QueryCtx, kind: Doc<"retailSettings">["kind"], externalId: string, restaurantExternalId: string, at: number, label: string) {
+  const row = await ctx.db.query("retailSettings").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()
+  const inForce = row && row.kind === kind && row.status === "published" && row.effectiveFrom <= at && (row.effectiveTo === undefined || at < row.effectiveTo)
+  if (!row || !inForce || (row.restaurantExternalIds.length > 0 && !row.restaurantExternalIds.includes(restaurantExternalId))) throw new ConvexError(`${label} недоступен на этой кассе`)
+  return row
+}
+
+export const settingVersionTag = (row: Doc<"retailSettings">) => `${row.kind}:${row.code}@${row.version}`

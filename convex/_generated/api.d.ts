@@ -92,6 +92,7 @@ import type * as lib_modifierPricing from "../lib/modifierPricing.js";
 import type * as lib_money from "../lib/money.js";
 import type * as lib_numbering from "../lib/numbering.js";
 import type * as lib_officeAccess from "../lib/officeAccess.js";
+import type * as lib_orderPricing from "../lib/orderPricing.js";
 import type * as lib_outbox from "../lib/outbox.js";
 import type * as lib_periods from "../lib/periods.js";
 import type * as lib_policy from "../lib/policy.js";
@@ -201,6 +202,7 @@ declare const fullApi: ApiFromModules<{
   "lib/money": typeof lib_money;
   "lib/numbering": typeof lib_numbering;
   "lib/officeAccess": typeof lib_officeAccess;
+  "lib/orderPricing": typeof lib_orderPricing;
   "lib/outbox": typeof lib_outbox;
   "lib/periods": typeof lib_periods;
   "lib/policy": typeof lib_policy;

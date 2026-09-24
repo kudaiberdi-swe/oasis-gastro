@@ -9,13 +9,11 @@ import { postLedgerEntry } from "../../lib/finance"
 import { journalReady, resolvePaymentType, settleOrder } from "../../lib/checkoutCore"
 import { postJournalEntry } from "../../lib/ledger"
 import { reverseLoyaltyPoints } from "../../lib/loyalty"
-import { calculateDiscountAmount, calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
-import { DISCOUNT_APPROVAL_PERCENT, SERVICE_CHARGE_PERCENT } from "../../lib/policy"
+import { calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
+import { priceDraftLines, resolveDiscount, resolveOrderType, type PricedLine } from "../../lib/orderPricing"
 import { draftLineInput, orderType as orderTypeValidator, paymentMethod as paymentMethodValidator } from "../../lib/validators"
 import { assertPeriodOpen } from "../../lib/periods"
 import { businessDateFor } from "../../lib/time"
-import { resolvePrice } from "../../lib/pricing"
-import { isAvailable } from "../../lib/availability"
 import { reverseOrderConsumption } from "../../lib/recipeConsumption"
 import { hydrateOrder } from "./queries"
 
@@ -28,22 +26,12 @@ async function requireOrder(ctx: MutationCtx, orderId: Id<"orders">, access: Pos
   return order
 }
 
-async function priceLines(ctx: MutationCtx, restaurantExternalId: string, lines: Array<{ clientLineId?: string; productId: Id<"products">; quantity: number; modifiers?: string[] }>) {
-  const result = []
-  for (const input of lines) {
-    if (!Number.isInteger(input.quantity) || input.quantity <= 0 || input.quantity > 99) throw new ConvexError("Некорректное количество")
-    const product = await ctx.db.get(input.productId)
-    if (!product?.enabled) throw new ConvexError("Позиция недоступна")
-    if (!(await isAvailable(ctx, product._id, restaurantExternalId, Date.now()))) throw new ConvexError(`«${product.name}» сейчас нет в наличии`)
-    const { price: unitPrice } = await resolvePrice(ctx, { product, restaurantExternalId, at: Date.now() })
-    result.push({ clientLineId: input.clientLineId, productId: product._id, product, quantity: input.quantity, unitPrice, modifiers: input.modifiers ?? [] })
-  }
-  return result
-}
-
-async function replaceLines(ctx: MutationCtx, orderId: Id<"orders">, lines: Array<{ clientLineId?: string; product: Doc<"products">; quantity: number; unitPrice: number; modifiers: string[] }>) {
-  const old = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", orderId)).take(200)
-  for (const line of old) await ctx.db.delete(line._id)
+/**
+ * Rewrites the draft's lines. Lines already sent to the kitchen and voided lines stay as they are
+ * (W1-POS-04 changes them only through voidLine); the rest are replaced by the freshly priced input.
+ */
+async function replaceLines(ctx: MutationCtx, orderId: Id<"orders">, existing: Doc<"orderLines">[], lines: PricedLine[]) {
+  for (const line of existing) if (!line.sentToKitchenAt && !line.voidedAt) await ctx.db.delete(line._id)
   for (const line of lines) {
     await ctx.db.insert("orderLines", {
       orderId,
@@ -54,12 +42,15 @@ async function replaceLines(ctx: MutationCtx, orderId: Id<"orders">, lines: Arra
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       modifiers: line.modifiers,
+      lineTotal: line.lineTotal,
+      ...(line.sizeOption ? { sizeOptionId: line.sizeOption._id, sizeExternalId: line.sizeOption.externalId, sizeLabel: line.sizeOption.label } : {}),
+      ...(line.modifierSelections ? { modifierSelections: line.modifierSelections, kitchenModifiers: line.kitchenModifiers } : {}),
     })
   }
 }
 
-function buildSearchText(number: number, comment: string, tableLabel: string | undefined, lines: Array<{ product: Doc<"products"> }>) {
-  return `${number} ${comment} ${tableLabel ?? ""} ${lines.map((line) => `${line.product.name} ${line.product.nameKk}`).join(" ")}`.toLocaleLowerCase("ru")
+function buildSearchText(number: number, comment: string, tableLabel: string | undefined, names: string[]) {
+  return `${number} ${comment} ${tableLabel ?? ""} ${names.join(" ")}`.toLocaleLowerCase("ru")
 }
 
 async function buildCheckoutResult(ctx: MutationCtx, order: Doc<"orders">, duplicate: boolean) {
@@ -72,9 +63,14 @@ export const saveDraft = mutation({
     clientOrderId: v.string(),
     orderId: v.optional(v.id("orders")),
     expectedVersion: v.optional(v.number()),
-    orderType: orderTypeValidator,
+    // orderTypeExternalId from activeForPos; the legacy orderType maps to the published type of that mode.
+    orderTypeExternalId: v.optional(v.string()),
+    orderType: v.optional(orderTypeValidator),
     tableLabel: v.optional(v.string()),
-    discountPercent: v.number(),
+    hallLabel: v.optional(v.string()),
+    guestCount: v.optional(v.number()),
+    discountTypeExternalId: v.optional(v.string()),
+    discountPercent: v.number(), // free percent with a reason; ignored when a discount type is chosen
     discountReason: v.optional(v.string()),
     serviceChargeWaived: v.optional(v.boolean()),
     managerApprovalToken: v.optional(v.string()),
@@ -93,81 +89,86 @@ export const saveDraft = mutation({
     if (order && args.expectedVersion != null && (order.version ?? 1) !== args.expectedVersion) {
       throw new ConvexError("Заказ изменён на другой кассе. Обновите данные")
     }
-    if (args.discountPercent < 0 || args.discountPercent > 100) throw new ConvexError("Некорректная скидка")
-    if (args.discountPercent > 0 && (args.discountReason?.trim().length ?? 0) < 3) throw new ConvexError("Для скидки укажите причину")
+    if (args.guestCount !== undefined && !(Number.isInteger(args.guestCount) && args.guestCount >= 1 && args.guestCount <= 99)) throw new ConvexError("Число гостей — от 1 до 99")
+    const now = Date.now()
+    const restaurantExternalId = access.restaurant.externalId
 
-    const needsApproval = args.discountPercent > DISCOUNT_APPROVAL_PERCENT || Boolean(args.serviceChargeWaived)
-    const alreadyApproved = order?.discountApprovedBy && order.discountPercent === args.discountPercent && Boolean(order.serviceChargeWaived) === Boolean(args.serviceChargeWaived)
+    // Lines already on the kitchen ticket are fixed: the input must repeat them unchanged.
+    const existingLines = order ? await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200) : []
+    const sent = existingLines.filter((line) => line.sentToKitchenAt && !line.voidedAt)
+    for (const line of sent) {
+      const input = args.lines.find((row) => row.clientLineId && row.clientLineId === line.clientLineId)
+      if (!input || input.productId !== line.productId || input.quantity !== line.quantity) throw new ConvexError(`«${line.productName}» уже на кухне — изменить её можно только через «Удалить позицию»`)
+    }
+    const sentIds = new Set(sent.map((line) => line.clientLineId))
+    const pricedLines = await priceDraftLines(ctx, restaurantExternalId, args.lines.filter((row) => !(row.clientLineId && sentIds.has(row.clientLineId))), now)
+    const subtotal = sent.reduce((sum, line) => sum + (line.lineTotal ?? line.unitPrice * line.quantity), 0) + pricedLines.reduce((sum, line) => sum + line.lineTotal, 0)
+
+    const orderType = await resolveOrderType(ctx, restaurantExternalId, { orderTypeExternalId: args.orderTypeExternalId, orderType: args.orderType }, now)
+    const discount = await resolveDiscount(ctx, restaurantExternalId, { discountTypeExternalId: args.discountTypeExternalId, discountPercent: args.discountPercent, discountReason: args.discountReason }, subtotal, now)
+    const serviceChargeAmount = args.serviceChargeWaived ? 0 : calculateServiceCharge(subtotal, discount.amount, orderType.serviceChargePercent)
+    const total = calculateOrderTotal(subtotal, discount.amount, serviceChargeAmount)
+
+    const needsApproval = discount.needsManager || Boolean(args.serviceChargeWaived)
+    const alreadyApproved =
+      order?.discountApprovedBy && order.discountTypeExternalId === discount.externalId && order.discountPercent === discount.percent && Boolean(order.serviceChargeWaived) === Boolean(args.serviceChargeWaived)
     const manager = needsApproval && !alreadyApproved ? await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id) : null
     const discountApprovedBy = manager?._id ?? (alreadyApproved ? order!.discountApprovedBy : undefined)
 
-    const pricedLines = await priceLines(ctx, access.restaurant.externalId, args.lines)
-    const subtotal = pricedLines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0)
-    const discountAmount = calculateDiscountAmount(subtotal, args.discountPercent)
-    const serviceChargeAmount = args.serviceChargeWaived ? 0 : calculateServiceCharge(subtotal, discountAmount)
-    const total = calculateOrderTotal(subtotal, discountAmount, serviceChargeAmount)
-    const now = Date.now()
-
+    const names = [...sent.map((line) => line.productName), ...pricedLines.map((line) => `${line.product.name} ${line.product.nameKk}`)]
+    const value = {
+      orderType: orderType.serviceMode,
+      orderTypeExternalId: orderType.externalId,
+      orderTypeName: orderType.name,
+      tableLabel: args.tableLabel,
+      hallLabel: args.hallLabel?.trim() || undefined,
+      guestCount: args.guestCount,
+      status: "draft" as const,
+      discountTypeExternalId: discount.externalId,
+      discountTypeName: discount.name,
+      discountPercent: discount.percent,
+      discountAmount: discount.amount,
+      discountReason: discount.reason,
+      discountApprovedBy,
+      subtotal,
+      serviceChargePercent: orderType.serviceChargePercent,
+      serviceChargeAmount,
+      serviceChargeWaived: args.serviceChargeWaived,
+      total,
+      retailConfigVersion: [orderType.tag, discount.tag].filter(Boolean).join(";") || undefined,
+      currentShiftId: shift._id,
+      updatedBy: access.employee._id,
+      comment: args.comment.trim(),
+      updatedAt: now,
+    }
     let orderId: Id<"orders">
     if (order) {
       orderId = order._id
-      await ctx.db.patch(orderId, {
-        orderType: args.orderType,
-        tableLabel: args.tableLabel,
-        status: "draft",
-        discountPercent: args.discountPercent,
-        discountReason: args.discountReason?.trim(),
-        discountApprovedBy,
-        subtotal,
-        serviceChargePercent: SERVICE_CHARGE_PERCENT,
-        serviceChargeAmount,
-        serviceChargeWaived: args.serviceChargeWaived,
-        total,
-        currentShiftId: shift._id,
-        updatedBy: access.employee._id,
-        comment: args.comment.trim(),
-        version: (order.version ?? 1) + 1,
-        updatedAt: now,
-        searchText: buildSearchText(order.number, args.comment, args.tableLabel, pricedLines),
-      })
-      await replaceLines(ctx, orderId, pricedLines)
+      await ctx.db.patch(orderId, { ...value, version: (order.version ?? 1) + 1, searchText: buildSearchText(order.number, args.comment, args.tableLabel, names) })
     } else {
       const number = access.terminal.nextOrderNumber
       await ctx.db.patch(access.terminal._id, { nextOrderNumber: number + 1 })
       orderId = await ctx.db.insert("orders", {
+        ...value,
         number,
-        orderType: args.orderType,
-        tableLabel: args.tableLabel,
-        status: "draft",
-        discountPercent: args.discountPercent,
-        discountReason: args.discountReason?.trim(),
-        discountApprovedBy,
-        subtotal,
-        serviceChargePercent: SERVICE_CHARGE_PERCENT,
-        serviceChargeAmount,
-        serviceChargeWaived: args.serviceChargeWaived,
-        total,
         clientOrderId: args.clientOrderId,
         restaurantId: access.restaurant._id,
         terminalId: access.terminal._id,
         originatingShiftId: shift._id,
-        currentShiftId: shift._id,
         businessDate: shift.businessDate,
         createdBy: access.employee._id,
-        updatedBy: access.employee._id,
-        comment: args.comment.trim(),
         version: 1,
         createdAt: now,
-        updatedAt: now,
-        searchText: buildSearchText(number, args.comment, args.tableLabel, pricedLines),
+        searchText: buildSearchText(number, args.comment, args.tableLabel, names),
       })
-      await replaceLines(ctx, orderId, pricedLines)
     }
+    await replaceLines(ctx, orderId, existingLines, pricedLines)
     await touchSession(ctx, access.session._id)
     if (manager) {
+      const what = discount.name ?? (discount.amount ? `скидку ${discount.percent}%` : "")
       await writeAudit(ctx, access, {
         action: "order.manager-override",
-        summary: `Менеджер подтвердил скидку ${args.discountPercent}%${args.serviceChargeWaived ? " и отмену сервисного сбора" : ""} для заказа`,
+        summary: `Менеджер подтвердил ${[what, args.serviceChargeWaived ? "отмену сервисного сбора" : ""].filter(Boolean).join(" и ")} для заказа`,
         shiftId: shift._id,
         orderId,
         managerId: manager._id,

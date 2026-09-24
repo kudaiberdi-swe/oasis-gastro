@@ -1,19 +1,20 @@
-import type { OrderType } from "@/shared/types/pos"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { useOrderMutations } from "../data/use-orders"
 import { errorMessage } from "@/shared/lib/error-message"
-import type { DraftLine } from "@/shared/types/pos"
+import type { DraftLine, OrderType } from "@/shared/types/pos"
 
 type HydratedCheck = {
   _id: Id<"orders">
   version?: number
+  orderType?: OrderType
+  serviceChargePercent?: number
   tableLabel?: string
   discountPercent: number
   discountReason?: string
   comment?: string
-  lines: Array<{ productId: Id<"products">; productName: string; unitPrice: number; quantity: number; modifiers: string[]; product: { nameKk: string } | null }>
+  lines: Array<{ clientLineId?: string; productId: Id<"products">; productName: string; unitPrice: number; quantity: number; modifiers: string[]; product: { nameKk: string } | null }>
 }
 
 /**
@@ -45,6 +46,9 @@ export function useOrderDraft(args: {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const version = useRef<number | undefined>(undefined)
+  // The service charge percent comes from the order type on the server (W1-POS-03); until the first
+  // answer the preview uses the same defaults as the server (15 % in the hall, 0 % otherwise).
+  const [serverCharge, setServerCharge] = useState<{ orderType: OrderType; percent: number } | null>(null)
   const clientOrderId = useRef(crypto.randomUUID())
   const syncedSelectionKey = useRef<number | null>(null)
 
@@ -70,13 +74,15 @@ export function useOrderDraft(args: {
     syncedSelectionKey.current = args.selectionKey
     setOrderId(args.hydrated._id)
     version.current = args.hydrated.version
+    const { orderType, serviceChargePercent } = args.hydrated
+    setServerCharge(orderType && serviceChargePercent !== undefined ? { orderType, percent: serviceChargePercent } : null)
     setTableLabel(args.hydrated.tableLabel ?? "")
     setDiscountPercent(args.hydrated.discountPercent)
     setDiscountReason(args.hydrated.discountReason ?? "")
     setComment(args.hydrated.comment ?? "")
     setLines(
       args.hydrated.lines.map((line) => ({
-        clientLineId: crypto.randomUUID(),
+        clientLineId: line.clientLineId ?? crypto.randomUUID(),
         productId: line.productId,
         name: line.productName,
         nameKk: line.product?.nameKk ?? line.productName,
@@ -111,6 +117,7 @@ export function useOrderDraft(args: {
         }
         setOrderId(result._id)
         version.current = result.version
+        setServerCharge({ orderType: result.orderType, percent: result.serviceChargePercent })
         return result
       } catch (caught) {
         setError(errorMessage(caught, "Не удалось сохранить заказ"))
@@ -166,7 +173,8 @@ export function useOrderDraft(args: {
 
   const subtotal = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0)
   const discountAmount = Math.round(subtotal * (discountPercent / 100))
-  const serviceChargeAmount = Math.round((subtotal - discountAmount) * 0.15)
+  const servicePercent = serverCharge?.orderType === args.orderType ? serverCharge.percent : args.orderType === "dine-in" ? 15 : 0
+  const serviceChargeAmount = Math.max(0, Math.round((subtotal - discountAmount) * (servicePercent / 100)))
   const total = subtotal - discountAmount + serviceChargeAmount
 
   return { orderId, lines, tableLabel, setTableLabel, discountPercent, discountReason, comment, setComment, addItem, setQuantity, applyDiscount, subtotal, discountAmount, serviceChargeAmount, total, saving, error }

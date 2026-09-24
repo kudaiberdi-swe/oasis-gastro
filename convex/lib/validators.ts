@@ -38,7 +38,9 @@ export const draftLineInput = v.object({
   clientLineId: v.optional(v.string()),
   productId: v.id("products"),
   quantity: v.number(),
-  modifiers: v.optional(v.array(v.string())),
+  modifiers: v.optional(v.array(v.string())), // free-text kitchen notes
+  sizeExternalId: v.optional(v.string()),
+  modifierSelections: v.optional(v.array(v.object({ modifierExternalId: v.string(), quantity: v.number() }))),
 })
 
 /** Status of an office domain record (OFFICE-DESIGN §3.5 lifecycles). */

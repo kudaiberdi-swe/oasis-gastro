@@ -8,7 +8,7 @@ import { postJournalEntry } from "./ledger"
 import { accrueLoyaltyPoints } from "./loyalty"
 import { appendOutboxEvent } from "./outbox"
 import { consumeOrderStock } from "./recipeConsumption"
-import { activeSettingsAt } from "./retailSettings"
+import { activeSettingsAt, settingInForce } from "./retailSettings"
 
 type QueryCtx = GenericQueryCtx<DataModel>
 type MutationCtx = GenericMutationCtx<DataModel>
@@ -40,12 +40,7 @@ function fromSetting(row: Doc<"retailSettings">): ResolvedPaymentType {
 }
 
 export async function resolvePaymentType(ctx: QueryCtx, restaurantExternalId: string, input: { paymentTypeExternalId?: string; method?: ProcessorKind }, at: number): Promise<ResolvedPaymentType> {
-  if (input.paymentTypeExternalId) {
-    const row = await ctx.db.query("retailSettings").withIndex("by_external_id", (q) => q.eq("externalId", input.paymentTypeExternalId!)).unique()
-    const inForce = row && row.kind === "payment-type" && row.status === "published" && row.effectiveFrom <= at && (row.effectiveTo === undefined || at < row.effectiveTo)
-    if (!row || !inForce || (row.restaurantExternalIds.length > 0 && !row.restaurantExternalIds.includes(restaurantExternalId))) throw new ConvexError("Тип оплаты недоступен на этой кассе")
-    return fromSetting(row)
-  }
+  if (input.paymentTypeExternalId) return fromSetting(await settingInForce(ctx, "payment-type", input.paymentTypeExternalId, restaurantExternalId, at, "Тип оплаты"))
   if (!input.method) throw new ConvexError("Укажите тип оплаты")
   const method = input.method
   const active = await activeSettingsAt(ctx, "payment-type", restaurantExternalId, at)
@@ -67,7 +62,10 @@ export async function ensureKitchenTicket(ctx: MutationCtx, order: Doc<"orders">
   const ticketId = await ctx.db.insert("kitchenTickets", { orderId: order._id, orderNumber: order.number, status: "queued", fulfillment: order.orderType, source: "pos", createdAt: now, updatedAt: now })
   const lines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(100)
   for (const line of lines) {
-    await ctx.db.insert("kitchenTicketLines", { ticketId, productExternalId: line.productExternalId ?? String(line.productId), productName: line.productName, quantity: line.quantity, instructions: line.modifiers })
+    if (line.voidedAt) continue
+    const productName = line.sizeLabel ? `${line.productName} · ${line.sizeLabel}` : line.productName
+    const instructions = [...(line.kitchenModifiers ?? []).map((modifier) => modifier.label), ...line.modifiers]
+    await ctx.db.insert("kitchenTicketLines", { ticketId, productExternalId: line.productExternalId ?? String(line.productId), productName, quantity: line.quantity, instructions })
   }
   return ticketId
 }
