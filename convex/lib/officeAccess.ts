@@ -4,6 +4,7 @@ import { ConvexError } from "convex/values"
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server"
 import type { DataModel, Id } from "../_generated/dataModel"
 import { insertAudit, resolveAuditOrganization } from "./audit"
+import { allowsCapability } from "./capabilities"
 
 type QueryCtx = GenericQueryCtx<DataModel>
 type MutationCtx = GenericMutationCtx<DataModel>
@@ -19,9 +20,7 @@ export async function getOfficeAuthEmail(ctx: AnyCtx): Promise<string | null> {
   return authUser?.email?.trim().toLocaleLowerCase("en-US") ?? null
 }
 
-export function allowsCapability(capabilities: string[], capability: string): boolean {
-  return capabilities.some((candidate) => candidate === "*" || candidate === capability || (candidate.endsWith(".*") && capability.startsWith(candidate.slice(0, -1))))
-}
+export { allowsCapability }
 
 export function hasScope(scopes: string[], value: string): boolean {
   return scopes.includes("*") || scopes.includes(value)
@@ -106,4 +105,46 @@ export async function writeOfficeAudit(
     ...(details.details !== undefined ? { details: details.details } : {}),
     ...(details.correlationId ? { correlationId: details.correlationId } : {}),
   })
+}
+
+type ScopedUser = { restaurantScopes: string[]; organizationScopes?: string[]; warehouseScopes?: string[] }
+
+/**
+ * Scopes in effect for a user (W1-ACL-01). Until migration M-6 fills organization/warehouse scopes,
+ * a full administrator ("*" role or network restaurant scope) gets ["*"]; others get the
+ * organizations of their restaurants and no warehouses.
+ */
+export async function effectiveScopes(ctx: AnyCtx, user: ScopedUser, role?: { capabilities: string[] }) {
+  const administrator = role?.capabilities.includes("*") || user.restaurantScopes.includes("*")
+  let organizationScopes = user.organizationScopes
+  if (!organizationScopes) {
+    if (administrator) organizationScopes = ["*"]
+    else {
+      const organizations = new Set<string>()
+      for (const externalId of user.restaurantScopes) {
+        const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()
+        if (restaurant) organizations.add(restaurant.organizationExternalId)
+      }
+      organizationScopes = [...organizations]
+    }
+  }
+  const warehouseScopes = user.warehouseScopes ?? (administrator ? ["*"] : [])
+  return { restaurantScopes: user.restaurantScopes, organizationScopes, warehouseScopes }
+}
+
+export async function requireOrganizationScope(ctx: AnyCtx, user: ScopedUser, organizationExternalId: string, role?: { capabilities: string[] }) {
+  const scopes = await effectiveScopes(ctx, user, role)
+  if (!hasScope(scopes.organizationScopes, organizationExternalId)) throw new ConvexError("Нет доступа к организации")
+}
+
+export async function requireWarehouseScope(ctx: AnyCtx, user: ScopedUser, warehouseExternalId: string, role?: { capabilities: string[] }) {
+  const scopes = await effectiveScopes(ctx, user, role)
+  if (!hasScope(scopes.warehouseScopes, warehouseExternalId)) throw new ConvexError("Нет доступа к складу")
+}
+
+/** Restaurants the user may work with (active ones), through the by_external_id / by_active_and_name indexes. */
+export async function scopedRestaurants(ctx: AnyCtx, user: ScopedUser) {
+  if (user.restaurantScopes.includes("*")) return ctx.db.query("restaurants").withIndex("by_active_and_name", (q) => q.eq("active", true)).take(200)
+  const rows = await Promise.all(user.restaurantScopes.map((externalId) => ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()))
+  return rows.filter((row): row is NonNullable<typeof row> => Boolean(row?.active))
 }

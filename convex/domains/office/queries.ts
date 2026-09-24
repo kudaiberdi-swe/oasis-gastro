@@ -1,5 +1,6 @@
 import { query } from "../../_generated/server"
-import { getOfficeAuthEmail, hasScope } from "../../lib/officeAccess"
+import { CAPABILITY_CATALOG } from "../../lib/capabilities"
+import { effectiveScopes, getOfficeAuthEmail, hasScope } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 
 declare const process: { env: Record<string, string | undefined> }
@@ -24,9 +25,13 @@ export const context = query({
     const organization = organizationExternalId
       ? await ctx.db.query("organizations").withIndex("by_external_id", (q) => q.eq("externalId", organizationExternalId)).unique()
       : null
+    const scopes = user ? await effectiveScopes(ctx, user, role ?? undefined) : null
     return {
       email,
       ready,
+      organizationScopes: scopes?.organizationScopes ?? [],
+      warehouseScopes: scopes?.warehouseScopes ?? [],
+      capabilityCatalog: CAPABILITY_CATALOG,
       // Only the OFFICE_BOOTSTRAP_EMAIL account is offered bootstrap; everyone else sees "no access".
       canBootstrap: !ready && Boolean(email && bootstrapEmail && email === bootstrapEmail),
       user,

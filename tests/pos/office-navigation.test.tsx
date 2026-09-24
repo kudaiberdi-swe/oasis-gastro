@@ -35,11 +35,16 @@ describe("office navigation model (W0-UI-01)", () => {
   })
 
   it("hides items without the right and groups left empty", () => {
-    const groups = filterNavigationByCapabilities(officeNavigation, ["office.catalog.*", "office.stock.view"])
-    expect(groups.map((group) => group.id)).toEqual(["stock"])
-    expect(groups[0].items.map((item) => item.id)).toEqual(["nomenclature", "stock"])
+    const groups = filterNavigationByCapabilities(officeNavigation, ["office.receipts.view", "office.audit-log.view"])
+    expect(groups.map((group) => group.id)).toEqual(["stock", "admin"])
+    expect(groups.flatMap((group) => group.items.map((item) => item.id))).toEqual(["receipts", "audit-log"])
     expect(filterNavigationByCapabilities(officeNavigation, ["*"])).toHaveLength(12)
     expect(filterNavigationByCapabilities(officeNavigation, [])).toHaveLength(0)
+  })
+
+  it("shows the whole catalog block to an old office.catalog.* role (legacy alias)", () => {
+    const [stock] = filterNavigationByCapabilities(officeNavigation, ["office.catalog.*"])
+    expect(stock.items.map((item) => item.id)).toEqual(["nomenclature", "product-groups", "modifiers", "size-scales", "price-orders", "price-lists"])
   })
 
   it("finds «накладн» in labels and descriptions", () => {

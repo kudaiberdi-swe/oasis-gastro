@@ -1,4 +1,3 @@
-// Mirrors convex/lib/officeAccess.ts allowsCapability: "*", an exact match, or "office.<module>.*".
-export function allowsCapability(capabilities: readonly string[], capability: string): boolean {
-  return capabilities.some((candidate) => candidate === "*" || candidate === capability || (candidate.endsWith(".*") && capability.startsWith(candidate.slice(0, -1))))
-}
+// One capability rule for backend and office UI (convex/lib/capabilities.ts), including the
+// legacy module-right aliases until migration M-6.
+export { allowsCapability } from "../../../convex/lib/capabilities"
