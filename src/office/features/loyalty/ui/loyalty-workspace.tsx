@@ -4,6 +4,7 @@ import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { errorMessage } from "@/shared/lib/error-message"
 import { cn } from "@/shared/lib/utils"
+import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 
 import { useAdjustPoints, useGuestHistory, useGuests, type Guest } from "../data/use-office-loyalty"
 
@@ -125,7 +126,7 @@ function GuestDetailDialog({ guest, onClose }: { guest: Guest; onClose: () => vo
                   <div>
                     <span className="font-semibold text-foreground">{KIND_LABEL[entry.kind] ?? entry.kind}</span>
                     {entry.reason ? <span className="text-muted-foreground"> — {entry.reason}</span> : null}
-                    <p className="text-xs text-muted-foreground">{new Date(entry.occurredAt).toLocaleString("ru-RU", { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-xs text-muted-foreground">{formatAlmatyDateTime(entry.occurredAt)}</p>
                   </div>
                   <span className={cn("tabular-nums font-semibold", entry.points < 0 ? "text-destructive" : "text-success")}>{entry.points > 0 ? "+" : ""}{entry.points}</span>
                 </div>

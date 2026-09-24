@@ -2,9 +2,7 @@ import { useAction } from "convex/react"
 import { useCallback, useRef, useState } from "react"
 
 import { api } from "../../../../../convex/_generated/api"
-import { PinPad } from "@/pos/components/pin-pad"
-import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, PinPad } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 
 /**
@@ -51,6 +49,7 @@ export function useManagerApproval(terminalExternalId: string) {
   const setActive = stage === "code" ? setCode : setPin
 
   async function submit() {
+    if (submitting) return
     if (stage === "code") {
       if (!code) return
       setStage("pin")
@@ -78,22 +77,22 @@ export function useManagerApproval(terminalExternalId: string) {
           <DialogTitle>Подтверждение менеджера</DialogTitle>
           <DialogDescription>{reason}</DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">{stage === "code" ? "Код менеджера" : "PIN-код"}</p>
-        <div className="flex h-14 items-center justify-center rounded-[var(--radius-control)] border border-border bg-muted text-2xl font-bold tracking-[0.3em]">
-          {stage === "pin" ? "•".repeat(pin.length) || " " : code || " "}
-        </div>
-        {error && <p className="text-center text-sm font-semibold text-destructive">{error}</p>}
+        <p className="text-center text-body-sm font-medium text-muted-foreground">{stage === "code" ? "Код менеджера" : "PIN-код"}</p>
         <PinPad
-          onDigit={(digit) => {
+          key={stage}
+          label={stage === "code" ? "Код менеджера" : "PIN-код"}
+          value={active}
+          onValueChange={(next) => {
             setError(null)
-            if (active.length < 6) setActive(active + digit)
+            setActive(next)
           }}
-          onBackspace={() => {
-            setError(null)
-            setActive(active.slice(0, -1))
-          }}
+          maxLength={stage === "code" ? 12 : 6}
+          secret={stage === "pin"}
+          onSubmit={() => void submit()}
           disabled={submitting}
+          captureKeyboard={open}
         />
+        {error && <p role="alert" className="text-center text-body-sm font-semibold text-destructive">{error}</p>}
         <div className="flex gap-2">
           <Button type="button" variant="secondary" size="lg" className="flex-1" onClick={cancel} disabled={submitting}>
             Отмена

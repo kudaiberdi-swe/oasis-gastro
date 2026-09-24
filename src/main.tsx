@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client"
 
 import App from "@/App"
 import { ThemeProvider } from "@/shared/components/theme-provider"
+import { ToastProvider } from "@/shared/components/ui/toast"
 import "@fontsource/golos-text/400.css"
 import "@fontsource/golos-text/500.css"
 import "@fontsource/golos-text/600.css"
@@ -22,7 +23,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ConvexAuthProvider client={convex}>
       <ThemeProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </ThemeProvider>
     </ConvexAuthProvider>
   </StrictMode>,

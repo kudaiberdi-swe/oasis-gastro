@@ -25,7 +25,8 @@ describe("shift close is a blind count (S-12)", () => {
 
     fireEvent.change(counted, { target: { value: "22000" } })
     expect(screen.getByText(/Ожидается в кассе/)).toBeTruthy()
-    expect(screen.getByText("Расхождение: -300 ₸")).toBeTruthy()
+    expect(screen.getByText(/Расхождение: \u2212300\s₸/)).toBeTruthy()
+    expect(formatTenge(-300)).toBe("\u2212300\u00a0₸")
   })
 })
 

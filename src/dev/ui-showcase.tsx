@@ -3,7 +3,24 @@ import { Coffee, Truck, Utensils } from "lucide-react"
 
 import { useTheme } from "@/shared/components/theme-provider"
 import {
+  Banner,
+  Breadcrumb,
   Button,
+  ConfirmDialog,
+  DataTable,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  EmptyState,
+  KpiCard,
+  Money,
+  PageHeader,
+  PinPad,
+  StatusPill,
+  useToast,
   Checkbox,
   Chip,
   Combobox,
@@ -48,6 +65,11 @@ export function UiShowcase() {
   const [orderType, setOrderType] = useState<"hall" | "takeaway" | "delivery">("hall")
   const [payment, setPayment] = useState("cash")
   const [category, setCategory] = useState("meat")
+  const [pinValue, setPinValue] = useState("")
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [selectedRow, setSelectedRow] = useState<string | null>("b")
+  const toast = useToast()
 
   return (
     <main className="h-full overflow-y-auto bg-background text-foreground">
@@ -155,6 +177,100 @@ export function UiShowcase() {
             <TabsContent value="held" className="text-body-sm">Стол 2.</TabsContent>
             <TabsContent value="closed" className="text-body-sm">Сегодня закрыто 38 чеков.</TabsContent>
           </Tabs>
+        </Section>
+
+        <Section title="Страница и статусы">
+          <PageHeader
+            breadcrumb={<Breadcrumb items={[{ label: "Офис", href: "#" }, { label: "Склад", href: "#" }, { label: "Приходные накладные" }]} />}
+            title="Приходные накладные"
+            description="Поступления от поставщиков"
+            actions={<><Button variant="secondary">Экспорт</Button><Button>Новая накладная</Button></>}
+          />
+          <Banner tone="warning" title="Смена открыта более 24 часов" action={<Button size="sm" variant="secondary">Закрыть смену</Button>}>
+            Закройте смену и откройте новую, чтобы отчёты сходились.
+          </Banner>
+          <Banner tone="danger" title="Не удалось загрузить данные">Проверьте соединение.</Banner>
+          <div className="flex flex-wrap gap-2">
+            {["draft", "PENDING_APPROVAL", "approved", "POSTED", "reversed", "cancelled", "published", "unknown_value"].map((status) => (
+              <StatusPill key={status} domain="document" status={status} />
+            ))}
+            {["draft", "held", "paid", "partially_refunded", "refunded"].map((status) => (
+              <StatusPill key={`o-${status}`} domain="order" status={status} />
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <KpiCard label="Выручка" value={<Money value={1279652.3} size="xl" className="text-foreground" />} hint="+12 % к прошлой неделе" hintTone="success" />
+            <KpiCard label="Средний чек" value={<Money value={8450} size="xl" className="text-foreground" />} />
+            <KpiCard label="Расхождение" value={<Money value={-300} signed size="xl" />} hint="Требует подтверждения" hintTone="danger" />
+          </div>
+        </Section>
+
+        <Section title="Таблица">
+          <DataTable
+            caption="Чеки"
+            columns={[
+              { key: "number", header: "Чек", cell: (row) => row.number, sortValue: (row) => row.number },
+              { key: "table", header: "Стол", cell: (row) => row.table },
+              { key: "status", header: "Статус", cell: (row) => <StatusPill domain="order" status={row.status} /> },
+              { key: "total", header: "Сумма", numeric: true, cell: (row) => <Money value={row.total} size="sm" className="text-foreground" />, sortValue: (row) => row.total },
+            ]}
+            rows={[
+              { id: "a", number: 1042, table: "Стол 4", status: "paid", total: 18450 },
+              { id: "b", number: 1043, table: "Стол 7", status: "held", total: 7990 },
+              { id: "c", number: 1044, table: "Навынос", status: "refunded", total: 2850 },
+            ]}
+            getRowId={(row) => row.id}
+            onRowClick={(row) => setSelectedRow(row.id)}
+            selectedId={selectedRow}
+            loadMore={{ loaded: 3, total: 128, canLoadMore: true, onLoadMore: () => toast("Загружаем ещё 50 чеков") }}
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <DataTable caption="Загрузка" columns={[{ key: "a", header: "Название", cell: () => null }]} rows={undefined} getRowId={() => ""} />
+            <DataTable
+              caption="Пусто"
+              columns={[{ key: "a", header: "Название", cell: () => null }]}
+              rows={[]}
+              getRowId={() => ""}
+              empty={<EmptyState title="Накладных пока нет" description="Создайте первую приходную накладную" action={<Button size="sm">Создать</Button>} />}
+            />
+          </div>
+        </Section>
+
+        <Section title="Диалоги, тосты, PinPad">
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" onClick={() => setDialogOpen(true)}>Открыть диалог</Button>
+            <Button variant="danger" onClick={() => setConfirmOpen(true)}>Отменить заказ</Button>
+            <Button variant="secondary" onClick={() => toast("Чек отложен")}>Тост</Button>
+            <Button variant="secondary" onClick={() => toast("Не удалось сохранить", "error")}>Тост-ошибка</Button>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Скидка на чек</DialogTitle>
+                <DialogDescription>Больше 10 % — с подтверждением менеджера</DialogDescription>
+              </DialogHeader>
+              <p className="text-body-sm">Содержимое диалога.</p>
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setDialogOpen(false)}>Отмена</Button>
+                <Button onClick={() => setDialogOpen(false)}>Применить</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <ConfirmDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            title="Отменить заказ?"
+            description="Заказ №1043, стол 7. Действие нельзя отменить."
+            confirmLabel="Отменить заказ"
+            reasonLabel="Причина отмены"
+            onConfirm={() => {
+              setConfirmOpen(false)
+              toast("Заказ отменён", "success")
+            }}
+          />
+          <div className="flex justify-center rounded-card bg-muted p-6">
+            <PinPad label="PIN-код" secret value={pinValue} onValueChange={setPinValue} maxLength={6} onSubmit={() => toast(`PIN из ${pinValue.length} цифр`)} />
+          </div>
         </Section>
       </div>
     </main>

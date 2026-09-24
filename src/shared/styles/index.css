@@ -38,6 +38,7 @@
   --color-nav-foreground: var(--nav-foreground);
   --color-nav-muted: var(--nav-muted);
   --color-nav-accent: var(--nav-accent);
+  --color-overlay: var(--overlay);
   --color-cat-meat: var(--cat-meat);
   --color-cat-dairy: var(--cat-dairy);
   --color-cat-bread: var(--cat-bread);

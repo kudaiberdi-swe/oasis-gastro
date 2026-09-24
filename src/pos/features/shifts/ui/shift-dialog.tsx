@@ -86,7 +86,7 @@ export function CloseShiftDialog({
     try {
       let managerApprovalToken: string | undefined
       if (Math.abs(variance) >= 1000) {
-        const token = await onManagerRequired(`Подтвердите расхождение ${variance} ₸`)
+        const token = await onManagerRequired(`Подтвердите расхождение ${formatTenge(variance, { explicitPlus: true })}`)
         if (!token) {
           setSubmitting(false)
           return
@@ -124,7 +124,7 @@ export function CloseShiftDialog({
           <>
             <p className="text-sm text-muted-foreground">Ожидается в кассе: {formatTenge(expectedCash)}</p>
             <p className={variance === 0 ? "text-sm font-semibold text-muted-foreground" : variance > 0 ? "text-sm font-semibold text-success" : "text-sm font-semibold text-destructive"}>
-              Расхождение: {variance > 0 ? "+" : ""}{variance} ₸
+              Расхождение: {formatTenge(variance, { explicitPlus: true })}
             </p>
           </>
         )}

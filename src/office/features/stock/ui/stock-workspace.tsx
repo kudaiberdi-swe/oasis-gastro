@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { errorMessage } from "@/shared/lib/error-message"
-import { cn } from "@/shared/lib/utils"
+import { cn, formatTenge } from "@/shared/lib/utils"
+import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 
 import { useOfficeStock, useOfficeStockMutations, useRecentMovements, type InventoryItemId, type OfficeInventoryItem, type OfficeStockRestaurant } from "../data/use-office-stock"
 
@@ -99,7 +100,7 @@ function BalancesTable({
                 return (
                   <td key={restaurant.externalId} className="px-3 py-2 text-right align-top">
                     <p className={cn("tabular-nums font-semibold", low ? "text-destructive" : "text-foreground")}>{quantity} {item.unit}</p>
-                    {balance?.averageUnitCost ? <p className="text-xs text-muted-foreground">~{Math.round(balance.averageUnitCost)} ₸/{item.unit}</p> : null}
+                    {balance?.averageUnitCost ? <p className="text-xs text-muted-foreground">~{formatTenge(balance.averageUnitCost)}/{item.unit}</p> : null}
                     <div className="mt-1 flex justify-end gap-1">
                       <button type="button" onClick={() => onAction({ kind: "receipt", item, restaurantExternalId: restaurant.externalId })} className="rounded-[var(--radius-control)] px-1.5 py-0.5 text-xs font-bold text-primary hover:bg-primary/10">
                         Приход
@@ -149,7 +150,7 @@ function MovementsLog() {
         <tbody>
           {movements.map((movement) => (
             <tr key={movement._id} className="border-t border-border/60">
-              <td className="px-5 py-2 text-xs text-muted-foreground">{new Date(movement.occurredAt).toLocaleString("ru-RU", { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
+              <td className="px-5 py-2 text-xs text-muted-foreground">{formatAlmatyDateTime(movement.occurredAt)}</td>
               <td className="px-3 py-2 font-semibold text-foreground">{movement.itemName}</td>
               <td className="px-3 py-2">{KIND_LABEL[movement.kind] ?? movement.kind}</td>
               <td className={cn("px-3 py-2 text-right tabular-nums font-semibold", movement.quantityDelta < 0 ? "text-destructive" : "text-foreground")}>
