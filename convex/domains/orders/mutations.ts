@@ -7,7 +7,7 @@ import { requireManagerApproval, requireOpenShift, requireOperator, touchSession
 import { writeAudit } from "../../lib/audit"
 import { postLedgerEntry } from "../../lib/finance"
 import { accrueLoyaltyPoints, reverseLoyaltyPoints } from "../../lib/loyalty"
-import { calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
+import { calculateDiscountAmount, calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
 import { DISCOUNT_APPROVAL_PERCENT, SERVICE_CHARGE_PERCENT } from "../../lib/policy"
 import { draftLineInput, orderType as orderTypeValidator, paymentMethod as paymentMethodValidator } from "../../lib/validators"
 import { hydrateOrder } from "./queries"
@@ -124,7 +124,7 @@ export const saveDraft = mutation({
 
     const pricedLines = await priceLines(ctx, access.restaurant.externalId, args.lines)
     const subtotal = pricedLines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0)
-    const discountAmount = roundKzt(subtotal * (args.discountPercent / 100))
+    const discountAmount = calculateDiscountAmount(subtotal, args.discountPercent)
     const serviceChargeAmount = args.serviceChargeWaived ? 0 : calculateServiceCharge(subtotal, discountAmount)
     const total = calculateOrderTotal(subtotal, discountAmount, serviceChargeAmount)
     const now = Date.now()

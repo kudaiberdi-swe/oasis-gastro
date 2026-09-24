@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest"
 import { makeFunctionReference } from "convex/server"
 
 import { api, internal } from "./_generated/api"
+import type { Id } from "./_generated/dataModel"
 import schema from "./schema"
 
 const modules = import.meta.glob("./**/*.ts")
@@ -287,6 +288,111 @@ describe("loyalty reversal on refund (W0-BUG-04, S-8)", () => {
       (await ctx.db.query("loyaltyTransactions").withIndex("by_guest_occurred", (q) => q.eq("guestId", guestId)).collect()).filter((tx) => tx.kind === "reversal"),
     )
     expect(reversals.map((tx) => tx.points)).toEqual([-28, -29])
+  })
+})
+
+describe("reports, X-report and ledger backfill agree (W0-BUG-05)", () => {
+  async function asOfficeAdmin(t: ReturnType<typeof convexTest>) {
+    await t.run(async (ctx) => {
+      await ctx.db.insert("organizations", { externalId: "sandyq", name: "Sandyq", currency: "KZT", timezone: "Asia/Almaty", active: true })
+      await ctx.db.insert("officeRoles", { externalId: "administrator", name: "Администратор", capabilities: ["*"], system: true })
+      await ctx.db.insert("officeUsers", { externalId: "admin", email: "admin@sandyq.test", name: "Админ", roleExternalId: "administrator", restaurantScopes: ["*"], active: true })
+    })
+    return t.withIdentity({ email: "admin@sandyq.test" })
+  }
+
+  async function paidOrder(t: ReturnType<typeof convexTest>, fixture: Awaited<ReturnType<typeof seedFixture>>, key: string, lines: { productId: Id<"products">; quantity: number }[], payments: { method: "cash" | "card" | "qr"; amount: number }[], discountPercent = 0) {
+    const draft = await t.mutation(api.domains.orders.mutations.saveDraft, {
+      sessionToken: fixture.cashierToken,
+      clientOrderId: key,
+      orderType: "dine-in",
+      discountPercent,
+      ...(discountPercent ? { discountReason: "Постоянный гость" } : {}),
+      comment: "",
+      lines,
+    })
+    await t.mutation(api.domains.orders.mutations.checkout, { sessionToken: fixture.cashierToken, orderId: draft._id, idempotencyKey: `${key}-pay`, payments })
+    return draft
+  }
+
+  it("nets refunds out of sales revenue (S-9)", async () => {
+    const t = convexTest(schema, modules)
+    const fixture = await seedFixture(t)
+    const office = await asOfficeAdmin(t)
+    await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 0, note: "" })
+    const order = await paidOrder(t, fixture, "sale", [{ productId: fixture.productId, quantity: 1 }], [{ method: "card", amount: 1150 }])
+    await t.mutation(api.domains.orders.mutations.refund, {
+      sessionToken: fixture.cashierToken,
+      orderId: order._id,
+      idempotencyKey: "sale-refund",
+      amount: 575,
+      method: "card",
+      reason: "Частичный возврат",
+      managerApprovalToken: await createManagerApproval(t, fixture),
+    })
+
+    const summary = await office.query(api.domains.reports.queries.salesSummary, {})
+    expect(summary).toMatchObject({ grossSales: 1150, refunds: 575, revenue: 575, orderCount: 1 })
+    expect(summary.byPaymentMethod).toEqual([{ method: "card", amount: 575 }])
+  })
+
+  it("sums the orders' rounded discounts in the X-report (S-10)", async () => {
+    const t = convexTest(schema, modules)
+    const fixture = await seedFixture(t)
+    const oddPriced = await t.run(async (ctx) =>
+      ctx.db.insert("products", {
+        externalId: "odd",
+        name: "Блюдо 1999",
+        nameKk: "Тағам 1999",
+        nameSort: "блюдо 1999",
+        searchText: "блюдо 1999",
+        description: "",
+        category: "hot",
+        categorySort: 1,
+        basePrice: 1999,
+        popular: false,
+        sku: "ODD-1",
+        baseUnit: "порц." as const,
+        enabled: true,
+      }),
+    )
+    await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 0, note: "" })
+    // 7 % of 1 999 = 139.93 → each order discounts 140 ₸; the old X-report summed the raw 279.86.
+    for (const key of ["disc-1", "disc-2"]) {
+      const draft = await t.mutation(api.domains.orders.mutations.saveDraft, {
+        sessionToken: fixture.cashierToken,
+        clientOrderId: key,
+        orderType: "dine-in",
+        discountPercent: 7,
+        discountReason: "Постоянный гость",
+        comment: "",
+        lines: [{ productId: oddPriced, quantity: 1 }],
+      })
+      await t.mutation(api.domains.orders.mutations.checkout, { sessionToken: fixture.cashierToken, orderId: draft._id, idempotencyKey: `${key}-pay`, payments: [{ method: "card", amount: draft.total }] })
+    }
+    const report = await t.mutation(api.domains.shifts.mutations.createXReport, {
+      sessionToken: fixture.cashierToken,
+      idempotencyKey: "x-disc",
+      managerApprovalToken: await createManagerApproval(t, fixture),
+    })
+    expect(report.discounts).toBe(280)
+  })
+
+  it("backfills a split-paid order as one full revenue entry and never duplicates a live one (S-11)", async () => {
+    const t = convexTest(schema, modules)
+    const fixture = await seedFixture(t)
+    await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 0, note: "" })
+    const split = await paidOrder(t, fixture, "split", [{ productId: fixture.productId, quantity: 2 }], [{ method: "cash", amount: 1300 }, { method: "card", amount: 1000 }])
+    const live = await paidOrder(t, fixture, "live", [{ productId: fixture.productId, quantity: 1 }], [{ method: "card", amount: 1150 }])
+    // Simulate the split order predating the ledger: drop its live entry, keep the other.
+    await t.run(async (ctx) => {
+      for (const entry of await ctx.db.query("ledgerEntries").collect()) if (entry.sourceExternalId === String(split._id)) await ctx.db.delete(entry._id)
+    })
+
+    const { posted } = await t.mutation(internal.domains.finance.mutations.backfillFromPayments, {})
+    expect(posted).toBe(1)
+    const revenue = await t.run(async (ctx) => (await ctx.db.query("ledgerEntries").collect()).filter((entry) => entry.kind === "revenue"))
+    expect(revenue.map((entry) => [entry.sourceExternalId, entry.amount]).sort()).toEqual([[String(live._id), 1150], [String(split._id), 2300]].sort())
   })
 })
 

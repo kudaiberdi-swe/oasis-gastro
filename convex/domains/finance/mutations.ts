@@ -51,36 +51,56 @@ export const backfillFromPayments = internalMutation({
     const known = new Set(existingEntries.map((entry) => `${entry.sourceModuleId}:${entry.sourceExternalId}`))
     let posted = 0
 
+    // Live checkout posts ONE revenue entry per order keyed by the order id, so sale payments are
+    // summed per order here too — keying each payment separately would double-post orders that
+    // already have a live entry, and the old per-payment loop dropped every split part but the first.
+    const salesByOrder = new Map<string, { orderId: (typeof payments)[number]["orderId"]; amount: number; occurredAt: number }>()
     for (const payment of payments) {
-      const key = `orders:${payment.type === "sale" ? payment.orderId : payment._id}`
+      if (payment.type !== "sale") continue
+      const entry = salesByOrder.get(String(payment.orderId)) ?? { orderId: payment.orderId, amount: 0, occurredAt: payment.createdAt }
+      entry.amount += payment.amount
+      entry.occurredAt = Math.max(entry.occurredAt, payment.createdAt)
+      salesByOrder.set(String(payment.orderId), entry)
+    }
+    for (const sale of salesByOrder.values()) {
+      const key = `orders:${sale.orderId}`
+      if (known.has(key)) continue
+      const order = await ctx.db.get(sale.orderId)
+      if (!order || !order.restaurantId) continue
+      const restaurant = await ctx.db.get(order.restaurantId)
+      if (!restaurant) continue
+      await postLedgerEntry(ctx, {
+        restaurantExternalId: restaurant.externalId,
+        occurredAt: sale.occurredAt,
+        kind: "revenue",
+        category: "Продажи",
+        amount: sale.amount,
+        sourceModuleId: "orders",
+        sourceExternalId: String(sale.orderId),
+        description: `Заказ №${order.number} (доначислено)`,
+      })
+      known.add(key)
+      posted += 1
+    }
+
+    for (const payment of payments) {
+      if (payment.type !== "refund") continue
+      const key = `orders:${payment._id}`
       if (known.has(key)) continue
       const order = await ctx.db.get(payment.orderId)
       if (!order || !order.restaurantId) continue
       const restaurant = await ctx.db.get(order.restaurantId)
       if (!restaurant) continue
-      if (payment.type === "sale") {
-        await postLedgerEntry(ctx, {
-          restaurantExternalId: restaurant.externalId,
-          occurredAt: payment.createdAt,
-          kind: "revenue",
-          category: "Продажи",
-          amount: payment.amount,
-          sourceModuleId: "orders",
-          sourceExternalId: String(payment.orderId),
-          description: `Заказ №${order.number} (доначислено)`,
-        })
-      } else {
-        await postLedgerEntry(ctx, {
-          restaurantExternalId: restaurant.externalId,
-          occurredAt: payment.createdAt,
-          kind: "expense",
-          category: "Возврат",
-          amount: payment.amount,
-          sourceModuleId: "orders",
-          sourceExternalId: String(payment._id),
-          description: `Возврат по заказу №${order.number} (доначислено)`,
-        })
-      }
+      await postLedgerEntry(ctx, {
+        restaurantExternalId: restaurant.externalId,
+        occurredAt: payment.createdAt,
+        kind: "expense",
+        category: "Возврат",
+        amount: payment.amount,
+        sourceModuleId: "orders",
+        sourceExternalId: String(payment._id),
+        description: `Возврат по заказу №${order.number} (доначислено)`,
+      })
       known.add(key)
       posted += 1
     }

@@ -1,7 +1,8 @@
 import { v } from "convex/values"
 
+import type { Id } from "../../_generated/dataModel"
 import { query } from "../../_generated/server"
-import { almatyBusinessDate } from "../../lib/time"
+import { almatyBusinessDate, almatyDayStart, DAY_MS } from "../../lib/time"
 import { requireOfficeCapability, restaurantScopeFilter } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 
@@ -15,10 +16,10 @@ export const restaurantsForFilter = query({
 })
 
 /**
- * Sales analytics from real POS data — orders that were ever paid (status paid, partially_refunded
- * or refunded all mean the sale happened), grouped by business date, product and payment method.
- * Distinct from Финансы's P&L: this goes to line-item detail (top dishes, average check) instead
- * of just the order-level revenue/expense totals the ledger tracks.
+ * Sales analytics from real POS data. Reads payments in the requested Almaty date range through the
+ * `by_created_at` index (no full orders scan) and nets refunds out: `revenue` = sales − refunds,
+ * attributed to the business date each payment happened. Orders and their lines are loaded only for
+ * orders with a payment in range. Interim until the `dailySalesFacts` pre-aggregate (W1-RPT-02).
  */
 export const salesSummary = query({
   args: { restaurantExternalId: v.optional(v.string()), from: v.optional(v.string()), to: v.optional(v.string()) },
@@ -26,35 +27,47 @@ export const salesSummary = query({
     const { user } = await requireOfficeCapability(ctx, "office.reports.*")
     const inScope = restaurantScopeFilter(user, args.restaurantExternalId)
 
-    const restaurants = await ctx.db.query("restaurants").collect()
-    const restaurantExternalById = new Map(restaurants.map((restaurant) => [restaurant._id, restaurant.externalId]))
+    const rangeStart = args.from ? almatyDayStart(args.from) : 0
+    const rangeEnd = args.to ? almatyDayStart(args.to) + DAY_MS : Number.MAX_SAFE_INTEGER
+    const payments = await ctx.db
+      .query("payments")
+      .withIndex("by_created_at", (q) => q.gte("createdAt", rangeStart).lt("createdAt", rangeEnd))
+      .collect()
 
-    const allOrders = await ctx.db.query("orders").collect()
-    const sold = allOrders.filter((order) => {
-      if (order.paidAt === undefined) return false
-      if (!inScope(order.restaurantId ? restaurantExternalById.get(order.restaurantId) : undefined)) return false
-      const date = almatyBusinessDate(order.paidAt)
-      if (args.from && date < args.from) return false
-      if (args.to && date > args.to) return false
-      return true
+    const restaurantExternalById = new Map((await ctx.db.query("restaurants").collect()).map((restaurant) => [restaurant._id, restaurant.externalId]))
+    const orderIds = [...new Set(payments.map((payment) => payment.orderId))]
+    const orders = new Map((await Promise.all(orderIds.map((id) => ctx.db.get(id)))).filter((order) => order !== null).map((order) => [order._id, order]))
+    const visible = payments.filter((payment) => {
+      const order = orders.get(payment.orderId)
+      return order !== undefined && inScope(order.restaurantId ? restaurantExternalById.get(order.restaurantId) : undefined)
     })
 
-    const revenue = sold.reduce((sum, order) => sum + order.total, 0)
-    const orderCount = sold.length
-    const averageCheck = orderCount ? Math.round(revenue / orderCount) : 0
-
+    let grossSales = 0
+    let refunds = 0
+    const soldOrderIds = new Set<string>()
     const byDateMap = new Map<string, { revenue: number; orders: number }>()
-    const productAgg = new Map<string, { name: string; quantity: number; revenue: number }>()
     const byPaymentMethod = new Map<string, number>()
-
-    for (const order of sold) {
-      const date = almatyBusinessDate(order.paidAt!)
+    for (const payment of visible) {
+      const date = almatyBusinessDate(payment.createdAt)
       const dateEntry = byDateMap.get(date) ?? { revenue: 0, orders: 0 }
-      dateEntry.revenue += order.total
-      dateEntry.orders += 1
+      const signed = payment.type === "sale" ? payment.amount : -payment.amount
+      if (payment.type === "sale") {
+        grossSales += payment.amount
+        if (!soldOrderIds.has(String(payment.orderId))) {
+          soldOrderIds.add(String(payment.orderId))
+          dateEntry.orders += 1
+        }
+      } else {
+        refunds += payment.amount
+      }
+      dateEntry.revenue += signed
       byDateMap.set(date, dateEntry)
+      byPaymentMethod.set(payment.method, (byPaymentMethod.get(payment.method) ?? 0) + signed)
+    }
 
-      const lines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).collect()
+    const productAgg = new Map<string, { name: string; quantity: number; revenue: number }>()
+    for (const orderId of soldOrderIds) {
+      const lines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", orderId as Id<"orders">)).collect()
       for (const line of lines) {
         const key = line.productExternalId ?? String(line.productId)
         const productEntry = productAgg.get(key) ?? { name: line.productName, quantity: 0, revenue: 0 }
@@ -62,18 +75,15 @@ export const salesSummary = query({
         productEntry.revenue += line.quantity * line.unitPrice
         productAgg.set(key, productEntry)
       }
-
-      const payments = await ctx.db.query("payments").withIndex("by_order_created", (q) => q.eq("orderId", order._id)).collect()
-      for (const payment of payments) {
-        if (payment.type !== "sale") continue
-        byPaymentMethod.set(payment.method, (byPaymentMethod.get(payment.method) ?? 0) + payment.amount)
-      }
     }
 
+    const orderCount = soldOrderIds.size
     return {
-      revenue,
+      revenue: grossSales - refunds,
+      grossSales,
+      refunds,
       orderCount,
-      averageCheck,
+      averageCheck: orderCount ? Math.round(grossSales / orderCount) : 0,
       byDate: [...byDateMap.entries()].map(([date, value]) => ({ date, ...value })).sort((a, b) => a.date.localeCompare(b.date)),
       topProducts: [...productAgg.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 15),
       byPaymentMethod: [...byPaymentMethod.entries()].map(([method, amount]) => ({ method, amount })),

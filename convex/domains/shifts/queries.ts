@@ -5,7 +5,7 @@ import { query } from "../../_generated/server"
 import type { QueryCtx } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
 import { getOpenShift, requireOperator } from "../../lib/auth"
-import { calculateCashReconciliation } from "../../lib/money"
+import { calculateCashReconciliation, calculateDiscountAmount } from "../../lib/money"
 import { VARIANCE_APPROVAL_KZT } from "../../lib/policy"
 
 export async function calculateSummary(ctx: QueryCtx, shift: Doc<"shifts">) {
@@ -105,7 +105,7 @@ export async function buildXReportSnapshot(ctx: QueryCtx, shift: Doc<"shifts">) 
     if (order.status === "held") { orderCounts.held += 1; heldTotal += order.total }
     if (["paid", "partially_refunded", "refunded"].includes(order.status)) {
       catalogGrossSales += order.subtotal
-      discounts += Math.max(0, order.subtotal * (order.discountPercent / 100))
+      discounts += calculateDiscountAmount(order.subtotal, order.discountPercent)
       serviceCharge += order.serviceChargeAmount
       if (order.discountPercent > 0) orderCounts.discounted += 1
     }

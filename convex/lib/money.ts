@@ -5,6 +5,11 @@ export function roundKzt(amount: number): number {
   return Math.round(amount)
 }
 
+/** The one rounding rule for an order's percent discount — shared by the order itself and the X-report. */
+export function calculateDiscountAmount(subtotal: number, discountPercent: number): number {
+  return roundKzt(subtotal * (discountPercent / 100))
+}
+
 export function calculateServiceCharge(subtotal: number, discountAmount: number, percent = SERVICE_CHARGE_PERCENT): number {
   return roundKzt(Math.max(0, subtotal - discountAmount) * (percent / 100))
 }
