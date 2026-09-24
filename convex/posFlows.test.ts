@@ -247,6 +247,49 @@ describe("POS core flow", () => {
   })
 })
 
+describe("loyalty reversal on refund (W0-BUG-04, S-8)", () => {
+  it("reverses accrued points in proportion to each refund and ignores replays", async () => {
+    const t = convexTest(schema, modules)
+    const fixture = await seedFixture(t)
+    await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 10_000, note: "" })
+    const order = await t.mutation(api.domains.orders.mutations.saveDraft, {
+      sessionToken: fixture.cashierToken,
+      clientOrderId: "refund-points",
+      orderType: "dine-in",
+      discountPercent: 0,
+      comment: "",
+      lines: [{ productId: fixture.productId, quantity: 5 }], // 5000 + 15% = 5750
+    })
+    const { guestId } = await t.mutation(api.domains.loyalty.mutations.attachGuestToOrder, { sessionToken: fixture.cashierToken, orderId: order._id, phone: "+7 701 111 22 33" })
+    await t.mutation(api.domains.orders.mutations.checkout, { sessionToken: fixture.cashierToken, orderId: order._id, idempotencyKey: "points-checkout", payments: [{ method: "cash", amount: 5750, tendered: 5750 }] })
+    const points = async () => (await t.run(async (ctx) => ctx.db.get(guestId)))?.points
+    expect(await points()).toBe(57)
+
+    const refund = async (key: string, amount: number) =>
+      t.mutation(api.domains.orders.mutations.refund, {
+        sessionToken: fixture.cashierToken,
+        orderId: order._id,
+        idempotencyKey: key,
+        amount,
+        method: "cash",
+        reason: "Гость отказался",
+        managerApprovalToken: await createManagerApproval(t, fixture),
+      })
+
+    await refund("refund-half", 2875)
+    expect(await points()).toBe(29) // floor(57 × 2875 / 5750) = 28 reversed
+    await refund("refund-half", 2875) // replay of the same refund
+    expect(await points()).toBe(29)
+    await refund("refund-rest", 2875)
+    expect(await points()).toBe(0) // the two reversals add up to exactly the 57 accrued
+
+    const reversals = await t.run(async (ctx) =>
+      (await ctx.db.query("loyaltyTransactions").withIndex("by_guest_occurred", (q) => q.eq("guestId", guestId)).collect()).filter((tx) => tx.kind === "reversal"),
+    )
+    expect(reversals.map((tx) => tx.points)).toEqual([-28, -29])
+  })
+})
+
 describe("public function access (W0-BUG-01)", () => {
   it("requires a POS session for the catalog and prices from the session's restaurant", async () => {
     const t = convexTest(schema, modules)

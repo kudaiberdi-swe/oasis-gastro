@@ -426,12 +426,14 @@ export default defineSchema({
 
   loyaltyTransactions: defineTable({
     guestId: v.id("guests"),
-    kind: v.union(v.literal("accrual"), v.literal("redemption"), v.literal("adjustment")),
-    points: v.number(), // signed: + for accrual/upward adjustment, - for redemption/downward adjustment
+    kind: v.union(v.literal("accrual"), v.literal("redemption"), v.literal("adjustment"), v.literal("reversal")),
+    points: v.number(), // signed: + for accrual/upward adjustment, - for redemption/downward adjustment/reversal
     orderId: v.optional(v.id("orders")),
     reason: v.optional(v.string()), // required for a manual office adjustment
     balanceAfter: v.number(),
     actorEmail: v.optional(v.string()), // office email for a manual adjustment; absent for POS-sourced accrual
+    paymentId: v.optional(v.id("payments")), // reversal: the refund payment that triggered it
+    shortfall: v.optional(v.number()), // reversal: points owed back but already spent (balance never goes below 0)
     occurredAt: v.number(),
   })
     .index("by_guest_occurred", ["guestId", "occurredAt"])

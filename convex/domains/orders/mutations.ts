@@ -6,7 +6,7 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import { requireManagerApproval, requireOpenShift, requireOperator, touchSession, type PosAccess } from "../../lib/auth"
 import { writeAudit } from "../../lib/audit"
 import { postLedgerEntry } from "../../lib/finance"
-import { accrueLoyaltyPoints } from "../../lib/loyalty"
+import { accrueLoyaltyPoints, reverseLoyaltyPoints } from "../../lib/loyalty"
 import { calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
 import { DISCOUNT_APPROVAL_PERCENT, SERVICE_CHARGE_PERCENT } from "../../lib/policy"
 import { draftLineInput, orderType as orderTypeValidator, paymentMethod as paymentMethodValidator } from "../../lib/validators"
@@ -387,6 +387,7 @@ export const refund = mutation({
       sourceExternalId: String(paymentId),
       description: `${args.reason.trim()} · заказ №${order.number}`,
     })
+    await reverseLoyaltyPoints(ctx, order, { paidTotal: paid, refundedTotal: totalRefunded, paymentId, occurredAt: now })
     await writeAudit(ctx, access, { action: "order.refund", summary: `Возврат ${roundKzt(args.amount)} ₸ по заказу №${order.number}: ${args.reason.trim()}`, shiftId: shift._id, orderId: order._id, managerId: manager._id })
     return paymentId
   },

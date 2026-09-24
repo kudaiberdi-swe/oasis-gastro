@@ -1,5 +1,5 @@
 import type { GenericMutationCtx } from "convex/server"
-import type { DataModel, Doc } from "../_generated/dataModel"
+import type { DataModel, Doc, Id } from "../_generated/dataModel"
 import { LOYALTY_ACCRUAL_PER_TENGE } from "./policy"
 
 type MutationCtx = GenericMutationCtx<DataModel>
@@ -35,5 +35,45 @@ export async function accrueLoyaltyPoints(ctx: MutationCtx, order: Doc<"orders">
     orderId: order._id,
     balanceAfter,
     occurredAt,
+  })
+}
+
+/**
+ * Called from orders/mutations.ts:refund after the refund payment is recorded (refund replays with
+ * the same idempotency key return before this runs). Reverses the points accrued on the order in
+ * proportion to the refunded share. Computed cumulatively — target minus already reversed — so a
+ * series of partial refunds adds up to exactly the accrued points. The balance never goes below 0:
+ * points the guest already spent are recorded as `shortfall`.
+ */
+export async function reverseLoyaltyPoints(
+  ctx: MutationCtx,
+  order: Doc<"orders">,
+  refund: { paidTotal: number; refundedTotal: number; paymentId: Id<"payments">; occurredAt: number },
+) {
+  if (!order.guestId || refund.paidTotal <= 0) return
+  const guest = await ctx.db.get(order.guestId)
+  if (!guest) return
+  const history = await ctx.db.query("loyaltyTransactions").withIndex("by_guest_occurred", (q) => q.eq("guestId", guest._id)).order("desc").take(500)
+  const forOrder = history.filter((transaction) => transaction.orderId === order._id)
+  const accrued = forOrder.filter((transaction) => transaction.kind === "accrual").reduce((sum, transaction) => sum + transaction.points, 0)
+  if (accrued <= 0) return
+  const alreadyReversed = forOrder
+    .filter((transaction) => transaction.kind === "reversal")
+    .reduce((sum, transaction) => sum - transaction.points + (transaction.shortfall ?? 0), 0)
+  const target = Math.floor((accrued * Math.min(refund.refundedTotal, refund.paidTotal)) / refund.paidTotal)
+  const owed = target - alreadyReversed
+  if (owed <= 0) return
+  const deducted = Math.min(owed, guest.points)
+  const balanceAfter = guest.points - deducted
+  await ctx.db.patch(guest._id, { points: balanceAfter })
+  await ctx.db.insert("loyaltyTransactions", {
+    guestId: guest._id,
+    kind: "reversal",
+    points: -deducted,
+    orderId: order._id,
+    paymentId: refund.paymentId,
+    ...(owed > deducted ? { shortfall: owed - deducted } : {}),
+    balanceAfter,
+    occurredAt: refund.occurredAt,
   })
 }
