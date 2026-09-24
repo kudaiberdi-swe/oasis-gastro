@@ -47,6 +47,8 @@ export default defineSchema({
     name: v.string(),
     roleExternalId: v.string(),
     restaurantScopes: v.array(v.string()), // restaurants.externalId[], or ["*"] for all branches
+    organizationScopes: v.optional(v.array(v.string())), // W1-ACL: organizations.externalId[] or ["*"]
+    warehouseScopes: v.optional(v.array(v.string())), // W1-ACL: warehouses.externalId[] or ["*"]
     active: v.boolean(),
   })
     .index("by_external_id", ["externalId"])
@@ -63,6 +65,10 @@ export default defineSchema({
     sourceSystem: v.optional(v.string()), // "iiko-server" when this row was created/updated by the iiko sync
     sourceHash: v.optional(v.string()),
     importedAt: v.optional(v.number()),
+    bin: v.optional(v.string()), // Kazakhstan business identification number
+    legalName: v.optional(v.string()),
+    jurisdiction: v.optional(v.union(v.literal("KZ"), v.literal("RU"))),
+    sourceReadOnly: v.optional(v.boolean()),
   }).index("by_external_id", ["externalId"]),
 
   restaurants: defineTable({
@@ -77,6 +83,10 @@ export default defineSchema({
     sourceSystem: v.optional(v.string()),
     sourceHash: v.optional(v.string()),
     importedAt: v.optional(v.number()),
+    businessDayCutoffMinutes: v.optional(v.number()), // 0–720: sales before this time of day belong to the previous business day
+    departmentExternalId: v.optional(v.string()),
+    serviceMode: v.optional(v.string()),
+    sourceReadOnly: v.optional(v.boolean()),
   })
     .index("by_external_id", ["externalId"])
     .index("by_active_and_name", ["active", "name"])
@@ -89,10 +99,19 @@ export default defineSchema({
     terminalNumber: v.number(),
     nextOrderNumber: v.number(),
     active: v.boolean(),
+    sourceSystem: v.optional(v.string()),
+    sourceHash: v.optional(v.string()),
+    importedAt: v.optional(v.number()),
+    sourceReadOnly: v.optional(v.boolean()),
+    departmentExternalId: v.optional(v.string()),
+    // salesWarehouseId arrives with the warehouses table (W1 stock).
+    kind: v.optional(v.union(v.literal("pos"), v.literal("kds"), v.literal("office"))),
+    lastLoginAt: v.optional(v.number()),
   })
     .index("by_external_id", ["externalId"])
     .index("by_restaurant_number", ["restaurantId", "terminalNumber"])
-    .index("by_restaurant_active_and_number", ["restaurantId", "active", "terminalNumber"]),
+    .index("by_restaurant_active_and_number", ["restaurantId", "active", "terminalNumber"])
+    .index("by_restaurant_active_source_number", ["restaurantId", "active", "sourceSystem", "terminalNumber"]),
 
   employees: defineTable({
     code: v.string(),
@@ -406,8 +425,17 @@ export default defineSchema({
     shiftId: v.optional(v.id("shifts")),
     orderId: v.optional(v.id("orders")),
     managerId: v.optional(v.id("employees")),
+    capability: v.optional(v.string()),
+    details: v.optional(v.any()),
+    correlationId: v.optional(v.string()),
+    searchText: v.optional(v.string()),
   })
     .index("by_occurred_at", ["occurredAt"])
+    .index("by_resource", ["resourceExternalId", "occurredAt"])
+    .index("by_restaurant_occurred", ["restaurantExternalId", "occurredAt"])
+    .index("by_actor_occurred", ["actorKey", "occurredAt"])
+    .index("by_org_occurred", ["organizationExternalId", "occurredAt"])
+    .searchIndex("search_audit", { searchField: "searchText", filterFields: ["organizationExternalId", "restaurantExternalId", "action"] })
     .index("by_order_created", ["orderId", "occurredAt"])
     .index("by_shift_created", ["shiftId", "occurredAt"]),
 
@@ -473,6 +501,7 @@ export default defineSchema({
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
     counts: v.optional(v.object({ departments: v.number(), employees: v.number() })),
+    countsByEndpoint: v.optional(v.record(v.string(), v.number())),
     error: v.optional(v.string()),
   }).index("by_external_id", ["runExternalId"]),
 
@@ -481,7 +510,14 @@ export default defineSchema({
     lastStatus: v.union(v.literal("ok"), v.literal("error"), v.literal("unsupported")),
     lastRunAt: v.number(),
     message: v.optional(v.string()),
-  }).index("by_endpoint_key", ["endpointKey"]),
+    classification: v.optional(v.union(v.literal("mirrored"), v.literal("blocked-one-way"), v.literal("query-template"), v.literal("unsupported"))),
+    domain: v.optional(v.string()),
+    method: v.optional(v.string()),
+    path: v.optional(v.string()),
+    recordCount: v.optional(v.number()),
+  })
+    .index("by_endpoint_key", ["endpointKey"])
+    .index("by_domain", ["domain"]),
 
   // Read-only mirror of iiko's organization structure (corporation/departments).
   // Only the fields we actually allowlisted out of the source response — see
@@ -580,4 +616,113 @@ export default defineSchema({
   })
     .index("by_restaurant_item_occurred", ["restaurantExternalId", "inventoryItemId", "occurredAt"])
     .index("by_occurred_at", ["occurredAt"]),
+  // ── Accounting platform (W1-PLT-01) ─────────────────────────────────────────────────────────
+  // Chart of accounts (Kazakhstan standard chart, reference model; UI in W1 finance).
+  accounts: defineTable({
+    externalId: v.string(),
+    code: v.string(), // "1010"
+    name: v.string(),
+    type: v.union(v.literal("asset"), v.literal("liability"), v.literal("equity"), v.literal("income"), v.literal("expense"), v.literal("contra-income")),
+    parentExternalId: v.optional(v.string()),
+    allowManualEntries: v.boolean(),
+    system: v.boolean(),
+    active: v.boolean(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_code", ["code"])
+    .index("by_type_active", ["type", "active"]),
+
+  // Double-entry journal. Immutable: a correction is a reversal row pointing at the original.
+  journalEntries: defineTable({
+    externalId: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    sourceModuleId: v.string(),
+    sourceExternalId: v.string(),
+    sourceNumber: v.string(),
+    occurredAt: v.number(),
+    businessDate: v.string(), // YYYY-MM-DD, like lib/time almatyBusinessDate
+    debitAccountExternalId: v.string(),
+    creditAccountExternalId: v.string(),
+    amount: v.number(), // whole tenge (lib/money.ts)
+    quantity: v.optional(v.number()),
+    itemName: v.optional(v.string()),
+    warehouseExternalId: v.optional(v.string()),
+    description: v.string(),
+    reversalOf: v.optional(v.id("journalEntries")),
+    legacyLedgerEntryId: v.optional(v.id("ledgerEntries")),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_source", ["sourceExternalId", "occurredAt"])
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
+    .index("by_debit_date", ["debitAccountExternalId", "businessDate"])
+    .index("by_credit_date", ["creditAccountExternalId", "businessDate"])
+    .index("by_org_date", ["organizationExternalId", "businessDate"]),
+
+  // Period close. The organization is part of the index so one brand's lock never blocks another (B-26).
+  periodLocks: defineTable({
+    externalId: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.optional(v.string()),
+    moduleId: v.optional(v.string()),
+    kind: v.union(v.literal("preliminary"), v.literal("final")),
+    lockedThrough: v.number(),
+    active: v.boolean(),
+    reason: v.string(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    reopenedBy: v.optional(v.string()),
+    reopenedAt: v.optional(v.number()),
+    reopenReason: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_org_restaurant_active", ["organizationExternalId", "restaurantExternalId", "active", "lockedThrough"]),
+
+  // Transactional outbox: written in the same mutation as the change it describes.
+  outboxEvents: defineTable({
+    externalId: v.string(),
+    aggregateType: v.string(),
+    aggregateExternalId: v.string(),
+    eventType: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.optional(v.string()),
+    payload: v.any(),
+    status: v.union(v.literal("pending"), v.literal("published"), v.literal("failed")),
+    attempts: v.number(),
+    availableAt: v.number(),
+    createdAt: v.number(),
+    publishedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_status_available", ["status", "availableAt"])
+    .index("by_aggregate", ["aggregateExternalId", "createdAt"]),
+
+  // Integration queue (never an iiko write: iiko stays read-only).
+  integrationJobs: defineTable({
+    externalId: v.string(),
+    provider: v.string(),
+    direction: v.union(v.literal("inbound"), v.literal("outbound")),
+    operation: v.string(),
+    sourceExternalId: v.optional(v.string()),
+    idempotencyKey: v.string(),
+    status: v.union(v.literal("queued"), v.literal("processing"), v.literal("retrying"), v.literal("completed"), v.literal("failed"), v.literal("dead-letter"), v.literal("cancelled")),
+    attempts: v.number(),
+    payload: v.any(),
+    result: v.optional(v.any()),
+    error: v.optional(v.string()),
+    nextAttemptAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    organizationExternalId: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_idempotency_key", ["idempotencyKey"])
+    .index("by_status_attempt", ["status", "nextAttemptAt"]),
+
+  // Server-side document numbering: scopeKey = "<moduleId>:<organizationExternalId>:<yyyy>".
+  documentCounters: defineTable({
+    scopeKey: v.string(),
+    next: v.number(),
+  }).index("by_scope_key", ["scopeKey"]),
 })
