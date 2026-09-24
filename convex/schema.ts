@@ -70,6 +70,7 @@ export default defineSchema({
     bin: v.optional(v.string()), // Kazakhstan business identification number
     legalName: v.optional(v.string()),
     jurisdiction: v.optional(v.union(v.literal("KZ"), v.literal("RU"))),
+    vatPayer: v.optional(v.boolean()), // receipts cost net of VAT only when the organization and the supplier are VAT payers
     sourceReadOnly: v.optional(v.boolean()),
   }).index("by_external_id", ["externalId"]),
 
