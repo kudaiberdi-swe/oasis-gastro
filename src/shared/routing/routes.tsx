@@ -13,6 +13,12 @@ function RootRedirect() {
   return <Navigate to={{ pathname: "/pos", search: location.search }} replace />
 }
 
+/** The old `/pos/kitchen` address opens the kitchen screen (W1-KDS-02), keeping `?terminal=`. */
+function KitchenRedirect() {
+  const location = useLocation()
+  return <Navigate to={{ pathname: "/kitchen", search: location.search }} replace />
+}
+
 // Primitive showcase for screenshot checks; the dynamic import is dropped from production builds.
 const UiShowcase = import.meta.env.DEV ? lazy(() => import("@/dev/ui-showcase").then((module) => ({ default: module.UiShowcase }))) : null
 const OfficeShowcase = import.meta.env.DEV ? lazy(() => import("@/dev/office-showcase").then((module) => ({ default: module.OfficeShowcase }))) : null
@@ -31,6 +37,7 @@ export const appRoutes: RouteObject[] = [
   { path: "/", element: <RootRedirect /> },
   { path: "/pos", element: <div className="pos-surface h-full w-full"><PosRouter /></div> },
   { path: "/kitchen", element: <div className="pos-surface h-full w-full"><KitchenRouter /></div> },
+  { path: "/pos/kitchen", element: <KitchenRedirect /> },
   { path: "/office", element: <Navigate to={`/office/${DEFAULT_OFFICE_DESTINATION}`} replace /> },
   { path: "/office/:section/:id?", element: <div className="h-full w-full"><OfficeRouter /></div> },
   ...devRoutes,

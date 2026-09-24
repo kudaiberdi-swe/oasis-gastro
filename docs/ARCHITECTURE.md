@@ -359,10 +359,13 @@ src/
                       (the cart hook), open-checks-list, discount-dialog
       checkout/       payment-dialog, receipt formatting
       shifts/         open/close/X-report dialog
-      kitchen-display/ kitchen board, opened from the POS toolbar
       loyalty/        guest-dialog — attach/detach a guest during order-taking
   kitchen/
-    router.tsx        /kitchen placeholder — the full-screen kitchen display isn't built yet
+    router.tsx        /kitchen (and the /pos/kitchen redirect): terminal → PIN (reuses pos/features/session
+                      components) → full-screen board; model/use-kitchen-session (own storage keys, no idle lock)
+    features/board/   ui/{kitchen-board,ticket-card,station-filter,completed-journal},
+                      data/use-kitchen-board (also embedded by the POS «Экран кухни» button),
+                      model/{timer (thresholds config),ticket,sound,use-vanishing}
   office/
     router.tsx        auth gate: sign-in → (not ready) bootstrap or "no access" → shell + section
     model/            navigation.ts (12 groups / 91 items), nav-filter.ts (capability filter,
