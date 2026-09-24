@@ -13,10 +13,11 @@ import { useOrderDraft } from "@/pos/features/order-taking/model/use-order-draft
 import { OrderPanel } from "@/pos/components/order-panel"
 import { useLoyaltyMutations, useOrderGuest } from "@/pos/features/loyalty/data/use-loyalty"
 import { GuestDialog } from "@/pos/features/loyalty/ui/guest-dialog"
-import { BranchPicker } from "@/pos/features/session/ui/branch-picker"
+import { useTerminalOptions } from "@/pos/features/session/data/use-terminal-options"
 import { LoginScreen } from "@/pos/features/session/ui/login-screen"
 import { useManagerApproval } from "@/pos/features/session/ui/manager-approval-dialog"
 import { usePosSession } from "@/pos/features/session/model/use-pos-session"
+import { TerminalPicker } from "@/pos/features/session/ui/terminal-picker"
 import { CloseShiftDialog, OpenShiftDialog } from "@/pos/features/shifts/ui/shift-dialog"
 import { useClosePreview, useCurrentShift, useShiftMutations } from "@/pos/features/shifts/data/use-shifts"
 import { Button } from "@/shared/components/ui/button"
@@ -27,16 +28,38 @@ const TOOLBAR_BUTTON = "h-[var(--control-h-pos)]"
 
 export function PosWorkspace() {
   const session = usePosSession()
+  const terminalOptions = useTerminalOptions()
 
   if (!session.terminalExternalId) {
-    return <BranchPicker />
+    return <TerminalPicker options={terminalOptions} onChoose={session.chooseTerminal} />
+  }
+
+  const branch = terminalOptions?.find((option) => option.terminals.some((terminal) => terminal.externalId === session.terminalExternalId))
+  const terminal = branch?.terminals.find((candidate) => candidate.externalId === session.terminalExternalId)
+  // A remembered terminal that was disabled or removed: pick again instead of failing at login.
+  if (terminalOptions && !terminal && !session.access) {
+    return <TerminalPicker options={terminalOptions} onChoose={session.chooseTerminal} staleTerminal={session.terminalExternalId} />
   }
 
   if (!session.access) {
-    return <LoginScreen onLogin={session.signIn} />
+    return (
+      <LoginScreen
+        onLogin={session.signIn}
+        locked={session.locked}
+        terminalLabel={branch && terminal ? terminalLabel(branch.restaurantName, terminal.name) : undefined}
+        onChangeTerminal={() => session.chooseTerminal(null)}
+      />
+    )
   }
 
   return <AuthenticatedPos sessionToken={session.access.sessionToken} access={session.access} onLock={session.lock} terminalExternalId={session.terminalExternalId} />
+}
+
+/** «Sandyq · <филиал> · <касса>» without repeating the brand or branch already in the names. */
+export function terminalLabel(restaurantName: string, terminalName: string) {
+  const branch = restaurantName.startsWith("Sandyq") ? restaurantName : `Sandyq · ${restaurantName}`
+  const terminal = terminalName.startsWith(restaurantName) ? terminalName.slice(restaurantName.length).replace(/^\s*[·—-]\s*/, "") : terminalName
+  return terminal ? `${branch} · ${terminal}` : branch
 }
 
 function AuthenticatedPos({

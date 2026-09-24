@@ -5,7 +5,7 @@ import { v, ConvexError } from "convex/values"
 import { action } from "../../_generated/server"
 import { internal } from "../../_generated/api"
 import { constantTimeEqual, derivePinHash, sha256 } from "../../lib/auth"
-import { APPROVAL_TTL_MS, SESSION_TTL_MS } from "../../lib/policy"
+import { APPROVAL_TTL_MS, isValidPin, SESSION_TTL_MS } from "../../lib/policy"
 import { sessionPurpose } from "../../lib/validators"
 
 export const login = action({
@@ -23,6 +23,8 @@ export const login = action({
     restaurant: { id: string; externalId: string; name: string; city: string }
   }> => {
     const now = Date.now()
+    // No valid PIN is shorter than 4 or longer than 6 digits; same message as a wrong PIN.
+    if (!isValidPin(args.pin)) throw new ConvexError("Неверный код сотрудника или PIN")
     const record = await ctx.runQuery(internal.domains.auth.internal.getLoginRecord, {
       employeeCode: args.employeeCode,
       terminalExternalId: args.terminalExternalId,

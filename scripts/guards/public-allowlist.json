@@ -4,6 +4,10 @@
     {
       "id": "domains/auth/actions:login",
       "reason": "PIN login itself: verifies code + PIN and creates the session"
+    },
+    {
+      "id": "domains/auth/queries:posTerminalOptions",
+      "reason": "Terminal picker before sign-in: active branch and terminal names only, no ids or staff (W0-POS-01)"
     }
   ]
 }

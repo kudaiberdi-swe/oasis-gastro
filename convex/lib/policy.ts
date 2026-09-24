@@ -24,3 +24,11 @@ export const IDLE_LOCK_MS = 5 * 60 * 1000
  *  wired into checkout yet (it would change the payment-total math the same way a discount does,
  *  and deserves the same manager-approval treatment) — points only accrue for now. */
 export const LOYALTY_ACCRUAL_PER_TENGE = 100
+
+/** POS PIN length (digits). Checked at login and when a PIN is issued or reset. */
+export const PIN_MIN = 4
+export const PIN_MAX = 6
+
+export function isValidPin(pin: string) {
+  return pin.length >= PIN_MIN && pin.length <= PIN_MAX && /^\d+$/.test(pin)
+}

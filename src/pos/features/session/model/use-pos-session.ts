@@ -6,18 +6,31 @@ import { IDLE_LOCK_MS_CLIENT } from "./policy"
 import type { PosAccessSession } from "@/shared/types/pos"
 
 const STORAGE_KEY = "sandyq-pos-session"
+const TERMINAL_KEY = "sandyq-pos-terminal"
 
+function rememberTerminal(externalId: string | null) {
+  try {
+    if (externalId) window.localStorage.setItem(TERMINAL_KEY, externalId)
+    else window.localStorage.removeItem(TERMINAL_KEY)
+  } catch {
+    /* blocked storage: the choice lasts for this visit */
+  }
+}
+
+/** `?terminal=` wins, then the remembered choice, then the build-time default. */
 function resolveTerminalExternalId(): string | null {
   const fromQuery = new URLSearchParams(window.location.search).get("terminal")
   if (fromQuery) {
-    window.localStorage.setItem("sandyq-pos-terminal", fromQuery)
+    rememberTerminal(fromQuery)
     return fromQuery
   }
-  const stored = window.localStorage.getItem("sandyq-pos-terminal")
-  if (stored) return stored
-  const fromEnv = import.meta.env.VITE_POS_TERMINAL_ID
-  if (fromEnv) return fromEnv
-  return null
+  try {
+    const stored = window.localStorage.getItem(TERMINAL_KEY)
+    if (stored) return stored
+  } catch {
+    /* blocked storage */
+  }
+  return import.meta.env.VITE_POS_TERMINAL_ID || null
 }
 
 function readStoredAccess(): PosAccessSession | null {
@@ -40,7 +53,17 @@ export function usePosSession() {
   const lockMutation = useMutation(api.domains.auth.mutations.lock)
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const terminalExternalId = resolveTerminalExternalId()
+  const [terminalExternalId, setTerminalExternalId] = useState<string | null>(() => resolveTerminalExternalId())
+
+  const chooseTerminal = useCallback((externalId: string | null) => {
+    rememberTerminal(externalId)
+    const url = new URL(window.location.href)
+    if (url.searchParams.has("terminal")) {
+      url.searchParams.delete("terminal")
+      window.history.replaceState(null, "", url)
+    }
+    setTerminalExternalId(externalId)
+  }, [])
 
   const persist = useCallback((value: PosAccessSession | null) => {
     setAccess(value)
@@ -94,5 +117,5 @@ export function usePosSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Boolean(access)])
 
-  return { access, locked, terminalExternalId, signIn, signOut, lock }
+  return { access, locked, terminalExternalId, chooseTerminal, signIn, signOut, lock }
 }

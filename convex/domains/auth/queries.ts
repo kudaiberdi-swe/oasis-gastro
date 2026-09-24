@@ -30,3 +30,30 @@ export const current = query({
     }
   },
 })
+
+/**
+ * The terminal picker before anyone signs in — the one public query without a session (allowlisted in
+ * scripts/guards/public-allowlist.json). Only active branches with active terminals; no Convex ids,
+ * no staff, nothing beyond what is printed on the terminal itself.
+ */
+export const posTerminalOptions = query({
+  args: {},
+  handler: async (ctx) => {
+    const restaurants = await ctx.db.query("restaurants").withIndex("by_active_and_name", (q) => q.eq("active", true)).take(200)
+    const options = await Promise.all(
+      restaurants.map(async (restaurant) => {
+        const terminals = await ctx.db
+          .query("posTerminals")
+          .withIndex("by_restaurant_active_and_number", (q) => q.eq("restaurantId", restaurant._id).eq("active", true))
+          .take(50)
+        return {
+          restaurantExternalId: restaurant.externalId,
+          restaurantName: restaurant.name,
+          city: restaurant.city ?? null,
+          terminals: terminals.map((terminal) => ({ externalId: terminal.externalId, name: terminal.name, terminalNumber: terminal.terminalNumber })),
+        }
+      }),
+    )
+    return options.filter((option) => option.terminals.length > 0)
+  },
+})

@@ -5,9 +5,9 @@ import type { MutationCtx } from "../../_generated/server"
 import { derivePinHash, randomPinSalt } from "../../lib/auth"
 import { getOfficeAuthEmail, requireEmployeeInScope, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
 import { employeeRole } from "../../lib/validators"
+import { isValidPin, PIN_MAX, PIN_MIN } from "../../lib/policy"
 
 // One PIN rule for provisioning and resets; the POS PIN pad accepts at most 6 digits.
-const PIN_PATTERN = /^\d{4,6}$/
 
 async function resolveRestaurantIds(ctx: MutationCtx, user: { restaurantScopes: string[] }, restaurantExternalIds: string[]) {
   if (!restaurantExternalIds.length) throw new ConvexError("Выберите хотя бы один ресторан")
@@ -36,7 +36,7 @@ export const provisionPosAccess = mutation({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
     if (!/^\d{4,12}$/.test(args.employeeCode)) throw new ConvexError("Код сотрудника должен состоять из 4–12 цифр")
-    if (!PIN_PATTERN.test(args.pin)) throw new ConvexError("PIN должен состоять из 4–6 цифр")
+    if (!isValidPin(args.pin)) throw new ConvexError(`PIN должен состоять из ${PIN_MIN}–${PIN_MAX} цифр`)
     const email = await getOfficeAuthEmail(ctx)
 
     const source = await ctx.db.query("iikoEmployees").withIndex("by_external_id", (q) => q.eq("externalId", args.iikoEmployeeExternalId)).unique()
@@ -116,7 +116,7 @@ export const resetPin = mutation({
   args: { employeeId: v.id("employees"), pin: v.string() },
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.workforce.*")
-    if (!PIN_PATTERN.test(args.pin)) throw new ConvexError("PIN должен состоять из 4–6 цифр")
+    if (!isValidPin(args.pin)) throw new ConvexError(`PIN должен состоять из ${PIN_MIN}–${PIN_MAX} цифр`)
     const email = await getOfficeAuthEmail(ctx)
     const employee = await ctx.db.get(args.employeeId)
     if (!employee) throw new ConvexError("Сотрудник не найден")
