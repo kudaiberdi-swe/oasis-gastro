@@ -8,6 +8,7 @@ import { applyOrderLoyalty } from "./loyaltyCore"
 import { appendOutboxEvent } from "./outbox"
 import { createKitchenTicket } from "./kitchen"
 import { consumeOrderStock } from "./recipeConsumption"
+import { applyCheckoutFacts } from "./reportFacts"
 import { activeSettingsAt, settingInForce } from "./retailSettings"
 
 type QueryCtx = GenericQueryCtx<DataModel>
@@ -171,8 +172,9 @@ export async function settleOrder(
   if (!withJournal) await postLedgerEntry(ctx, { restaurantExternalId, occurredAt: now, kind: "revenue", category: "Продажи", amount: order.total, sourceModuleId: "orders", sourceExternalId, description: `Заказ №${order.number}`, businessDate })
   // Sale write-off by recipe and cost of goods sold (W1-RCP-03); never fails the sale.
   const soldLines = orderLines.filter((line) => !line.voidedAt)
-  await consumeOrderStock(ctx, { order, lines: soldLines, restaurantExternalId, terminal: actor.terminal, idempotencyKey: args.idempotencyKey, occurredAt: now, businessDate })
+  const { cost } = await consumeOrderStock(ctx, { order, lines: soldLines, restaurantExternalId, terminal: actor.terminal, idempotencyKey: args.idempotencyKey, occurredAt: now, businessDate })
   await applyOrderLoyalty(ctx, { order, redemption, idempotencyKey: args.idempotencyKey, restaurantExternalId, occurredAt: now, businessDate })
+  await applyCheckoutFacts(ctx, (await ctx.db.get(order._id))!, cost) // W1-RPT-02
   await appendOutboxEvent(ctx, {
     aggregateType: "order",
     aggregateExternalId: sourceExternalId,

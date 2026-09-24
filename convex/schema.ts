@@ -501,6 +501,46 @@ export default defineSchema({
     .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
     .searchIndex("search_attendance", { searchField: "searchText", filterFields: ["status", "restaurantExternalId"] }),
 
+  // Sales pre-aggregate for reports (W1-RPT-02): one row per restaurant, business day, fact type and
+  // dimension; written in the same transaction as checkout / refund / cancel / void, rebuilt nightly.
+  dailySalesFacts: defineTable({
+    restaurantExternalId: v.string(),
+    businessDate: v.string(),
+    factType: v.union(
+      v.literal("branch"), v.literal("hour"), v.literal("quarter-hour"), v.literal("product"), v.literal("category"), v.literal("size"), v.literal("modifier"),
+      v.literal("payment-type"), v.literal("order-type"), v.literal("employee"), v.literal("cashier"), v.literal("terminal"), v.literal("table"),
+      v.literal("deletion-reason"), v.literal("discount-type"), v.literal("service-charge"),
+    ),
+    dimensionKey: v.string(),
+    dimensionLabel: v.string(),
+    orderCount: v.number(),
+    guestCount: v.number(),
+    quantity: v.number(),
+    grossAmount: v.number(),
+    discountAmount: v.number(),
+    serviceChargeAmount: v.number(),
+    netAmount: v.number(),
+    costAmount: v.number(),
+    refundAmount: v.number(),
+    refundCount: v.number(),
+    serviceMinutesTotal: v.number(),
+    zeroRevenueCount: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_restaurant_type_date", ["restaurantExternalId", "factType", "businessDate"])
+    .index("by_restaurant_type_key_date", ["restaurantExternalId", "factType", "dimensionKey", "businessDate"])
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"]),
+
+  // Idempotency of fact writes: order:<id>:checkout, order:<id>:refund:<paymentId>, order:<id>:cancel, line:<id>:void.
+  reportFactEvents: defineTable({
+    sourceKey: v.string(),
+    restaurantExternalId: v.string(),
+    businessDate: v.string(),
+    appliedAt: v.number(),
+  })
+    .index("by_source_key", ["sourceKey"])
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"]),
+
   // Terminal notifications (W1-POS-09): stock below minimum, office messages, a shift open over 24 h.
   posNotifications: defineTable({
     terminalId: v.id("posTerminals"),

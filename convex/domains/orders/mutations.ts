@@ -13,6 +13,7 @@ import { calculateDiscountAmount, calculateOrderTotal, calculateServiceCharge, r
 import { cancelTicketLine, cancelTicketsForOrder, createKitchenTicket } from "../../lib/kitchen"
 import { settingInForce } from "../../lib/retailSettings"
 import { appendOutboxEvent } from "../../lib/outbox"
+import { applyDeletionFacts, applyRefundFacts, orderCost } from "../../lib/reportFacts"
 import { priceDraftLines, resolveDiscount, resolveOrderType, type PricedLine } from "../../lib/orderPricing"
 import { draftLineInput, orderType as orderTypeValidator, paymentMethod as paymentMethodValidator } from "../../lib/validators"
 import { assertPeriodOpen } from "../../lib/periods"
@@ -255,6 +256,8 @@ export const cancel = mutation({
       createdAt: now,
       ...(setting ? { deletionReasonExternalId: setting.externalId, deletionReasonVersion: setting.version } : {}),
     })
+    const cancelledLines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200)
+    await applyDeletionFacts(ctx, order, `order:${order._id}:cancel`, { key: setting?.externalId ?? "cancel", label: setting?.name ?? "Отмена заказа" }, order.total, cancelledLines.reduce((sum, line) => sum + (line.voidedAt ? 0 : line.quantity), 0))
     await writeAudit(ctx, access, { action: "order.cancel", summary: `Отменён заказ №${order.number}: ${[setting?.name, comment].filter(Boolean).join(" — ")}`, shiftId: order.currentShiftId, orderId: order._id, managerId: manager._id })
   },
 })
@@ -405,6 +408,7 @@ export const refund = mutation({
       })
       await ctx.db.patch(paymentId, { journalEntryId: entry.externalId })
     }
+    await applyRefundFacts(ctx, order, (await ctx.db.get(paymentId))!, Math.min(1, roundKzt(args.amount) / paid), await orderCost(ctx, order))
     await reverseOrderConsumption(ctx, { order, refundKey: String(paymentId), share: Math.min(1, roundKzt(args.amount) / paid), occurredAt: now, businessDate: shift.businessDate })
     await reverseOrderLoyalty(ctx, { order, paidTotal: paid, refundedTotal: totalRefunded, paymentId, occurredAt: now })
     await appendOutboxEvent(ctx, {
@@ -476,6 +480,7 @@ export const voidLine = mutation({
     await ctx.db.patch(line._id, { voidedAt: now, voidReasonExternalId: reason.externalId, ...(line.clientLineId ? {} : { clientLineId: String(line._id) }) })
     await ctx.db.insert("orderDeletionEvents", { orderId: order._id, orderLineId: line._id, deletionReasonName: reason.name, deletionReasonExternalId: reason.externalId, deletionReasonVersion: reason.version, writeOff: reason.data.writeOff, comment, actorId: access.employee._id, managerId: manager?._id, createdAt: now })
     if (line.sentToKitchenAt) await cancelTicketLine(ctx, line, now)
+    await applyDeletionFacts(ctx, order, `line:${line._id}:void`, { key: reason.externalId, label: reason.name }, lineAmount(line), line.quantity)
     if (reason.data.writeOff) {
       await consumeOrderStock(ctx, {
         order,
