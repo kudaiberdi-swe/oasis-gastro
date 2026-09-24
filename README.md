@@ -41,6 +41,7 @@ npm run iiko:seed       # extract → import → reconcile, scoped to Sandyq onl
 | `npm run build` | Typecheck + production frontend build |
 | `npm run typecheck` | `tsc -b` across the whole repo (frontend + convex) |
 | `npm run test` | Runs every test under `tests/` (vitest): `tests/convex` (backend, `convex-test`), `tests/pos` (UI, jsdom), `tests/scripts` (guards) |
+| `npm run contrast` | WCAG contrast of the day/night theme tokens in `src/shared/styles/theme.css` |
 | `npm run guards` | Static checks for the hard rules (auth on public functions, `ConvexError`, design tokens) against `scripts/guards/baseline.json` |
 | `npm run seed` | Idempotent — safe to re-run. Refuses to run against anything but a dev deployment unless `--prod` is passed (and `--prod` never creates PIN credentials — see below) |
 | `npm run iiko:discover` / `iiko:extract` / `iiko:import` / `iiko:reconcile` / `iiko:seed` | iiko sync pipeline stages — see the runbook |

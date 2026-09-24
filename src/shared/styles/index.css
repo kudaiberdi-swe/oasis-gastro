@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "./theme.css";
 
+/* `dark:` follows the app's theme switch, not the OS theme. */
+@custom-variant dark (&:where([data-theme=night], [data-theme=night] *));
+
 @theme inline {
   --font-sans: var(--font-ui);
   --font-display: var(--font-display);
@@ -13,6 +16,7 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -20,6 +24,8 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-gold: var(--gold);
+  --color-rust: var(--rust);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -28,7 +34,39 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-destructive: var(--destructive);
   --color-nav: var(--nav);
+  --color-nav-raised: var(--nav-raised);
   --color-nav-foreground: var(--nav-foreground);
+  --color-nav-muted: var(--nav-muted);
+  --color-nav-accent: var(--nav-accent);
+  --color-cat-meat: var(--cat-meat);
+  --color-cat-dairy: var(--cat-dairy);
+  --color-cat-bread: var(--cat-bread);
+  --color-cat-green: var(--cat-green);
+  --color-cat-tea: var(--cat-tea);
+  --color-cat-turkistan: var(--cat-turkistan);
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+  --radius-panel: var(--radius-panel);
+  --shadow-panel: var(--shadow-panel);
+  --shadow-float: var(--shadow-float);
+}
+
+/* Type scale (docs/POS-DESIGN.md §3.2): POS text ≥ 14px, office ≥ 12px. */
+@theme {
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-title-sm: 18px;
+  --text-title-sm--line-height: 24px;
+  --text-title: 22px;
+  --text-title--line-height: 28px;
+  --text-display: 32px;
+  --text-display--line-height: 36px;
+  --text-hero: 44px;
+  --text-hero--line-height: 48px;
 }
 
 * {
@@ -67,18 +105,14 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Tabular lining figures for prices and totals (design skill .sq-price). */
+.sq-price {
+  font-family: var(--font-display);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
 ::selection {
   background: color-mix(in srgb, var(--accent) 28%, transparent);
-}
-
-.pos-canvas {
-  background-color: var(--background);
-  background-image: radial-gradient(var(--canvas-dot) 0.75px, transparent 0.75px);
-  background-size: 16px 16px;
-}
-
-.panel-shadow {
-  box-shadow: var(--shadow-panel);
 }
 
 .no-scrollbar {
@@ -87,14 +121,6 @@ button {
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
-}
-
-@media (max-height: 760px) {
-  :root {
-    --space-page: 10px;
-    --space-panel: 12px;
-    --space-grid: 8px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

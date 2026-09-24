@@ -64,7 +64,7 @@ export function LoginScreen({ onLogin, restaurantHint }: { onLogin: (code: strin
     <div className="flex h-full flex-col items-center justify-center gap-8 bg-nav px-6">
       <div className="flex flex-col items-center gap-3 text-nav-foreground">
         <img src="/branding/sandyq-kz-logo.svg" alt="Sandyq" className="h-12" />
-        <div className="flex items-center gap-3 text-[color:var(--brass)]">
+        <div className="flex items-center gap-3 text-nav-accent">
           <Ornament />
           <Ornament className="-scale-x-100" />
         </div>

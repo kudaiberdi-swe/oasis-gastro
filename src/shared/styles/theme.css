@@ -1,127 +1,153 @@
 /*
- * Sandyq POS design tokens
- * ------------------------
- * Update this file to reskin the entire product. Components only consume
- * semantic tokens (primary, surface, muted, spacing and radii).
+ * Sandyq design tokens — the only place in the app with raw color values.
+ * Components use semantic tokens only (bg-card, text-accent, …); a design change is one file.
  *
- * Palette and type sourced from the project's design system package
- * (.claude/sandyq-design.skill — sandyqgroup.com, sandyq.kz, the printed
- * menus). Walnut/ink dark grounds, felt/bone light grounds, kilim red as
- * the single primary action, brass for ornament/prices/accents.
+ * Palette (decision D2, docs/POS-DESIGN.md §2): colors of the live site sandyqgroup.com
+ * (docs/DESIGN.md) — cream, ink, wine, gold, rust. Values marked "derived" are tuned for WCAG
+ * contrast (text ≥ 4.5:1, control borders ≥ 3:1; checked by scripts/check-contrast.mjs).
+ * The design-skill palette (walnut/felt/kilim/brass) stays available as [data-palette="skill"].
  */
 
 :root,
 [data-theme="day"] {
   color-scheme: light;
 
-  /* Brand — from the Sandyq design system */
-  --walnut: #3a2419; /* dark sections: hero, booking, nav */
-  --walnut-2: #53362a; /* raised surfaces on dark */
-  --ink: #1c1511; /* deepest: footer, overlays */
-  --felt: #ede3d1; /* light reading ground */
-  --felt-2: #e0d2ba; /* cards/rows on light */
-  --bone: #faf6ee; /* highest light surface: inputs, elevated cards */
-  --kilim: #8c2b20; /* primary action — one per screen */
-  --kilim-hi: #a83a2c;
-  --brass: #b88b45; /* ornament, dividers, prices ON DARK grounds */
-  --brass-lo: #8a6530; /* brass text on LIGHT grounds — contrast-safe */
-  --sage: #6b7654; /* farm / seasonal / herbal marks */
-  --tile: #2e6a6e; /* Turkistan-only accent, used sparingly */
-
-  /* Semantic color */
-  --background: var(--felt);
-  --foreground: #2a1d16;
-  --card: var(--bone);
-  --card-foreground: #2a1d16;
-  --popover: var(--bone);
-  --popover-foreground: #2a1d16;
-  --primary: var(--kilim);
+  --background: #fff7ec; /* site cream — working area */
+  --foreground: #121316; /* site ink */
+  --card: #ffffff; /* cards, panels, tables, dialogs */
+  --card-foreground: #121316;
+  --popover: #ffffff;
+  --popover-foreground: #121316;
+  --muted: #f5ecdf; /* derived: row stripes, segmented controls, read-only fields */
+  --muted-foreground: #6b6159; /* derived: 5.68 on cream */
+  --secondary: #f5ecdf;
+  --secondary-foreground: #121316;
+  --border: #e8e3dc; /* site card border — decorative */
+  --input: #8c8173; /* derived: input borders, 3.82 on white (WCAG 1.4.11) */
+  --primary: #8c2323; /* site wine — the one main action per screen */
+  --primary-hover: #6e1b1b;
   --primary-foreground: #ffffff;
-  --secondary: var(--felt-2);
-  --secondary-foreground: #2a1d16;
-  --muted: var(--felt-2);
-  --muted-foreground: #6e5a4a;
-  --accent: var(--brass-lo);
+  --accent: #8a6526; /* site gold-link — prices, links, active tabs on light (4.98 on cream) */
   --accent-foreground: #ffffff;
-  --border: #d9c7a9;
-  --input: #d9c7a9;
-  --ring: var(--brass);
-  --success: var(--sage);
-  --warning: var(--brass-lo);
-  --warning-foreground: #6e4c1f;
-  --destructive: #6e2419;
-  --nav: var(--walnut);
-  --nav-foreground: #f1e7d6;
-  --canvas-dot: rgb(184 139 69 / 0.08);
+  --gold: #b28f6f; /* site gold — ornament and lines only, never text on light */
+  --rust: #a33009; /* site rust — 4px heading accent, ornament markers */
+  --ring: #7f5c43; /* site clay-strong — focus ring */
+  --success: #4d5a36; /* derived: paid, posted, ready */
+  --warning: #9a4408; /* derived: held, below minimum, 24h shift */
+  --warning-foreground: #9a4408;
+  --destructive: #b42318; /* derived: errors, negative amounts, dangerous actions */
+  --nav: #121316; /* sidebar, POS header, sign-in */
+  --nav-raised: #1e1e1e;
+  --nav-foreground: #fff7ec;
+  --nav-muted: #bfb5a8;
+  --nav-accent: #b28f6f; /* active menu item, prices and ornament on dark */
+  --overlay: rgb(0 0 0 / 0.4);
 
-  /* Product swatches (category accents) */
-  --product-sunset: #ecd2b4;
-  --product-sun: #e8d79a;
-  --product-mint: #c7d2b6;
-  --product-sky: #bcd0d1;
-  --product-berry: #ddbcbb;
-  --product-lilac: #cbb9a6;
+  /* Menu category marks — a 3px strip on dish cards and category chips, never a fill */
+  --cat-meat: #8c2323;
+  --cat-dairy: #b28f6f;
+  --cat-bread: #9a4408;
+  --cat-green: #4d5a36;
+  --cat-tea: #6b4a2e;
+  --cat-turkistan: #2e6a6e; /* only dishes marked Туркестан */
 
-  /* Typography — Cormorant (display) + Golos Text (body), both cover
-     Kazakh Cyrillic-extended (ә ғ қ ң ө ұ ү һ і). Loaded in index.html. */
-  --font-display: "Cormorant", "PT Serif", Georgia, "Times New Roman", serif;
+  /* Type (decision D3): Golos Text for UI, Cormorant for display — both self-hosted, both cover
+     Kazakh Cyrillic (Ә Ғ Қ Ң Ө Ұ Ү Һ І). */
+  --font-display: "Cormorant", "PT Serif", Georgia, serif;
   --font-ui: "Golos Text", "PT Sans", "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, monospace;
-  --tracking-tight: -0.01em;
 
-  /* Shape — carved, almost square; never a generic rounded-SaaS radius */
+  /* Shape — carved, almost square */
   --radius-control: 2px;
   --radius-card: 6px;
   --radius-panel: 8px;
+  --radius-round: 999px;
 
-  /* Layout / density */
-  --space-page: 10px;
-  --space-panel: 12px;
-  --space-grid: 10px;
-  --control-height: 42px;
+  /* Space and control size — [data-density="compact"] really changes these */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --control-h: 44px;
+  --control-h-pos: 48px;
+  --table-row-h: 48px;
 
-  /* Effects */
-  --shadow-panel: 0 1px 2px rgb(28 21 17 / 0.08), 0 10px 26px rgb(28 21 17 / 0.1);
-  --shadow-float: 0 22px 48px rgb(28 21 17 / 0.28);
+  /* Elevation */
+  --shadow-panel: 0 1px 2px rgb(18 19 22 / 0.06), 0 8px 24px rgb(18 19 22 / 0.06);
+  --shadow-float: 0 10px 25px rgb(0 0 0 / 0.1);
+  --hairline: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
 }
 
+/* Night overrides every color token, including success/warning/destructive (S-16). */
 [data-theme="night"] {
   color-scheme: dark;
-  --background: var(--ink);
-  --foreground: #f1e7d6;
-  --card: var(--walnut);
-  --card-foreground: #f1e7d6;
-  --popover: var(--walnut-2);
-  --popover-foreground: #f1e7d6;
-  --primary: var(--kilim-hi);
+
+  --background: #121316;
+  --foreground: #fff7ec;
+  --card: #1e1e1e;
+  --card-foreground: #fff7ec;
+  --popover: #23282d; /* site charcoal */
+  --popover-foreground: #fff7ec;
+  --muted: #2a2724;
+  --muted-foreground: #bfb5a8;
+  --secondary: #2a2724;
+  --secondary-foreground: #fff7ec;
+  --border: #3a3631;
+  --input: #857a6f;
+  --primary: #a83a2c;
+  --primary-hover: #8c2323;
   --primary-foreground: #ffffff;
-  --secondary: var(--walnut-2);
-  --secondary-foreground: #f1e7d6;
-  --muted: #2b1f18;
-  --muted-foreground: #bfaf97;
-  --accent: var(--brass);
-  --accent-foreground: var(--ink);
-  --border: #4a382c;
-  --input: #4a382c;
-  --ring: var(--brass);
-  --nav: #120d0a;
-  --nav-foreground: #f1e7d6;
-  --canvas-dot: rgb(184 139 69 / 0.06);
-  --product-sunset: #5a3a22;
-  --product-sun: #564a26;
-  --product-mint: #3a4732;
-  --product-sky: #2f4547;
-  --product-berry: #4a3130;
-  --product-lilac: #3c3226;
+  --accent: #b28f6f;
+  --accent-foreground: #121316;
+  --gold: #b28f6f;
+  --rust: #e0685c;
+  --ring: #c9a27e;
+  --success: #9fb07a;
+  --warning: #f09a4c;
+  --warning-foreground: #f09a4c;
+  --destructive: #e0685c;
+  --nav: #0b0c0e;
+  --nav-raised: #1e1e1e;
+  --nav-foreground: #fff7ec;
+  --nav-muted: #bfb5a8;
+  --nav-accent: #b28f6f;
+  --overlay: rgb(0 0 0 / 0.55);
+
+  --cat-meat: #c0463a;
+  --cat-dairy: #c9a27e;
+  --cat-bread: #f09a4c;
+  --cat-green: #9fb07a;
+  --cat-tea: #c9a27e;
+  --cat-turkistan: #6fa8ac;
+
   --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 34px rgb(0 0 0 / 0.2);
+  --shadow-float: 0 10px 25px rgb(0 0 0 / 0.4);
+}
+
+/* Alternative palette from the design skill (walnut / felt / kilim / brass) — one attribute away. */
+[data-palette="skill"]:not([data-theme="night"]) {
+  --background: #ede3d1; /* felt */
+  --card: #faf6ee; /* bone */
+  --popover: #faf6ee;
+  --nav: #3a2419; /* walnut */
+  --nav-raised: #53362a;
+  --primary: #8c2b20; /* kilim */
+  --primary-hover: #6e2419;
+  --accent: #8a6530; /* brass-lo */
+  --gold: #b88b45; /* brass */
+  --nav-accent: #b88b45;
 }
 
 [data-density="compact"] {
-  --space-page: 10px;
-  --space-panel: 13px;
-  --space-grid: 8px;
-  --control-height: 38px;
-  --radius-control: 2px;
-  --radius-card: 6px;
-  --radius-panel: 10px;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --control-h: 36px;
+  --control-h-pos: 44px;
+  --table-row-h: 40px;
 }

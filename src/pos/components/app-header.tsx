@@ -29,7 +29,7 @@ export function AppHeader({
   return (
     <header className="flex h-14 shrink-0 items-center justify-between rounded-[var(--radius-panel)] bg-nav px-4 text-nav-foreground">
       <div className="flex items-center gap-2">
-        <span className="text-[color:var(--brass)]">
+        <span className="text-nav-accent">
           <Mark />
         </span>
         <span className="font-display text-base font-semibold">{restaurantName}</span>

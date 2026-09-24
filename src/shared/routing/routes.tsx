@@ -15,7 +15,7 @@ function RootRedirect() {
 // The POS is a fixed-size touch surface; the office scrolls its own content (no page-level scroll).
 export const appRoutes: RouteObject[] = [
   { path: "/", element: <RootRedirect /> },
-  { path: "/pos", element: <div className="pos-surface pos-canvas h-full w-full"><PosRouter /></div> },
+  { path: "/pos", element: <div className="pos-surface h-full w-full"><PosRouter /></div> },
   { path: "/kitchen", element: <div className="pos-surface h-full w-full"><KitchenRouter /></div> },
   { path: "/office", element: <Navigate to={`/office/${DEFAULT_OFFICE_DESTINATION}`} replace /> },
   { path: "/office/:section/:id?", element: <div className="h-full w-full"><OfficeRouter /></div> },
