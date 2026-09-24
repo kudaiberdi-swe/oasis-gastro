@@ -170,8 +170,8 @@ export async function settleOrder(
     version: (order.version ?? 1) + 1,
   })
   await ctx.db.insert("shiftEvents", { shiftId: shift._id, type: "order-paid", amount: order.total, reason: `Заказ №${order.number}`, actorId: actor.employeeId, orderId: order._id, createdAt: now })
-  // Flat P&L ledger stays until M-4 (W1-FIN-07) moves its readers to the journal.
-  await postLedgerEntry(ctx, { restaurantExternalId, occurredAt: now, kind: "revenue", category: "Продажи", amount: order.total, sourceModuleId: "orders", sourceExternalId, description: `Заказ №${order.number}`, businessDate })
+  // Before the chart of accounts exists the flat ledger records the sale; M-4 moves it to the journal later.
+  if (!withJournal) await postLedgerEntry(ctx, { restaurantExternalId, occurredAt: now, kind: "revenue", category: "Продажи", amount: order.total, sourceModuleId: "orders", sourceExternalId, description: `Заказ №${order.number}`, businessDate })
   // Sale write-off by recipe and cost of goods sold (W1-RCP-03); never fails the sale.
   const soldLines = orderLines.filter((line) => !line.voidedAt)
   await consumeOrderStock(ctx, { order, lines: soldLines, restaurantExternalId, terminal: actor.terminal, idempotencyKey: args.idempotencyKey, occurredAt: now, businessDate })

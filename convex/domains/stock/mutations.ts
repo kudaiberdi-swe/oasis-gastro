@@ -4,6 +4,8 @@ import { mutation } from "../../_generated/server"
 import type { Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
 import { postLedgerEntry } from "../../lib/finance"
+import { journalReady } from "../../lib/checkoutCore"
+import { postJournalEntry } from "../../lib/ledger"
 import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
 import { unit } from "../../lib/validators"
 import { assertPeriodOpen } from "../../lib/periods"
@@ -67,17 +69,13 @@ export const receiveStock = mutation({
       actorEmail: email!,
       occurredAt: now,
     })
-    await postLedgerEntry(ctx, {
-      restaurantExternalId: args.restaurantExternalId,
-      occurredAt: now,
-      kind: "expense",
-      category: "Закупка сырья",
-      amount: args.quantity * args.unitCost,
-      sourceModuleId: "stock",
-      sourceExternalId: String(movementId),
-      description: `Приход «${item.name}»: ${args.quantity} ${item.unit}`,
-      createdByEmail: email!,
-    })
+    const amount = args.quantity * args.unitCost
+    const description = `Приход «${item.name}»: ${args.quantity} ${item.unit}`
+    if (await journalReady(ctx)) {
+      if (Math.round(amount) > 0) await postJournalEntry(ctx, { externalId: `stock-receipt-${movementId}`, restaurantExternalId: args.restaurantExternalId, sourceModuleId: "stock", sourceExternalId: String(movementId), sourceNumber: "Приход", occurredAt: now, debitAccount: "rawMaterials", creditAccount: "payables", amount: Math.round(amount), description })
+    } else {
+      await postLedgerEntry(ctx, { restaurantExternalId: args.restaurantExternalId, occurredAt: now, kind: "expense", category: "Закупка сырья", amount, sourceModuleId: "stock", sourceExternalId: String(movementId), description, createdByEmail: email! })
+    }
     await writeOfficeAudit(ctx, email!, {
       action: "stock.receipt",
       summary: `Приход «${item.name}»: +${args.quantity} ${item.unit} по ${args.unitCost} ₸`,

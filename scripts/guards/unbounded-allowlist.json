@@ -5,10 +5,6 @@
       "count": 4,
       "task": "W1-CAT-04 (paginated nomenclature register)"
     },
-    "q/unbounded-collect convex/domains/finance/mutations.ts": {
-      "count": 3,
-      "task": "W1-FIN-07 (M-4 moves backfill to batched migration)"
-    },
     "q/unbounded-collect convex/domains/finance/queries.ts": {
       "count": 1,
       "task": "W1-FIN-05 (journal register replaces the flat P&L)"

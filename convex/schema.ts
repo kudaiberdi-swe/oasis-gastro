@@ -693,6 +693,10 @@ export default defineSchema({
     description: v.string(),
     createdByEmail: v.optional(v.string()), // office email for manual entries; absent for POS-sourced entries
     createdAt: v.number(),
+    // M-4 (W1-FIN-07): a migrated row is read from the journal; only rows without migratedAt are legacy-read.
+    legacy: v.optional(v.boolean()),
+    migratedAt: v.optional(v.number()),
+    m4Warning: v.optional(v.string()),
   })
     .index("by_source", ["sourceModuleId", "sourceExternalId"])
     .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
@@ -903,6 +907,7 @@ export default defineSchema({
     warehouseExternalId: v.optional(v.string()),
     description: v.string(),
     reversalOf: v.optional(v.id("journalEntries")),
+    migration: v.optional(v.literal("M-4")), // lines written by the M-4 migration (rollbackM4 removes them)
     legacyLedgerEntryId: v.optional(v.id("ledgerEntries")),
   })
     .index("by_external_id", ["externalId"])

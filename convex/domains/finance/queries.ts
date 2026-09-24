@@ -7,18 +7,58 @@ import { query } from "../../_generated/server"
 import { requireOfficeCapability, restaurantScopeFilter, scopedRestaurants } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 
-async function loadEntries(ctx: QueryCtx, inScope: (restaurantExternalId: string | undefined) => boolean, args: { restaurantExternalId?: string; from?: string; to?: string }) {
-  const all = args.restaurantExternalId
+type PnlRow = { _id: string; restaurantExternalId: string; businessDate: string; occurredAt: number; kind: "revenue" | "expense"; category: string; amount: number; sourceModuleId: string; description: string }
+
+const PNL_SCAN_LIMIT = 20_000
+
+/**
+ * P&L rows for the period (M-4 transition, W1-FIN-07): journal lines that touch income or expense accounts,
+ * plus flat ledger rows not migrated yet — never both for the same event.
+ */
+async function loadEntries(ctx: QueryCtx, user: { restaurantScopes: string[] }, inScope: (restaurantExternalId: string | undefined) => boolean, args: { restaurantExternalId?: string; from?: string; to?: string }) {
+  const rows: PnlRow[] = []
+  const inPeriod = (date: string) => (!args.from || date >= args.from) && (!args.to || date <= args.to)
+
+  const legacy = args.restaurantExternalId
     ? await ctx.db.query("ledgerEntries").withIndex("by_restaurant_date", (q) => q.eq("restaurantExternalId", args.restaurantExternalId!)).collect()
     : await ctx.db.query("ledgerEntries").withIndex("by_occurred_at").collect()
-  return all.filter((entry) => inScope(entry.restaurantExternalId) && (!args.from || entry.businessDate >= args.from) && (!args.to || entry.businessDate <= args.to))
+  for (const entry of legacy) {
+    if (entry.migratedAt || !inScope(entry.restaurantExternalId) || !inPeriod(entry.businessDate)) continue
+    rows.push({ _id: entry._id, restaurantExternalId: entry.restaurantExternalId, businessDate: entry.businessDate, occurredAt: entry.occurredAt, kind: entry.kind, category: entry.category, amount: entry.amount, sourceModuleId: entry.sourceModuleId, description: entry.description })
+  }
+
+  const accounts = new Map((await ctx.db.query("accounts").withIndex("by_code").take(200)).map((account) => [account.externalId, account]))
+  const restaurants = args.restaurantExternalId ? [args.restaurantExternalId] : (await scopedRestaurants(ctx, user)).map((row) => row.externalId)
+  let scanned = 0
+  for (const restaurant of restaurants) {
+    const range = ctx.db.query("journalEntries").withIndex("by_restaurant_date", (q) => {
+      const byRestaurant = q.eq("restaurantExternalId", restaurant)
+      if (args.from && args.to) return byRestaurant.gte("businessDate", args.from).lte("businessDate", args.to)
+      if (args.from) return byRestaurant.gte("businessDate", args.from)
+      if (args.to) return byRestaurant.lte("businessDate", args.to)
+      return byRestaurant
+    })
+    for await (const entry of range) {
+      if ((scanned += 1) > PNL_SCAN_LIMIT) break
+      const debit = accounts.get(entry.debitAccountExternalId)
+      const credit = accounts.get(entry.creditAccountExternalId)
+      const base = { restaurantExternalId: entry.restaurantExternalId, businessDate: entry.businessDate, occurredAt: entry.occurredAt, sourceModuleId: entry.sourceModuleId, description: entry.description }
+      // Income on the credit side is revenue, on the debit side it reduces revenue; expense (and the
+      // contra-income «Возвраты») the other way round. Balance-sheet-only lines are not P&L.
+      if (credit?.type === "income") rows.push({ ...base, _id: `${entry._id}:cr`, kind: "revenue", category: credit.name, amount: entry.amount })
+      if (debit?.type === "income") rows.push({ ...base, _id: `${entry._id}:dr`, kind: "revenue", category: debit.name, amount: -entry.amount })
+      if (debit?.type === "expense" || debit?.type === "contra-income") rows.push({ ...base, _id: `${entry._id}:dr`, kind: "expense", category: debit.name, amount: entry.amount })
+      if (credit?.type === "expense" || credit?.type === "contra-income") rows.push({ ...base, _id: `${entry._id}:cr`, kind: "expense", category: credit.name, amount: -entry.amount })
+    }
+  }
+  return rows
 }
 
 export const summary = query({
   args: { restaurantExternalId: v.optional(v.string()), from: v.optional(v.string()), to: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.transactions.view")
-    const entries = await loadEntries(ctx, restaurantScopeFilter(user, args.restaurantExternalId), args)
+    const entries = await loadEntries(ctx, user, restaurantScopeFilter(user, args.restaurantExternalId), args)
     const revenue = entries.filter((entry) => entry.kind === "revenue").reduce((sum, entry) => sum + entry.amount, 0)
     const expense = entries.filter((entry) => entry.kind === "expense").reduce((sum, entry) => sum + entry.amount, 0)
     const byCategory = new Map<string, { kind: "revenue" | "expense"; amount: number }>()
@@ -39,7 +79,7 @@ export const listEntries = query({
   args: { restaurantExternalId: v.optional(v.string()), from: v.optional(v.string()), to: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.transactions.view")
-    const entries = await loadEntries(ctx, restaurantScopeFilter(user, args.restaurantExternalId), args)
+    const entries = await loadEntries(ctx, user, restaurantScopeFilter(user, args.restaurantExternalId), args)
     return entries.sort((left, right) => right.occurredAt - left.occurredAt).slice(0, args.limit ?? 200)
   },
 })

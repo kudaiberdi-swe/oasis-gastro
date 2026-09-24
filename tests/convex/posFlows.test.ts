@@ -387,21 +387,30 @@ describe("reports, X-report and ledger backfill agree (W0-BUG-05)", () => {
     expect(report.discounts).toBe(280)
   })
 
-  it("backfills a split-paid order as one full revenue entry and never duplicates a live one (S-11)", async () => {
+  it("M-4 moves legacy sales to the journal per payment (a split stays split, S-11) and never duplicates journal sales", async () => {
     const t = convexTest(schema, modules)
     const fixture = await seedFixture(t)
     await t.mutation(api.domains.shifts.mutations.open, { sessionToken: fixture.cashierToken, openingCash: 0, note: "" })
+    // Before the chart of accounts: the sale goes to the flat ledger only.
     const split = await paidOrder(t, fixture, "split", [{ productId: fixture.productId, quantity: 2 }], [{ method: "cash", amount: 1300 }, { method: "card", amount: 1000 }])
+    await t.mutation(internal.domains.finance.seed.seedChartOfAccounts, {})
+    // With it: the sale is in the journal and the ledger gets nothing.
     const live = await paidOrder(t, fixture, "live", [{ productId: fixture.productId, quantity: 1 }], [{ method: "card", amount: 1150 }])
-    // Simulate the split order predating the ledger: drop its live entry, keep the other.
-    await t.run(async (ctx) => {
-      for (const entry of await ctx.db.query("ledgerEntries").collect()) if (entry.sourceExternalId === String(split._id)) await ctx.db.delete(entry._id)
-    })
+    const ledger = await t.run((ctx) => ctx.db.query("ledgerEntries").take(10))
+    expect(ledger.map((entry) => entry.sourceExternalId)).toEqual([String(split._id)])
 
-    const { posted } = await t.mutation(internal.domains.finance.mutations.backfillFromPayments, {})
-    expect(posted).toBe(1)
-    const revenue = await t.run(async (ctx) => (await ctx.db.query("ledgerEntries").collect()).filter((entry) => entry.kind === "revenue"))
-    expect(revenue.map((entry) => [entry.sourceExternalId, entry.amount]).sort()).toEqual([[String(live._id), 1150], [String(split._id), 2300]].sort())
+    const all = { paginationOpts: { numItems: 100, cursor: null } }
+    const dry = await t.mutation(internal.migrations.m4LedgerToJournal.migrateLedgerToJournal, { ...all, dryRun: true })
+    expect(dry).toMatchObject({ migrated: 1, lines: 2, byAccount: { cash: { debit: 1300, credit: 0 }, inTransit: { debit: 1000, credit: 0 }, revenue: { debit: 0, credit: 2300 } } })
+    await t.mutation(internal.migrations.m4LedgerToJournal.migrateLedgerToJournal, all)
+    expect((await t.mutation(internal.migrations.m4LedgerToJournal.migrateLedgerToJournal, { ...all, dryRun: true })).migrated).toBe(0)
+    const journal = await t.run((ctx) => ctx.db.query("journalEntries").take(20))
+    const revenue = journal.filter((entry) => entry.creditAccountExternalId === "acc-6010").reduce((sum, entry) => sum + entry.amount, 0)
+    expect(revenue).toBe(2300 + 1150)
+    expect(journal.filter((entry) => entry.sourceExternalId === String(live._id) && entry.creditAccountExternalId === "acc-6010")).toHaveLength(1)
+
+    await t.mutation(internal.migrations.m4LedgerToJournal.rollbackM4, all)
+    expect((await t.run((ctx) => ctx.db.query("journalEntries").take(20))).filter((entry) => entry.migration === "M-4")).toHaveLength(0)
   })
 })
 

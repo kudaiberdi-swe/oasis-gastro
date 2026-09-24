@@ -375,18 +375,21 @@ export const refund = mutation({
     if (totalRefunded === paid) await cancelTicketsForOrder(ctx, order._id, now)
     await ctx.db.patch(order._id, { status: totalRefunded === paid ? "refunded" : "partially_refunded", updatedAt: now, updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
     await ctx.db.insert("shiftEvents", { shiftId: shift._id, type: "refund", amount: roundKzt(args.amount), reason: `${args.reason.trim()} · заказ №${order.number}`, actorId: access.employee._id, orderId: order._id, createdAt: now })
-    await postLedgerEntry(ctx, {
-      restaurantExternalId: access.restaurant.externalId,
-      occurredAt: now,
-      kind: "expense",
-      category: "Возврат",
-      amount: roundKzt(args.amount),
-      sourceModuleId: "orders",
-      sourceExternalId: String(paymentId),
-      description: `${args.reason.trim()} · заказ №${order.number}`,
-      businessDate: shift.businessDate,
-    })
-    if (await journalReady(ctx)) {
+    const withJournal = await journalReady(ctx)
+    if (!withJournal) {
+      await postLedgerEntry(ctx, {
+        restaurantExternalId: access.restaurant.externalId,
+        occurredAt: now,
+        kind: "expense",
+        category: "Возврат",
+        amount: roundKzt(args.amount),
+        sourceModuleId: "orders",
+        sourceExternalId: String(paymentId),
+        description: `${args.reason.trim()} · заказ №${order.number}`,
+        businessDate: shift.businessDate,
+      })
+    }
+    if (withJournal) {
       const entry = await postJournalEntry(ctx, {
         externalId: `refund:${args.idempotencyKey}`,
         restaurantExternalId: access.restaurant.externalId,

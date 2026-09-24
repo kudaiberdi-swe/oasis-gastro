@@ -29,6 +29,8 @@ export type JournalPosting = {
   /** Manual office entries may only use accounts that allow them. */
   manual?: boolean
   reversalOf?: Doc<"journalEntries">["_id"]
+  /** Service migrations (M-4) write history before any period lock and mark their lines. */
+  migration?: "M-4"
 }
 
 async function resolveAccount(ctx: MutationCtx, reference: string, manual: boolean) {
@@ -52,7 +54,7 @@ export async function postJournalEntry(ctx: MutationCtx, posting: JournalPosting
   if (debit._id === credit._id) throw new ConvexError("Дебет и кредит проводки совпадают")
 
   const businessDate = posting.businessDate ?? businessDateFor(posting.occurredAt, restaurant.businessDayCutoffMinutes)
-  await assertPeriodOpen(ctx, { organizationExternalId: restaurant.organizationExternalId, restaurantExternalId: restaurant.externalId, businessDate, moduleId: posting.sourceModuleId })
+  if (!posting.migration) await assertPeriodOpen(ctx, { organizationExternalId: restaurant.organizationExternalId, restaurantExternalId: restaurant.externalId, businessDate, moduleId: posting.sourceModuleId })
 
   const id = await ctx.db.insert("journalEntries", {
     externalId: posting.externalId,
@@ -71,6 +73,7 @@ export async function postJournalEntry(ctx: MutationCtx, posting: JournalPosting
     ...(posting.quantity !== undefined ? { quantity: posting.quantity } : {}),
     ...(posting.itemName ? { itemName: posting.itemName } : {}),
     ...(posting.reversalOf ? { reversalOf: posting.reversalOf } : {}),
+    ...(posting.migration ? { migration: posting.migration } : {}),
   })
   return (await ctx.db.get(id))!
 }

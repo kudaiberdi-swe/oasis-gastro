@@ -118,6 +118,7 @@ import type * as lib_time from "../lib/time.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as migrations_m2Orders from "../migrations/m2Orders.js";
 import type * as migrations_m3StockWarehouses from "../migrations/m3StockWarehouses.js";
+import type * as migrations_m4LedgerToJournal from "../migrations/m4LedgerToJournal.js";
 import type * as migrations_m7KitchenTickets from "../migrations/m7KitchenTickets.js";
 
 import type {
@@ -237,6 +238,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   "migrations/m2Orders": typeof migrations_m2Orders;
   "migrations/m3StockWarehouses": typeof migrations_m3StockWarehouses;
+  "migrations/m4LedgerToJournal": typeof migrations_m4LedgerToJournal;
   "migrations/m7KitchenTickets": typeof migrations_m7KitchenTickets;
 }>;
 
