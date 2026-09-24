@@ -1,15 +1,18 @@
 import type { ReactNode } from "react"
-import { Bike, ChefHat, Minus, Percent, Plus, ShoppingBag, Trash2, UtensilsCrossed } from "lucide-react"
+import { Bike, ChefHat, Ellipsis, MessageSquareText, Minus, Percent, Plus, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
 
 import { isLocked, lineDetails, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
 import { Button } from "@/shared/components/ui/button"
 import { Money } from "@/shared/components/ui/money"
 import { SegmentedControl } from "@/shared/components/ui/segmented-control"
 import { TonePill } from "@/shared/components/ui/status-pill"
-import { cn, formatTenge } from "@/shared/lib/utils"
+import { cn, focusRingClass, formatTenge } from "@/shared/lib/utils"
 import type { OrderType } from "@/shared/types/pos"
 
 export type OrderTypeOption = { value: string; label: string; mode: OrderType }
+
+/** «Добавить к заказу» (pos.queries.suggestion). */
+export type UpsellSuggestion = { name: string; price: number }
 
 const MODE_ICON: Record<OrderType, ReactNode> = {
   "dine-in": <UtensilsCrossed aria-hidden />,
@@ -50,6 +53,12 @@ export function OrderPanel({
   onHold,
   onCheckout,
   onDiscount,
+  guestLabel,
+  onGuest,
+  onMore,
+  comment,
+  suggestion,
+  onAddSuggestion,
   disabled,
 }: {
   tableLabel: string
@@ -78,11 +87,19 @@ export function OrderPanel({
   onHold: () => void
   onCheckout: () => void
   onDiscount: () => void
+  /** The attached guest («Айгерим · 40 б.»); «Гость» when none. */
+  guestLabel?: string
+  onGuest?: () => void
+  /** «Ещё» — the order actions dialog. */
+  onMore?: () => void
+  comment?: string
+  suggestion?: UpsellSuggestion | null
+  onAddSuggestion?: () => void
   disabled?: boolean
 }) {
   const hasActive = lines.some((line) => !line.voidedAt)
   return (
-    <div className="flex h-full w-[400px] shrink-0 flex-col rounded-panel border border-border bg-card">
+    <div className="flex h-full w-[420px] shrink-0 flex-col rounded-panel border border-border bg-card">
       <div className="flex flex-col gap-3 border-b border-border px-4 py-3">
         <div className="flex items-baseline justify-between gap-2">
           <p className="font-display text-title font-semibold">
@@ -91,6 +108,12 @@ export function OrderPanel({
           </p>
           {saving && <p className="text-body-sm text-muted-foreground">Сохранение…</p>}
         </div>
+        {comment?.trim() && (
+          <p className="flex items-start gap-1.5 text-body-sm text-muted-foreground">
+            <MessageSquareText aria-hidden className="mt-0.5 size-4 shrink-0" />
+            <span className="line-clamp-2">{comment}</span>
+          </p>
+        )}
         <SegmentedControl
           aria-label="Тип заказа"
           size="pos"
@@ -111,15 +134,46 @@ export function OrderPanel({
           </ul>
         )}
       </div>
+      {suggestion && hasActive && onAddSuggestion && (
+        <div className="px-4 pb-2">
+          <button
+            type="button"
+            onClick={onAddSuggestion}
+            disabled={disabled}
+            className={cn("flex min-h-12 w-full items-center justify-between gap-3 rounded-card border border-dashed border-gold bg-card px-3 py-2 text-left hover:bg-muted disabled:opacity-50", focusRingClass)}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Plus aria-hidden className="size-4 shrink-0 text-accent" />
+              <span className="min-w-0">
+                <span className="block text-body-sm text-muted-foreground">Добавить к заказу</span>
+                <span className="block truncate text-body font-semibold">{suggestion.name}</span>
+              </span>
+            </span>
+            <span className="shrink-0 text-body font-semibold text-accent tabular-nums">+{formatTenge(suggestion.price)}</span>
+          </button>
+        </div>
+      )}
       <div className="flex gap-1 border-t border-border bg-muted px-2 py-1.5">
-        <Button variant="ghost" className="h-11 flex-1" onClick={onDiscount} disabled={disabled || !hasActive}>
+        <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onDiscount} disabled={disabled || !hasActive}>
           <Percent />
           Скидка
         </Button>
-        <Button variant="ghost" className="h-11 flex-1" onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen}>
+        {onGuest && (
+          <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onGuest} disabled={disabled || !hasActive} title={guestLabel}>
+            <UserRound />
+            <span className="truncate">{guestLabel || "Гость"}</span>
+          </Button>
+        )}
+        <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen}>
           <ChefHat />
           {sendingToKitchen ? "Отправка…" : "На кухню"}
         </Button>
+        {onMore && (
+          <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onMore} disabled={disabled}>
+            <Ellipsis />
+            Ещё
+          </Button>
+        )}
       </div>
       <div className="space-y-1.5 border-t border-border px-4 py-3 text-body-sm">
         <div className="flex justify-between text-muted-foreground">

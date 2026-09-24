@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cashPresets, PaymentDialog } from "@/pos/features/checkout/ui/payment-dialog"
 import { GuestDialog } from "@/pos/features/loyalty/ui/guest-dialog"
 import { DiscountDialog } from "@/pos/features/order-taking/ui/discount-dialog"
-import { CloseShiftDialog } from "@/pos/features/shifts/ui/shift-dialog"
+import { CloseShiftPanel } from "@/pos/features/shifts/ui/shift-dialog"
 import { formatTenge } from "@/shared/lib/utils"
 
 vi.mock("@/pos/features/loyalty/data/use-loyalty", () => ({ useFindGuestByPhone: () => undefined }))
@@ -16,12 +16,12 @@ afterEach(cleanup)
 describe("shift close is a blind count (S-12)", () => {
   it("starts empty and reveals the expected cash and variance only after input", () => {
     const onClose = vi.fn()
-    render(<CloseShiftDialog open onOpenChange={() => {}} expectedCash={22_300} blockers={[]} onClose={onClose} onManagerRequired={async () => null} />)
+    render(<CloseShiftPanel expectedCash={22_300} blockers={[]} onClose={onClose} onManagerRequired={async () => null} />)
 
     const counted = screen.getByLabelText("Фактическая наличность") as HTMLInputElement
     expect(counted.value).toBe("")
     expect(screen.queryByText(/Ожидается в кассе/)).toBeNull()
-    expect(screen.getByRole("button", { name: "Закрыть смену" })).toHaveProperty("disabled", true)
+    expect(screen.getByRole("button", { name: /Закрыть смену и сформировать Z-отчёт/ })).toHaveProperty("disabled", true)
 
     fireEvent.change(counted, { target: { value: "22000" } })
     expect(screen.getByText(/Ожидается в кассе/)).toBeTruthy()

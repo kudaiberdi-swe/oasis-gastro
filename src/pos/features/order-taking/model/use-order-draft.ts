@@ -48,10 +48,24 @@ type ServerTotals = { subtotal: number; discountAmount: number; serviceChargeAmo
 
 type Snapshot = { lines: OrderDraftLine[]; tableLabel: string; discountPercent: number; discountReason: string; comment: string; orderType: DraftOrderType }
 
-/** Per-check server context. Replaced (not mutated) on every selection so a late answer never lands on another check. */
-type CheckContext = { clientOrderId: string; orderId: Id<"orders"> | null; version: number | undefined; extras: { hallLabel?: string; guestCount?: number; discountTypeExternalId?: string } }
+/** Table, hall and guests a new check is opened with («Новый стол», W1-POS-10). */
+export type TableSeat = { tableLabel?: string; hallLabel?: string; guestCount?: number }
 
-const newContext = (orderId: Id<"orders"> | null = null, version?: number): CheckContext => ({ clientOrderId: crypto.randomUUID(), orderId, version, extras: {} })
+/**
+ * Per-check server context. Replaced (not mutated) on every selection so a late answer never lands on
+ * another check. `extras` are sent with every saveDraft after the snapshot fields, so a table set by
+ * moveToTable wins over a save that was queued before its answer arrived.
+ */
+type CheckContext = {
+  clientOrderId: string
+  orderId: Id<"orders"> | null
+  version: number | undefined
+  extras: { tableLabel?: string; hallLabel?: string; guestCount?: number; discountTypeExternalId?: string }
+  /** Lines of the last server answer: split resolves orderLines ids from them. */
+  serverLines: ServerOrderLine[]
+}
+
+const newContext = (orderId: Id<"orders"> | null = null, version?: number): CheckContext => ({ clientOrderId: crypto.randomUUID(), orderId, version, extras: {}, serverLines: [] })
 
 /** The default order type: the published one marked default, then «в зале», then the first. */
 export function defaultOrderType(orderTypes: PosOrderType[] | undefined, fallback: OrderType): DraftOrderType {
@@ -85,9 +99,18 @@ export function useOrderDraft(args: {
   hydrated: ServerOrder | null | undefined
   initialOrderId: Id<"orders"> | null
   initialTableLabel?: string
+  /** Hall and guests of a new check (the table goes in initialTableLabel). */
+  initialSeat?: Omit<TableSeat, "tableLabel">
   selectionKey: number
 }) {
-  const { saveDraft, sendToKitchen: sendToKitchenMutation, voidLine: voidLineMutation } = useOrderMutations()
+  const {
+    saveDraft,
+    sendToKitchen: sendToKitchenMutation,
+    voidLine: voidLineMutation,
+    split: splitMutation,
+    moveToTable: moveToTableMutation,
+    cancel: cancelMutation,
+  } = useOrderMutations()
   const [orderId, setOrderId] = useState<Id<"orders"> | null>(args.initialOrderId)
   const [orderNumber, setOrderNumber] = useState<number | undefined>(undefined)
   const [lines, setLines] = useState<OrderDraftLine[]>([])
@@ -108,6 +131,7 @@ export function useOrderDraft(args: {
   const applyServerOrder = useCallback((context: CheckContext, order: ServerOrder, version: number | undefined) => {
     context.orderId = order._id
     context.version = version
+    if (order.lines) context.serverLines = order.lines
     if (check.current !== context) return
     setOrderId(order._id)
     if (order.number !== undefined) setOrderNumber(order.number)
@@ -130,6 +154,7 @@ export function useOrderDraft(args: {
     if (args.initialOrderId === null) {
       syncedSelectionKey.current = args.selectionKey
       check.current = newContext()
+      check.current.extras = { hallLabel: args.initialSeat?.hallLabel?.trim() || undefined, guestCount: args.initialSeat?.guestCount }
       setOrderId(null)
       setOrderNumber(undefined)
       setTableLabel(args.initialTableLabel ?? "")
@@ -162,6 +187,8 @@ export function useOrderDraft(args: {
     setError(null)
     setLines(hydrated.lines.map((line) => fromServerLine(line)))
     applyServerOrder(context, hydrated, hydrated.version)
+    // initialSeat is read only when a new selection starts (selectionKey), like initialTableLabel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [args.selectionKey, args.initialOrderId, args.hydrated, args.initialTableLabel, applyServerOrder])
 
   /** Runs server calls one after another; `saving` stays true while anything is queued. */
@@ -306,6 +333,81 @@ export function useOrderDraft(args: {
     [applyServerOrder, args.sessionToken, enqueue, lines, voidLineMutation],
   )
 
+  /** «Комментарий» (W1-POS-15): saved with the check through saveDraft. */
+  const saveComment = useCallback(
+    async (text: string) => {
+      setComment(text)
+      await persist(snapshot({ comment: text }))
+    },
+    [persist, snapshot],
+  )
+
+  /**
+   * «Перенести на стол»: the server refuses a table that already has an open check. A check that is
+   * not saved yet just takes the new table with its first save.
+   */
+  const moveToTable = useCallback(
+    (seat: { tableLabel: string; hallLabel?: string }) => {
+      const context = check.current
+      const tableLabel = seat.tableLabel.trim()
+      const hallLabel = seat.hallLabel?.trim() || undefined
+      return enqueue(async () => {
+        if (!context.orderId) {
+          context.extras = { ...context.extras, tableLabel, hallLabel }
+          if (check.current === context) setTableLabel(tableLabel)
+          return
+        }
+        const result = await moveToTableMutation({ sessionToken: args.sessionToken, orderId: context.orderId, expectedVersion: context.version, tableLabel, hallLabel })
+        context.extras = { ...context.extras, tableLabel: result.tableLabel ?? tableLabel, hallLabel: result.hallLabel }
+        if (check.current === context) setTableLabel(result.tableLabel ?? tableLabel)
+        applyServerOrder(context, result as ServerOrder, result.version)
+      })
+    },
+    [applyServerOrder, args.sessionToken, enqueue, moveToTableMutation],
+  )
+
+  /**
+   * «Разделить чек»: the chosen portions go to a new held check; this check keeps the rest. Returns
+   * the new check's id and number.
+   */
+  const split = useCallback(
+    (rows: Array<{ clientLineId: string; quantity: number }>) => {
+      const context = check.current
+      return enqueue(async () => {
+        if (!context.orderId) throw new Error("Сначала добавьте позиции в заказ")
+        const lines = rows
+          .filter((row) => row.quantity > 0)
+          .map((row) => {
+            const line = context.serverLines.find((candidate) => candidate.clientLineId === row.clientLineId && !candidate.voidedAt)
+            if (!line?._id) throw new Error("Позиция ещё не сохранена — повторите через секунду")
+            return { orderLineId: line._id as Id<"orderLines">, quantity: row.quantity }
+          })
+        const result = await splitMutation({ sessionToken: args.sessionToken, orderId: context.orderId, expectedVersion: context.version, lines })
+        const original = result.original as ServerOrder
+        // Moved lines left this check: take the server's lines as they are.
+        if (check.current === context) setLines(original.lines.map((line) => fromServerLine(line)))
+        applyServerOrder(context, original, result.original.version)
+        return { orderId: result.orderId, number: result.created.number, tableLabel: result.created.tableLabel }
+      })
+    },
+    [applyServerOrder, args.sessionToken, enqueue, splitMutation],
+  )
+
+  /** «Отменить заказ» with a deletion reason (or the free reason while the list is empty) and a manager token. */
+  const cancel = useCallback(
+    (input: { deletionReasonExternalId?: string; comment?: string; reason?: string; managerApprovalToken: string }) => {
+      const context = check.current
+      return enqueue(async () => {
+        if (!context.orderId) throw new Error("Заказ ещё не сохранён")
+        await cancelMutation({ sessionToken: args.sessionToken, orderId: context.orderId, expectedVersion: context.version, ...input })
+      })
+    },
+    [args.sessionToken, cancelMutation, enqueue],
+  )
+
+  /** Resolves once every queued server call has finished (before hold / transfer from outside). */
+  const settle = useCallback(() => chain.current.then(() => undefined), [])
+
   const saving = pending > 0
   const subtotal = activeSubtotal(lines)
   const discountAmount = Math.round(subtotal * (discountPercent / 100))
@@ -336,6 +438,11 @@ export function useOrderDraft(args: {
     applyDiscount,
     sendToKitchen,
     voidLine,
+    saveComment,
+    moveToTable,
+    split,
+    cancel,
+    settle,
     hasUnsentLines: hasUnsentLines(lines),
     itemCount: itemCount(lines),
     subtotal: totals.subtotal,

@@ -16,6 +16,7 @@ test("a cashier sells a dish for cash and the kitchen sees it", async ({ page, s
   }
 
   await page.getByRole("button", { name: /Новый стол/ }).click()
+  await page.getByRole("dialog", { name: /Новый стол/ }).getByRole("button", { name: "Открыть стол" }).click()
   await page.getByRole("button").filter({ hasText: /₸/ }).first().click()
   await page.getByRole("button", { name: /Оплатить/ }).click()
   const payment = page.getByRole("dialog")

@@ -1,29 +1,53 @@
 import { useState } from "react"
+import { History } from "lucide-react"
 
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { AppHeader } from "@/pos/components/app-header"
 import { CatalogPanel } from "@/pos/features/catalog/ui/catalog-panel"
+import { buildOrderReceiptHtml, precheckFromDraft } from "@/pos/features/checkout/model/order-receipt"
 import { PaymentDialog, type CheckoutPayment } from "@/pos/features/checkout/ui/payment-dialog"
 import { useKitchenBoard } from "@/kitchen/features/board/data/use-kitchen-board"
 import { KitchenBoard } from "@/kitchen/features/board/ui/kitchen-board"
-import { useCheck, useOpenChecks, useOrderMutations } from "@/pos/features/order-taking/data/use-orders"
+import type { HistoryOrder } from "@/pos/features/history/data/use-order-history"
+import { receiptFromOrder } from "@/pos/features/history/model/history-receipt"
+import { HistoryDialog } from "@/pos/features/history/ui/history-dialog"
+import type { RefundInput } from "@/pos/features/history/ui/refund-panel"
+import { useNotifications } from "@/pos/features/notifications/data/use-notifications"
+import { NotificationsDialog } from "@/pos/features/notifications/ui/notifications-dialog"
+import { useCheck, useOpenChecks, useOrderMutations, useSuggestion, useTransferTargets } from "@/pos/features/order-taking/data/use-orders"
+import { CancelOrderDialog } from "@/pos/features/order-taking/ui/cancel-dialog"
+import { CommentDialog } from "@/pos/features/order-taking/ui/comment-dialog"
 import { DiscountDialog } from "@/pos/features/order-taking/ui/discount-dialog"
 import { OpenChecksList } from "@/pos/features/order-taking/ui/open-checks-list"
-import { useOrderDraft } from "@/pos/features/order-taking/model/use-order-draft"
+import { OrderActionsDialog, type ActionBlocks, type OrderAction } from "@/pos/features/order-taking/ui/order-actions-dialog"
+import { SplitDialog } from "@/pos/features/order-taking/ui/split-dialog"
+import { TableDialog, type TableSeatInput } from "@/pos/features/order-taking/ui/table-dialog"
+import { TransferDialog } from "@/pos/features/order-taking/ui/transfer-dialog"
+import { useOrderDraft, type TableSeat } from "@/pos/features/order-taking/model/use-order-draft"
+import type { OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
 import { OrderPanel, type OrderTypeOption } from "@/pos/components/order-panel"
 import { VoidLineDialog } from "@/pos/features/order-taking/ui/void-line-dialog"
+import { printHtml } from "@/pos/features/print/print-document"
 import { useRetailSettings, type PosOrderType } from "@/pos/features/retail/data/use-retail-settings"
 import { useLoyaltyMutations, useOrderGuest } from "@/pos/features/loyalty/data/use-loyalty"
 import { GuestDialog } from "@/pos/features/loyalty/ui/guest-dialog"
+import { useAttendance } from "@/pos/features/session/data/use-attendance"
 import { useTerminalOptions } from "@/pos/features/session/data/use-terminal-options"
 import { LoginScreen } from "@/pos/features/session/ui/login-screen"
+import { MainMenuDialog } from "@/pos/features/session/ui/main-menu-dialog"
 import { useManagerApproval } from "@/pos/features/session/ui/manager-approval-dialog"
+import { ProfileDialog, ROLE_LABEL } from "@/pos/features/session/ui/profile-dialog"
 import { usePosSession } from "@/pos/features/session/model/use-pos-session"
 import { TerminalPicker } from "@/pos/features/session/ui/terminal-picker"
-import { CloseShiftDialog, OpenShiftDialog } from "@/pos/features/shifts/ui/shift-dialog"
-import { useClosePreview, useCurrentShift, useShiftMutations } from "@/pos/features/shifts/data/use-shifts"
+import { buildXReportHtml } from "@/pos/features/shifts/model/x-report"
+import { buildZReportHtml } from "@/pos/features/shifts/model/z-report"
+import type { CashMovementInput } from "@/pos/features/shifts/model/cash-operations"
+import { OpenShiftDialog, ShiftDialog, type ShiftTab } from "@/pos/features/shifts/ui/shift-dialog"
+import { useClosePreview, useCurrentShift, useShiftMutations, useZReportLoader } from "@/pos/features/shifts/data/use-shifts"
 import { Button } from "@/shared/components/ui/button"
+import { useToast } from "@/shared/components/ui/toast"
 import { errorMessage } from "@/shared/lib/error-message"
+import { formatTenge } from "@/shared/lib/format"
 import type { OrderType } from "@/shared/types/pos"
 
 // Cashier touch targets (POS-DESIGN §5): the action row uses the POS control height.
@@ -60,13 +84,20 @@ export function PosWorkspace() {
       <LoginScreen
         onLogin={session.signIn}
         locked={session.locked}
-        terminalLabel={branch && terminal ? terminalLabel(branch.restaurantName, terminal.name) : undefined}
-        onChangeTerminal={() => session.chooseTerminal(null)}
+          onChangeTerminal={() => session.chooseTerminal(null)}
       />
     )
   }
 
-  return <AuthenticatedPos sessionToken={session.access.sessionToken} access={session.access} onLock={session.lock} terminalExternalId={session.terminalExternalId} />
+  return (
+    <AuthenticatedPos
+      sessionToken={session.access.sessionToken}
+      access={session.access}
+      onLock={session.lock}
+      onLogout={session.signOut}
+      terminalExternalId={session.terminalExternalId}
+    />
+  )
 }
 
 /** «Sandyq · <филиал> · <касса>» without repeating the brand or branch already in the names. */
@@ -76,43 +107,69 @@ export function terminalLabel(restaurantName: string, terminalName: string) {
   return terminal ? `${branch} · ${terminal}` : branch
 }
 
+/** Dialogs of the cashier screen that replace each other (one at a time). */
+type PosDialog = "menu" | "profile" | "notifications" | "history" | "shift" | "new-table" | Exclude<OrderAction, "void" | "precheck"> | "actions" | null
+
+/** Unavailable order actions with the reason shown on their tile (W1-POS-15). */
+export function orderActionBlocks(input: { orderId: string | null; lines: OrderDraftLine[]; transferTargets: unknown[] | undefined }): ActionBlocks {
+  const active = input.lines.filter((line) => !line.voidedAt)
+  const saved = active.filter((line) => line.serverLineId)
+  const portions = saved.reduce((sum, line) => sum + line.quantity, 0)
+  const notSaved = "Сначала добавьте позиции"
+  return {
+    ...(!input.orderId && !active.length ? { comment: notSaved } : {}),
+    ...(!input.orderId ? { split: notSaved } : portions < 2 ? { split: "Нужно минимум две порции" } : {}),
+    ...(!input.orderId ? { transfer: notSaved } : input.transferTargets && input.transferTargets.length === 0 ? { transfer: "Нет других касс с открытой сменой" } : {}),
+    ...(!active.length ? { precheck: "В заказе нет позиций" } : {}),
+    ...(!saved.length ? { void: "Нет сохранённых позиций" } : {}),
+    ...(!input.orderId ? { cancel: "Заказ ещё не сохранён" } : {}),
+  }
+}
+
 function AuthenticatedPos({
   sessionToken,
   access,
   onLock,
+  onLogout,
   terminalExternalId,
 }: {
   sessionToken: string
   access: NonNullable<ReturnType<typeof usePosSession>["access"]>
   onLock: () => void
+  onLogout: () => void
   terminalExternalId: string
 }) {
+  const toast = useToast()
   const shift = useCurrentShift(sessionToken)
-  const { open: openShift, close: closeShift, createXReport } = useShiftMutations()
-  const { hold, checkout } = useOrderMutations()
+  const { open: openShift, close: closeShift, createXReport, recordCashMovement } = useShiftMutations()
+  const { hold, checkout, resume, refund, transfer } = useOrderMutations()
   const retail = useRetailSettings(sessionToken)
   const { requestApproval, dialog: managerDialog } = useManagerApproval(terminalExternalId)
   const { attachGuest, detachGuest } = useLoyaltyMutations()
+  const loadZReport = useZReportLoader(sessionToken)
 
   const [selectedOrderId, setSelectedOrderId] = useState<Id<"orders"> | null>(null)
-  const [pendingTableLabel, setPendingTableLabel] = useState("")
+  const [pendingSeat, setPendingSeat] = useState<TableSeat>({})
   const [selectionNonce, setSelectionNonce] = useState(0)
+  const [dialog, setDialog] = useState<PosDialog>(null)
+  const [shiftTab, setShiftTab] = useState<ShiftTab>("summary")
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [paymentSubmitting, setPaymentSubmitting] = useState(false)
   const [discountOpen, setDiscountOpen] = useState(false)
-  const [closeShiftOpen, setCloseShiftOpen] = useState(false)
   const [showKitchen, setShowKitchen] = useState(false)
   const [guestOpen, setGuestOpen] = useState(false)
-  const [xReportSubmitting, setXReportSubmitting] = useState(false)
-  const [xReportError, setXReportError] = useState<string | null>(null)
   const [voidingLineId, setVoidingLineId] = useState<string | null>(null)
   const [sendingToKitchen, setSendingToKitchen] = useState(false)
+  const [lastClosed, setLastClosed] = useState<{ shiftId: string; shiftNumber: number; zReportNumber: string } | null>(null)
 
   const openChecks = useOpenChecks(sessionToken)
   const hydrated = useCheck(sessionToken, selectedOrderId)
-  const closePreview = useClosePreview(sessionToken, closeShiftOpen)
+  const closePreview = useClosePreview(sessionToken, dialog === "shift")
   const kitchenTickets = useKitchenBoard(sessionToken)
+  const notifications = useNotifications(sessionToken)
+  const attendance = useAttendance(sessionToken, dialog === "profile")
+  const transferTargets = useTransferTargets(sessionToken, dialog === "actions" || dialog === "transfer")
 
   const draft = useOrderDraft({
     sessionToken,
@@ -121,48 +178,81 @@ function AuthenticatedPos({
     orderTypes: retail.orderTypes,
     hydrated: hydrated ?? undefined,
     initialOrderId: selectedOrderId,
-    initialTableLabel: pendingTableLabel,
+    initialTableLabel: pendingSeat.tableLabel ?? "",
+    initialSeat: pendingSeat,
     selectionKey: selectionNonce,
   })
   const guest = useOrderGuest(sessionToken, draft.orderId)
+  const suggestion = useSuggestion(sessionToken, draft.orderId)
   const typeOptions = orderTypeOptions(retail.orderTypes)
+  const place = { restaurantName: access.restaurant.name, terminalName: access.terminal.name }
 
   if (shift === undefined) {
     return <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">Загрузка…</div>
   }
 
   if (!shift) {
-    return <OpenShiftDialog open onOpen={(openingCash, note) => openShift({ sessionToken, openingCash, note })} />
+    return (
+      <OpenShiftDialog
+        open
+        lastClosed={lastClosed}
+        onOpenShift={async (openingCash, note) => {
+          await openShift({ sessionToken, openingCash, note })
+          setLastClosed(null)
+        }}
+        onPrintZ={printZReport}
+      />
+    )
+  }
+  const currentShift = shift
+
+  function selectCheck(orderId: string | null, seat: TableSeat = {}) {
+    setSelectedOrderId(orderId as Id<"orders"> | null)
+    setPendingSeat(seat)
+    setSelectionNonce((current) => current + 1)
   }
 
-  function selectCheck(orderId: string | null, tableLabel = "") {
-    setSelectedOrderId(orderId as Id<"orders"> | null)
-    setPendingTableLabel(tableLabel)
-    setSelectionNonce((current) => current + 1)
+  function openShiftDialog(tab: ShiftTab = "summary") {
+    setShiftTab(tab)
+    setDialog("shift")
   }
 
   async function handleHold() {
     if (!draft.orderId) return
+    await draft.settle()
     await hold({ sessionToken, orderId: draft.orderId })
     selectCheck(null)
   }
 
-  async function handleXReport() {
-    setXReportSubmitting(true)
-    setXReportError(null)
-    try {
-      let managerApprovalToken: string | undefined
-      if (access.employee.role === "cashier") {
-        const token = await requestApproval("Формирование X-отчёта требует подтверждения менеджера")
-        if (!token) return
-        managerApprovalToken = token
-      }
-      await createXReport({ sessionToken, idempotencyKey: crypto.randomUUID(), managerApprovalToken })
-    } catch (caught) {
-      setXReportError(errorMessage(caught, "Не удалось сформировать отчёт"))
-    } finally {
-      setXReportSubmitting(false)
+  /** X-report: a cashier needs a manager PIN (shifts/mutations.ts createXReport). */
+  async function printXReport() {
+    let managerApprovalToken: string | undefined
+    if (access.employee.role === "cashier") {
+      const token = await requestApproval("Формирование X-отчёта требует подтверждения менеджера")
+      if (!token) return
+      managerApprovalToken = token
     }
+    const report = await createXReport({ sessionToken, idempotencyKey: crypto.randomUUID(), managerApprovalToken })
+    printHtml(buildXReportHtml(report))
+  }
+
+  async function printZReport(shiftId: string) {
+    const report = await loadZReport(shiftId)
+    if (!report) throw new Error("Z-отчёт этой смены не найден")
+    printHtml(buildZReportHtml(report, place))
+  }
+
+  async function handleCashMovement(input: CashMovementInput & { idempotencyKey: string; managerApprovalToken?: string }) {
+    await recordCashMovement({ sessionToken, ...input })
+    const direction = input.direction ?? retail.cashOperationTypes.find((type) => type.externalId === input.cashOperationTypeExternalId)?.data.direction
+    toast(`${direction === "cash-out" ? "Изъятие" : "Внесение"} ${formatTenge(input.amount)} сохранено`, "success")
+  }
+
+  async function handleCloseShift(countedCash: number, note: string, managerApprovalToken?: string) {
+    const result = await closeShift({ sessionToken, countedCash, note, managerApprovalToken })
+    setLastClosed({ shiftId: result.shiftId, shiftNumber: currentShift.number, zReportNumber: result.zReportNumber })
+    setDialog(null)
+    selectCheck(null)
   }
 
   async function handleSendToKitchen() {
@@ -181,6 +271,7 @@ function AuthenticatedPos({
     setPaymentSubmitting(true)
     setPaymentError(null)
     try {
+      await draft.settle()
       await checkout({ sessionToken, orderId: draft.orderId, idempotencyKey: crypto.randomUUID(), payments })
       setPaymentOpen(false)
       selectCheck(null)
@@ -191,12 +282,76 @@ function AuthenticatedPos({
     }
   }
 
+  function printPrecheck() {
+    const orderTypeName = typeOptions.find((option) => option.value === (draft.orderType.externalId ?? draft.orderType.mode))?.label
+    printHtml(buildOrderReceiptHtml(precheckFromDraft(draft, { ...place, operatorName: access.employee.displayName, orderTypeName })))
+  }
+
+  function handleAction(action: Exclude<OrderAction, "void">) {
+    if (action === "precheck") printPrecheck()
+    else setDialog(action)
+  }
+
+  async function handleTransfer(input: { targetTerminalId: string; reason: string; managerApprovalToken: string }) {
+    if (!draft.orderId) return
+    const orderId = draft.orderId
+    await draft.settle()
+    // Only a held check moves between terminals: an open one is put on hold first.
+    if (openChecks.find((check) => check.orderId === orderId)?.status !== "held") await hold({ sessionToken, orderId })
+    await transfer({ sessionToken, orderId, targetTerminalId: input.targetTerminalId as Id<"posTerminals">, reason: input.reason, managerApprovalToken: input.managerApprovalToken })
+    selectCheck(null)
+    toast(`Заказ${draft.orderNumber !== undefined ? ` №${draft.orderNumber}` : ""} перенесён на другую кассу`, "success")
+  }
+
+  async function handleRefund(input: RefundInput) {
+    await refund({
+      sessionToken,
+      orderId: input.orderId as Id<"orders">,
+      idempotencyKey: input.idempotencyKey,
+      amount: input.amount,
+      ...input.target,
+      ...(input.lines ? { lines: input.lines.map((line) => ({ orderLineId: line.orderLineId as Id<"orderLines">, quantity: line.quantity })) } : {}),
+      reason: input.reason,
+      managerApprovalToken: input.managerApprovalToken,
+    })
+    toast(`Возврат ${formatTenge(input.amount)} проведён`, "success")
+  }
+
+  async function handleContinue(order: HistoryOrder) {
+    if (order.status === "held") await resume({ sessionToken, orderId: order._id })
+    selectCheck(order._id)
+  }
+
+  const voidableLines = draft.lines.filter((line) => !line.voidedAt && line.serverLineId)
+  const blocks = orderActionBlocks({ orderId: draft.orderId, lines: draft.lines, transferTargets })
+  const guestLabel = guest ? `${guest.name || guest.phone} · ${guest.points} б.` : undefined
+  // The header is shown over the kitchen board too; its dialogs live on the cashier screen.
+  const fromHeader = (open: () => void) => {
+    setShowKitchen(false)
+    open()
+  }
+  const header = (
+    <AppHeader
+      restaurantName={access.restaurant.name}
+      terminalName={access.terminal.name}
+      employeeName={access.employee.displayName}
+      employeeRole={ROLE_LABEL[access.employee.role]}
+      shiftNumber={shift.number}
+      shiftOpenedAt={shift.openedAt}
+      shiftWarning={shift.openedOver24h}
+      unreadNotifications={notifications.unread}
+      onMenu={() => fromHeader(() => setDialog("menu"))}
+      onOpenShiftInfo={() => fromHeader(() => openShiftDialog())}
+      onNotifications={() => fromHeader(() => setDialog("notifications"))}
+      onProfile={() => fromHeader(() => setDialog("profile"))}
+      onLock={onLock}
+    />
+  )
+
   if (showKitchen) {
     return (
       <div className="flex h-full flex-col gap-2 p-2">
-        <div className="flex items-center justify-between">
-          <AppHeader restaurantName={access.restaurant.name} employeeName={access.employee.displayName} shiftNumber={shift.number} onOpenShiftInfo={() => {}} onLock={onLock} />
-        </div>
+        {header}
         <div className="min-h-0 flex-1">
           <KitchenBoard sessionToken={sessionToken} />
         </div>
@@ -207,26 +362,17 @@ function AuthenticatedPos({
     )
   }
 
+  const closeDialog = (open: boolean) => !open && setDialog(null)
+
   return (
     <div className="flex h-full flex-col gap-2 p-2">
-      <AppHeader restaurantName={access.restaurant.name} employeeName={access.employee.displayName} shiftNumber={shift.number} onOpenShiftInfo={() => setCloseShiftOpen(true)} onLock={onLock} />
+      {header}
       <div className="flex items-center gap-2">
         <Button variant="secondary" className={TOOLBAR_BUTTON} onClick={() => setShowKitchen(true)}>
           Экран кухни {kitchenTickets.length > 0 && `(${kitchenTickets.length})`}
         </Button>
-        <Button variant="ghost" className={TOOLBAR_BUTTON} onClick={() => setCloseShiftOpen(true)}>
-          Закрыть смену
-        </Button>
-        <Button variant="secondary" className={TOOLBAR_BUTTON} onClick={handleXReport} disabled={xReportSubmitting}>
-          {xReportSubmitting ? "Формирование…" : "X-отчёт"}
-        </Button>
-        {xReportError && (
-          <span role="alert" className="text-caption font-semibold text-destructive">
-            {xReportError}
-          </span>
-        )}
-        <Button variant="secondary" className={TOOLBAR_BUTTON} onClick={() => setGuestOpen(true)} disabled={!draft.orderId}>
-          {guest ? `${guest.name || guest.phone} · ${guest.points} б.` : "Гость"}
+        <Button variant="ghost" className={TOOLBAR_BUTTON} onClick={() => setDialog("history")}>
+          <History /> История заказов
         </Button>
       </div>
       <div className="flex min-h-0 flex-1 gap-3">
@@ -234,10 +380,7 @@ function AuthenticatedPos({
           checks={openChecks.map((c) => ({ orderId: c.orderId, tableLabel: c.tableLabel, status: c.status, total: c.total, itemCount: c.itemCount }))}
           activeOrderId={selectedOrderId}
           onSelect={(orderId) => selectCheck(orderId)}
-          onNew={() => {
-            const label = window.prompt("Номер стола (необязательно)") ?? ""
-            selectCheck(null, label)
-          }}
+          onNew={() => setDialog("new-table")}
         />
         <CatalogPanel sessionToken={sessionToken} onAddProduct={draft.addItem} />
         <OrderPanel
@@ -273,9 +416,15 @@ function AuthenticatedPos({
           onRemove={(id) => draft.setQuantity(id, 0)}
           onVoid={setVoidingLineId}
           onSendToKitchen={handleSendToKitchen}
-          onHold={handleHold}
+          onHold={() => void handleHold().catch((caught) => toast(errorMessage(caught, "Не удалось отложить заказ"), "error"))}
           onCheckout={() => setPaymentOpen(true)}
           onDiscount={() => setDiscountOpen(true)}
+          guestLabel={guestLabel}
+          onGuest={() => (draft.orderId ? setGuestOpen(true) : toast("Заказ ещё сохраняется — повторите через секунду"))}
+          onMore={() => setDialog("actions")}
+          comment={draft.comment}
+          suggestion={suggestion}
+          onAddSuggestion={suggestion ? () => draft.addItem({ productId: suggestion.productId, name: suggestion.name, nameKk: suggestion.nameKk, price: suggestion.price }) : undefined}
         />
       </div>
 
@@ -318,14 +467,111 @@ function AuthenticatedPos({
         onApply={(percent, reason, token) => draft.applyDiscount(percent, reason, token)}
         onManagerRequired={requestApproval}
       />
-      <CloseShiftDialog
-        open={closeShiftOpen}
-        onOpenChange={setCloseShiftOpen}
-        expectedCash={closePreview?.expectedCash ?? 0}
-        blockers={closePreview?.blockers ?? []}
-        onClose={async (countedCash, note, managerApprovalToken) => {
-          await closeShift({ sessionToken, countedCash, note, managerApprovalToken })
-          setCloseShiftOpen(false)
+
+      <MainMenuDialog
+        open={dialog === "menu"}
+        onOpenChange={closeDialog}
+        onNewOrder={() => selectCheck(null)}
+        onHistory={() => setDialog("history")}
+        onShift={() => openShiftDialog()}
+        onLock={onLock}
+        onLogout={onLogout}
+      />
+      <ProfileDialog
+        open={dialog === "profile"}
+        onOpenChange={closeDialog}
+        access={access}
+        attendance={attendance.current}
+        onClockIn={async () => {
+          const result = await attendance.clockIn({ sessionToken })
+          toast(result.alreadyOpen ? "Приход уже отмечен" : "Приход отмечен", "success")
+        }}
+        onClockOut={async () => {
+          await attendance.clockOut({ sessionToken })
+          toast("Уход отмечен", "success")
+        }}
+        onLock={onLock}
+        onLogout={onLogout}
+      />
+      <NotificationsDialog
+        open={dialog === "notifications"}
+        onOpenChange={closeDialog}
+        items={notifications.items}
+        canLoadMore={notifications.status === "CanLoadMore"}
+        onLoadMore={notifications.loadMore}
+        onRead={(notificationId) => notifications.markRead({ sessionToken, notificationId })}
+        onOpenShift={() => openShiftDialog()}
+      />
+      <HistoryDialog
+        open={dialog === "history"}
+        onOpenChange={closeDialog}
+        sessionToken={sessionToken}
+        onContinue={handleContinue}
+        onRefund={handleRefund}
+        onPrint={(order) => printHtml(buildOrderReceiptHtml(receiptFromOrder(order, place)))}
+        onManagerRequired={requestApproval}
+      />
+      <ShiftDialog
+        open={dialog === "shift"}
+        onOpenChange={closeDialog}
+        tab={shiftTab}
+        onTabChange={setShiftTab}
+        sessionToken={sessionToken}
+        shift={shift}
+        restaurantName={access.restaurant.name}
+        closePreview={closePreview}
+        cashOperationTypes={retail.cashOperationTypes}
+        onCashMovement={handleCashMovement}
+        onCloseShift={handleCloseShift}
+        onPrintX={printXReport}
+        onPrintZ={printZReport}
+        onOpenOrderHistory={() => setDialog("history")}
+        onManagerRequired={requestApproval}
+      />
+
+      <TableDialog
+        open={dialog === "new-table"}
+        onOpenChange={closeDialog}
+        mode="new"
+        onSubmit={(seat: TableSeatInput) => selectCheck(null, { tableLabel: seat.tableLabel, hallLabel: seat.hallLabel, guestCount: seat.guestCount })}
+      />
+      <OrderActionsDialog
+        open={dialog === "actions"}
+        onOpenChange={closeDialog}
+        blocks={blocks}
+        lines={voidableLines}
+        onAction={handleAction}
+        onVoidLine={setVoidingLineId}
+      />
+      <CommentDialog open={dialog === "comment"} onOpenChange={closeDialog} comment={draft.comment} onSave={draft.saveComment} />
+      <SplitDialog
+        open={dialog === "split"}
+        onOpenChange={closeDialog}
+        lines={voidableLines}
+        onSplit={async (rows) => {
+          const created = await draft.split(rows)
+          toast(`Создан отложенный чек №${created.number}${created.tableLabel ? ` · ${created.tableLabel}` : ""}`, "success")
+        }}
+      />
+      <TransferDialog
+        open={dialog === "transfer"}
+        onOpenChange={closeDialog}
+        targets={transferTargets}
+        orderNumber={draft.orderNumber}
+        onTransfer={handleTransfer}
+        onManagerRequired={requestApproval}
+      />
+      <TableDialog open={dialog === "move-table"} onOpenChange={closeDialog} mode="move" current={{ tableLabel: draft.tableLabel }} onSubmit={(seat) => draft.moveToTable(seat)} />
+      <CancelOrderDialog
+        open={dialog === "cancel"}
+        onOpenChange={closeDialog}
+        orderNumber={draft.orderNumber}
+        sentToKitchen={draft.lines.some((line) => line.sentToKitchenAt && !line.voidedAt)}
+        reasons={retail.deletionReasons}
+        onCancel={async (input) => {
+          await draft.cancel(input)
+          selectCheck(null)
+          toast(`Заказ${draft.orderNumber !== undefined ? ` №${draft.orderNumber}` : ""} отменён`, "success")
         }}
         onManagerRequired={requestApproval}
       />
