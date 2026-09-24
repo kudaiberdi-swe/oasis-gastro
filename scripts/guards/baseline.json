@@ -1,6 +1,5 @@
 {
   "fe/heavy-weight": {
-    "src/office/components/office-layout.tsx": 2,
     "src/office/features/catalog/ui/catalog-workspace.tsx": 4,
     "src/office/features/finance/ui/finance-workspace.tsx": 3,
     "src/office/features/loyalty/ui/loyalty-workspace.tsx": 2,

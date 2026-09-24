@@ -4,13 +4,17 @@ import { cleanup, render, screen } from "@testing-library/react"
 import { createMemoryRouter, RouterProvider } from "react-router"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { ThemeProvider } from "@/shared/components/theme-provider"
 import { appRoutes } from "@/shared/routing/routes"
 
 // Routing only: auth and the heavy workspaces are stubbed.
 vi.mock("convex/react", () => ({ useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }) }))
 vi.mock("@convex-dev/auth/react", () => ({ useAuthActions: () => ({ signOut: vi.fn() }) }))
 vi.mock("@/office/features/session/data/use-office-context", () => ({
-  useOfficeContext: () => ({ context: { ready: true, email: "admin@sandyq.test", user: { name: "Админ" } }, bootstrap: vi.fn() }),
+  useOfficeContext: () => ({
+    context: { ready: true, canBootstrap: false, email: "admin@sandyq.test", user: { name: "Админ" }, capabilities: ["*"], restaurants: [], organization: null },
+    bootstrap: vi.fn(),
+  }),
 }))
 vi.mock("@/pos/router", () => ({ PosRouter: () => <p>POS screen</p> }))
 vi.mock("@/office/features/catalog/ui/catalog-workspace", () => ({ CatalogWorkspace: () => <p>CatalogWorkspace</p> }))
@@ -24,7 +28,11 @@ afterEach(cleanup)
 
 function renderAt(url: string) {
   const router = createMemoryRouter(appRoutes, { initialEntries: [url] })
-  render(<RouterProvider router={router} />)
+  render(
+    <ThemeProvider>
+      <RouterProvider router={router} />
+    </ThemeProvider>,
+  )
   return router
 }
 
@@ -37,11 +45,23 @@ describe("app routes (W0-FND-01)", () => {
   it("sends /office to the default section and unknown sections to Not Found", async () => {
     const router = renderAt("/office")
     expect(await screen.findByText("CatalogWorkspace")).toBeTruthy()
-    expect(router.state.location.pathname).toBe("/office/catalog")
+    expect(router.state.location.pathname).toBe("/office/nomenclature")
 
     cleanup()
     renderAt("/office/no-such-section")
     expect(await screen.findByText("Страница не найдена")).toBeTruthy()
+  })
+
+  it("keeps old section URLs working and shows a placeholder for sections not built yet", async () => {
+    const router = renderAt("/office/catalog")
+    expect(await screen.findByText("CatalogWorkspace")).toBeTruthy()
+    expect(router.state.location.pathname).toBe("/office/nomenclature")
+
+    cleanup()
+    renderAt("/office/receipts")
+    expect(await screen.findByText("Раздел в разработке")).toBeTruthy()
+    expect(screen.getByRole("heading", { level: 1, name: "Приходные накладные" })).toBeTruthy()
+    expect(screen.queryByText(/Касса №|Смена закрыта/)).toBeNull()
   })
 
   it("redirects / to /pos and keeps the ?terminal= branch selection", async () => {
