@@ -1,7 +1,8 @@
 import type { GenericQueryCtx } from "convex/server"
 
-import type { DataModel, Doc } from "../../_generated/dataModel"
-import type { ReportColumn, ReportConfig, ReportResult } from "../../lib/reportConfig"
+import type { DataModel } from "../../_generated/dataModel"
+import type { ReportConfig, ReportResult } from "../../lib/reportConfig"
+import { count, factReport, money } from "./calculators/_facts"
 import { EMPLOYEE_CALCULATORS } from "./calculators/employees"
 import { FINANCE_CALCULATORS } from "./calculators/finance"
 import { MENU_CALCULATORS } from "./calculators/menu"
@@ -10,78 +11,12 @@ import { SALES_CALCULATORS } from "./calculators/sales"
 import { STOCK_CALCULATORS } from "./calculators/stock"
 
 type QueryCtx = GenericQueryCtx<DataModel>
-type FactType = Doc<"dailySalesFacts">["factType"]
-type Measure = "orderCount" | "guestCount" | "quantity" | "grossAmount" | "discountAmount" | "serviceChargeAmount" | "netAmount" | "costAmount" | "refundAmount" | "refundCount"
 
 // Report registry (W1-RPT-01): only reports with a calculator and a test are "implemented"; the rest of
-// the 190 are honestly "in development" (bahandi reported 190/190 — B-23).
+// the 190 are honestly "in development" (bahandi reported 190/190 — B-23). Fact-based calculators live
+// in calculators/_facts.ts.
 
 export type Calculator = (ctx: QueryCtx, config: ReportConfig, restaurantExternalIds: string[]) => Promise<Omit<ReportResult, "reportId" | "generatedAt">>
-
-const SCAN_LIMIT = 50_000
-const MEASURES: Measure[] = ["orderCount", "guestCount", "quantity", "grossAmount", "discountAmount", "serviceChargeAmount", "netAmount", "costAmount", "refundAmount", "refundCount"]
-const col = (key: string, label: string, unit: ReportColumn["unit"]): ReportColumn => ({ key, label, unit, align: unit === "text" || unit === "date" ? "left" : "right" })
-
-async function facts(ctx: QueryCtx, factType: FactType, config: ReportConfig, restaurants: string[]) {
-  const rows: Doc<"dailySalesFacts">[] = []
-  let truncated = false
-  for (const restaurant of restaurants) {
-    for await (const fact of ctx.db.query("dailySalesFacts").withIndex("by_restaurant_type_date", (q) => q.eq("restaurantExternalId", restaurant).eq("factType", factType).gte("businessDate", config.dateFrom).lte("businessDate", config.dateTo))) {
-      if (rows.length >= SCAN_LIMIT) {
-        truncated = true
-        break
-      }
-      rows.push(fact)
-    }
-  }
-  return { rows, truncated }
-}
-
-/** Groups facts of one type by dimension (or by day) and sums the chosen measures. */
-function factReport(options: { factType: FactType; byDay?: boolean; dimensionLabel: string; measures: { key: Measure; label: string; unit: ReportColumn["unit"] }[]; average?: boolean; margin?: boolean; sortBy?: Measure }): Calculator {
-  return async (ctx, config, restaurants) => {
-    const { rows, truncated } = await facts(ctx, options.factType, config, restaurants)
-    const needle = config.search?.trim().toLocaleLowerCase("ru")
-    const groups = new Map<string, { label: string; values: Record<Measure, number> }>()
-    for (const fact of rows) {
-      const key = options.byDay ? fact.businessDate : fact.dimensionKey
-      const label = options.byDay ? fact.businessDate : fact.dimensionLabel
-      if (needle && !label.toLocaleLowerCase("ru").includes(needle)) continue
-      const group = groups.get(key) ?? { label, values: Object.fromEntries(MEASURES.map((measure) => [measure, 0])) as Record<Measure, number> }
-      for (const measure of MEASURES) group.values[measure] += fact[measure]
-      groups.set(key, group)
-    }
-    const columns = [col("group", options.dimensionLabel, options.byDay ? "date" : "text"), ...options.measures.map((m) => col(m.key, m.label, m.unit))]
-    if (options.average) columns.push(col("averageCheck", "Средний чек", "money"))
-    if (options.margin) columns.push(col("margin", "Маржа", "money"), col("marginPercent", "Маржа, %", "percent"))
-    const sortKey = options.sortBy ?? options.measures[0].key
-    const ordered = [...groups.entries()].sort(([ka, a], [kb, b]) => (options.byDay ? ka.localeCompare(kb) : b.values[sortKey] - a.values[sortKey]))
-    const totals: Record<string, number> = {}
-    const out = ordered.map(([key, group]) => {
-      const cells: Record<string, number | string> = { group: group.label }
-      for (const measure of options.measures) {
-        cells[measure.key] = group.values[measure.key]
-        totals[measure.key] = (totals[measure.key] ?? 0) + group.values[measure.key]
-      }
-      if (options.average) cells.averageCheck = group.values.orderCount ? Math.round(group.values.netAmount / group.values.orderCount) : 0
-      if (options.margin) {
-        const margin = group.values.netAmount - group.values.costAmount
-        cells.margin = margin
-        cells.marginPercent = group.values.netAmount ? Math.round((margin / group.values.netAmount) * 1000) / 10 : 0
-      }
-      return { key, cells }
-    })
-    const net = totals.netAmount ?? 0
-    const kpis: ReportResult["kpis"] = []
-    if (totals.netAmount !== undefined) kpis.push({ key: "net", label: "Выручка", value: net, unit: "money" })
-    if (totals.refundAmount !== undefined) kpis.push({ key: "netOfRefunds", label: "Выручка за вычетом возвратов", value: net - totals.refundAmount, unit: "money" })
-    if (totals.orderCount !== undefined) kpis.push({ key: "orders", label: "Заказов", value: totals.orderCount, unit: "count" })
-    return { sourceLabel: "Продажи кассы (предагрегат за день)", columns, rows: out, totals, kpis, truncated }
-  }
-}
-
-const money = (key: Measure, label: string) => ({ key, label, unit: "money" as const })
-const count = (key: Measure, label: string) => ({ key, label, unit: "count" as const })
 
 export const REPORT_REGISTRY: Record<string, { calculator: Calculator }> = {
   ...Object.fromEntries(Object.entries({ ...STOCK_CALCULATORS, ...OPERATION_CALCULATORS, ...SALES_CALCULATORS, ...MENU_CALCULATORS, ...FINANCE_CALCULATORS, ...EMPLOYEE_CALCULATORS }).map(([id, calculator]) => [id, { calculator }])),

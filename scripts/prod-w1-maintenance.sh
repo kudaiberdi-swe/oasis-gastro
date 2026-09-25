@@ -19,6 +19,8 @@
 #  14. KZ payroll rules 2026    domains/workforce/payroll:seedRules2026 (draft; the accountant activates it)
 #  15. Delivery sources          domains/delivery/internal:seedSources («Телефон», «Сайт sandyq.kz», 0 %)
 #  16. M-9 daily stock facts    migrations/m9DailyStockFacts:backfill (paged; after M-3)
+#  17. M-8b sales facts rebuild  domains/reports/internal:rebuildDailySalesFactsRange 2026-01-01…yesterday
+#                               (after M-8; one day per scheduled run, adds the W2 station/channel facts)
 # Each step runs as a dry run first and prints what it would change; then asks before writing.
 #
 #   bash scripts/prod-w1-maintenance.sh          # production
@@ -55,6 +57,7 @@ paged() {
   done
 }
 
+YESTERDAY="$(node -e 'console.log(new Date(Date.now()+5*3600e3-864e5).toISOString().slice(0,10))')"
 echo "── Dry run ──"
 run domains/finance/seed:seedChartOfAccounts '{"dryRun":true}'
 run domains/office/internal:seedSystemRoles '{"dryRun":true}'
@@ -66,6 +69,7 @@ run migrations/m3StockWarehouses:ensureMainWarehouses '{"dryRun":true}'
 paged migrations/m3StockWarehouses:backfillBalances true
 paged migrations/m3StockWarehouses:backfillMovements true
 paged migrations/m9DailyStockFacts:backfill true
+run domains/reports/internal:rebuildDailySalesFactsRange "{\"dateFrom\":\"2026-01-01\",\"dateTo\":\"$YESTERDAY\",\"dryRun\":true}"
 run domains/retail/internal:seedDefaults '{"dryRun":true}'
 paged migrations/m2Orders:backfillOrders true
 paged migrations/m2Orders:backfillLines true
@@ -103,6 +107,7 @@ paged migrations/m5Loyalty:migrateGuests false
 paged domains/reports/internal:backfillDailySalesFacts false
 run domains/workforce/payroll:seedRules2026 '{}'
 run domains/delivery/internal:seedSources '{}'
+run domains/reports/internal:rebuildDailySalesFactsRange "{\"dateFrom\":\"2026-01-01\",\"dateTo\":\"$YESTERDAY\"}"
 echo "── M-3 verify (expect no mismatches) ──"
 run migrations/m3StockWarehouses:verify '{"paginationOpts":{"numItems":200,"cursor":null}}'
 echo "Done."

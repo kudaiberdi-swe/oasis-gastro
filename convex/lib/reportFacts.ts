@@ -41,6 +41,24 @@ async function applyOnce(ctx: MutationCtx, sourceKey: string, restaurantExternal
 
 const lineAmount = (line: Doc<"orderLines">) => line.lineTotal ?? line.unitPrice * line.quantity
 
+/** Kitchen areas of products.prepArea (the office nomenclature shows the same names). */
+export const STATION_LABEL: Record<string, string> = { hot: "Горячий цех", cold: "Холодный цех", bar: "Бар", bakery: "Выпечка", pickup: "Выдача" }
+
+/**
+ * Sales channel of an order (W2-RPT-03), from stored rows only so the nightly rebuild agrees: a
+ * delivery order → `delivery-<source>`, a kiosk kitchen ticket → `kiosk`, otherwise the POS.
+ */
+async function orderChannel(ctx: MutationCtx, order: Doc<"orders">) {
+  const delivery = await ctx.db.query("deliveryOrders").withIndex("by_order", (q) => q.eq("orderId", order._id)).first()
+  if (delivery) {
+    const source = await ctx.db.query("deliverySources").withIndex("by_external_id", (q) => q.eq("externalId", delivery.sourceExternalId)).unique()
+    return { key: `delivery-${delivery.sourceExternalId}`, label: `Доставка · ${source?.name ?? delivery.sourceExternalId}` }
+  }
+  const tickets = await ctx.db.query("kitchenTickets").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(50)
+  if (tickets.some((ticket) => ticket.source === "kiosk")) return { key: "kiosk", label: "Киоск" }
+  return { key: "pos", label: "Касса" }
+}
+
 async function context(ctx: MutationCtx, order: Doc<"orders">) {
   const restaurant = order.restaurantId ? await ctx.db.get(order.restaurantId) : null
   const businessDate = order.businessDate
@@ -69,8 +87,8 @@ export async function applyCheckoutFacts(ctx: MutationCtx, order: Doc<"orders">,
     { factType: "quarter-hour", key: quarter, label: quarter, measures: orderMeasures },
     { factType: "order-type", key: order.orderTypeExternalId ?? order.orderType, label: order.orderTypeName ?? TYPE_LABEL[order.orderType], measures: orderMeasures },
   ]
+  const terminal = order.terminalId ? await ctx.db.get(order.terminalId) : null
   if (order.terminalId) {
-    const terminal = await ctx.db.get(order.terminalId)
     deltas.push({ factType: "terminal", key: terminal?.externalId ?? String(order.terminalId), label: terminal?.name ?? "Касса", measures: orderMeasures })
   }
   if (order.createdBy) {
@@ -81,17 +99,40 @@ export async function applyCheckoutFacts(ctx: MutationCtx, order: Doc<"orders">,
   if (discount !== 0) deltas.push({ factType: "discount-type", key: order.discountTypeExternalId ?? `percent-${order.discountPercent}`, label: order.discountTypeName ?? `Скидка ${order.discountPercent}%`, measures: { orderCount: 1, discountAmount: discount, grossAmount: order.subtotal } })
   if (order.serviceChargeAmount) deltas.push({ factType: "service-charge", key: String(order.serviceChargePercent), label: `Сервисный сбор ${order.serviceChargePercent}%`, measures: { orderCount: 1, serviceChargeAmount: order.serviceChargeAmount, netAmount: net } })
 
-  // Lines: their share of the order's net and cost, by product, category and size.
+  // Lines: their share of the order's net and cost, by product, category, station, terminal × product,
+  // size and modifier. Shares are allocated cumulatively, so the lines add up to the order exactly.
   const subtotal = lines.reduce((sum, line) => sum + lineAmount(line), 0)
+  const terminalKey = terminal ? terminal.externalId : order.terminalId ? String(order.terminalId) : null
+  const stations = new Map<string, Measures>()
+  let cumulative = 0
+  let netBefore = 0
+  let costBefore = 0
   for (const line of lines) {
-    const share = subtotal > 0 ? lineAmount(line) / subtotal : 0
+    cumulative += lineAmount(line)
+    const netUpTo = subtotal > 0 ? Math.round((net * cumulative) / subtotal) : 0
+    const costUpTo = subtotal > 0 ? Math.round((cost * cumulative) / subtotal) : 0
     const product = await ctx.db.get(line.productId)
-    const measures: Measures = { quantity: line.quantity, grossAmount: lineAmount(line), netAmount: Math.round(net * share), costAmount: Math.round(cost * share), orderCount: 1 }
-    deltas.push({ factType: "product", key: line.productExternalId ?? String(line.productId), label: line.productName, measures })
+    const productKey = line.productExternalId ?? String(line.productId)
+    const measures: Measures = { quantity: line.quantity, grossAmount: lineAmount(line), netAmount: netUpTo - netBefore, costAmount: costUpTo - costBefore, orderCount: 1 }
+    netBefore = netUpTo
+    costBefore = costUpTo
+    deltas.push({ factType: "product", key: productKey, label: line.productName, measures })
     if (product) deltas.push({ factType: "category", key: product.category, label: product.category, measures })
-    if (line.sizeLabel) deltas.push({ factType: "size", key: line.sizeExternalId ?? line.sizeLabel, label: line.sizeLabel, measures: { quantity: line.quantity, grossAmount: lineAmount(line) } })
-    for (const modifier of line.modifierSelections ?? []) deltas.push({ factType: "modifier", key: modifier.externalId, label: modifier.name, measures: { quantity: modifier.quantity * line.quantity, grossAmount: Math.round(modifier.unitPrice * modifier.quantity * line.quantity) } })
+    if (terminalKey) deltas.push({ factType: "terminal-product", key: `${terminalKey}:${productKey}`, label: line.productName, measures })
+    const station = product?.prepArea ?? "hot" // the kitchen's default area (lib/kitchen.ts)
+    const sum = stations.get(station) ?? {}
+    for (const key of ["quantity", "grossAmount", "netAmount", "costAmount"] as const) sum[key] = (sum[key] ?? 0) + (measures[key] ?? 0)
+    stations.set(station, sum)
+    if (line.sizeLabel) deltas.push({ factType: "size", key: line.sizeExternalId ?? line.sizeLabel, label: line.sizeLabel, measures: { quantity: line.quantity, grossAmount: lineAmount(line), netAmount: measures.netAmount, orderCount: 1 } })
+    // modifier: orderCount = lines it was chosen on; a removed default («БЕЗ X») under its own key.
+    for (const modifier of line.modifierSelections ?? []) deltas.push({ factType: "modifier", key: modifier.externalId, label: modifier.name, measures: { orderCount: 1, quantity: modifier.quantity * line.quantity, grossAmount: Math.round(modifier.unitPrice * modifier.quantity * line.quantity) } })
+    for (const removed of line.kitchenModifiers ?? []) {
+      if (removed.quantity === 0 && removed.defaultQuantity > 0) deltas.push({ factType: "modifier", key: `without:${removed.externalId}`, label: removed.label, measures: { orderCount: 1, quantity: line.quantity } })
+    }
   }
+  for (const [station, measures] of stations) deltas.push({ factType: "station", key: station, label: STATION_LABEL[station] ?? station, measures: { ...measures, orderCount: 1 } })
+  const channel = await orderChannel(ctx, order)
+  deltas.push({ factType: "channel", key: channel.key, label: channel.label, measures: orderMeasures })
   for (const payment of sales) {
     deltas.push({ factType: "payment-type", key: payment.paymentTypeExternalId ?? payment.method, label: payment.paymentTypeName ?? payment.method, measures: { orderCount: 1, netAmount: payment.amount } })
     const cashier = await ctx.db.get(payment.createdBy)
@@ -105,9 +146,11 @@ export async function applyRefundFacts(ctx: MutationCtx, order: Doc<"orders">, p
   const where = await context(ctx, order)
   if (!where) return
   const measures: Measures = { refundAmount: payment.amount, refundCount: 1, costAmount: -Math.round(cost * share) }
+  const channel = await orderChannel(ctx, order)
   await applyOnce(ctx, `order:${order._id}:refund:${payment._id}`, where.restaurantExternalId, where.businessDate, [
     { factType: "branch", key: where.restaurantExternalId, label: where.restaurantName, measures },
     { factType: "payment-type", key: payment.paymentTypeExternalId ?? payment.method, label: payment.paymentTypeName ?? payment.method, measures: { refundAmount: payment.amount, refundCount: 1 } },
+    { factType: "channel", key: channel.key, label: channel.label, measures },
   ])
 }
 

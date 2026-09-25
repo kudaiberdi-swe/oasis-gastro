@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server"
-import { v } from "convex/values"
+import { ConvexError, v } from "convex/values"
 
 import { internal } from "../../_generated/api"
 import { internalMutation, type MutationCtx } from "../../_generated/server"
@@ -41,6 +41,24 @@ export const rebuildDailySalesFacts = internalMutation({
       await replayOrder(ctx, order)
     }
     return { orders }
+  },
+})
+
+/**
+ * M-8b (W2-RPT-03): rebuilds a date range for every active restaurant, one day per run (it schedules the
+ * next day), so facts added later (station, terminal-product, channel…) appear for past dates too.
+ */
+export const rebuildDailySalesFactsRange = internalMutation({
+  args: { dateFrom: v.string(), dateTo: v.string(), dryRun: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.dateFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(args.dateTo) || args.dateFrom > args.dateTo) throw new ConvexError("Укажите период ГГГГ-ММ-ДД")
+    const restaurants = await ctx.db.query("restaurants").withIndex("by_active_and_name", (q) => q.eq("active", true)).take(200)
+    const days = Math.round((Date.parse(`${args.dateTo}T00:00:00Z`) - Date.parse(`${args.dateFrom}T00:00:00Z`)) / 86_400_000) + 1
+    if (args.dryRun) return { restaurants: restaurants.length, days, isDone: true, dryRun: true }
+    for (const restaurant of restaurants) await ctx.scheduler.runAfter(0, internal.domains.reports.internal.rebuildDailySalesFacts, { restaurantExternalId: restaurant.externalId, businessDate: args.dateFrom })
+    const next = new Date(Date.parse(`${args.dateFrom}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
+    if (next <= args.dateTo) await ctx.scheduler.runAfter(1_000, internal.domains.reports.internal.rebuildDailySalesFactsRange, { dateFrom: next, dateTo: args.dateTo })
+    return { restaurants: restaurants.length, days, isDone: true, dryRun: false }
   },
 })
 
