@@ -253,3 +253,17 @@ async function shiftCard(ctx: QueryCtx, shift: Doc<"shifts">, restaurants: Doc<"
     acceptance: accepted ? { recountedCash: accepted.recountedCash, variance: accepted.variance, acceptedAt: accepted.acceptedAt, note: accepted.note } : null,
   }
 }
+
+/** A Z-report for printing from «Кассовые смены» (the POS reads it with a PIN session instead). */
+export const getZReport = query({
+  args: { zReportId: v.id("zReports") },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.cash-shifts.view")
+    const report = await ctx.db.get(args.zReportId)
+    const restaurant = report ? await ctx.db.get(report.restaurantId) : null
+    if (!report || !restaurant) return null
+    await requireRestaurantScope(ctx, user, restaurant.externalId)
+    const terminal = await ctx.db.get(report.terminalId)
+    return { ...report, restaurantName: restaurant.name, restaurantAddress: restaurant.address, terminalName: terminal?.name ?? "Касса", terminalNumber: terminal?.terminalNumber ?? 0 }
+  },
+})

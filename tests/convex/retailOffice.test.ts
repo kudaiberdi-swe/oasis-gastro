@@ -47,5 +47,8 @@ describe("office retail views (W1-RTL-04/05/06)", () => {
     const [closed] = (await almaty.query(api.domains.retail.office.listShifts, { ...page, status: "closed" })).page
     expect(closed).toMatchObject({ status: "closed", expectedCash: 10_000, variance: 0 })
     expect(closed.zReportNumber).toMatch(/^Z-/)
+    const z = await almaty.query(api.domains.retail.office.getZReport, { zReportId: closed.zReportId! })
+    expect(z).toMatchObject({ number: closed.zReportNumber, restaurantName: "Алматы", snapshot: { sales: 2300 } })
+    await expect(shymkent.query(api.domains.retail.office.getZReport, { zReportId: closed.zReportId! })).rejects.toThrow()
   })
 })
