@@ -40,7 +40,7 @@ const GROUPS: { id: string; sections: [id: string, kind: SectionKind][] }[] = [
     id: "finance",
     sections: [
       ["cashflow-categories", "reference"], ["chart-of-accounts", "reference"], ["transactions", "document"], ["shift-acceptance", "document"], ["services", "document"], ["counterparties", "reference"],
-      ["accounts-payable", "view"], ["payments", "approval"], ["bank-statements", "document"], ["payment-calendar", "approval"], ["budgets", "approval"],
+      ["accounts-payable", "approval"], ["payments", "approval"], ["bank-statements", "document"], ["payment-calendar", "approval"], ["budgets", "approval"],
     ],
   },
   {

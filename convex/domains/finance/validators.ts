@@ -12,6 +12,7 @@ export const FINANCE_MODULES = {
   services: { lifecycle: "document", prefix: "АУ", label: "Акт услуг" },
   "bank-statements": { lifecycle: "document", prefix: "БВ", label: "Банковская выписка" },
   payments: { lifecycle: "approval", prefix: "ПЛ", label: "Платёж" },
+  "accounts-payable": { lifecycle: "approval", prefix: "ОБ", label: "Обязательство" },
   "payment-calendar": { lifecycle: "approval", prefix: "ПК", label: "Плановый платёж" },
   budgets: { lifecycle: "approval", prefix: "БЮ", label: "Бюджет" },
 } as const satisfies Record<string, { lifecycle: Lifecycle; prefix: string; label: string }>
@@ -26,6 +27,7 @@ export const financeModuleId = v.union(
   v.literal("services"),
   v.literal("bank-statements"),
   v.literal("payments"),
+  v.literal("accounts-payable"),
   v.literal("payment-calendar"),
   v.literal("budgets"),
 )

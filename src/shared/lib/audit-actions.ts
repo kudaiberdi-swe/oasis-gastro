@@ -91,6 +91,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "restaurant.status": "Статус ресторана",
   "department.save": "Сохранение подразделения",
   "department.status": "Статус подразделения",
+  "payments.allocate": "Распределение платежа",
   "workforce.create": "Создание сотрудника кассы",
   "workforce.profile.update": "Изменение карточки сотрудника",
   "attendance.clock-in": "Отметка прихода",

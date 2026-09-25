@@ -25,6 +25,7 @@ import type * as domains_corporation_organizations from "../domains/corporation/
 import type * as domains_corporation_restaurants from "../domains/corporation/restaurants.js";
 import type * as domains_finance_modules from "../domains/finance/modules.js";
 import type * as domains_finance_mutations from "../domains/finance/mutations.js";
+import type * as domains_finance_obligations from "../domains/finance/obligations.js";
 import type * as domains_finance_queries from "../domains/finance/queries.js";
 import type * as domains_finance_records from "../domains/finance/records.js";
 import type * as domains_finance_seed from "../domains/finance/seed.js";
@@ -114,6 +115,7 @@ import type * as lib_loyaltyCore from "../lib/loyaltyCore.js";
 import type * as lib_modifierPricing from "../lib/modifierPricing.js";
 import type * as lib_money from "../lib/money.js";
 import type * as lib_numbering from "../lib/numbering.js";
+import type * as lib_obligations from "../lib/obligations.js";
 import type * as lib_officeAccess from "../lib/officeAccess.js";
 import type * as lib_orderPricing from "../lib/orderPricing.js";
 import type * as lib_outbox from "../lib/outbox.js";
@@ -164,6 +166,7 @@ declare const fullApi: ApiFromModules<{
   "domains/corporation/restaurants": typeof domains_corporation_restaurants;
   "domains/finance/modules": typeof domains_finance_modules;
   "domains/finance/mutations": typeof domains_finance_mutations;
+  "domains/finance/obligations": typeof domains_finance_obligations;
   "domains/finance/queries": typeof domains_finance_queries;
   "domains/finance/records": typeof domains_finance_records;
   "domains/finance/seed": typeof domains_finance_seed;
@@ -253,6 +256,7 @@ declare const fullApi: ApiFromModules<{
   "lib/modifierPricing": typeof lib_modifierPricing;
   "lib/money": typeof lib_money;
   "lib/numbering": typeof lib_numbering;
+  "lib/obligations": typeof lib_obligations;
   "lib/officeAccess": typeof lib_officeAccess;
   "lib/orderPricing": typeof lib_orderPricing;
   "lib/outbox": typeof lib_outbox;

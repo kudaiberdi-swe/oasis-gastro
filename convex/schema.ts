@@ -1199,6 +1199,15 @@ export default defineSchema({
     .index("by_module_restaurant_date", ["moduleId", "restaurantExternalId", "businessDate"])
     .index("by_counterparty_module", ["counterpartyExternalId", "moduleId"])
     .searchIndex("search_finance_records", { searchField: "searchText", filterFields: ["moduleId", "status", "restaurantExternalId"] }),
+  // Payment ↔ obligation allocations (W2-FIN-10): one row per obligation a payment settles.
+  paymentAllocations: defineTable({
+    paymentExternalId: v.string(),
+    obligationExternalId: v.string(),
+    amount: v.number(),
+    appliedAt: v.optional(v.number()), // set when the payment is posted
+  })
+    .index("by_payment", ["paymentExternalId"])
+    .index("by_obligation", ["obligationExternalId"]),
   // ── Catalog: sizes, price orders, modifiers (W1-CAT-07/09/10; new tables, strict from the start) ──
   sizeScales: defineTable({
     externalId: v.string(),

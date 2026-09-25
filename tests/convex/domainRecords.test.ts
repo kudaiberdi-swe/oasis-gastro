@@ -52,7 +52,7 @@ describe("domain record lifecycle (W1-PLT-05)", () => {
 
   it("runs every transition of every lifecycle and rejects the rest", async () => {
     const { admin } = await setup()
-    const walk = async (moduleId: "cashflow-categories" | "payments", steps: [string, string][]) => {
+    const walk = async (moduleId: "cashflow-categories" | "budgets", steps: [string, string][]) => {
       const data = moduleId === "cashflow-categories" ? { code: "rent", direction: "outgoing", activity: "operating" } : { memo: "сентябрь" }
       const saved = await admin.mutation(records.save, draft({ moduleId, debitAccountExternalId: undefined, creditAccountExternalId: undefined, data }))
       let version = saved.version
@@ -64,8 +64,8 @@ describe("domain record lifecycle (W1-PLT-05)", () => {
       return { ...saved, version }
     }
     await walk("cashflow-categories", [["deactivate", "inactive"], ["activate", "active"]])
-    const payment = await walk("payments", [["submit", "pending-approval"], ["approve", "approved"], ["post", "posted"], ["reverse", "reversed"]])
-    await expect(admin.mutation(records.transition, { moduleId: "payments", externalId: payment.externalId, action: "approve", expectedVersion: payment.version })).rejects.toThrow(/Нельзя согласовать: запись в статусе «Сторнирован»/)
+    const payment = await walk("budgets", [["submit", "pending-approval"], ["approve", "approved"], ["post", "posted"], ["reverse", "reversed"]])
+    await expect(admin.mutation(records.transition, { moduleId: "budgets", externalId: payment.externalId, action: "approve", expectedVersion: payment.version })).rejects.toThrow(/Нельзя согласовать: запись в статусе «Сторнирован»/)
     await expect(admin.mutation(records.transition, { moduleId: "transactions", externalId: payment.externalId, action: "submit", expectedVersion: 1 })).rejects.toThrow(/недоступно/)
     expect(Object.keys(LIFECYCLES)).toEqual(["master", "publish", "approval", "document"])
   })

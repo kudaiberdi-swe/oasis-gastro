@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values"
 import { mutation, query, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
 import { postJournalEntry } from "../../lib/ledger"
+import { cancelObligations, createObligation, dueAfter } from "../../lib/obligations"
 import { effectiveScopes, getOfficeAuthEmail, hasScope, requireOfficeCapability, requireRestaurantScope, restaurantScopeFilter, writeOfficeAudit } from "../../lib/officeAccess"
 import { nextNumber } from "../../lib/numbering"
 import { appendOutboxEvent } from "../../lib/outbox"
@@ -251,6 +252,10 @@ export const postReceipt = mutation({
     }
     if (Math.round(vatTotal) > 0) await postJournalEntry(ctx, { ...common, externalId: `${receipt.externalId}:je:vat`, debitAccount: "vatRecoverable", creditAccount: "payables", amount: Math.round(vatTotal), description: `НДС по приходу ${receipt.number}` })
 
+    // The supplier's bill to pay (W2-FIN-09): its counterparty is the one linked or with the same BIN.
+    const counterparty = supplier.counterpartyExternalId ?? (supplier.bin ? (await ctx.db.query("financeRecords").withIndex("by_bin", (q) => q.eq("bin", supplier.bin)).take(5)).find((row) => row.moduleId === "counterparties")?.externalId : undefined)
+    const businessDate = businessDateFor(receipt.date)
+    await createObligation(ctx, { restaurantExternalId: receipt.restaurantExternalId, direction: "payable", amount: receipt.totalGross, name: `Оплата поставщику «${supplier.name}» по ${receipt.number}`, kind: "supplier", sourceModuleId: MODULE, sourceExternalId: receipt.externalId, sourceNumber: receipt.number, dueDate: supplier.paymentDelayDays ? dueAfter(businessDate, supplier.paymentDelayDays) : undefined, counterpartyExternalId: counterparty, occurredAt: receipt.date })
     await ctx.db.patch(receipt._id, { status: "posted", postedAt: Date.now(), updatedAt: Date.now() })
     await writeOfficeAudit(ctx, email, { action: "receipt.post", summary: `Проведена приходная накладная ${receipt.number}, ${receipt.totalGross} ₸`, resourceType: MODULE, resourceExternalId: receipt.externalId, restaurantExternalId: receipt.restaurantExternalId, capability: "office.receipts.post" })
     await appendOutboxEvent(ctx, { aggregateType: MODULE, aggregateExternalId: receipt.externalId, eventType: "receipt.posted", restaurantExternalId: receipt.restaurantExternalId, payload: { number: receipt.number, totalGross: receipt.totalGross, supplier: supplier.externalId } })
@@ -282,6 +287,7 @@ export const reverseReceipt = mutation({
         }
       }
     }
+    await cancelObligations(ctx, MODULE, receipt.externalId)
     await reverseStockSource(ctx, { sourceExternalId: receipt.externalId, occurredAt: now, reason, actorEmail: email })
     for (const lot of await ctx.db.query("stockLots").withIndex("by_source", (q) => q.eq("sourceExternalId", receipt.externalId)).take(200)) await ctx.db.patch(lot._id, { remainingQuantity: 0 })
     await ctx.db.patch(receipt._id, { status: "reversed", reversedAt: now, reverseReason: reason, updatedAt: now })
