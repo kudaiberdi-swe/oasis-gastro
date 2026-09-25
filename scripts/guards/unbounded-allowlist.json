@@ -21,10 +21,6 @@
       "count": 2,
       "task": "W1-RPT (S-9: reports from daily facts)"
     },
-    "q/unbounded-collect convex/domains/stock/queries.ts": {
-      "count": 1,
-      "task": "W1-STK-01 (stock by warehouse, paginated)"
-    },
     "q/unbounded-collect convex/domains/workforce/queries.ts": {
       "count": 5,
       "task": "W1-HR-01 (paginated employee register)"

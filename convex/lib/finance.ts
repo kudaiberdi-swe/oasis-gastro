@@ -9,7 +9,7 @@ type MutationCtx = GenericMutationCtx<DataModel>
  * ledgerEntries are removed after migration M-4 (W1-FIN-07).
  *
  * Posts one line to the flat P&L ledger. Called directly from the domains that produce money
- * events — orders/mutations.ts (checkout, refund) and stock/mutations.ts (receiveStock) — rather
+ * events — orders/mutations.ts (checkout, refund) and the finance manual expense — rather
  * than routed through a separate finance mutation, so a sale or a stock receipt always posts
  * atomically in the same transaction as the event that caused it.
  */

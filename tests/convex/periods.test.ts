@@ -74,8 +74,9 @@ describe("every posting checks the period", () => {
     for (const name of ["checkout", "refund", "cancel"]) expect(handlerOf(code, name), name).toMatch(/assertPeriodOpen\(/)
   })
 
-  it("stock: receive, write-off, adjust", () => {
-    const code = source("stock/mutations.ts")
-    for (const name of ["receiveStock", "writeOffStock", "adjustStock"]) expect(handlerOf(code, name), name).toMatch(/assertStockPeriodOpen\(/)
+  it("stock: the legacy direct mutations are gone (W1-STK-12); documents post through lib/stockPosting", () => {
+    expect(() => source("stock/mutations.ts")).toThrow()
+    expect(source("stockDocuments/mutations.ts")).toMatch(/assert(Stock)?PeriodOpen\(/)
+    expect(source("purchasing/receipts.ts")).toMatch(/assert(Stock)?PeriodOpen\(/)
   })
 })

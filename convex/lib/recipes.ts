@@ -24,11 +24,14 @@ export async function recipeLinesOf(ctx: QueryCtx, versionId: Id<"recipeVersions
 
 /** Weighted average stock cost of an item (per its unit) — for one restaurant, or across all branches. */
 export async function averageItemCost(ctx: QueryCtx, inventoryItemId: Id<"inventoryItems">, restaurantExternalId?: string) {
-  if (restaurantExternalId) {
-    const balance = await ctx.db.query("stockBalances").withIndex("by_restaurant_item", (q) => q.eq("restaurantExternalId", restaurantExternalId).eq("inventoryItemId", inventoryItemId)).unique()
-    if (balance && balance.averageUnitCost > 0) return balance.averageUnitCost
-  }
   const balances = await ctx.db.query("stockBalances").withIndex("by_item", (q) => q.eq("inventoryItemId", inventoryItemId)).take(100)
+  if (restaurantExternalId) {
+    // A restaurant can hold the item in several warehouses (M-3): weigh them by quantity.
+    const own = balances.filter((balance) => balance.restaurantExternalId === restaurantExternalId && balance.averageUnitCost > 0)
+    const ownQuantity = own.reduce((sum, balance) => sum + Math.max(0, balance.quantity), 0)
+    if (ownQuantity > 0) return own.reduce((sum, balance) => sum + Math.max(0, balance.quantity) * balance.averageUnitCost, 0) / ownQuantity
+    if (own.length) return own.reduce((sum, balance) => sum + balance.averageUnitCost, 0) / own.length
+  }
   const quantity = balances.reduce((sum, balance) => sum + Math.max(0, balance.quantity), 0)
   if (quantity > 0) return balances.reduce((sum, balance) => sum + Math.max(0, balance.quantity) * balance.averageUnitCost, 0) / quantity
   const priced = balances.filter((balance) => balance.averageUnitCost > 0)

@@ -46,8 +46,8 @@ export function useModifierMutations() {
   return { saveGroup, save, assignGroup, unassignGroup, saveProductRules }
 }
 
-/** Ingredients for the modifier editor: active stock items (office.stock.view). */
+/** Ingredients for the modifier editor: active stock items (office.stock.view), first 200 by name. */
 export function useIngredientOptions(enabled: boolean) {
-  const inventory = useQuery(api.domains.stock.queries.listInventoryForOffice, enabled ? {} : "skip")
-  return (inventory?.items ?? []).map((item) => ({ value: item.externalId, label: item.name, hint: item.unit, unit: item.unit }))
+  const inventory = useQuery(api.domains.stock.master.listInventoryItems, enabled ? { activeOnly: true, paginationOpts: { numItems: 200, cursor: null } } : "skip")
+  return (inventory?.page ?? []).map((item) => ({ value: item.externalId, label: item.name, hint: item.unit, unit: item.unit }))
 }

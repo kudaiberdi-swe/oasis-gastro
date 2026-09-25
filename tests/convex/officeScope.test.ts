@@ -76,10 +76,6 @@ describe("office restaurant scope", () => {
     await expect(office.query(api.domains.reports.queries.salesSummary, { restaurantExternalId: "branch-b" })).rejects.toThrow("Нет доступа к ресторану")
     expect((await office.query(api.domains.reports.queries.restaurantsForFilter, {})).map((r) => r.externalId)).toEqual(["branch-a"])
 
-    const stock = await office.query(api.domains.stock.queries.listInventoryForOffice, {})
-    expect(stock.restaurants.map((r) => r.externalId)).toEqual(["branch-a"])
-    expect(stock.items[0].balances.map((b) => b.restaurantExternalId)).toEqual(["branch-a"])
-
     expect((await office.query(api.domains.workforce.queries.listPosEmployees, {})).map((e) => e.code)).toEqual(["1001"])
     expect((await office.query(api.domains.workforce.queries.listBranches, {})).map((r) => r.externalId)).toEqual(["branch-a"])
 

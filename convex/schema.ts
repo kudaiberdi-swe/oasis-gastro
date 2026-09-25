@@ -812,7 +812,7 @@ export default defineSchema({
   // A flat P&L ledger, not double-entry — Sandyq has no chart of accounts yet, so
   // `kind` (revenue/expense) plus a free-text `category` is enough to answer "how much
   // did we make/spend, on what". Revenue posts itself from orders/mutations.ts:checkout
-  // (and refunds from :refund); cost of goods posts itself from stock/mutations.ts:receiveStock;
+  // (and refunds from :refund); stock postings go to the journal (W1-STK, M-4);
   // everything else (rent, utilities, payroll…) is entered by hand via recordExpense.
   ledgerEntries: defineTable({
     restaurantExternalId: v.string(),
