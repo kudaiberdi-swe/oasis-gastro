@@ -1,4 +1,5 @@
 import type { Doc } from "../../../_generated/dataModel"
+import { costRecipe, recipeVersionAt } from "../../../lib/recipes"
 import type { Calculator } from "../registry"
 import { aggregate, col, dayEnd, dayStart, localDate, SCAN_BUDGET } from "./_shared"
 
@@ -40,6 +41,37 @@ const dishMargin: Calculator = async (ctx, config, restaurants) => {
   const result = aggregate((await productFacts(ctx, config, restaurants)).map((fact) => ({ key: fact.dimensionKey, label: fact.dimensionLabel, values: { quantity: fact.quantity, netAmount: fact.netAmount, costAmount: fact.costAmount, margin: fact.netAmount - fact.costAmount } })), columns, "margin")
   for (const row of result.rows) row.cells.marginPercent = Number(row.cells.netAmount) ? Math.round((Number(row.cells.margin) / Number(row.cells.netAmount)) * 1000) / 10 : 0
   return { sourceLabel: "Продажи и списание по техкартам", columns, ...result, kpis: [{ key: "margin", label: "Маржа", value: result.totals.margin ?? 0, unit: "money" }], truncated: false }
+}
+
+/**
+ * menu-11: actual food cost (recipe write-off / revenue) against the theoretical one (today's recipe cost ×
+ * portions sold). Thresholds for the tone: 30 % and 35 % (POS-DESIGN §6.4), passed as extra.warn / extra.alert.
+ */
+const foodCostDeviation: Calculator = async (ctx, config, restaurants) => {
+  const columns = [col("group", "Блюдо", "text"), col("quantity", "Продано", "quantity"), col("netAmount", "Выручка", "money"), col("costAmount", "Фактическая себестоимость", "money"), col("theoretical", "По техкарте", "money"), col("actualPercent", "Фудкост факт, %", "percent"), col("theoreticalPercent", "Фудкост по техкарте, %", "percent"), col("deviation", "Отклонение, п.п.", "percent"), col("tone", "Оценка", "text")]
+  const warn = Number(config.extra?.warn ?? 30)
+  const alert = Number(config.extra?.alert ?? 35)
+  const grouped = aggregate((await productFacts(ctx, config, restaurants)).map((fact) => ({ key: fact.dimensionKey, label: fact.dimensionLabel, values: { quantity: fact.quantity, netAmount: fact.netAmount, costAmount: fact.costAmount } })), columns.filter((column) => ["quantity", "netAmount", "costAmount"].includes(column.key) || column.key === "group"), "netAmount")
+  const now = Date.now()
+  let theoreticalTotal = 0
+  for (const row of grouped.rows) {
+    const product = await ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", row.key)).unique()
+    const version = product ? await recipeVersionAt(ctx, product._id, now) : null
+    const portionCost = version ? (await costRecipe(ctx, version, now, restaurants.length === 1 ? restaurants[0] : undefined)).summary.costPerPortion : 0
+    const quantity = Number(row.cells.quantity) || 0
+    const net = Number(row.cells.netAmount) || 0
+    const theoretical = Math.round(portionCost * quantity)
+    theoreticalTotal += theoretical
+    const actualPercent = net ? Math.round((Number(row.cells.costAmount) / net) * 1000) / 10 : 0
+    const theoreticalPercent = net ? Math.round((theoretical / net) * 1000) / 10 : 0
+    row.cells.theoretical = theoretical
+    row.cells.actualPercent = actualPercent
+    row.cells.theoreticalPercent = theoreticalPercent
+    row.cells.deviation = Math.round((actualPercent - theoreticalPercent) * 10) / 10
+    row.cells.tone = !version ? "Нет техкарты" : actualPercent >= alert ? "Высокий" : actualPercent >= warn ? "Повышенный" : "Норма"
+  }
+  const net = grouped.totals.netAmount ?? 0
+  return { sourceLabel: "Продажи, списание и техкарты", columns, rows: grouped.rows, totals: { ...grouped.totals, theoretical: theoreticalTotal }, kpis: [{ key: "actual", label: "Фудкост факт", value: net ? Math.round(((grouped.totals.costAmount ?? 0) / net) * 1000) / 10 : 0, unit: "percent" }, { key: "theoretical", label: "Фудкост по техкарте", value: net ? Math.round((theoreticalTotal / net) * 1000) / 10 : 0, unit: "percent" }], truncated: false }
 }
 
 async function* journalLines(ctx: Parameters<Calculator>[0], config: Parameters<Calculator>[1], restaurants: string[]) {
@@ -187,6 +219,7 @@ function loyaltyByDay(kind: "accrual" | "redemption"): Calculator {
 export const OPERATION_CALCULATORS: Record<string, Calculator> = {
   "menu-07": dishCost,
   "menu-08": dishMargin,
+  "menu-11": foodCostDeviation,
   "finance-02": profitAndLoss,
   "finance-03": cashFlow,
   "finance-08": journal,
