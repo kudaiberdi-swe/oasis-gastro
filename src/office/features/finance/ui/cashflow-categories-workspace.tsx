@@ -7,6 +7,7 @@ import { PlatformErrorBoundary } from "@/office/features/platform/data/use-platf
 import { MasterPanel, useMasterSelection } from "@/office/features/stock/ui/master-panel"
 import { EmptyState, Field, Input, Select, StatusPill, TonePill, useToast, type Column } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useFinanceMutations, useFinanceRecord, useFinanceReferences, type FinanceRecord, type FinanceReferences } from "../data/use-finance-records"
 import {
@@ -190,7 +191,7 @@ function CashflowForm({ record, references, canEdit, onClose, onSaved }: { recor
                   {...control}
                   value={draft.restaurantExternalId || undefined}
                   onValueChange={(restaurantExternalId) => set({ restaurantExternalId })}
-                  options={references.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))}
+                  options={restaurantSelectOptions(references.restaurants)}
                   disabled={readOnly}
                 />
               )}

@@ -7,6 +7,7 @@ import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
 import { Banner, Button, Combobox, ConfirmDialog, Field, Input, MoneyInput, Select, Textarea, useToast } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useFinanceMutations, type FinanceRecord, type FinanceReferences } from "../data/use-finance-records"
 import { formatBusinessDate, transactionDraftOf, transactionSaveArgs, validateTransaction, type DraftErrors, type TransactionDraft } from "../model/modules"
@@ -204,7 +205,7 @@ export function TransactionPanel({ record, references, defaultRestaurantExternal
                         {...control}
                         value={draft.restaurantExternalId || undefined}
                         onValueChange={(restaurantExternalId) => set({ restaurantExternalId })}
-                        options={references.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))}
+                        options={restaurantSelectOptions(references.restaurants)}
                       />
                     )}
                   </Field>

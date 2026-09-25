@@ -6,12 +6,16 @@ import { PlatformErrorBoundary } from "@/office/features/platform/data/use-platf
 import { useMasterSelection } from "@/office/features/stock/ui/master-panel"
 import { Banner, Combobox, Field, Input, MoneyInput, SegmentedControl, Select, StatusPill, Textarea, type Column } from "@/shared/components/ui"
 import { formatAmount, formatTenge } from "@/shared/lib/format"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useFinanceRecord, useFinanceReferences, useFinanceRestaurantFilter, type FinanceRecord, type FinanceReferences } from "../data/use-finance-records"
 import { useOpenObligations, usePaymentAllocations, useSetPaymentAllocations } from "../data/use-obligations"
 import { APPROVAL_TABS, formatBusinessDate } from "../model/modules"
 import {
+  allocationFollowingAmount,
   obligationDirectionFor,
+  OVER_ALLOCATED,
+  overAllocation,
   PAYMENT_DIRECTION_LABELS,
   PAYMENT_METHOD_LABELS,
   paymentDirectionFor,
@@ -146,6 +150,7 @@ function PrefilledPayment({ prefill, references, onClose, onSaved }: PanelBase &
       allocations={[]}
       defaultRestaurantExternalId={prefill.restaurant}
       initialDraft={initialDraft}
+      follow={obligation ? { externalId: obligation.externalId, open: obligation.open, dueDate: obligation.dueDate } : undefined}
       notice={obligation ? undefined : "Обязательство уже погашено или сторнировано — выберите другое в распределении."}
       onClose={onClose}
       onSaved={onSaved}
@@ -158,12 +163,16 @@ interface PaymentPanelProps extends PanelBase {
   allocations: Allocation[]
   defaultRestaurantExternalId?: string
   initialDraft?: PaymentDraft
+  /** «Оплатить»: the obligation whose allocation follows «Сумма» until the user edits the table. */
+  follow?: { externalId: string; open: number; dueDate: unknown }
   notice?: string
 }
 
 /** Card of a payment: Направление, Контрагент, Способ, Статья ДДС, Дата платежа, «Распределение», Комментарий. */
-function PaymentPanel({ record, references, allocations, defaultRestaurantExternalId, initialDraft, notice, onClose, onSaved }: PaymentPanelProps) {
+function PaymentPanel({ record, references, allocations, defaultRestaurantExternalId, initialDraft, follow, notice, onClose, onSaved }: PaymentPanelProps) {
   const setAllocations = useSetPaymentAllocations()
+  // The prefilled line tracks «Сумма» until the table is touched (or the counterparty / direction changes).
+  const [following, setFollowing] = useState(Boolean(follow))
   // Filled below from the open obligations; validate runs on a click and reads this render's value.
   let openRemainders: Record<string, number> = {}
   const editor = useRecordEditor<PaymentDraft>({
@@ -173,6 +182,8 @@ function PaymentPanel({ record, references, allocations, defaultRestaurantExtern
     baseline: paymentDraftOf(record, defaultRestaurantExternalId ?? references.restaurants[0]?.externalId ?? "", allocations),
     initialDraft,
     validate: (draft) => validatePayment(draft, openRemainders),
+    // Allocated above the payment: shown at once under «Распределение», nothing is sent until fixed.
+    blockedReason: (draft) => (overAllocation(draft.amount, draft.allocations) > 0 ? OVER_ALLOCATED : null),
     toArgs: paymentSaveArgs,
     // The allocation table lives beside the record; a new payment without lines has nothing to write.
     afterSave: async (paymentExternalId, draft) => {
@@ -191,7 +202,10 @@ function PaymentPanel({ record, references, allocations, defaultRestaurantExtern
   const categoryName = references.cashflowCategories.find((row) => row.externalId === draft.cashflowCategoryExternalId)?.name ?? "—"
   const restaurantName = references.restaurants.find((restaurant) => restaurant.externalId === draft.restaurantExternalId)?.name ?? draft.restaurantExternalId
   // Allocations belong to one counterparty, direction and restaurant: changing any of them clears the table.
-  const reset = (patch: Partial<PaymentDraft>) => set({ ...patch, allocations: [] })
+  const reset = (patch: Partial<PaymentDraft>) => {
+    setFollowing(false)
+    set({ ...patch, allocations: [] })
+  }
 
   const readOnlyMain: [string, ReactNode][] = [
     ["Направление", PAYMENT_DIRECTION_LABELS[draft.direction]],
@@ -234,7 +248,7 @@ function PaymentPanel({ record, references, allocations, defaultRestaurantExtern
                 {(control) => <Input {...control} type="date" value={draft.businessDate} onChange={(event) => set({ businessDate: event.target.value })} />}
               </Field>
               <Field label="Сумма" error={errors.amount}>
-                {(control) => <MoneyInput {...control} value={draft.amount} onValueChange={(amount) => set({ amount })} />}
+                {(control) => <MoneyInput {...control} value={draft.amount} onValueChange={(amount) => set({ amount, ...(following && follow ? { allocations: allocationFollowingAmount(amount, follow) } : {}) })} />}
               </Field>
             </div>
             {!record && references.restaurants.length > 1 ? (
@@ -244,7 +258,7 @@ function PaymentPanel({ record, references, allocations, defaultRestaurantExtern
                     {...control}
                     value={draft.restaurantExternalId || undefined}
                     onValueChange={(restaurantExternalId) => reset({ restaurantExternalId })}
-                    options={references.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))}
+                    options={restaurantSelectOptions(references.restaurants)}
                   />
                 )}
               </Field>
@@ -286,7 +300,17 @@ function PaymentPanel({ record, references, allocations, defaultRestaurantExtern
         )}
       </FormSection>
       <FormSection title="Распределение">
-        <PaymentAllocationTable obligations={obligations} allocations={draft.allocations} paymentAmount={draft.amount ?? 0} editable={editable} onChange={(next) => set({ allocations: next })} error={errors.allocations} />
+        <PaymentAllocationTable
+          obligations={obligations}
+          allocations={draft.allocations}
+          paymentAmount={draft.amount ?? 0}
+          editable={editable}
+          onChange={(next) => {
+            setFollowing(false)
+            set({ allocations: next })
+          }}
+          error={errors.allocations}
+        />
       </FormSection>
       {record ? <RecordAudit record={record}>{editor.cancelAction}</RecordAudit> : null}
     </RecordEditorPanel>

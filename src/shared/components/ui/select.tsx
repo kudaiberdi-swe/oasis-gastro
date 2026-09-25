@@ -9,6 +9,8 @@ import { inputClass } from "./input"
 export interface SelectOption {
   value: string
   label: React.ReactNode
+  /** A caption after the label, e.g. the code of a restaurant whose name repeats in the list. */
+  hint?: string
   disabled?: boolean
 }
 
@@ -30,7 +32,7 @@ export function Select({ value, onValueChange, options, placeholder = "Выбе�
   return (
     <SelectPrimitive.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectPrimitive.Trigger id={id} className={cn(inputClass, "flex items-center justify-between gap-2 text-left data-[placeholder]:text-muted-foreground", className)} {...aria}>
-        <SelectPrimitive.Value placeholder={placeholder} />
+        <SelectPrimitive.Value className="min-w-0 truncate" placeholder={placeholder} />
         <SelectPrimitive.Icon>
           <ChevronDown className="size-4 text-muted-foreground" />
         </SelectPrimitive.Icon>
@@ -52,7 +54,10 @@ export function Select({ value, onValueChange, options, placeholder = "Выбе�
                 <SelectPrimitive.ItemIndicator className="absolute left-2 flex items-center">
                   <Check className="size-4 text-primary" />
                 </SelectPrimitive.ItemIndicator>
-                <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                <SelectPrimitive.ItemText>
+                  {option.label}
+                  {option.hint ? <span className="ml-2 text-caption text-muted-foreground">{option.hint}</span> : null}
+                </SelectPrimitive.ItemText>
               </SelectPrimitive.Item>
             ))}
           </SelectPrimitive.Viewport>

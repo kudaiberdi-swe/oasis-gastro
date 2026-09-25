@@ -134,14 +134,14 @@ export const references = query({
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, orderCapability(args.channel, "view"))
     const restaurants = (await scopedRestaurants(ctx, user)).filter((restaurant) => restaurant.active)
-    if (!args.restaurantExternalId) return { restaurants: restaurants.map(({ externalId, name }) => ({ externalId, name })), sources: [], couriers: [], paymentTypes: [] }
+    if (!args.restaurantExternalId) return { restaurants: restaurants.map(({ externalId, name, city }) => ({ externalId, name, city: city ?? null })), sources: [], couriers: [], paymentTypes: [] }
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     const active = await ctx.db.query("deliverySources").withIndex("by_active", (q) => q.eq("active", true)).take(100)
     const sources = active.filter((source) => sourceServes(source, args.restaurantExternalId!))
     const couriers = await ctx.db.query("couriers").withIndex("by_restaurant_status", (q) => q.eq("restaurantExternalId", args.restaurantExternalId!)).take(200)
     const paymentTypes = await activeSettingsAt(ctx, "payment-type", args.restaurantExternalId, Date.now())
     return {
-      restaurants: restaurants.map(({ externalId, name }) => ({ externalId, name })),
+      restaurants: restaurants.map(({ externalId, name, city }) => ({ externalId, name, city: city ?? null })),
       sources: sources.map(({ externalId, name, kind, commissionPercent, settlementMode, defaultPaymentTypeExternalId }) => ({ externalId, name, kind, commissionPercent, settlementMode, defaultPaymentTypeExternalId: defaultPaymentTypeExternalId ?? null })),
       couriers: couriers.filter((courier) => courier.active).map(({ externalId, name, status, transport }) => ({ externalId, name, status, transport })),
       paymentTypes: paymentTypes.map((row) => ({ externalId: row.externalId, name: row.name })),

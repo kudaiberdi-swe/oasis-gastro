@@ -171,7 +171,7 @@ describe("«Задолженность» (W2-FIN-09)", () => {
     const table = screen.getByRole("table", { name: "Задолженность" })
     expect(within(table).queryByText("ОБ-2026-00001")).toBeNull()
     expect(within(table).getByText("ОБ-2026-00002")).toBeTruthy()
-    expect(screen.getByText("1 записей")).toBeTruthy()
+    expect(screen.getByText("1 запись")).toBeTruthy()
   })
 
   it("a row leads to its source document; a manual one opens its card", async () => {
@@ -212,6 +212,34 @@ describe("«Задолженность» (W2-FIN-09)", () => {
     expect((within(panel).getByLabelText("К погашению по ОБ-2026-00001") as HTMLInputElement).value).toBe(formatAmount(40_000))
     expect((within(panel).getByLabelText("К погашению по ОБ-2026-00004") as HTMLInputElement).value).toBe("")
     expect(within(panel).getByText("Аванс").nextSibling?.textContent).toBe(formatTenge(0))
+  })
+
+  it("«Оплатить»: the allocation follows «Сумма» until edited; allocated above the payment blocks sending", async () => {
+    renderAt(`/office/payments/new?obligation=${encodeURIComponent(FROM_RECEIPT.externalId)}&counterparty=cp-1&restaurant=r1&direction=payable`)
+    const panel = await screen.findByRole("dialog")
+    const line = () => (within(panel).getByLabelText("К погашению по ОБ-2026-00001") as HTMLInputElement).value
+    fireEvent.change(within(panel).getByLabelText("Сумма"), { target: { value: "25000" } })
+    expect(line()).toBe(formatAmount(25_000))
+    expect(within(panel).getByText("Аванс").nextSibling?.textContent).toBe(formatTenge(0))
+    // Never above the open remainder (40 000): the rest is an advance.
+    fireEvent.change(within(panel).getByLabelText("Сумма"), { target: { value: "50000" } })
+    expect(line()).toBe(formatAmount(40_000))
+    expect(within(panel).getByText("Аванс").nextSibling?.textContent).toBe(formatTenge(10_000))
+    // Edited by hand: the line stays; above the payment it is an error, not «Аванс −…».
+    fireEvent.change(within(panel).getByLabelText("К погашению по ОБ-2026-00001"), { target: { value: "35000" } })
+    fireEvent.change(within(panel).getByLabelText("Сумма"), { target: { value: "20000" } })
+    expect(line()).toBe(formatAmount(35_000))
+    expect(within(panel).queryByText("Аванс")).toBeNull()
+    expect(within(panel).getByRole("alert").textContent).toBe("Распределено больше суммы платежа")
+    expect(within(panel).getByText("Сверх суммы").nextSibling?.textContent).toBe(formatTenge(15_000))
+    const submit = within(panel).getByRole("button", { name: "Отправить на согласование" }) as HTMLButtonElement
+    expect(submit.disabled).toBe(true)
+    expect((within(panel).getByRole("button", { name: "Сохранить черновик" }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(submit)
+    expect(mocks.mutations[SAVE]).not.toHaveBeenCalled()
+    fireEvent.change(within(panel).getByLabelText("Сумма"), { target: { value: "35000" } })
+    expect(within(panel).queryByRole("alert")).toBeNull()
+    expect(submit.disabled).toBe(false)
   })
 
   it("«Оплатить» is hidden without the right to create payments", () => {
@@ -257,8 +285,9 @@ describe("«Платежи» (W2-FIN-10)", () => {
     renderAt("/office/payments/pay-draft")
     const panel = await screen.findByRole("dialog")
     fireEvent.change(within(panel).getByLabelText("К погашению по ОБ-2026-00004"), { target: { value: "60000" } })
-    fireEvent.click(within(panel).getByRole("button", { name: "Сохранить черновик" }))
+    // Reported at once, before any click; saving waits until it is fixed.
     expect(within(panel).getByText("Распределено больше суммы платежа")).toBeTruthy()
+    expect((within(panel).getByRole("button", { name: "Сохранить черновик" }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.change(within(panel).getByLabelText("К погашению по ОБ-2026-00004"), { target: { value: "" } })
     fireEvent.change(within(panel).getByLabelText("К погашению по ОБ-2026-00001"), { target: { value: "45000" } })
     fireEvent.click(within(panel).getByRole("button", { name: "Сохранить черновик" }))

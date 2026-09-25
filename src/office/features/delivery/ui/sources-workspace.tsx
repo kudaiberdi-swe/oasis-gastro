@@ -8,6 +8,7 @@ import { parseDecimal } from "@/office/features/stock/data/use-stock-master"
 import { Banner, Button, Combobox, Field, Input, Select, Switch, TonePill, useToast } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatPercent } from "@/shared/lib/format"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useDeliveryReferences, useDeliverySources, useSourceMutations, type DeliverySource, type DeliverySourceKind } from "../data/use-delivery"
 import { SETTLEMENT_LABELS, SOURCE_KIND_LABELS, type SettlementMode } from "../model/statuses"
@@ -121,7 +122,7 @@ function SourceEditor({ source, readOnly, onSaved }: { source: DeliverySource | 
 
   const restaurantOptions = [
     ...(scope.network ? [{ value: ALL_RESTAURANTS, label: "Все рестораны" }] : []),
-    ...scope.restaurants.map((row) => ({ value: row.externalId, label: row.name })),
+    ...restaurantSelectOptions(scope.restaurants),
   ]
   for (const id of restaurants) if (!restaurantOptions.some((option) => option.value === id)) restaurantOptions.push({ value: id, label: id === ALL_RESTAURANTS ? "Все рестораны" : id })
 

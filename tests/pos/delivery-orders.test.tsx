@@ -486,6 +486,37 @@ describe("order card: size and modifiers, masked phone, courier (W2-DLV-05)", ()
     expect(args).not.toHaveProperty("courierExternalId")
   })
 
+  it("a saved phone is shown «+7 701 555 12 34», not the stored digits, and the card stays clean", () => {
+    mocks.queries[ORDER] = () => order({ status: "waiting" })
+    renderAt("/office/delivery-orders/delivery-1")
+    const guest = screen.getByRole("region", { name: "Гость и адрес" })
+    expect((within(guest).getByLabelText("Телефон") as HTMLInputElement).value).toBe("+7 701 555 12 34")
+    expect(screen.queryByText("Есть несохранённые изменения")).toBeNull()
+  })
+
+  it("«+ Добавить» without a search asks to type instead of «Ничего не найдено»", async () => {
+    mocks.queries[PRODUCTS] = (args: { search: string }) => (args.search ? [{ productExternalId: "p-plov", name: "Плов", price: 2500, available: true, hasSizes: true }] : [])
+    renderAt("/office/delivery-orders/new")
+    const lines = screen.getByRole("region", { name: "Состав заказа" })
+    fireEvent.click(within(lines).getByRole("combobox", { name: "Добавить" }))
+    expect(await screen.findByText("Начните вводить название блюда")).toBeTruthy()
+    expect(screen.queryByText("Ничего не найдено")).toBeNull()
+  })
+
+  it("restaurants with the same name are told apart by their code", async () => {
+    const twins = [
+      { externalId: "sandyq-almaty", name: "Sandyq Алматы" },
+      { externalId: "700917ce-77e5-479a-a4a9-68c2a9e76fc2", name: "Sandyq  Алматы" },
+    ]
+    mocks.queries["domains/office/queries:context"] = { adminRestaurants: twins, user: { restaurantScopes: ["*"] } }
+    const references = mocks.queries[REFERENCES] as (args: { restaurantExternalId?: string }) => Record<string, unknown>
+    mocks.queries[REFERENCES] = (args: { restaurantExternalId?: string }) => ({ ...references(args), restaurants: twins })
+    renderAt("/office/delivery-orders/new")
+    const guest = screen.getByRole("region", { name: "Гость и адрес" })
+    fireEvent.click(within(guest).getByRole("combobox", { name: "Ресторан" }))
+    expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual(["Sandyq Алматыкод sandyq-almaty", "Sandyq Алматыкод 700917ce"])
+  })
+
   it("«Не назначен» unassigns the courier with null in saveOrder", async () => {
     mocks.queries[ORDER] = () => order({ status: "waiting", courier: { externalId: "courier-101", name: "Ерлан", status: "assigned" } })
     renderAt("/office/delivery-orders/delivery-1")

@@ -11,6 +11,8 @@ import { Banner, Button, Combobox, DataTable, Dialog, DialogContent, DialogDescr
 import { almatyBusinessDate } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
+import { recordCount } from "@/shared/lib/plural"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { usePosEmployees } from "../data/use-office-workforce"
 import { usePayrollMutations, usePayrollRules, usePayrollRuns, type PayrollRulesRow, type PayrollRunRow, type SaveAdjustmentArgs } from "../data/use-workforce-w2"
@@ -117,7 +119,7 @@ function PayrollRegister({ rulesId }: { rulesId: string | null }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             {scope.restaurants.length > 1 && type === "runs" ? (
-              <Select aria-label="Ресторан" className="w-full sm:w-64" value={restaurantExternalId} onValueChange={(restaurant) => update({ restaurant })} options={scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))} />
+              <Select aria-label="Ресторан" className="w-full sm:w-64" value={restaurantExternalId} onValueChange={(restaurant) => update({ restaurant })} options={restaurantSelectOptions(scope.restaurants)} />
             ) : null}
             <Select
               aria-label="Тип записи"
@@ -148,7 +150,7 @@ function PayrollRegister({ rulesId }: { rulesId: string | null }) {
               <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder={type === "runs" ? "Поиск: номер ведомости" : "Поиск: версия правил"} className="pl-9" />
             </label>
-            <span className="text-caption text-muted-foreground">{rows ? `${rows.length} записей` : ""}</span>
+            <span className="text-caption text-muted-foreground">{rows ? recordCount(rows.length) : ""}</span>
             {type === "rules" && canEdit ? (
               <Button variant="secondary" className="ml-auto" onClick={() => openRules(NEW_RULES)}>
                 <Plus aria-hidden />
@@ -310,7 +312,7 @@ function AdjustmentDialog({ restaurantExternalId: initialRestaurant, restaurants
                     setRestaurant(value)
                     setEmployeeId("")
                   }}
-                  options={restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))}
+                  options={restaurantSelectOptions(restaurants)}
                 />
               )}
             </Field>

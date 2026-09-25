@@ -3,6 +3,7 @@ import type { FunctionArgs, FunctionReturnType } from "convex/server"
 import { useState } from "react"
 
 import { usePlatformScope } from "@/office/features/platform/data/use-platform"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { api } from "../../../../../convex/_generated/api"
 import type { DocumentStatus, StockDocumentType } from "../model/document-types"
@@ -30,7 +31,7 @@ export function useRestaurantFilter() {
   const [picked, setPicked] = useState<string | null>(null)
   const fallback = scope.network ? ALL_RESTAURANTS : (scope.restaurants[0]?.externalId ?? ALL_RESTAURANTS)
   const value = picked ?? fallback
-  const options = [...(scope.network ? [{ value: ALL_RESTAURANTS, label: "Все рестораны" }] : []), ...scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))]
+  const options = [...(scope.network ? [{ value: ALL_RESTAURANTS, label: "Все рестораны" }] : []), ...restaurantSelectOptions(scope.restaurants)]
   return {
     loading: scope.loading,
     value,

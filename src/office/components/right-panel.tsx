@@ -32,8 +32,14 @@ export function RightPanel({ open, onOpenChange, title, children, footer }: Righ
   const closeButtonClass = cn("grid size-11 place-items-center rounded-control text-muted-foreground hover:bg-muted hover:text-foreground", focusRingClass)
   const body = (
     <>
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
-      {footer ? <div className="flex justify-end gap-2 border-t border-border px-5 py-3">{footer}</div> : null}
+      <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">{children}</div>
+      {/* Footer: the buttons stay on one row inside the 440px panel (compact padding); «● Есть несохранённые
+          изменения» (SaveStatus, role=status) takes its own line above them instead of wrapping or leaving the panel. */}
+      {footer ? (
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1.5 border-t border-border px-5 py-3 [&>[role=status]]:basis-full [&>[role=status]]:justify-end [&>button]:px-3">
+          {footer}
+        </div>
+      ) : null}
     </>
   )
 

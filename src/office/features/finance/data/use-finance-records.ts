@@ -3,6 +3,7 @@ import type { FunctionArgs, FunctionReturnType } from "convex/server"
 import { useMemo, useState } from "react"
 
 import { usePlatformScope } from "@/office/features/platform/data/use-platform"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { api } from "../../../../../convex/_generated/api"
 
@@ -100,7 +101,7 @@ export function useFinanceRestaurantFilter({ allowAll = true }: { allowAll?: boo
     const withAll = allowAll && scope.network
     const fallback = withAll ? ALL_RESTAURANTS : (scope.restaurants[0]?.externalId ?? ALL_RESTAURANTS)
     const value = picked ?? fallback
-    const options = [...(withAll ? [{ value: ALL_RESTAURANTS, label: "Все рестораны" }] : []), ...scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))]
+    const options = [...(withAll ? [{ value: ALL_RESTAURANTS, label: "Все рестораны" }] : []), ...restaurantSelectOptions(scope.restaurants)]
     return {
       loading: scope.loading,
       value,

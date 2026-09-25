@@ -8,7 +8,7 @@ import { cn, focusRingClass } from "@/shared/lib/utils"
 import { useFinanceRecord } from "../data/use-finance-records"
 import type { OpenObligation } from "../data/use-obligations"
 import { formatBusinessDate } from "../model/modules"
-import { allocatedTotal, autoAllocate, isOverdue, withAllocation, type Allocation } from "../model/settlements"
+import { allocatedTotal, autoAllocate, isOverdue, OVER_ALLOCATED, overAllocation, withAllocation, type Allocation } from "../model/settlements"
 
 const linkClass = cn("rounded-control text-accent underline-offset-4 hover:underline", focusRingClass)
 
@@ -33,7 +33,10 @@ export function PaymentAllocationTable({ obligations, allocations, paymentAmount
   const listed = editable ? known : known.filter((row) => amountOf(row.externalId) !== null)
   const extra = allocations.filter((row) => !known.some((obligation) => obligation.externalId === row.obligationExternalId))
   const allocated = allocatedTotal(allocations)
-  const advance = paymentAmount - allocated
+  // Allocated above the payment is an error to fix, never a negative «Аванс».
+  const over = overAllocation(paymentAmount, allocations)
+  const advance = Math.max(0, paymentAmount - allocated)
+  const shownError = error ?? (editable && over > 0 ? OVER_ALLOCATED : undefined)
 
   return (
     <div className="flex flex-col gap-3">
@@ -110,21 +113,28 @@ export function PaymentAllocationTable({ obligations, allocations, paymentAmount
           </table>
         </div>
       )}
-      {error ? (
+      {shownError ? (
         <p role="alert" className="text-caption text-destructive">
-          {error}
+          {shownError}
         </p>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <dl className="flex flex-wrap gap-x-4 gap-y-1 text-body-sm tabular-nums">
           <div className="flex gap-1">
             <dt className="text-muted-foreground">Распределено</dt>
-            <dd className="font-semibold">{formatTenge(allocated)}</dd>
+            <dd className={cn("font-semibold", over > 0 && "text-destructive")}>{formatTenge(allocated)}</dd>
           </div>
-          <div className="flex gap-1">
-            <dt className="text-muted-foreground">Аванс</dt>
-            <dd className={cn("font-semibold", advance < 0 && "text-destructive")}>{formatTenge(advance)}</dd>
-          </div>
+          {over > 0 ? (
+            <div className="flex gap-1">
+              <dt className="text-muted-foreground">Сверх суммы</dt>
+              <dd className="font-semibold text-destructive">{formatTenge(over)}</dd>
+            </div>
+          ) : (
+            <div className="flex gap-1">
+              <dt className="text-muted-foreground">Аванс</dt>
+              <dd className="font-semibold">{formatTenge(advance)}</dd>
+            </div>
+          )}
         </dl>
         {editable && known.length > 0 ? (
           <Button variant="secondary" size="sm" disabled={paymentAmount <= 0} onClick={() => onChange(autoAllocate(paymentAmount, known))}>

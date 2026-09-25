@@ -4,6 +4,7 @@ import { useCan } from "@/office/components/can"
 import { PlatformErrorBoundary, usePlatformScope } from "@/office/features/platform/data/use-platform"
 import { Combobox, Field, Input, Select, Switch, useToast } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useSaveWarehouse, useWarehouses, WAREHOUSE_KIND_LABELS, type SaveWarehouseArgs, type Warehouse, type WarehouseKind } from "../data/use-stock-master"
 import { MasterList, SwitchRow } from "./master-list"
@@ -103,7 +104,7 @@ function WarehouseForm({ warehouse, canEdit, onClose, onSaved }: { warehouse: Wa
     if (savedId && !dirty && savedId !== warehouse?.externalId) onSaved(savedId)
   }, [savedId, dirty, warehouse?.externalId, onSaved])
 
-  const restaurantOptions = scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))
+  const restaurantOptions = restaurantSelectOptions(scope.restaurants)
   if (draft.restaurantExternalId && !restaurantOptions.some((option) => option.value === draft.restaurantExternalId)) restaurantOptions.push({ value: draft.restaurantExternalId, label: draft.restaurantExternalId })
 
   async function submit() {

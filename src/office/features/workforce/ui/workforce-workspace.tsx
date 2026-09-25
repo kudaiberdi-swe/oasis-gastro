@@ -24,6 +24,7 @@ import {
   Select,
   type Column,
 } from "@/shared/components/ui"
+import { recordCount } from "@/shared/lib/plural"
 
 import {
   useEmployeesList,
@@ -148,7 +149,7 @@ function EmployeesRegister({ restaurants, onCreate }: { restaurants: ReturnType<
             <Input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Поиск: ФИО, код или табельный №" className="pl-9" />
           </label>
           {restaurants.visible ? <Select aria-label="Ресторан" className="w-full sm:w-64" value={restaurants.value} onValueChange={restaurants.setValue} options={restaurants.options} /> : null}
-          <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : `${list.results.length} записей`}</span>
+          <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : recordCount(list.results.length)}</span>
         </div>
         {loading ? (
           <OfficeStatePage state={{ kind: "loading" }} />

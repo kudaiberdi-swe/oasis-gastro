@@ -6,6 +6,7 @@ import { OfficeStatePage } from "@/office/components/state-page"
 import { PlatformErrorBoundary, usePlatformScope } from "@/office/features/platform/data/use-platform"
 import { useMasterSelection } from "@/office/features/stock/ui/master-panel"
 import { EmptyState } from "@/shared/components/ui"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { KIND_META, useAccountOptions, useCashflowCategories, useRetailRights, useRetailSetting, type RetailSettingKind } from "../data/use-retail-settings"
 import { SettingForm } from "./setting-form"
@@ -34,7 +35,7 @@ function RetailSettingsMaster({ kind }: { kind: RetailSettingKind }) {
   const selection = useMasterSelection(section)
   const setting = useRetailSetting(kind, selection.selectedId)
   const restaurantName = (externalId: string) => scope.restaurantName(externalId) ?? externalId
-  const restaurants = scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))
+  const restaurants = restaurantSelectOptions(scope.restaurants)
   const formOpen = (selection.isNew && canEdit) || selection.selectedId !== null
 
   return (

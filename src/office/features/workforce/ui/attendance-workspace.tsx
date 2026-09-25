@@ -9,6 +9,7 @@ import type { ColumnDef } from "@/office/engine/module-config"
 import { PlatformErrorBoundary } from "@/office/features/platform/data/use-platform"
 import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import { Button, DataTable, FilterTabs, Input, loadMoreFromPaginated, Select, type Column } from "@/shared/components/ui"
+import { recordCount } from "@/shared/lib/plural"
 
 import { useAttendanceList, WORKFORCE_PAGE_SIZE, type AttendanceRow, type AttendanceStatus } from "../data/use-office-workforce"
 import { useRestaurantFilter } from "../data/use-restaurant-filter"
@@ -91,7 +92,7 @@ function AttendanceRegister() {
             <Input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Поиск: номер, сотрудник или код" className="pl-9" />
           </label>
           {restaurants.visible ? <Select aria-label="Ресторан" className="w-full sm:w-64" value={restaurants.value} onValueChange={restaurants.setValue} options={restaurants.options} /> : null}
-          <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : `${list.results.length} записей`}</span>
+          <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : recordCount(list.results.length)}</span>
         </div>
         {loading ? (
           <OfficeStatePage state={{ kind: "loading" }} />

@@ -61,7 +61,7 @@ export const listAccessControl = query({
         .map((row) => ({ ...row, fullAccess: row.capabilities.includes("*"), sectionCount: grantedSections(row.capabilities) }))
         .sort((a, b) => a.name.localeCompare(b.name, "ru")),
       users: visibleUsers.sort((a, b) => a.name.localeCompare(b.name, "ru")),
-      restaurants: restaurants.map((row) => ({ externalId: row.externalId, name: row.name })).sort((a, b) => a.name.localeCompare(b.name, "ru")),
+      restaurants: restaurants.map((row) => ({ externalId: row.externalId, name: row.name, city: row.city ?? null })).sort((a, b) => a.name.localeCompare(b.name, "ru")),
       catalog: CAPABILITY_CATALOG,
       editor: { email: user.email, externalId: user.externalId, fullAccess: role.capabilities.includes("*"), capabilities: role.capabilities, warehouseScopes: scopes.warehouseScopes },
     }

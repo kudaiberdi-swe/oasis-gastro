@@ -12,6 +12,7 @@ import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
 import { Banner, Button, Combobox, ConfirmDialog, EmptyState, Field, Input, Switch, Textarea, TonePill, useToast } from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { formatRestaurants, STATUS_LABELS, usePriceOrder, usePriceOrderMutations, type PriceOrder } from "../data/use-price-orders"
 import { fromAlmatyInput, hasPriceOrderErrors, linesForProduct, savePriceOrderArgs, usePriceOrderDraft, validatePriceOrder, type PriceOrderErrors } from "../model/use-price-order-draft"
@@ -72,7 +73,7 @@ function PriceOrderForm({ order, onBack }: { order: PriceOrder; onBack: () => vo
   const readOnly = order.status !== "draft" || !canEdit
   const cancellable = (order.status === "scheduled" || order.status === "active") && canCancel
 
-  const restaurantOptions = scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))
+  const restaurantOptions = restaurantSelectOptions(scope.restaurants)
   for (const externalId of draft.restaurantExternalIds) if (!restaurantOptions.some((option) => option.value === externalId)) restaurantOptions.push({ value: externalId, label: externalId })
   const restaurantName = (externalId: string) => scope.restaurantName(externalId) ?? externalId
 

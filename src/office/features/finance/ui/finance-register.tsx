@@ -4,6 +4,7 @@ import { useId, useState, type ReactNode } from "react"
 import { OfficeStatePage } from "@/office/components/state-page"
 import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import { Button, DataTable, FilterTabs, Input, loadMoreFromPaginated, type Column } from "@/shared/components/ui"
+import { recordCount } from "@/shared/lib/plural"
 
 import { FINANCE_PAGE_SIZE, useFinanceRecords, type FinanceModuleId, type FinanceRecord } from "../data/use-finance-records"
 import type { StatusTab } from "../model/modules"
@@ -82,7 +83,7 @@ export function FinanceRegister({ moduleId, caption, tabs, columns, searchPlaceh
           </div>
         ) : (
           <>
-            <p className="text-caption text-muted-foreground">{rows.length} записей</p>
+            <p className="text-caption text-muted-foreground">{recordCount(rows.length)}</p>
             <DataTable
               caption={caption}
               columns={columns}

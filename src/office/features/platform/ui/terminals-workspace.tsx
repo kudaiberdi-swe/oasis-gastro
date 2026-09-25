@@ -22,6 +22,7 @@ import {
 } from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { PLATFORM_PAGE_SIZE, PlatformErrorBoundary, usePlatformMutations, usePlatformScope, useTerminals, type TerminalKind, type TerminalRow } from "../data/use-platform"
 
@@ -93,7 +94,7 @@ function TerminalsContent() {
               className="w-full sm:w-72"
               value={restaurant}
               onValueChange={setRestaurant}
-              options={[{ value: ALL, label: "Все рестораны" }, ...scope.restaurants.map((item) => ({ value: item.externalId, label: item.name }))]}
+              options={[{ value: ALL, label: "Все рестораны" }, ...restaurantSelectOptions(scope.restaurants)]}
             />
             <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : `Записей: ${list.results.length}`}</span>
           </div>

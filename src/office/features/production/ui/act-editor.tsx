@@ -15,6 +15,7 @@ import { Banner, Button, Combobox, ConfirmDialog, EmptyState, Field, Input, KpiC
 import { formatAlmatyDate, formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useLineRefs, usePreparationOptions, useProductionDocument, useProductionMutations, useRecipes, useWarehouseBalances, type PreparationRow, type ProductionDocument, type Shortage } from "../data/use-production"
 import { ACTION_LABELS, checkStock, documentActions, ingredientDemand, isReadOnly, productionChecks, type DocAction, type ProductionStatus, type ProductionTypeConfig } from "../model/production"
@@ -348,7 +349,7 @@ function ActForm({
                     {...control}
                     value={draft.restaurantExternalId || undefined}
                     onValueChange={(restaurantExternalId) => set({ restaurantExternalId, ...(config.crossRestaurant ? {} : { sourceWarehouseExternalId: "", destinationWarehouseExternalId: "" }) })}
-                    options={restaurants.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))}
+                    options={restaurantSelectOptions(restaurants.restaurants)}
                     placeholder="Выберите ресторан"
                   />
                 )}

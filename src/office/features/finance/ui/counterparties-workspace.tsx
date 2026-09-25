@@ -10,6 +10,7 @@ import { Chip, EmptyState, Field, Input, Select, Skeleton, StatusPill, Switch, T
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatAmount, formatTenge } from "@/shared/lib/format"
 import { cn } from "@/shared/lib/utils"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useCounterpartyDebt, useFinanceMutations, useFinanceRecord, useFinanceReferences, type FinanceRecord, type FinanceReferences } from "../data/use-finance-records"
 import { counterpartyDraftOf, counterpartySaveArgs, MASTER_TABS, parseRoles, ROLE_LABELS, ROLES, validateCounterparty, type CounterpartyDraft, type DraftErrors } from "../model/modules"
@@ -213,7 +214,7 @@ function CounterpartyForm({ record, references, canEdit, onClose, onSaved }: { r
                   {...control}
                   value={draft.restaurantExternalId || undefined}
                   onValueChange={(restaurantExternalId) => set({ restaurantExternalId })}
-                  options={references.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))}
+                  options={restaurantSelectOptions(references.restaurants)}
                   disabled={readOnly}
                 />
               )}

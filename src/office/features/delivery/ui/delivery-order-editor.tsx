@@ -10,7 +10,9 @@ import { Banner, Button, EmptyState, Field, Input, Select, StatusPill, Textarea,
 import { formatAlmatyDateTime, formatAlmatyTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
+import { formatPhoneNumber } from "@/shared/lib/phone"
 import { describeStatus } from "@/shared/lib/status-dictionary"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useDeliveryMutations, useDeliveryOrder, useDeliveryReferences, useGuestLookup, type DeliveryChannel, type DeliveryOrder } from "../data/use-delivery"
 import { addProduct, draftFromOrder, draftSignature, emptyDraft, hasErrors, isMaskedPhone, reconfigureLine, saveArgs, validateDraft, type DeliveryDraft, type DeliveryErrors } from "../model/order-draft"
@@ -80,7 +82,7 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
     if (created) navigate(`${backPath}/${encodeURIComponent(created)}`, { replace: true })
   }, [created, backPath, navigate])
 
-  const restaurantOptions = (scope?.restaurants ?? []).map((row) => ({ value: row.externalId, label: row.name }))
+  const restaurantOptions = restaurantSelectOptions(scope?.restaurants ?? [])
   if (order && !restaurantOptions.some((option) => option.value === order.restaurantExternalId)) restaurantOptions.push({ value: order.restaurantExternalId, label: order.restaurantExternalId })
   const sources = references?.sources ?? []
   const sourceOptions = sources.map((row) => ({ value: row.externalId, label: `${row.name} · ${SOURCE_KIND_LABELS[row.kind]}` }))
@@ -363,7 +365,7 @@ function PhoneField({
           {matches.slice(0, 3).map((guest) => (
             <li key={guest._id}>
               <Button type="button" size="sm" variant="ghost" className="h-auto min-h-9 w-full justify-start py-1.5 text-left whitespace-normal" onClick={() => onGuest({ name: guest.name ?? "", email: guest.email })}>
-                Гость: {guest.name} · {guest.phone}
+                Гость: {guest.name} · {formatPhoneNumber(guest.phone ?? "")}
               </Button>
             </li>
           ))}

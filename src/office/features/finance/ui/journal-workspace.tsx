@@ -10,6 +10,7 @@ import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import { useMasterSelection } from "@/office/features/stock/ui/master-panel"
 import { Banner, Button, Combobox, DataTable, EmptyState, FilterTabs, Input, loadMoreFromPaginated, Select, StatusPill, TonePill, type Column } from "@/shared/components/ui"
 import { formatAmount } from "@/shared/lib/format"
+import { recordCount } from "@/shared/lib/plural"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
 import {
@@ -152,7 +153,7 @@ function Transactions() {
             <OfficeStatePage state={{ kind: "loading" }} />
           ) : (
             <>
-              <p className="text-caption text-muted-foreground">{rows.length} записей</p>
+              <p className="text-caption text-muted-foreground">{recordCount(rows.length)}</p>
               <DataTable
                 caption="Журнал проводок"
                 columns={columns}
@@ -229,7 +230,7 @@ function DraftOperations({
   if (list.status === "LoadingFirstPage") return <OfficeStatePage state={{ kind: "loading" }} />
   return (
     <>
-      <p className="text-caption text-muted-foreground">{list.results.length} записей</p>
+      <p className="text-caption text-muted-foreground">{recordCount(list.results.length)}</p>
       <DataTable
         caption="Черновики ручных операций"
         columns={columns}

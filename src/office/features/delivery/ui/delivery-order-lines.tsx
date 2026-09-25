@@ -7,7 +7,7 @@ import { formatAmount, formatQuantity, formatTenge } from "@/shared/lib/format"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
 import { useDeliveryProducts, type DeliveryChannel } from "../data/use-delivery"
-import type { DeliveryLineDraft, DishChoice } from "../model/order-draft"
+import { productPickerEmptyText, type DeliveryLineDraft, type DishChoice } from "../model/order-draft"
 import { DeliveryProductConfigurator, type ConfigurationTarget } from "./delivery-product-dialog"
 
 export type DeliveryTotals = { subtotal: number; deliveryFee: number; commissionAmount?: number; total: number }
@@ -220,7 +220,7 @@ function ProductPicker({ restaurantExternalId, channel, onPick }: { restaurantEx
         options={options}
         placeholder={restaurantExternalId ? "+ Добавить" : "Сначала выберите ресторан"}
         searchPlaceholder="Название блюда"
-        emptyText={products === undefined ? "Загрузка…" : "Ничего не найдено"}
+        emptyText={productPickerEmptyText(search, products === undefined)}
       />
       {target ? <DeliveryProductConfigurator key={target.productExternalId} restaurantExternalId={restaurantExternalId} channel={channel} target={target} onClose={close} onDone={onPick} /> : null}
       {refused ? (

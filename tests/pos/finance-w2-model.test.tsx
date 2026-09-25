@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest"
 
 import type { FinanceRecord } from "@/office/features/finance/data/use-finance-records"
 import {
+  allocationFollowingAmount,
   autoAllocate,
   obligationDraftOf,
   obligationExternalId,
   obligationOf,
   obligationSaveArgs,
   obligationSourceHref,
+  OVER_ALLOCATED,
+  overAllocation,
   payObligationHref,
   paymentDraftOf,
   serviceDraftOf,
@@ -114,6 +117,23 @@ describe("payments (W2-FIN-10)", () => {
     expect(validatePayment({ ...draft, allocations: [{ obligationExternalId: "o1", amount: 60_000 }] }, { o1: 112_000 })).toEqual({ allocations: "Распределено больше суммы платежа" })
     expect(validatePayment({ ...draft, allocations: [{ obligationExternalId: "o1", amount: 40_000 }] }, { o1: 30_000 })).toEqual({ allocations: "Сумма платежа превышает открытый остаток обязательства" })
     expect(validatePayment({ ...draft, cashflowCategoryExternalId: "" })).toEqual({ cashflowCategoryExternalId: "Выберите статью ДДС" })
+  })
+
+  it("the prefilled allocation follows «Сумма», never above the open remainder", () => {
+    const obligation = { externalId: "o1", open: 112_000, dueDate: null }
+    expect(allocationFollowingAmount(50_000, obligation)).toEqual([{ obligationExternalId: "o1", amount: 50_000 }])
+    expect(allocationFollowingAmount(150_000, obligation)).toEqual([{ obligationExternalId: "o1", amount: 112_000 }])
+    expect(allocationFollowingAmount(null, obligation)).toEqual([])
+    expect(allocationFollowingAmount(0, obligation)).toEqual([])
+  })
+
+  it("over-allocation is measured against the payment, never a negative advance", () => {
+    const lines = [{ obligationExternalId: "o1", amount: 112_000 }]
+    expect(overAllocation(50_000, lines)).toBe(62_000)
+    expect(overAllocation(112_000, lines)).toBe(0)
+    expect(overAllocation(null, lines)).toBe(112_000)
+    expect(overAllocation(200_000, [])).toBe(0)
+    expect(OVER_ALLOCATED).toBe("Распределено больше суммы платежа")
   })
 
   it("«Оплатить» carries the obligation, counterparty, restaurant and direction", () => {

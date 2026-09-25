@@ -6,19 +6,8 @@ import { MAX_BUSINESS_DAY_CUTOFF_MINUTES } from "../../../../../convex/lib/time"
 
 export { isValidKzBin, MAX_BUSINESS_DAY_CUTOFF_MINUTES }
 
-/** Russian plural: 1 запись, 2–4 записи, 5+ записей (11–14 → записей). */
-export function plural(count: number, [one, few, many]: [string, string, string]) {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  if (mod10 === 1 && mod100 !== 11) return one
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
-  return many
-}
-
-export const RECORDS: [string, string, string] = ["запись", "записи", "записей"]
-
-/** «1 запись», «3 записи», «12 записей» (the bahandi «1 записей» is fixed). */
-export const recordCount = (count: number) => `${count} ${plural(count, RECORDS)}`
+// Russian plural lives in shared/lib (every register counter uses it); re-exported for existing imports.
+export { plural, RECORDS, recordCount } from "@/shared/lib/plural"
 
 export type StatusTab = "all" | "active" | "inactive"
 

@@ -1,5 +1,6 @@
 import { fromAlmatyInput, toAlmatyInput } from "@/office/features/price-orders/model/use-price-order-draft"
 import { parseDecimal } from "@/office/features/stock/data/use-stock-master"
+import { formatPhoneNumber } from "@/shared/lib/phone"
 
 import type { DeliveryChannel, DeliveryOrder, SaveOrderArgs } from "../data/use-delivery"
 
@@ -67,11 +68,21 @@ export function emptyDraft(options: { restaurantExternalId?: string; sourceExter
   }
 }
 
+/**
+ * «+ Добавить» with nothing to list: without a search the server returns only the popular dishes, so an
+ * empty list then is a prompt to type, not «Ничего не найдено».
+ */
+export function productPickerEmptyText(search: string, loading: boolean) {
+  if (loading) return "Загрузка…"
+  return search.trim() ? "Ничего не найдено" : "Начните вводить название блюда"
+}
+
 export function draftFromOrder(order: DeliveryOrder): DeliveryDraft {
   return {
     restaurantExternalId: order.restaurantExternalId,
     customerName: order.customerName,
-    phone: order.phone ?? "",
+    // Shown «+7 700 000 00 01», not the stored digits; the server normalizes it back on save.
+    phone: formatPhoneNumber(order.phone ?? ""),
     email: order.email ?? "",
     address: order.address,
     latitude: order.latitude === undefined ? "" : String(order.latitude),

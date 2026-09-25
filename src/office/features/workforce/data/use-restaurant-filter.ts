@@ -1,6 +1,7 @@
 import { useState } from "react"
 
 import { usePlatformScope } from "@/office/features/platform/data/use-platform"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 const ALL_RESTAURANTS = "__all__"
 
@@ -11,7 +12,7 @@ const ALL_RESTAURANTS = "__all__"
 export function useRestaurantFilter() {
   const scope = usePlatformScope()
   const [value, setValue] = useState(ALL_RESTAURANTS)
-  const options = [{ value: ALL_RESTAURANTS, label: "Все рестораны" }, ...scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))]
+  const options = [{ value: ALL_RESTAURANTS, label: "Все рестораны" }, ...restaurantSelectOptions(scope.restaurants)]
   return {
     loading: scope.loading,
     value,

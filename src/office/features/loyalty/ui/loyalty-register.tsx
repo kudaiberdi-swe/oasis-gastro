@@ -3,6 +3,7 @@ import { useId, type ReactNode } from "react"
 
 import { OfficeStatePage } from "@/office/components/state-page"
 import { Button, DataTable, FilterTabs, Input, type Column, type LoadMoreState } from "@/shared/components/ui"
+import { recordCount } from "@/shared/lib/plural"
 
 export interface LoyaltyRegisterProps<Row> {
   caption: string
@@ -82,7 +83,7 @@ export function LoyaltyRegister<Row>({
             <Input type="search" placeholder={searchPlaceholder} className="pl-9" value={search} onChange={(event) => onSearchChange(event.target.value)} />
           </label>
           {toolbar}
-          {rows ? <span className="ml-auto text-caption text-muted-foreground">{rows.length} записей</span> : null}
+          {rows ? <span className="ml-auto text-caption text-muted-foreground">{recordCount(rows.length)}</span> : null}
         </div>
         {rows === undefined ? (
           <OfficeStatePage state={{ kind: "loading" }} />

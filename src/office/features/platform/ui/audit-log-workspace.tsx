@@ -7,6 +7,7 @@ import { findOfficeItem } from "@/office/model/navigation"
 import { DataTable, FilterTabs, Input, loadMoreFromPaginated, Select, TonePill, type Column } from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { auditSource, describeAuditAction, SYSTEM_ACTOR_KEY, type AuditSource } from "@/shared/lib/audit-actions"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { PLATFORM_PAGE_SIZE, PlatformErrorBoundary, useAuditLog, usePlatformScope, type AuditEventRow } from "../data/use-platform"
 
@@ -109,7 +110,7 @@ function AuditLogContent() {
     [scope],
   )
 
-  const restaurantOptions = [...(needsRestaurant ? [] : [{ value: ALL, label: "Все рестораны" }]), ...scope.restaurants.map((item) => ({ value: item.externalId, label: item.name }))]
+  const restaurantOptions = [...(needsRestaurant ? [] : [{ value: ALL, label: "Все рестораны" }]), ...restaurantSelectOptions(scope.restaurants)]
 
   return (
     <div className="flex min-h-0 flex-1">

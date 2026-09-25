@@ -9,6 +9,7 @@ import { Banner, Button, DataTable, Dialog, DialogContent, DialogDescription, Di
 import { formatAlmatyDate } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatAmount, formatQuantity } from "@/shared/lib/format"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { DOCUMENTS_PAGE_SIZE, useRestaurantFilter, useStockDocumentMutations, useStockDocuments, type StockDocumentRow } from "../data/use-stock-documents"
 import { STATUS_TABS, type DocumentStatus, type DocumentTypeConfig } from "../model/document-types"
@@ -144,7 +145,7 @@ export function RestaurantPickDialog({
           <DialogTitle>Новый документ</DialogTitle>
           <DialogDescription>Документ относится к одному ресторану — выберите его.</DialogDescription>
         </DialogHeader>
-        <Field label="Ресторан">{(control) => <Select {...control} value={value} onValueChange={setValue} options={restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))} placeholder="Выберите ресторан" />}</Field>
+        <Field label="Ресторан">{(control) => <Select {...control} value={value} onValueChange={setValue} options={restaurantSelectOptions(restaurants)} placeholder="Выберите ресторан" />}</Field>
         <DialogFooter>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Отмена

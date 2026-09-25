@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react"
 import { useCan } from "@/office/components/can"
 import { Banner, Button, Combobox, Field, Input, Select, Switch, useToast } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useCourierMutations, useRestaurantEmployees, type Courier, type CourierTransport } from "../data/use-delivery"
 import { isMaskedPhone } from "../model/order-draft"
@@ -32,7 +33,7 @@ export function CourierEditor({ courier, restaurants, readOnly, onSaved }: { cou
   const [submitting, setSubmitting] = useState(false)
   const employees = useRestaurantEmployees(restaurant, employeeSearch, canSeeEmployees && !readOnly)
 
-  const restaurantOptions = restaurants.map((row) => ({ value: row.externalId, label: row.name }))
+  const restaurantOptions = restaurantSelectOptions(restaurants)
   if (courier && !restaurantOptions.some((option) => option.value === courier.restaurantExternalId)) restaurantOptions.push({ value: courier.restaurantExternalId, label: courier.restaurantExternalId })
   const employeeOptions = employees.results.map((row) => ({ value: row.code, label: row.displayName, hint: `Код ${row.code}` }))
   if (employeeCode && !employeeOptions.some((option) => option.value === employeeCode)) employeeOptions.unshift({ value: employeeCode, label: courier?.name ?? employeeCode, hint: `Код ${employeeCode}` })

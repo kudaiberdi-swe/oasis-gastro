@@ -7,6 +7,7 @@ import { useMasterSelection } from "@/office/features/stock/ui/master-panel"
 import { KpiCard, loadMoreFromPaginated, Select, Skeleton, StatusPill, type Column } from "@/shared/components/ui"
 import { formatAlmatyDate } from "@/shared/lib/almaty-time"
 import { formatAmount, formatQuantity } from "@/shared/lib/format"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { RESERVATIONS_PAGE_SIZE, useReservations, useReservationSummary, type ReservationRow } from "../data/use-reservations"
 import { formatPhone } from "../model/loyalty-model"
@@ -97,7 +98,7 @@ function Reservations() {
           setRestaurantChoice(value)
           setEditingPlan(false)
         }}
-        options={scope.restaurants.map((row) => ({ value: row.externalId, label: row.name }))}
+        options={restaurantSelectOptions(scope.restaurants)}
       />
     ) : null
 

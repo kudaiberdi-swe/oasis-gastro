@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 
 import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import { Combobox, Field, Input } from "@/shared/components/ui"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import type { ReportRestaurant } from "../data/use-reports"
 import type { ReportFilters } from "../model/url-state"
@@ -21,7 +22,7 @@ export function ReportFiltersBar({
   restaurants: ReportRestaurant[] | undefined
   withSearch?: boolean
 }) {
-  const options = useMemo(() => (restaurants ?? []).map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name })), [restaurants])
+  const options = useMemo(() => restaurantSelectOptions(restaurants ?? []), [restaurants])
 
   return (
     <div className="flex flex-col gap-3">

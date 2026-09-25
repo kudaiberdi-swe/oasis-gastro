@@ -34,6 +34,8 @@ export interface RecordEditorOptions<D> {
   reverseBlocked?: string
   /** «Отменить» is hidden (records the office never cancels by hand). */
   cancelBlocked?: boolean
+  /** A draft the card shows as wrong right away (e.g. allocated above the payment): saving and moving it on wait until fixed. */
+  blockedReason?: (draft: D) => string | null
 }
 
 const ADVANCE_LABELS: Record<"submit" | "approve" | "post", { idle: string; busy: string; done: string; failed: string }> = {
@@ -44,7 +46,7 @@ const ADVANCE_LABELS: Record<"submit" | "approve" | "post", { idle: string; busy
 
 const CANCELLABLE: Record<RecordLifecycle, string[]> = { document: ["draft"], approval: ["draft", "pending-approval", "approved"] }
 
-export function useRecordEditor<D>({ moduleId, lifecycle, record, baseline: initialBaseline, initialDraft, validate, toArgs, afterSave, onSaved, reverseBlocked, cancelBlocked }: RecordEditorOptions<D>) {
+export function useRecordEditor<D>({ moduleId, lifecycle, record, baseline: initialBaseline, initialDraft, validate, toArgs, afterSave, onSaved, reverseBlocked, cancelBlocked, blockedReason }: RecordEditorOptions<D>) {
   const canEdit = useCan(`office.${moduleId}.edit`)
   const canApprove = useCan(`office.${moduleId}.approve`)
   const canPost = useCan(`office.${moduleId}.post`)
@@ -55,6 +57,7 @@ export function useRecordEditor<D>({ moduleId, lifecycle, record, baseline: init
   const [baseline, setBaseline] = useState(initialBaseline)
   const [draft, setDraft] = useState(initialDraft ?? initialBaseline)
   const dirty = editable && JSON.stringify(draft) !== JSON.stringify(baseline)
+  const blocked = editable ? (blockedReason?.(draft) ?? null) : null
   const [errors, setErrors] = useState<DraftErrors<Extract<keyof D, string>>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -106,7 +109,7 @@ export function useRecordEditor<D>({ moduleId, lifecycle, record, baseline: init
   }
 
   const saveDraft = () => {
-    if (!editable || busy || !checked()) return
+    if (!editable || busy || blocked || !checked()) return
     void run(async () => {
       const saved = await persist()
       toast("Черновик сохранён", "success")
@@ -116,7 +119,7 @@ export function useRecordEditor<D>({ moduleId, lifecycle, record, baseline: init
 
   const advance = (action: "submit" | "approve" | "post") => {
     if (busy) return
-    if (status === "draft" && !checked()) return
+    if (status === "draft" && (blocked || !checked())) return
     const labels = ADVANCE_LABELS[action]
     void run(async () => {
       const target = status === "draft" ? await persist() : { externalId: record!.externalId, version: record!.version }
@@ -150,7 +153,7 @@ export function useRecordEditor<D>({ moduleId, lifecycle, record, baseline: init
     status === "draft" ? (lifecycle === "approval" ? (canEdit ? "submit" : null) : canPost ? "post" : null) : status === "pending-approval" ? (canApprove ? "approve" : null) : status === "approved" ? (canPost ? "post" : null) : null
 
   const advanceButton = next ? (
-    <Button onClick={() => advance(next)} disabled={busy}>
+    <Button onClick={() => advance(next)} disabled={busy || (status === "draft" && Boolean(blocked))} title={status === "draft" ? (blocked ?? undefined) : undefined}>
       {busy ? ADVANCE_LABELS[next].busy : ADVANCE_LABELS[next].idle}
     </Button>
   ) : null
@@ -158,7 +161,7 @@ export function useRecordEditor<D>({ moduleId, lifecycle, record, baseline: init
   const footer: ReactNode = editable ? (
     <>
       <SaveStatus state={busy ? "saving" : dirty ? "dirty" : "clean"} />
-      <Button variant={advanceButton ? "secondary" : "primary"} onClick={saveDraft} disabled={busy || (!dirty && Boolean(record))}>
+      <Button variant={advanceButton ? "secondary" : "primary"} onClick={saveDraft} disabled={busy || Boolean(blocked) || (!dirty && Boolean(record))} title={blocked ?? undefined}>
         Сохранить черновик
       </Button>
       {advanceButton}

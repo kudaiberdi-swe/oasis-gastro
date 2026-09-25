@@ -7,6 +7,7 @@ import { Button, ConfirmDialog, DataTable, EmptyState, FilterTabs, loadMoreFromP
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatAmount } from "@/shared/lib/format"
+import { recordCount } from "@/shared/lib/plural"
 import { cn } from "@/shared/lib/utils"
 
 import { FINANCE_PAGE_SIZE, useFinanceRestaurantFilter, useShiftAcceptanceMutations, useShiftAcceptances, type ShiftAcceptanceRow } from "../data/use-finance-records"
@@ -123,7 +124,7 @@ function AcceptedShifts() {
           )
         ) : (
           <>
-            <p className="text-caption text-muted-foreground">{rows.length} записей</p>
+            <p className="text-caption text-muted-foreground">{recordCount(rows.length)}</p>
             <DataTable
               caption="Принятые смены"
               columns={columns}

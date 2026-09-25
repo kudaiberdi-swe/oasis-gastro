@@ -5,6 +5,7 @@ import { useCan } from "@/office/components/can"
 import { PlatformErrorBoundary, usePlatformScope } from "@/office/features/platform/data/use-platform"
 import { Button, Combobox, Field, Input, MoneyInput, Select, Switch, useToast } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { api } from "../../../../../convex/_generated/api"
 import { parseDecimal, STOCK_PAGE_SIZE, SUPPLIER_POLICY, useDebounced, useSaveSupplier, useSuppliers, type SaveSupplierArgs, type Supplier, type SupplierPolicy } from "../data/use-stock-master"
@@ -136,7 +137,7 @@ function SupplierForm({ supplier, canEdit, onClose, onSaved }: { supplier: Suppl
     if (savedId && !dirty && savedId !== supplier?.externalId) onSaved(savedId)
   }, [savedId, dirty, supplier?.externalId, onSaved])
 
-  const restaurantOptions = scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))
+  const restaurantOptions = restaurantSelectOptions(scope.restaurants)
   for (const externalId of draft.restaurantExternalIds) if (!restaurantOptions.some((option) => option.value === externalId)) restaurantOptions.push({ value: externalId, label: externalId })
 
   async function submit() {

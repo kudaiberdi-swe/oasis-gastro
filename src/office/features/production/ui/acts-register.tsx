@@ -4,7 +4,6 @@ import { useNavigate } from "react-router"
 
 import { useCan } from "@/office/components/can"
 import { OfficeStatePage } from "@/office/components/state-page"
-import { plural, RECORDS } from "@/office/features/corporation/model/corporation"
 import { useAllSuppliers } from "@/office/features/receipts/data/use-receipts"
 import { useRestaurantFilter } from "@/office/features/stock-documents/data/use-stock-documents"
 import { useDebounced } from "@/office/features/stock/data/use-stock-master"
@@ -12,6 +11,7 @@ import { Banner, Button, DataTable, FilterTabs, Input, loadMoreFromPaginated, Se
 import { formatAlmatyDate } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatAmount, formatQuantity } from "@/shared/lib/format"
+import { recordCount } from "@/shared/lib/plural"
 
 import { PRODUCTION_PAGE_SIZE, useProductionDocuments, useProductionMutations, useWarehouseDocs, type ProductionDocumentRow } from "../data/use-production"
 import { documentTitle, LIFECYCLE_TABS, type ProductionStatus, type ProductionTypeConfig } from "../model/production"
@@ -154,7 +154,7 @@ export function ActsRegister({ config, toolbar }: { config: ProductionTypeConfig
             <Select aria-label="Статус" className="w-full sm:w-48" value={tab} onValueChange={(value) => setTab(value as typeof tab)} options={tabs.map((item) => ({ value: item.value, label: item.value === "all" ? "Все статусы" : item.label }))} />
           ) : null}
           {restaurants.visible ? <Select aria-label="Ресторан" className="w-full sm:w-64" value={restaurants.value} onValueChange={restaurants.setValue} options={restaurants.options} /> : null}
-          {!register && list.status !== "LoadingFirstPage" ? <span className="text-body-sm text-muted-foreground">{`${list.results.length} ${plural(list.results.length, RECORDS)}`}</span> : null}
+          {!register && list.status !== "LoadingFirstPage" ? <span className="text-body-sm text-muted-foreground">{recordCount(list.results.length)}</span> : null}
         </div>
         {list.status === "LoadingFirstPage" ? (
           <OfficeStatePage state={{ kind: "loading" }} />

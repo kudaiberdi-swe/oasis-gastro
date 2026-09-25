@@ -32,7 +32,7 @@ export function OfficeShell({ groups, activeItemId, userName, footerLine, onSign
   // <1024: view mode — the sidebar slides in over the page from a top bar (OFFICE-DESIGN §8).
   if (breakpoint === "mobile") {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="relative flex h-full min-h-0 flex-col overflow-clip bg-background">
         <header className="flex h-14 shrink-0 items-center gap-3 bg-nav px-3 text-nav-foreground">
           <button
             type="button"
@@ -62,13 +62,13 @@ export function OfficeShell({ groups, activeItemId, userName, footerLine, onSign
             </DialogPrimitive.Content>
           </DialogPrimitive.Portal>
         </DialogPrimitive.Root>
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-clip">{children}</main>
       </div>
     )
   }
 
   return (
-    <div className="flex h-full min-h-0 bg-background">
+    <div className="relative flex h-full min-h-0 overflow-clip bg-background">
       <Sidebar
         groups={groups}
         activeItemId={activeItemId}
@@ -79,8 +79,13 @@ export function OfficeShell({ groups, activeItemId, userName, footerLine, onSign
         footerLine={footerLine}
         onSignOut={onSignOut}
       />
-      {/* S-18: the content column has a bounded height, so pages and tables scroll inside it. */}
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+      {/* S-18: the content column has a bounded height, so pages and tables scroll inside it.
+          `relative` + `overflow-clip`: absolutely positioned descendants (Tailwind `sr-only` table
+          captions, visually hidden labels) anchor here instead of the viewport — otherwise their
+          static position below a long card grows the document, the wheel over a panel scrolls the
+          whole page (sidebar and header included) and Radix Select's focus makes it jump. `clip`,
+          unlike `hidden`, is not programmatically scrollable either (focus/scrollIntoView). */}
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-clip">{children}</main>
     </div>
   )
 }
@@ -116,13 +121,13 @@ export function OfficePage({ group, title, description, actions, status, layout 
     return (
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col">
         {header}
-        <div className={cn("flex min-h-0 flex-1 flex-col bg-card")}>{children}</div>
+        <div className="relative flex min-h-0 flex-1 flex-col bg-card">{children}</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="relative min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col">
         {header}
         <div className="px-6 py-6 xl:px-8">{children}</div>

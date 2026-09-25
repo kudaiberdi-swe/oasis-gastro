@@ -6,6 +6,7 @@ import { statusTabs } from "@/office/engine/module-config"
 import { Button, ConfirmDialog, DataTable, FilterTabs, Input, StatusPill, useToast, type Column } from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
+import { recordCount } from "@/shared/lib/plural"
 
 import type { ListStatus } from "../data/use-workforce-w2"
 
@@ -79,7 +80,7 @@ export function ReferenceRegister<T>({
             <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchLabel} className="pl-9" />
           </label>
-          <span className="ml-auto text-caption text-muted-foreground">{visible ? `${visible.length} записей` : ""}</span>
+          <span className="ml-auto text-caption text-muted-foreground">{visible ? recordCount(visible.length) : ""}</span>
         </div>
         {visible === undefined ? (
           <OfficeStatePage state={{ kind: "loading" }} />

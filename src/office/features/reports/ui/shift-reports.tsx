@@ -3,6 +3,7 @@ import { useMemo, useState } from "react"
 import { DataTable, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Select, type Column } from "@/shared/components/ui"
 import { formatTenge } from "@/shared/lib/format"
 import { cn } from "@/shared/lib/utils"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useShiftReports, type ReportRestaurant, type ShiftReport } from "../data/use-reports"
 
@@ -33,7 +34,7 @@ export function ShiftReportsTab({ restaurants }: { restaurants: ReportRestaurant
   const { reports, loading } = useShiftReports({ restaurantExternalId: restaurantExternalId || undefined })
   const [selected, setSelected] = useState<ShiftReport | null>(null)
   const options = useMemo(
-    () => [{ value: ALL_RESTAURANTS, label: "Все филиалы" }, ...(restaurants ?? []).map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))],
+    () => [{ value: ALL_RESTAURANTS, label: "Все филиалы" }, ...restaurantSelectOptions(restaurants ?? [])],
     [restaurants],
   )
 

@@ -36,7 +36,12 @@ export type ComboboxProps =
 export function Combobox(props: ComboboxProps) {
   const { options, placeholder = "Выберите", searchPlaceholder = "Поиск", emptyText = "Ничего не найдено", disabled, id, className, onSearchChange, ...rest } = props
   const aria = { "aria-describedby": rest["aria-describedby"], "aria-invalid": rest["aria-invalid"], "aria-label": rest["aria-label"] }
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpenState] = React.useState(false)
+  // The search box starts empty on every open, so a server-side search is reset on close too.
+  const setOpen = (next: boolean) => {
+    setOpenState(next)
+    if (!next) onSearchChange?.("")
+  }
   const selected = props.multiple ? props.value : props.value ? [props.value] : []
   const labelOf = (value: string) => options.find((option) => option.value === value)?.label ?? value
 

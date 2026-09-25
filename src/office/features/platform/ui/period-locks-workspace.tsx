@@ -28,6 +28,7 @@ import {
 } from "@/shared/components/ui"
 import { almatyBusinessDate } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { CAPABILITY_CATALOG } from "../../../../../convex/lib/capabilities"
 import {
@@ -286,7 +287,7 @@ function CreateLockDialog({ network, restaurants, onDone }: { network: boolean; 
         {!wholeOrganization ? (
           <Field label="Ресторан" error={errors.restaurant}>
             {(control) => (
-              <Select {...control} value={restaurant} onValueChange={setRestaurant} placeholder="Выберите ресторан" options={restaurants.map((item) => ({ value: item.externalId, label: item.name }))} />
+              <Select {...control} value={restaurant} onValueChange={setRestaurant} placeholder="Выберите ресторан" options={restaurantSelectOptions(restaurants)} />
             )}
           </Field>
         ) : null}

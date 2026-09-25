@@ -2,6 +2,7 @@ import { Search } from "lucide-react"
 import { useId, useMemo, useState, type ReactNode } from "react"
 
 import { DataTable, FilterTabs, Input, KpiCard, type Column } from "@/shared/components/ui"
+import { recordCount } from "@/shared/lib/plural"
 import { cn } from "@/shared/lib/utils"
 
 import type { ModuleApi } from "./define-module-api"
@@ -69,7 +70,7 @@ export function RegisterPage<Row>({ config, api, getRowId, onOpen, selectedId, t
             <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск" className="pl-9" />
           </label>
           {toolbar}
-          <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : `${rows.length} записей`}</span>
+          <span className="ml-auto text-caption text-muted-foreground">{loading ? "" : recordCount(rows.length)}</span>
         </div>
         <DataTable
           caption={config.entityLabel}

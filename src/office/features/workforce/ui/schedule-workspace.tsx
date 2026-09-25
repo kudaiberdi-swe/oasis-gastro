@@ -7,6 +7,7 @@ import { OfficeStatePage } from "@/office/components/state-page"
 import { PlatformErrorBoundary, usePlatformScope } from "@/office/features/platform/data/use-platform"
 import { Banner, Button, DataTable, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, Field, Input, SegmentedControl, Select, StatusPill, useToast, type Column } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useScheduleMutations, useScheduleWeek, type ScheduleRow, type ScheduleShift, type ScheduleWeek } from "../data/use-workforce-w2"
 import { addDays, currentWeekStart, dayLabel, formatShiftHours, mondayOf, shiftBlockLayout, weekRangeLabel } from "../model/w2"
@@ -88,7 +89,7 @@ function Schedule() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5 xl:px-8">
       <div className="flex flex-wrap items-center gap-3">
         {scope.restaurants.length > 1 ? (
-          <Select aria-label="Ресторан" className="w-full sm:w-64" value={restaurantExternalId} onValueChange={(restaurant) => update({ restaurant })} options={scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))} />
+          <Select aria-label="Ресторан" className="w-full sm:w-64" value={restaurantExternalId} onValueChange={(restaurant) => update({ restaurant })} options={restaurantSelectOptions(scope.restaurants)} />
         ) : (
           <span className="text-body-sm font-semibold text-foreground">{scope.restaurants[0]?.name}</span>
         )}

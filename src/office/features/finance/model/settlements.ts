@@ -244,6 +244,18 @@ export function autoAllocate(amount: number, obligations: { externalId: string; 
   return result
 }
 
+/**
+ * «Оплатить» prefills the allocation with the obligation's remainder; until the user edits the table the
+ * line follows «Сумма» — never above the open remainder, gone at zero.
+ */
+export const allocationFollowingAmount = (amount: number | null, obligation: { externalId: string; open: number; dueDate?: unknown }): Allocation[] =>
+  autoAllocate(amount ?? 0, [{ externalId: obligation.externalId, open: obligation.open, dueDate: obligation.dueDate ?? null }])
+
+export const OVER_ALLOCATED = "Распределено больше суммы платежа"
+
+/** How much the allocation exceeds the payment (0 when it fits); such a payment is not sent or posted. */
+export const overAllocation = (amount: number | null, allocations: Allocation[]) => Math.max(0, allocatedTotal(allocations) - Math.max(0, amount ?? 0))
+
 export interface PaymentDraft {
   name: string
   restaurantExternalId: string
@@ -283,7 +295,7 @@ export function validatePayment(draft: PaymentDraft, open: Record<string, number
   if (!draft.cashflowCategoryExternalId) errors.cashflowCategoryExternalId = "Выберите статью ДДС"
   const overOpen = draft.allocations.some((row) => open[row.obligationExternalId] !== undefined && row.amount > open[row.obligationExternalId])
   if (overOpen) errors.allocations = "Сумма платежа превышает открытый остаток обязательства"
-  else if (draft.amount && allocatedTotal(draft.allocations) > draft.amount) errors.allocations = "Распределено больше суммы платежа"
+  else if (draft.amount && overAllocation(draft.amount, draft.allocations) > 0) errors.allocations = OVER_ALLOCATED
   return errors
 }
 

@@ -11,6 +11,7 @@ import { Banner, Button, Combobox, ConfirmDialog, EmptyState, Field, Input, Sele
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatHours } from "@/shared/lib/format"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useAttendanceMutations, useAttendanceRecord, usePosEmployees, type AttendanceAction, type AttendanceRecord } from "../data/use-office-workforce"
 import {
@@ -148,7 +149,7 @@ function AttendanceForm({ record, onBack }: { record: AttendanceRecord | null; o
     }
   }
 
-  const restaurantOptions = scope.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))
+  const restaurantOptions = restaurantSelectOptions(scope.restaurants)
   const restaurantName = scope.restaurantName(draft.restaurantExternalId) ?? draft.restaurantExternalId
   const title = record ? `Явка ${record.number}` : "Новая запись явки"
   const meta = record ? [record.employeeName, restaurantName, ATTENDANCE_SOURCE_LABEL[record.source]].filter(Boolean).join(" · ") : "Ручная запись офиса — уходит на согласование"

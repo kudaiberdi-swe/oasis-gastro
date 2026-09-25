@@ -7,6 +7,7 @@ import { useMasterSelection } from "@/office/features/stock/ui/master-panel"
 import { Combobox, Field, Input, MoneyInput, SegmentedControl, Select, Skeleton, StatusPill, Textarea, type Column } from "@/shared/components/ui"
 import { formatAmount, formatTenge } from "@/shared/lib/format"
 import { cn, focusRingClass } from "@/shared/lib/utils"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useFinanceRecord, useFinanceReferences, useFinanceRestaurantFilter, type FinanceRecord, type FinanceReferences } from "../data/use-finance-records"
 import { accountLabel, DOCUMENT_TABS, formatBusinessDate } from "../model/modules"
@@ -228,7 +229,7 @@ function ServicePanel({ record, references, defaultRestaurantExternalId, onClose
                       {...control}
                       value={draft.restaurantExternalId || undefined}
                       onValueChange={(restaurantExternalId) => set({ restaurantExternalId })}
-                      options={references.restaurants.map((restaurant) => ({ value: restaurant.externalId, label: restaurant.name }))}
+                      options={restaurantSelectOptions(references.restaurants)}
                     />
                   )}
                 </Field>

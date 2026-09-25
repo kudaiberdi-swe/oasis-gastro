@@ -1,6 +1,7 @@
 import { almatyBusinessDate, formatAlmatyDate } from "@/shared/lib/almaty-time"
 import { plural } from "@/office/features/dashboard/model/dashboard"
 import { formatQuantity, formatTenge } from "@/shared/lib/format"
+import { formatPhoneNumber } from "@/shared/lib/phone"
 
 import type { ConsentChannel, Guest, GuestCard, GuestCategory, GuestConsent, LoyaltyProgram, SaveCategoryArgs, SaveGuestArgs, SaveProgramArgs } from "../data/use-office-loyalty"
 
@@ -95,7 +96,7 @@ export const guestStatusOf = (guest: Pick<Guest, "status">) => guest.status ?? "
 export function formatPhone(phone: string | undefined) {
   if (!phone) return "—"
   if (isMasked(phone) || !/^\d{11}$/.test(phone)) return phone.startsWith("7") && !phone.startsWith("+") ? `+${phone}` : phone
-  return `+${phone[0]} ${phone.slice(1, 4)} ${phone.slice(4, 7)} ${phone.slice(7, 9)} ${phone.slice(9)}`
+  return formatPhoneNumber(phone)
 }
 
 const text = (value: string | undefined) => value ?? ""

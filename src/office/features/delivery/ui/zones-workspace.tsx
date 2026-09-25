@@ -7,6 +7,7 @@ import { PlatformErrorBoundary, usePlatformScope } from "@/office/features/platf
 import { Banner, Button, Field, Input, MoneyInput, Select, Switch, Textarea, TonePill, useToast } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
+import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useDeliveryZones, useZoneMutations, type DeliveryZone } from "../data/use-delivery"
 import { formatCoordinates, parseCoordinates, polygonProblem } from "../model/zone-polygon"
@@ -124,7 +125,7 @@ function ZoneEditor({ zone, restaurants, readOnly, onSaved }: { zone: DeliveryZo
   const [submitting, setSubmitting] = useState(false)
   const parsed = useMemo(() => parseCoordinates(coordinates), [coordinates])
   const problem = polygonProblem(parsed)
-  const restaurantOptions = restaurants.map((row) => ({ value: row.externalId, label: row.name }))
+  const restaurantOptions = restaurantSelectOptions(restaurants)
   if (zone && !restaurantOptions.some((option) => option.value === zone.restaurantExternalId)) restaurantOptions.push({ value: zone.restaurantExternalId, label: zone.restaurantExternalId })
 
   function validate(): ZoneErrors {
