@@ -1644,6 +1644,69 @@ export default defineSchema({
     .index("by_restaurant_active", ["restaurantExternalId", "active"])
     .index("by_iiko_store", ["iikoStoreExternalId"]),
 
+  // --- Reservations and banquets (W2-LOY-07) ----------------------------------
+  diningTables: defineTable({
+    externalId: v.string(),
+    restaurantExternalId: v.string(),
+    hall: v.string(),
+    label: v.string(),
+    capacity: v.number(),
+    shape: v.union(v.literal("rect"), v.literal("circle")),
+    x: v.number(), // floor-plan grid units
+    y: v.number(),
+    width: v.number(),
+    height: v.number(),
+    rotation: v.number(),
+    active: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_hall", ["restaurantExternalId", "hall", "label"]),
+
+  reservations: defineTable({
+    externalId: v.string(),
+    number: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    recordType: v.union(v.literal("reservation"), v.literal("banquet")),
+    hall: v.string(),
+    tableExternalIds: v.array(v.string()),
+    guestId: v.optional(v.id("guests")),
+    guestName: v.string(),
+    phone: v.string(),
+    start: v.number(),
+    end: v.number(),
+    guestCount: v.number(),
+    occasion: v.string(),
+    prepayment: v.number(),
+    prepaymentTypeExternalId: v.optional(v.string()),
+    prepaymentPostedAt: v.optional(v.number()),
+    menu: v.string(),
+    status: v.union(v.literal("draft"), v.literal("pending-approval"), v.literal("approved"), v.literal("completed"), v.literal("cancelled")),
+    orderId: v.optional(v.id("orders")), // the check the banquet was closed with
+    cancelReason: v.optional(v.string()),
+    version: v.number(),
+    searchText: v.string(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_start", ["restaurantExternalId", "start"])
+    .index("by_status_start", ["status", "start"])
+    .searchIndex("search_reservations", { searchField: "searchText", filterFields: ["restaurantExternalId", "status"] }),
+
+  // One row per table of a live reservation: overlap checks go through by_table_start (B-27).
+  tableReservations: defineTable({
+    tableExternalId: v.string(),
+    reservationExternalId: v.string(),
+    start: v.number(),
+    end: v.number(),
+    status: v.union(v.literal("draft"), v.literal("pending-approval"), v.literal("approved"), v.literal("completed")),
+  })
+    .index("by_table_start", ["tableExternalId", "start"])
+    .index("by_reservation", ["reservationExternalId"]),
+
   // --- Delivery (W2-DLV-01) -------------------------------------------------
   // The commercial order is orders(orderType "delivery"); this row holds the logistics around it.
   deliveryOrders: defineTable({

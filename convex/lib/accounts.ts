@@ -24,6 +24,7 @@ const DEFINITIONS = {
   medicalContrib: { code: "3230", name: "Обязательства по ОСМС (ВОСМС, ООСМС)", type: "liability" },
   payables: { code: "3310", name: "Кредиторская задолженность поставщикам и подрядчикам", type: "liability" },
   payroll: { code: "3350", name: "Задолженность по оплате труда", type: "liability" },
+  customerAdvances: { code: "3520", name: "Авансы полученные (предоплаты банкетов и резервов)", type: "liability" },
   loyaltyLiability: { code: "3510", name: "Обязательства по программе лояльности (оценочные)", type: "liability" },
   revenue: { code: "6010", name: "Доход от реализации продукции и услуг", type: "income" },
   salesReturns: { code: "6020", name: "Возврат проданной продукции", type: "contra-income" },

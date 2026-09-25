@@ -50,6 +50,7 @@ import type * as domains_loyalty_expiry from "../domains/loyalty/expiry.js";
 import type * as domains_loyalty_mutations from "../domains/loyalty/mutations.js";
 import type * as domains_loyalty_office from "../domains/loyalty/office.js";
 import type * as domains_loyalty_queries from "../domains/loyalty/queries.js";
+import type * as domains_loyalty_reservations from "../domains/loyalty/reservations.js";
 import type * as domains_modifiers_mutations from "../domains/modifiers/mutations.js";
 import type * as domains_modifiers_queries from "../domains/modifiers/queries.js";
 import type * as domains_office_access from "../domains/office/access.js";
@@ -205,6 +206,7 @@ declare const fullApi: ApiFromModules<{
   "domains/loyalty/mutations": typeof domains_loyalty_mutations;
   "domains/loyalty/office": typeof domains_loyalty_office;
   "domains/loyalty/queries": typeof domains_loyalty_queries;
+  "domains/loyalty/reservations": typeof domains_loyalty_reservations;
   "domains/modifiers/mutations": typeof domains_modifiers_mutations;
   "domains/modifiers/queries": typeof domains_modifiers_queries;
   "domains/office/access": typeof domains_office_access;
