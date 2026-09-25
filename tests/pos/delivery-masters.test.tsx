@@ -175,12 +175,22 @@ describe("«Курьеры» (W2-DLV-07, office/61)", () => {
     expect(mocks.paginatedArgs.find((call) => call.name === EMPLOYEES)?.args).toMatchObject({ restaurantExternalId: "r1", status: "active" })
   })
 
-  it("asks to retype a masked phone instead of sending it back", async () => {
+  it("sends a masked phone back as is — saveCourier keeps the stored number", async () => {
     renderWith(<CouriersWorkspace />)
     fireEvent.click(screen.getAllByRole("button", { name: "Изменить" })[0])
+    expect((screen.getByLabelText("Телефон") as HTMLInputElement).value).toBe("7700••••90")
+    expect(screen.getByText("Номер скрыт — при сохранении останется прежний")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }))
+    await waitFor(() => expect(mocks.mutations[SAVE_COURIER]).toHaveBeenCalledWith(expect.objectContaining({ externalId: "courier-101", phone: "7700••••90" })))
+  })
+
+  it("«Ввести новый номер» clears a hidden phone, and a new one is checked", async () => {
+    renderWith(<CouriersWorkspace />)
+    fireEvent.click(screen.getAllByRole("button", { name: "Изменить" })[0])
+    fireEvent.click(screen.getByRole("button", { name: "Ввести новый номер" }))
     expect((screen.getByLabelText("Телефон") as HTMLInputElement).value).toBe("")
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }))
-    expect(await screen.findByText("Телефон скрыт — введите его заново, чтобы сохранить")).toBeTruthy()
+    expect(await screen.findByText("Телефон — от 10 до 15 цифр")).toBeTruthy()
     expect(mocks.mutations[SAVE_COURIER]).not.toHaveBeenCalled()
   })
 })

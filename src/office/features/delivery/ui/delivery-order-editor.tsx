@@ -13,8 +13,8 @@ import { formatTenge } from "@/shared/lib/format"
 import { describeStatus } from "@/shared/lib/status-dictionary"
 
 import { useDeliveryMutations, useDeliveryOrder, useDeliveryReferences, useGuestLookup, type DeliveryChannel, type DeliveryOrder } from "../data/use-delivery"
-import { addProduct, draftFromOrder, draftSignature, emptyDraft, hasErrors, isMaskedPhone, saveArgs, validateDraft, type DeliveryDraft, type DeliveryErrors } from "../model/order-draft"
-import { COURIER_ASSIGNABLE_STATUSES, defaultSourceFor, EDITABLE_STATUSES, SOURCE_KIND_LABELS } from "../model/statuses"
+import { addProduct, draftFromOrder, draftSignature, emptyDraft, hasErrors, isMaskedPhone, reconfigureLine, saveArgs, validateDraft, type DeliveryDraft, type DeliveryErrors } from "../model/order-draft"
+import { COURIER_ASSIGNABLE_STATUSES, courierOptions as courierChoices, defaultSourceFor, EDITABLE_STATUSES, SOURCE_KIND_LABELS } from "../model/statuses"
 import { DeliveryOrderLines } from "./delivery-order-lines"
 import { DeliveryTransitionBar } from "./delivery-transition-bar"
 
@@ -22,10 +22,11 @@ const NO_COURIER = "__none__"
 
 /**
  * /office/delivery-orders/:id and /new (W2-DLV-05, office-details/11): «Гость и адрес», «Состав заказа»,
- * the status moves in the header. The call center opens the same card with the «Телефон» source.
+ * the status moves in the header. The call center opens the same card with the «Телефон» source and
+ * `channel: "call-center"` on every read and move — the server checks office.call-center.* then.
  */
 export function DeliveryOrderEditor({ externalId, channel, backPath }: { externalId: string | null; channel: DeliveryChannel; backPath: string }) {
-  const order = useDeliveryOrder(externalId)
+  const order = useDeliveryOrder(externalId, channel)
   const navigate = useNavigate()
   const back = () => navigate(backPath)
   if (externalId && order === undefined) {
@@ -49,7 +50,6 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
   const navigate = useNavigate()
   const toast = useToast()
   const canEdit = useCan(channel === "call-center" ? "office.call-center.edit" : "office.delivery-orders.edit")
-  const canAssign = useCan("office.delivery-orders.edit")
   const canSeeGuests = useCan("office.guests.view")
   const { saveOrder, assignCourier } = useDeliveryMutations()
 
@@ -60,17 +60,19 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
   const [busy, setBusy] = useState(false)
   const [created, setCreated] = useState<string | null>(null)
   const set = (patch: Partial<DeliveryDraft>) => setDraft((current) => ({ ...current, ...patch }))
+  const setLines = (update: (lines: DeliveryDraft["lines"]) => DeliveryDraft["lines"]) => setDraft((current) => ({ ...current, lines: update(current.lines) }))
 
   // Restaurants in scope first; then the chosen restaurant's sources, couriers and payment types.
-  const scope = useDeliveryReferences(undefined)
+  const scope = useDeliveryReferences(undefined, true, channel)
   const restaurantExternalId = draft.restaurantExternalId || (order ? order.restaurantExternalId : (scope?.restaurants[0]?.externalId ?? ""))
-  const references = useDeliveryReferences(restaurantExternalId || undefined, Boolean(restaurantExternalId))
+  const references = useDeliveryReferences(restaurantExternalId || undefined, Boolean(restaurantExternalId), channel)
   const sourceExternalId = draft.sourceExternalId || (order ? "" : (defaultSourceFor(channel, references?.sources ?? []) ?? ""))
   const effective: DeliveryDraft = { ...draft, restaurantExternalId, sourceExternalId }
 
+  // A masked phone (no office.guests.pii) goes back as is: saveOrder keeps the stored number.
   const masked = order !== null && isMaskedPhone(order.phone)
   const editableStatus = order === null || EDITABLE_STATUSES.includes(order.status)
-  const readOnly = !canEdit || !editableStatus || masked
+  const readOnly = !canEdit || !editableStatus
   const dirty = created === null && !readOnly && draftSignature(draft) !== draftSignature(baseline)
   const blocker = useUnsavedChanges(dirty)
 
@@ -83,21 +85,20 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
   const sources = references?.sources ?? []
   const sourceOptions = sources.map((row) => ({ value: row.externalId, label: `${row.name} · ${SOURCE_KIND_LABELS[row.kind]}` }))
   if (order?.source && !sourceOptions.some((option) => option.value === order.source!.externalId)) sourceOptions.push({ value: order.source.externalId, label: order.source.name })
-  const couriers = references?.couriers ?? []
-  const courierOptions = [{ value: NO_COURIER, label: "Не назначен" }, ...couriers.map((row) => ({ value: row.externalId, label: `${row.name} · ${describeStatus("courier", row.status).label}` }))]
-  if (order?.courier && !courierOptions.some((option) => option.value === order.courier!.externalId)) courierOptions.push({ value: order.courier.externalId, label: order.courier.name })
+  // Only a free courier can be newly assigned (the server refuses a busy one); the current one stays listed.
+  const courierOptions = [{ value: NO_COURIER, label: "Не назначен" }, ...courierChoices(references?.couriers ?? [], order?.courier ?? null)]
   const restaurantName = restaurantOptions.find((option) => option.value === restaurantExternalId)?.label ?? "—"
   const sourceName = order?.source?.name ?? sourceOptions.find((option) => option.value === sourceExternalId)?.label ?? "—"
 
   async function handleSave() {
     if (readOnly || busy) return
-    const found = validateDraft(effective)
+    const found = validateDraft(effective, { phoneOnFile: order !== null })
     setErrors(found)
     if (hasErrors(found)) return
     setBusy(true)
     setError(null)
     try {
-      const result = await saveOrder(saveArgs(effective, { externalId: order?.externalId, expectedVersion: order?.version, channel }))
+      const result = await saveOrder(saveArgs(effective, { externalId: order?.externalId, expectedVersion: order?.version, channel, currentCourierExternalId: order?.courierExternalId ?? null }))
       toast(`Заказ ${result.number} сохранён · ${formatTenge(result.total)}`, "success")
       setBaseline(effective)
       if (!order) setCreated(result.externalId)
@@ -108,12 +109,13 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
     }
   }
 
+  /** On the kitchen (saveOrder refuses these statuses) the courier is assigned at once with assignCourier. */
   async function handleAssign(courierExternalId: string) {
-    if (!order || courierExternalId === NO_COURIER || busy) return
+    if (!order || courierExternalId === NO_COURIER || courierExternalId === order.courierExternalId || busy) return
     setBusy(true)
     setError(null)
     try {
-      await assignCourier({ deliveryExternalId: order.externalId, courierExternalId, expectedVersion: order.version })
+      await assignCourier({ deliveryExternalId: order.externalId, courierExternalId, expectedVersion: order.version, channel })
       toast("Курьер назначен", "success")
     } catch (caught) {
       setError(errorMessage(caught, "Не удалось назначить курьера"))
@@ -146,13 +148,13 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
                 {busy ? "Сохранение…" : "Сохранить"}
               </Button>
             ) : null}
-            {order ? <DeliveryTransitionBar order={order} disabled={dirty || busy} disabledReason="Сначала сохраните изменения" /> : null}
+            {order ? <DeliveryTransitionBar order={order} channel={channel} disabled={dirty || busy} disabledReason="Сначала сохраните изменения" /> : null}
           </div>
         </header>
 
-        {masked ? (
+        {masked && !readOnly ? (
           <Banner tone="info" title="Телефон гостя скрыт">
-            Изменять заказ можно с правом на персональные данные гостей; переходы статуса доступны.
+            Заказ можно менять и сохранять — останется прежний номер гостя. Чтобы заменить номер, нажмите «Ввести новый номер».
           </Banner>
         ) : null}
         {order && !editableStatus && order.status !== "cancelled" ? (
@@ -184,7 +186,7 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
               value={draft.phone}
               error={errors.phone}
               readOnly={readOnly}
-              lookup={canSeeGuests && !readOnly}
+              lookup={canSeeGuests && !readOnly && !isMaskedPhone(draft.phone)}
               onChange={(phone) => set({ phone })}
               onGuest={(guest) => set({ customerName: guest.name || draft.customerName, ...(guest.email && !/[•*]/.test(guest.email) && !draft.email ? { email: guest.email } : {}) })}
             />
@@ -225,7 +227,7 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
               <Field label="Курьер">
                 {(control) => <Select {...control} value={draft.courierExternalId || NO_COURIER} onValueChange={(value) => set({ courierExternalId: value === NO_COURIER ? "" : value })} options={courierOptions} />}
               </Field>
-            ) : order && canAssign && COURIER_ASSIGNABLE_STATUSES.includes(order.status) ? (
+            ) : order && canEdit && COURIER_ASSIGNABLE_STATUSES.includes(order.status) ? (
               <Field label="Курьер" hint="Назначается сразу, без сохранения карточки">
                 {(control) => <Select {...control} value={order.courierExternalId ?? NO_COURIER} onValueChange={(value) => void handleAssign(value)} options={courierOptions} disabled={busy} />}
               </Field>
@@ -245,15 +247,17 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
 
         <DeliveryOrderLines
           restaurantExternalId={restaurantExternalId || undefined}
+          channel={channel}
           lines={draft.lines}
           readOnly={readOnly}
           errors={errors.rows}
           linesError={errors.lines}
           totals={totals}
           stale={dirty}
-          onAdd={(product) => set({ lines: addProduct(draft.lines, { productExternalId: product.productExternalId, name: product.name, price: product.price }) })}
-          onChange={(key, patch) => set({ lines: draft.lines.map((line) => (line.key === key ? { ...line, ...patch } : line)) })}
-          onRemove={(key) => set({ lines: draft.lines.filter((line) => line.key !== key) })}
+          onAdd={(dish) => setLines((lines) => addProduct(lines, dish))}
+          onReconfigure={(key, dish) => setLines((lines) => lines.map((line) => (line.key === key ? reconfigureLine(line, dish) : line)))}
+          onChange={(key, patch) => setLines((lines) => lines.map((line) => (line.key === key ? { ...line, ...patch } : line)))}
+          onRemove={(key) => setLines((lines) => lines.filter((line) => line.key !== key))}
         />
       </div>
       <UnsavedChangesDialog blocker={blocker} />
@@ -321,7 +325,10 @@ function TextField({
   )
 }
 
-/** «Телефон» with a guest lookup (office.guests.view); a masked guest phone never replaces the typed one. */
+/**
+ * «Телефон» with a guest lookup (office.guests.view); a masked guest phone never replaces the typed one.
+ * A masked saved phone stays as is (the server keeps the number) until «Ввести новый номер».
+ */
 function PhoneField({
   value,
   error,
@@ -340,11 +347,17 @@ function PhoneField({
   const guests = useGuestLookup(value, lookup)
   const matches = useMemo(() => (guests ?? []).filter((guest) => guest.name), [guests])
   if (readOnly) return <ReadOnly label="Телефон" value={value || "—"} />
+  const masked = isMaskedPhone(value)
   return (
     <div className="flex flex-col gap-1.5">
-      <Field label="Телефон" error={error} hint={lookup ? "Гость найдётся по номеру" : undefined}>
-        {(control) => <Input {...control} type="tel" inputMode="tel" autoComplete="off" placeholder="+7 700 000 00 00" value={value} onChange={(event) => onChange(event.target.value)} />}
+      <Field label="Телефон" error={error} hint={masked ? "Номер скрыт — при сохранении останется прежний" : lookup ? "Гость найдётся по номеру" : undefined}>
+        {(control) => <Input {...control} type="tel" inputMode="tel" autoComplete="off" placeholder="+7 700 000 00 00" value={value} readOnly={masked} onChange={(event) => onChange(event.target.value)} />}
       </Field>
+      {masked ? (
+        <Button type="button" size="sm" variant="ghost" className="self-start" onClick={() => onChange("")}>
+          Ввести новый номер
+        </Button>
+      ) : null}
       {matches.length ? (
         <ul aria-label="Найденные гости" className="flex flex-col gap-1">
           {matches.slice(0, 3).map((guest) => (

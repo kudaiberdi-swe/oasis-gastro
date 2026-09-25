@@ -5,18 +5,70 @@ import { Banner, Button, ConfirmDialog, Dialog, DialogContent, DialogDescription
 import { describeStatus } from "@/shared/lib/status-dictionary"
 import { errorMessage } from "@/shared/lib/error-message"
 
-import { useDeliveryMutations, useDeliveryReferences, type DeliveryOrder } from "../data/use-delivery"
-import { isClosedShiftError, needsPayment, transitionActions, type DeliveryStatus } from "../model/statuses"
+import { useDeliveryMutations, useDeliveryReferences, type DeliveryChannel, type DeliveryOrder, type DeliveryRow } from "../data/use-delivery"
+import { isClosedShiftError, needsPayment, transitionActions, type DeliveryStatus, type SettlementMode } from "../model/statuses"
+
+/** What a move needs to know about the order: the card's order or a register row (overview). */
+export type TransitionSubject = {
+  externalId: string
+  number: string
+  version: number
+  status: DeliveryStatus
+  restaurantExternalId: string
+  courierExternalId: string | null
+  total: number
+  paymentStatus: "unpaid" | "paid" | "refunded"
+  sourceExternalId: string
+  settlementMode: SettlementMode | undefined
+  /** The source's default payment type; for a row it is looked up in the references. */
+  defaultPaymentTypeExternalId?: string | null
+}
+
+export function subjectOfOrder(order: DeliveryOrder): TransitionSubject {
+  return {
+    externalId: order.externalId,
+    number: order.number,
+    version: order.version,
+    status: order.status,
+    restaurantExternalId: order.restaurantExternalId,
+    courierExternalId: order.courierExternalId ?? null,
+    total: order.total,
+    paymentStatus: order.paymentStatus,
+    sourceExternalId: order.sourceExternalId,
+    settlementMode: order.source?.settlementMode,
+    defaultPaymentTypeExternalId: order.source?.defaultPaymentTypeExternalId ?? null,
+  }
+}
+
+export function subjectOfRow(row: DeliveryRow): TransitionSubject {
+  return {
+    externalId: row.externalId,
+    number: row.number,
+    version: row.version,
+    status: row.status,
+    restaurantExternalId: row.restaurantExternalId,
+    courierExternalId: row.courierExternalId,
+    total: row.total,
+    paymentStatus: row.paymentStatus,
+    sourceExternalId: row.sourceExternalId,
+    settlementMode: row.settlementMode,
+  }
+}
+
+/** office.delivery-orders.* or, in the call center, office.call-center.* — as the server checks them. */
+export function useTransitionRights(channel: DeliveryChannel) {
+  const section = channel === "call-center" ? "office.call-center" : "office.delivery-orders"
+  return { canEdit: useCan(`${section}.edit`), canCancel: useCan(`${section}.cancel`) }
+}
 
 /**
  * Next-status buttons of the order card (W2-DLV-03). «Отменить» asks for a reason (danger), a move that
  * pays the order opens «Оплата при доставке», «Отправить» without a courier asks for one.
  */
-export function DeliveryTransitionBar({ order, disabled, disabledReason }: { order: DeliveryOrder; disabled?: boolean; disabledReason?: string }) {
-  const canEdit = useCan("office.delivery-orders.edit")
-  const canCancel = useCan("office.delivery-orders.cancel")
-  const actions = transitionActions(order.status, { canEdit, canCancel })
-  const flow = useTransitionFlow(order)
+export function DeliveryTransitionBar({ order, channel, disabled, disabledReason }: { order: DeliveryOrder; channel: DeliveryChannel; disabled?: boolean; disabledReason?: string }) {
+  const rights = useTransitionRights(channel)
+  const actions = transitionActions(order.status, rights)
+  const flow = useTransitionFlow(subjectOfOrder(order), channel)
   if (actions.length === 0) return null
   return (
     <>
@@ -38,8 +90,11 @@ export function DeliveryTransitionBar({ order, disabled, disabledReason }: { ord
 
 type Pending = { to: DeliveryStatus; step: "cancel" | "payment" | "courier" } | null
 
-/** Runs one transition with whatever it needs first; exposes the dialogs to render next to the buttons. */
-export function useTransitionFlow(order: DeliveryOrder) {
+/**
+ * Runs one transition with whatever it needs first; exposes the dialogs to render next to the buttons.
+ * `errors: "toast"` (a register row) reports a refused move in a toast instead of an inline banner.
+ */
+export function useTransitionFlow(order: TransitionSubject, channel: DeliveryChannel, options: { errors?: "banner" | "toast" } = {}) {
   const { transitionOrder } = useDeliveryMutations()
   const toast = useToast()
   const [pending, setPending] = useState<Pending>(null)
@@ -47,19 +102,21 @@ export function useTransitionFlow(order: DeliveryOrder) {
   const [error, setError] = useState<string | null>(null)
   const [inlineError, setInlineError] = useState<string | null>(null)
   const needsReferences = pending?.step === "payment" || pending?.step === "courier"
-  const references = useDeliveryReferences(order.restaurantExternalId, needsReferences)
+  const references = useDeliveryReferences(order.restaurantExternalId, needsReferences, channel)
+  const defaultPaymentType = order.defaultPaymentTypeExternalId ?? references?.sources.find((source) => source.externalId === order.sourceExternalId)?.defaultPaymentTypeExternalId ?? undefined
 
   async function run(to: DeliveryStatus, extra: { reason?: string; courierExternalId?: string; payment?: { paymentTypeExternalId?: string; amount?: number } } = {}) {
     setBusy(true)
     setError(null)
     setInlineError(null)
     try {
-      await transitionOrder({ externalId: order.externalId, to, expectedVersion: order.version, ...extra })
+      await transitionOrder({ externalId: order.externalId, to, expectedVersion: order.version, channel, ...extra })
       toast(`Статус заказа ${order.number}: ${describeStatus("delivery", to).label}`, "success")
       setPending(null)
     } catch (caught) {
       const message = errorMessage(caught, "Не удалось сменить статус")
       if (pending) setError(message)
+      else if (options.errors === "toast") toast(message, "error")
       else setInlineError(message)
     } finally {
       setBusy(false)
@@ -71,7 +128,7 @@ export function useTransitionFlow(order: DeliveryOrder) {
     setInlineError(null)
     if (to === "cancelled") return setPending({ to, step: "cancel" })
     if (to === "on-way" && !order.courierExternalId) return setPending({ to, step: "courier" })
-    if (needsPayment(to, order.source?.settlementMode, order.paymentStatus)) return setPending({ to, step: "payment" })
+    if (needsPayment(to, order.settlementMode, order.paymentStatus)) return setPending({ to, step: "payment" })
     void run(to)
   }
 
@@ -104,6 +161,7 @@ export function useTransitionFlow(order: DeliveryOrder) {
           order={order}
           to={pending.to}
           paymentTypes={references?.paymentTypes}
+          defaultPaymentTypeExternalId={defaultPaymentType}
           busy={busy}
           error={error}
           onClose={close}
@@ -142,20 +200,22 @@ export function PaymentDialog({
   order,
   to,
   paymentTypes,
+  defaultPaymentTypeExternalId,
   busy,
   error,
   onClose,
   onConfirm,
 }: {
-  order: DeliveryOrder
+  order: Pick<TransitionSubject, "number" | "total">
   to: DeliveryStatus
   paymentTypes: { externalId: string; name: string }[] | undefined
+  defaultPaymentTypeExternalId: string | undefined
   busy: boolean
   error: string | null
   onClose: () => void
   onConfirm: (paymentTypeExternalId: string) => void
 }) {
-  const fallback = order.source?.defaultPaymentTypeExternalId ?? undefined
+  const fallback = defaultPaymentTypeExternalId
   const [choice, setChoice] = useState<string | undefined>(undefined)
   const options = (paymentTypes ?? []).map((row) => ({ value: row.externalId, label: row.name }))
   if (fallback && paymentTypes && !options.some((option) => option.value === fallback)) options.unshift({ value: fallback, label: "Тип оплаты источника" })
@@ -207,7 +267,7 @@ function CourierDialog({
   onClose,
   onConfirm,
 }: {
-  order: DeliveryOrder
+  order: Pick<TransitionSubject, "number">
   couriers: { externalId: string; name: string; status: string }[] | undefined
   busy: boolean
   error: string | null

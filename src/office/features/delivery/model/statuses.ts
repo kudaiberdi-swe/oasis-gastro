@@ -1,3 +1,5 @@
+import { describeStatus } from "@/shared/lib/status-dictionary"
+
 import { deliveryTransitions, type DeliveryStatus } from "../../../../../convex/lib/deliveryCore"
 
 // Delivery lifecycle on screen (W2-DLV-02/03). The transition table is the server's own
@@ -20,8 +22,23 @@ export const DELIVERY_TABS: { value: DeliveryTab; label: string }[] = [
 /** Statuses in which saveOrder still accepts edits (convex/domains/delivery/mutations.ts EDITABLE). */
 export const EDITABLE_STATUSES: readonly DeliveryStatus[] = ["unprocessed", "unconfirmed", "waiting"]
 
-/** Before dispatch a courier is assigned with assignCourier; after that only transitions change it. */
+/**
+ * While editable the courier travels with saveOrder (absent keeps, null unassigns, a new one must be
+ * free). On the kitchen saveOrder is refused, so there the courier is assigned with assignCourier;
+ * from «В пути» on only transitions change it.
+ */
 export const COURIER_ASSIGNABLE_STATUSES: readonly DeliveryStatus[] = ["ready-to-cook", "cooking", "cooked", "awaiting-dispatch"]
+
+/** A courier the server lets be newly assigned (saveOrder / assignCourier). */
+export const FREE_COURIER_STATUSES: readonly string[] = ["available", "returning"]
+
+/** «Курьер» options: a busy courier is shown but disabled, the order's current courier always stays selectable. */
+export function courierOptions(couriers: readonly { externalId: string; name: string; status: string }[], current: { externalId: string; name: string; status: string } | null) {
+  const label = (row: { name: string; status: string }) => `${row.name} · ${describeStatus("courier", row.status).label}`
+  const options = couriers.map((row) => ({ value: row.externalId, label: label(row), disabled: row.externalId !== current?.externalId && !FREE_COURIER_STATUSES.includes(row.status) }))
+  if (current && !options.some((option) => option.value === current.externalId)) options.push({ value: current.externalId, label: label(current), disabled: false })
+  return options
+}
 
 /** The button label of a move to `to` (the verb, not the status name). */
 export function transitionLabel(from: DeliveryStatus, to: DeliveryStatus): string {
@@ -66,13 +83,13 @@ export function transitionActions(status: DeliveryStatus, options: { canEdit: bo
   return actions
 }
 
-/** The one forward move a register row offers as a quick action, if it needs no extra input. */
+/**
+ * The one forward move a register row offers as a quick action: the main next status. «Отправить» asks
+ * for a courier when there is none, «Доставлен» / «Закрыть» for the payment when the server settles
+ * (needsPayment); a return to the road and a cancel stay in the card.
+ */
 export function quickTransition(status: DeliveryStatus): DeliveryStatus | null {
-  const to = (deliveryTransitions[status] ?? []).find((candidate) => candidate !== "cancelled")
-  if (!to) return null
-  // A courier, a payment or a return to the road are decided in the card.
-  if (to === "on-way" || to === "delivered" || to === "closed") return null
-  return to
+  return (deliveryTransitions[status] ?? []).find((candidate) => candidate !== "cancelled") ?? null
 }
 
 export type SettlementMode = "on-delivered" | "on-closed"

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
 
-import { addProduct, isMaskedPhone, saveArgs, validateDraft, type DeliveryDraft } from "@/office/features/delivery/model/order-draft"
-import { needsPayment, quickTransition, transitionActions } from "@/office/features/delivery/model/statuses"
+import { dishChoice, initialQuantities, initialSize, needsDialog } from "@/office/features/delivery/model/line-configuration"
+import { addProduct, courierArg, isMaskedPhone, reconfigureLine, saveArgs, validateDraft, type DeliveryDraft } from "@/office/features/delivery/model/order-draft"
+import { courierOptions, needsPayment, quickTransition, transitionActions } from "@/office/features/delivery/model/statuses"
+import type { ProductConfiguration } from "@/pos/features/catalog/model/modifier-selection"
 import { formatCoordinates, parseCoordinates, polygonProblem, projectPolygon } from "@/office/features/delivery/model/zone-polygon"
 import { describeStatus } from "@/shared/lib/status-dictionary"
 
@@ -89,12 +91,31 @@ describe("delivery transitions (W2-DLV-03)", () => {
     expect(transitionActions("cooking", { canEdit: false, canCancel: true }).map((action) => action.to)).toEqual(["cancelled"])
   })
 
-  it("keeps quick row actions to moves that need no courier or payment", () => {
+  it("offers the main next move as the row's quick action, including «Отправить», «Доставлен», «Закрыть»", () => {
     expect(quickTransition("waiting")).toBe("ready-to-cook")
     expect(quickTransition("cooking")).toBe("cooked")
-    expect(quickTransition("awaiting-dispatch")).toBeNull()
-    expect(quickTransition("on-way")).toBeNull()
+    expect(quickTransition("awaiting-dispatch")).toBe("on-way")
+    expect(quickTransition("on-way")).toBe("delivered")
+    expect(quickTransition("delivered")).toBe("closed")
+    expect(quickTransition("closed")).toBeNull()
     expect(quickTransition("cancelled")).toBeNull()
+  })
+
+  it("lists busy couriers disabled, keeps the order's current one selectable", () => {
+    const options = courierOptions(
+      [
+        { externalId: "c1", name: "Ерлан", status: "available" },
+        { externalId: "c2", name: "Дамир", status: "on-delivery" },
+        { externalId: "c3", name: "Асель", status: "assigned" },
+      ],
+      { externalId: "c3", name: "Асель", status: "assigned" },
+    )
+    expect(options.map((option) => [option.value, option.disabled])).toEqual([
+      ["c1", false],
+      ["c2", true],
+      ["c3", false],
+    ])
+    expect(courierOptions([], { externalId: "c9", name: "Бауыржан", status: "offline" }).map((option) => option.value)).toEqual(["c9"])
   })
 
   it("asks for the payment exactly where transitionOrder settles the order", () => {
@@ -155,5 +176,90 @@ describe("delivery order form (W2-DLV-05)", () => {
     expect(lines[0]).toMatchObject({ quantity: "2", unitPrice: 4500, lineTotal: null })
     expect(isMaskedPhone("7701••••34")).toBe(true)
     expect(isMaskedPhone("77015551234")).toBe(false)
+  })
+
+  it("a masked phone of a saved order is valid and goes back as is", () => {
+    const masked = draft({ phone: "7701•••••34" })
+    expect(validateDraft(masked, { phoneOnFile: true })).toEqual({ rows: {} })
+    expect(validateDraft(masked).phone).toBe("Телефон скрыт — введите номер гостя")
+    expect(saveArgs(masked, { channel: "delivery", externalId: "delivery-1", expectedVersion: 3 }).phone).toBe("7701•••••34")
+  })
+
+  it("courierExternalId: absent keeps, null unassigns, a new one is sent", () => {
+    expect(courierArg("", null, false)).toEqual({})
+    expect(courierArg("c1", null, false)).toEqual({ courierExternalId: "c1" })
+    expect(courierArg("c1", "c1", true)).toEqual({})
+    expect(courierArg("", null, true)).toEqual({})
+    expect(courierArg("", "c1", true)).toEqual({ courierExternalId: null })
+    expect(courierArg("c2", "c1", true)).toEqual({ courierExternalId: "c2" })
+    expect(saveArgs(draft({ courierExternalId: "" }), { channel: "delivery", externalId: "delivery-1", expectedVersion: 3, currentCourierExternalId: "c1" }).courierExternalId).toBeNull()
+    expect("courierExternalId" in saveArgs(draft({ courierExternalId: "c1" }), { channel: "delivery", externalId: "delivery-1", expectedVersion: 3, currentCourierExternalId: "c1" })).toBe(false)
+  })
+
+  it("quantities are whole portions from 1 to 99, as the server prices them", () => {
+    const [line] = draft().lines
+    expect(validateDraft(draft({ lines: [{ ...line, quantity: "1,5" }] })).rows[line.key]).toBe("Количество — целое число от 1 до 99")
+    expect(validateDraft(draft({ lines: [{ ...line, quantity: "100" }] })).rows[line.key]).toBe("Количество — целое число от 1 до 99")
+  })
+})
+
+const PLOV: ProductConfiguration = {
+  product: { externalId: "p-plov", name: "Плов", nameKk: "Палау", imageUrl: null, price: 2500, available: true },
+  sizes: [
+    { externalId: "s-m", label: "Стандарт", labelKk: null, price: 2500, isDefault: true, available: true },
+    { externalId: "s-l", label: "Большой", labelKk: null, price: 3200, isDefault: false, available: true },
+  ],
+  groups: [
+    {
+      groupExternalId: "g-add",
+      name: "Добавки",
+      required: false,
+      minQuantity: 0,
+      maxQuantity: 3,
+      freeQuantity: 0,
+      enforceItemLimits: true,
+      options: [
+        { externalId: "m-cheese", name: "Сыр", price: 300, minQuantity: 0, maxQuantity: 2, defaultQuantity: 0, freeQuantity: 0, available: true },
+        { externalId: "m-onion", name: "Лук", price: 0, minQuantity: 0, maxQuantity: 1, defaultQuantity: 1, freeQuantity: 0, available: true },
+      ],
+    },
+  ],
+}
+
+describe("size and modifiers of a delivery line (W2-DLV-05)", () => {
+  it("builds the line from the dialog: size, selections with a removed default, preview price", () => {
+    expect(needsDialog(PLOV)).toBe(true)
+    expect(needsDialog({ sizes: [], groups: [] })).toBe(false)
+    const dish = dishChoice(PLOV, "s-l", { "m-cheese": 2, "m-onion": 0 }, 2)
+    expect(dish).toEqual({
+      productExternalId: "p-plov",
+      name: "Плов",
+      price: 3800,
+      quantity: 2,
+      sizeExternalId: "s-l",
+      sizeLabel: "Большой",
+      modifierSelections: [
+        { modifierExternalId: "m-cheese", quantity: 2 },
+        { modifierExternalId: "m-onion", quantity: 0 },
+      ],
+      modifierLabels: ["Сыр ×2", "без лук"],
+    })
+    // The same configuration merges, another one is a separate line.
+    const once = addProduct([], dish)
+    expect(addProduct(once, dish)).toHaveLength(1)
+    expect(addProduct(once, dish)[0].quantity).toBe("4")
+    expect(addProduct(once, dishChoice(PLOV, "s-m", { "m-cheese": 0, "m-onion": 1 }, 1))).toHaveLength(2)
+    const args = saveArgs(draft({ lines: once }), { channel: "delivery" })
+    expect(args.lines).toEqual([{ productExternalId: "p-plov", quantity: 2, sizeExternalId: "s-l", modifierSelections: dish.modifierSelections }])
+  })
+
+  it("re-opens a saved line with its size and chosen modifiers; an unlisted option is not chosen", () => {
+    expect(initialSize(PLOV, "s-l")).toBe("s-l")
+    expect(initialSize(PLOV, "s-gone")).toBe("s-m")
+    expect(initialQuantities(PLOV, [])).toEqual({ "m-cheese": 0, "m-onion": 1 })
+    // The server stores only chosen modifiers: «Лук» missing means it was removed.
+    expect(initialQuantities(PLOV, [{ modifierExternalId: "m-cheese", quantity: 1 }])).toEqual({ "m-cheese": 1, "m-onion": 0 })
+    const [line] = addProduct([], { productExternalId: "p-plov", name: "Плов", price: 2500 })
+    expect(reconfigureLine({ ...line, lineTotal: 2500 }, dishChoice(PLOV, "s-l", { "m-cheese": 0, "m-onion": 1 }, 3))).toMatchObject({ key: line.key, quantity: "3", unitPrice: 3200, lineTotal: null, sizeExternalId: "s-l", sizeLabel: "Большой" })
   })
 })

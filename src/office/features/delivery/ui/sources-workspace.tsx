@@ -114,7 +114,8 @@ function SourceEditor({ source, readOnly, onSaved }: { source: DeliverySource | 
 
   // Payment types are per restaurant: the first chosen one (or the first in scope for «все»).
   const paymentRestaurant = restaurants.find((id) => id !== ALL_RESTAURANTS) ?? scope.restaurants[0]?.externalId
-  const references = useDeliveryReferences(paymentRestaurant, Boolean(paymentRestaurant) && useCan("office.delivery-orders.view"))
+  const canSeeReferences = useCan("office.delivery-orders.view")
+  const references = useDeliveryReferences(paymentRestaurant, Boolean(paymentRestaurant) && canSeeReferences, "delivery")
   const paymentOptions = [{ value: NO_PAYMENT, label: "Не задан — спросить при оплате" }, ...(references?.paymentTypes ?? []).map((row) => ({ value: row.externalId, label: row.name }))]
   if (paymentType !== NO_PAYMENT && !paymentOptions.some((option) => option.value === paymentType)) paymentOptions.push({ value: paymentType, label: paymentType })
 

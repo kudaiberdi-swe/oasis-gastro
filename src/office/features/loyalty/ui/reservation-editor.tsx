@@ -7,18 +7,39 @@ import { ReadOnlyRows, RecordPanelFallback } from "@/office/features/finance/ui/
 import { usePlatformScope } from "@/office/features/platform/data/use-platform"
 import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
-import { Banner, Button, Combobox, ConfirmDialog, Field, Input, MoneyInput, SegmentedControl, Select, StatusPill, Textarea, useToast } from "@/shared/components/ui"
+import {
+  Banner,
+  Button,
+  Combobox,
+  ConfirmDialog,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Field,
+  Input,
+  MoneyInput,
+  SegmentedControl,
+  Select,
+  StatusPill,
+  Textarea,
+  useToast,
+} from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatQuantity, formatTenge } from "@/shared/lib/format"
 
-import { asGuestId, useAdvancePaymentTypes, useGuestOptions, useReservation, useReservationMutations, useTables, type ReservationCard } from "../data/use-reservations"
+import { asGuestId, useGuestOptions, useReservation, useReservationMutations, useReservationReferences, useTables, type PaidOrder, type ReservationCard } from "../data/use-reservations"
 import { formatPhone, isMasked, type DraftErrors } from "../model/loyalty-model"
 import {
   CANCELLABLE,
   draftPeriod,
   NEXT_ACTION,
+  paidOrderLabel,
   RECORD_TYPE_LABELS,
+  reservationDay,
   reservationDraftOf,
   reservationSaveArgs,
   validateReservation,
@@ -30,11 +51,14 @@ import { FormSection } from "./guest-editor"
 
 // The booking card (OFFICE-DESIGN §3.4 in the right panel, approval lifecycle §3.5): a draft is edited
 // and saved; the one primary moves it on — «Отправить на согласование» → «Согласовать» → «Провести»;
-// «Отменить» (danger) asks for a reason. Overlaps of a table are checked by the server and shown here.
+// «Отменить» (danger) asks for a reason; «Провести» may link a paid check of the booking's day. Overlaps
+// of a table are checked by the server and shown here. Without office.guests.pii the phone comes masked
+// and is sent back as is — the server keeps the stored one (or the chosen guest's).
 
 const NO_GUEST = "__no-guest__"
 const NO_PAYMENT = "__none__"
-const HIDDEN_PHONE = "Скрыт: нужно право «Персональные данные гостей»"
+const NO_CHECK = "__no-check__"
+const HIDDEN_PHONE = "Номер скрыт — при сохранении останется прежний"
 
 export interface ReservationEditorProps {
   /** null — a new booking. */
@@ -62,7 +86,9 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
   const editable = canEdit && status === "draft"
   const scope = usePlatformScope()
   const tables = useTables(restaurantExternalId)
-  const payments = useAdvancePaymentTypes(restaurantExternalId)
+  // Payment types always; the day's paid checks only while «Провести» is possible.
+  const references = useReservationReferences(restaurantExternalId, status === "approved" && card ? reservationDay(card.start) : undefined)
+  const paymentOptions = (references?.paymentTypes ?? []).map((row) => ({ value: row.externalId, label: row.name }))
   const { saveReservation, transitionReservation } = useReservationMutations()
   const toast = useToast()
 
@@ -72,7 +98,7 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(null)
-  const [confirm, setConfirm] = useState<"close" | "cancel" | null>(null)
+  const [confirm, setConfirm] = useState<"close" | "cancel" | "complete" | null>(null)
   const [dialogError, setDialogError] = useState<string | null>(null)
   const [guestSearch, setGuestSearch] = useState("")
   const guestNeedle = useDebounced(guestSearch)
@@ -103,7 +129,7 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
   }
 
   const checked = () => {
-    const found = validateReservation(draft, capacityOf)
+    const found = validateReservation(draft, capacityOf, { phoneOnFile: Boolean(card) || Boolean(draft.guestId) })
     setErrors(found)
     return Object.keys(found).length === 0
   }
@@ -143,6 +169,12 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
   async function advance() {
     if (!allowedNext || busy) return
     if (status === "draft" && !checked()) return
+    // «Провести» asks which paid check of the day closed the banquet (optional).
+    if (allowedNext.action === "complete") {
+      setDialogError(null)
+      setConfirm("complete")
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -152,6 +184,21 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
       setSavedId(target.externalId)
     } catch (caught) {
       fail(caught, allowedNext.failed)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function complete(orderId: PaidOrder["orderId"] | undefined) {
+    if (!card || !allowedNext || busy) return
+    setBusy(true)
+    setDialogError(null)
+    try {
+      await transitionReservation({ externalId: card.externalId, action: "complete", expectedVersion: card.version, ...(orderId ? { orderId } : {}) })
+      toast(allowedNext.done, "success")
+      setConfirm(null)
+    } catch (caught) {
+      setDialogError(errorMessage(caught, allowedNext.failed))
     } finally {
       setBusy(false)
     }
@@ -207,11 +254,15 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
     }
     const guest = guestOptions.guests.find((candidate) => candidate._id === value)
     if (!guest) return
-    set({ guestId: guest._id, guestName: guest.name || draft.guestName, ...(isMasked(guest.phone) ? {} : { phone: guest.phone }) })
+    // A masked guest phone is sent as is with the guestId: the server takes the guest's number.
+    set({ guestId: guest._id, guestName: guest.name || draft.guestName, phone: guest.phone })
   }
-  const pickedMaskedGuest = Boolean(draft.guestId) && guestOptions.guests.some((guest) => guest._id === draft.guestId && isMasked(guest.phone)) && !draft.phone
+  const pickedMaskedGuest = Boolean(draft.guestId) && isMasked(draft.phone) && guestOptions.guests.some((guest) => guest._id === draft.guestId && guest.phone === draft.phone)
+  // A saved draft keeps its own stored phone for a mask, even with another guest chosen.
+  const maskedKeepsCardPhone = pickedMaskedGuest && Boolean(card) && draft.guestId !== (card?.guestId ?? "")
+  const phoneHint = !isMasked(draft.phone) ? undefined : maskedKeepsCardPhone ? "Номер гостя скрыт — останется прежний номер брони; чтобы сменить, введите номер" : pickedMaskedGuest && !card ? "Номер скрыт — сохранится номер из карточки гостя" : HIDDEN_PHONE
 
-  const paymentName = (id: string | undefined) => (id ? (payments.options.find((option) => option.value === id)?.label ?? "—") : "—")
+  const paymentName = (id: string | undefined) => (id ? (paymentOptions.find((option) => option.value === id)?.label ?? "—") : "—")
   const title = card ? `${RECORD_TYPE_LABELS[card.recordType]} ${card.number}` : "Новая бронь"
 
   return (
@@ -285,7 +336,7 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
 
               <FormSection title="Гость">
                 {guestOptions.canView ? (
-                  <Field label="Гость" hint={pickedMaskedGuest ? "Телефон гостя скрыт — введите номер вручную" : "Найдите гостя в базе или впишите имя и телефон ниже"}>
+                  <Field label="Гость" hint="Найдите гостя в базе или впишите имя и телефон ниже">
                     {(control) => (
                       <Combobox
                         {...control}
@@ -303,11 +354,18 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
                   <Field label="Имя гостя" error={errors.guestName}>
                     {(control) => <Input {...control} value={draft.guestName} onChange={(event) => set({ guestName: event.target.value })} autoComplete="off" />}
                   </Field>
-                  <Field label="Телефон" error={errors.phone} hint={isMasked(draft.phone) ? HIDDEN_PHONE : undefined}>
-                    {(control) => (
-                      <Input {...control} type="tel" inputMode="tel" placeholder="+7 701 000 00 00" value={draft.phone} readOnly={isMasked(draft.phone)} onChange={(event) => set({ phone: event.target.value })} autoComplete="off" />
-                    )}
-                  </Field>
+                  <div className="flex flex-col gap-1.5">
+                    <Field label="Телефон" error={errors.phone} hint={phoneHint}>
+                      {(control) => (
+                        <Input {...control} type="tel" inputMode="tel" placeholder="+7 701 000 00 00" value={draft.phone} readOnly={isMasked(draft.phone)} onChange={(event) => set({ phone: event.target.value })} autoComplete="off" />
+                      )}
+                    </Field>
+                    {isMasked(draft.phone) ? (
+                      <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => set({ phone: "" })}>
+                        Ввести новый номер
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               </FormSection>
 
@@ -337,14 +395,14 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
                   <Field
                     label="Тип оплаты"
                     error={errors.prepaymentTypeExternalId}
-                    hint={!payments.canView ? "Нужно право на просмотр типов оплат" : !payments.loading && !payments.options.length ? "Нет опубликованных типов оплат для ресторана" : undefined}
+                    hint={references !== undefined && !paymentOptions.length ? "Нет действующих типов оплат для ресторана" : undefined}
                   >
                     {(control) => (
                       <Select
                         {...control}
                         value={draft.prepaymentTypeExternalId || NO_PAYMENT}
                         onValueChange={(value) => set({ prepaymentTypeExternalId: value === NO_PAYMENT ? "" : value })}
-                        options={[{ value: NO_PAYMENT, label: "—" }, ...payments.options]}
+                        options={[{ value: NO_PAYMENT, label: "—" }, ...paymentOptions]}
                         disabled={!draft.prepayment}
                       />
                     )}
@@ -368,6 +426,7 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
                   ["Гостей", formatQuantity(card.guestCount)],
                   ["Повод", card.occasion || "—"],
                   ["Предоплата", card.prepayment ? `${formatTenge(card.prepayment)} · ${paymentName(card.prepaymentTypeExternalId)}` : "—"],
+                  ...(card.orderId ? ([["Чек", "Связан с оплаченным чеком"]] as [string, ReactNode][]) : []),
                   ["Банкетное меню и пожелания", card.menu ? <span className="whitespace-pre-line">{card.menu}</span> : "—"],
                   ...(card.cancelReason ? ([["Причина отмены", card.cancelReason]] as [string, ReactNode][]) : []),
                 ]}
@@ -425,7 +484,61 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
         error={dialogError}
         onConfirm={(reason) => cancel(reason)}
       />
+      {confirm === "complete" && card ? (
+        <CompleteDialog card={card} paidOrders={references?.paidOrders} busy={busy} error={dialogError} onClose={() => (busy ? undefined : setConfirm(null))} onConfirm={(orderId) => void complete(orderId)} />
+      ) : null}
       <UnsavedChangesDialog blocker={blocker} />
     </>
+  )
+}
+
+/** «Провести»: optionally the paid check of the booking's day the banquet was closed with (the advance is offset there). */
+function CompleteDialog({
+  card,
+  paidOrders,
+  busy,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  card: ReservationCard
+  paidOrders: PaidOrder[] | undefined
+  busy: boolean
+  error: string | null
+  onClose: () => void
+  onConfirm: (orderId: PaidOrder["orderId"] | undefined) => void
+}) {
+  const [choice, setChoice] = useState<string>(NO_CHECK)
+  const day = reservationDay(card.start).split("-").reverse().join(".")
+  const options = [{ value: NO_CHECK, label: "Без чека" }, ...(paidOrders ?? []).map((order) => ({ value: order.orderId, label: paidOrderLabel(order) }))]
+  const picked = paidOrders?.find((order) => order.orderId === choice)
+  return (
+    <Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Провести {card.number}?</DialogTitle>
+          <DialogDescription>Бронь станет проведённой. Можно связать её с оплаченным чеком банкета — предоплата засчитывается в этом чеке.</DialogDescription>
+        </DialogHeader>
+        <Field
+          label="Оплаченный чек"
+          hint={paidOrders === undefined ? undefined : paidOrders.length ? `Оплаченные чеки ресторана за ${day}` : `За ${day} оплаченных чеков нет — проведите без чека`}
+        >
+          {(control) => <Select {...control} value={choice} onValueChange={setChoice} options={options} disabled={paidOrders === undefined || busy} placeholder={paidOrders === undefined ? "Загрузка…" : "Выберите чек"} />}
+        </Field>
+        {error ? (
+          <Banner tone="danger" title="Бронь не проведена">
+            {error}
+          </Banner>
+        ) : null}
+        <DialogFooter>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
+            Отмена
+          </Button>
+          <Button onClick={() => onConfirm(picked?.orderId)} disabled={busy}>
+            {busy ? "Проведение…" : "Провести"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

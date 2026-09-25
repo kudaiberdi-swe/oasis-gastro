@@ -4,14 +4,15 @@ import { parseDecimal } from "@/office/features/stock/data/use-stock-master"
 import type { DeliveryChannel, DeliveryOrder, SaveOrderArgs } from "../data/use-delivery"
 
 // The delivery order card's form (W2-DLV-05). Unit prices shown in the lines come from the server
-// (`products` for a new line, the saved order line otherwise); totals only from the saved order.
+// (`products` / `productConfiguration` for a new line, the saved order line otherwise); totals only from
+// the saved order. A configured line's price is a preview by the POS rules until the server prices it.
 
 export type DeliveryLineDraft = {
   key: string
   productExternalId: string
   productName: string
   quantity: string
-  /** Server price of one portion: `products` (resolvePrice) or the saved line; null until known. */
+  /** Server price of one portion: `products` / `productConfiguration` or the saved line; null until known. */
   unitPrice: number | null
   /** The saved line's total from the server; null for a new or changed line. */
   lineTotal: number | null
@@ -94,19 +95,25 @@ export function draftFromOrder(order: DeliveryOrder): DeliveryDraft {
   }
 }
 
-/** The server masks the phone without office.guests.pii («7701••••90»): such a card cannot be re-saved. */
+/**
+ * The server masks the phone without office.guests.pii («7701••••90»). saveOrder and saveCourier keep the
+ * stored phone when the mask comes back, so a masked card is saved with the mask as is.
+ */
 export function isMaskedPhone(phone: string | undefined) {
-  return /[•*]/.test(phone ?? "")
+  return (phone ?? "").includes("•")
 }
 
 const phoneDigits = (phone: string) => phone.replace(/\D/g, "")
 
-export function validateDraft(draft: DeliveryDraft): DeliveryErrors {
+/** `phoneOnFile`: a saved order whose phone the server keeps when it comes masked. */
+export function validateDraft(draft: DeliveryDraft, options: { phoneOnFile?: boolean } = {}): DeliveryErrors {
   const errors: DeliveryErrors = { rows: {} }
   if (!draft.restaurantExternalId) errors.restaurant = "Выберите ресторан"
   if (draft.customerName.trim().length < 2) errors.customerName = "Укажите имя гостя"
   const digits = phoneDigits(draft.phone)
-  if (digits.length < 10 || digits.length > 15) errors.phone = "Телефон — от 10 до 15 цифр"
+  if (isMaskedPhone(draft.phone)) {
+    if (!options.phoneOnFile) errors.phone = "Телефон скрыт — введите номер гостя"
+  } else if (digits.length < 10 || digits.length > 15) errors.phone = "Телефон — от 10 до 15 цифр"
   if (draft.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) errors.email = "Проверьте email"
   if (draft.address.trim().length < 3) errors.address = "Укажите адрес"
   if (!draft.sourceExternalId) errors.source = "Выберите источник"
@@ -121,7 +128,7 @@ export function validateDraft(draft: DeliveryDraft): DeliveryErrors {
   if (draft.lines.length === 0) errors.lines = "Добавьте хотя бы одну позицию"
   for (const line of draft.lines) {
     const quantity = parseDecimal(line.quantity)
-    if (quantity === null || quantity <= 0) errors.rows[line.key] = "Количество должно быть больше нуля"
+    if (quantity === null || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) errors.rows[line.key] = "Количество — целое число от 1 до 99"
   }
   return errors
 }
@@ -130,7 +137,17 @@ export function hasErrors(errors: DeliveryErrors) {
   return Object.entries(errors).some(([key, value]) => (key === "rows" ? Object.keys(value as Record<string, string>).length > 0 : Boolean(value)))
 }
 
-export function saveArgs(draft: DeliveryDraft, options: { externalId?: string; expectedVersion?: number; channel: DeliveryChannel }): SaveOrderArgs {
+/**
+ * saveOrder.courierExternalId: absent keeps the order's courier, null unassigns, a new one must be free
+ * (the server moves them to «Назначен»). `currentCourierExternalId` is the saved order's courier.
+ */
+export function courierArg(draftCourier: string, currentCourierExternalId: string | null | undefined, existing: boolean): { courierExternalId?: string | null } {
+  if (!existing) return draftCourier ? { courierExternalId: draftCourier } : {}
+  if (draftCourier === (currentCourierExternalId ?? "")) return {}
+  return { courierExternalId: draftCourier || null }
+}
+
+export function saveArgs(draft: DeliveryDraft, options: { externalId?: string; expectedVersion?: number; channel: DeliveryChannel; currentCourierExternalId?: string | null }): SaveOrderArgs {
   const latitude = draft.latitude.trim() ? parseDecimal(draft.latitude) : null
   const longitude = draft.longitude.trim() ? parseDecimal(draft.longitude) : null
   return {
@@ -144,7 +161,7 @@ export function saveArgs(draft: DeliveryDraft, options: { externalId?: string; e
     ...(latitude !== null && longitude !== null ? { latitude, longitude } : {}),
     sourceExternalId: draft.sourceExternalId,
     expectedAt: fromAlmatyInput(draft.expectedAt) ?? 0,
-    courierExternalId: draft.courierExternalId || undefined,
+    ...courierArg(draft.courierExternalId, options.currentCourierExternalId, Boolean(options.externalId)),
     comment: draft.comment.trim(),
     lines: draft.lines.map((line) => ({
       productExternalId: line.productExternalId,
@@ -155,17 +172,62 @@ export function saveArgs(draft: DeliveryDraft, options: { externalId?: string; e
   }
 }
 
-/** Adds a dish: the same dish without size and modifiers gets +1 instead of a second line. */
-export function addProduct(lines: readonly DeliveryLineDraft[], product: { productExternalId: string; name: string; price: number }): DeliveryLineDraft[] {
-  const same = lines.find((line) => line.productExternalId === product.productExternalId && !line.sizeExternalId && line.modifierSelections.length === 0)
+/** A dish to add: `price` is the portion price (with the size and modifiers when configured). */
+export type DishChoice = {
+  productExternalId: string
+  name: string
+  price: number
+  quantity?: number
+  sizeExternalId?: string | null
+  sizeLabel?: string | null
+  modifierSelections?: { modifierExternalId: string; quantity: number }[]
+  modifierLabels?: string[]
+}
+
+/** Same dish, same size, same modifiers — the lines that merge into one. */
+export function lineIdentity(line: { productExternalId: string; sizeExternalId?: string | null; modifierSelections?: readonly { modifierExternalId: string; quantity: number }[] }) {
+  const modifiers = [...(line.modifierSelections ?? [])].sort((a, b) => a.modifierExternalId.localeCompare(b.modifierExternalId)).map((row) => `${row.modifierExternalId}:${row.quantity}`)
+  return `${line.productExternalId}|${line.sizeExternalId ?? ""}|${modifiers.join(",")}`
+}
+
+/** Adds a dish: the same dish with the same size and modifiers gets +quantity instead of a second line. */
+export function addProduct(lines: readonly DeliveryLineDraft[], dish: DishChoice): DeliveryLineDraft[] {
+  const added = dish.quantity ?? 1
+  const candidate = { productExternalId: dish.productExternalId, sizeExternalId: dish.sizeExternalId ?? null, modifierSelections: dish.modifierSelections ?? [] }
+  const same = lines.find((line) => lineIdentity(line) === lineIdentity(candidate))
   if (same) {
-    const quantity = (parseDecimal(same.quantity) ?? 0) + 1
+    const quantity = (parseDecimal(same.quantity) ?? 0) + added
     return lines.map((line) => (line.key === same.key ? { ...line, quantity: String(quantity), lineTotal: null } : line))
   }
   return [
     ...lines,
-    { key: nextLineKey(), productExternalId: product.productExternalId, productName: product.name, quantity: "1", unitPrice: product.price, lineTotal: null, sizeExternalId: null, sizeLabel: null, modifierSelections: [], modifierLabels: [] },
+    {
+      key: nextLineKey(),
+      productExternalId: dish.productExternalId,
+      productName: dish.name,
+      quantity: String(added),
+      unitPrice: dish.price,
+      lineTotal: null,
+      sizeExternalId: candidate.sizeExternalId,
+      sizeLabel: dish.sizeLabel ?? null,
+      modifierSelections: candidate.modifierSelections,
+      modifierLabels: dish.modifierLabels ?? [],
+    },
   ]
+}
+
+/** A line re-configured in the dialog: new size, modifiers and preview price; the total waits for the save. */
+export function reconfigureLine(line: DeliveryLineDraft, dish: DishChoice): DeliveryLineDraft {
+  return {
+    ...line,
+    quantity: dish.quantity === undefined ? line.quantity : String(dish.quantity),
+    unitPrice: dish.price,
+    lineTotal: null,
+    sizeExternalId: dish.sizeExternalId ?? null,
+    sizeLabel: dish.sizeLabel ?? null,
+    modifierSelections: dish.modifierSelections ?? [],
+    modifierLabels: dish.modifierLabels ?? [],
+  }
 }
 
 /** A comparable snapshot for the unsaved-changes indicator (line keys are local). */

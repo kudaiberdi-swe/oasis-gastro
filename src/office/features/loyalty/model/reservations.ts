@@ -1,4 +1,5 @@
 import { almatyBusinessDate, formatAlmatyTime } from "@/shared/lib/almaty-time"
+import { formatTenge } from "@/shared/lib/format"
 
 import type { DraftErrors } from "./loyalty-model"
 import { dateInputToMs, isMasked } from "./loyalty-model"
@@ -167,12 +168,18 @@ export function draftPeriod(draft: Pick<ReservationDraft, "date" | "startTime" |
 
 const phoneDigits = (phone: string) => phone.replace(/\D/g, "")
 
-export function validateReservation(draft: ReservationDraft, capacityOf: (tableExternalId: string) => number | undefined): DraftErrors<keyof ReservationDraft> {
+/**
+ * `phoneOnFile`: the server has a phone to keep for a masked one — the saved booking's or the chosen
+ * guest's (saveReservation keeps it when the phone comes masked, without office.guests.pii).
+ */
+export function validateReservation(draft: ReservationDraft, capacityOf: (tableExternalId: string) => number | undefined, options: { phoneOnFile?: boolean } = {}): DraftErrors<keyof ReservationDraft> {
   const errors: DraftErrors<keyof ReservationDraft> = {}
   if (!draft.hall.trim()) errors.hall = "Выберите зал"
   if (!draft.tableExternalIds.length) errors.tableExternalIds = "Выберите стол"
   if (draft.guestName.trim().length < 2) errors.guestName = "Укажите имя гостя"
-  if (!isMasked(draft.phone)) {
+  if (isMasked(draft.phone)) {
+    if (options.phoneOnFile === false) errors.phone = "Телефон скрыт — выберите гостя из базы или введите номер"
+  } else {
     const digits = phoneDigits(draft.phone).length
     if (digits < 10 || digits > 15) errors.phone = "Телефон — 10–15 цифр"
   }
@@ -213,12 +220,10 @@ export function reservationSaveArgs(draft: ReservationDraft, restaurantExternalI
   }
 }
 
-/** A payment type is offered for the advance when it is published, in force now and serves the restaurant. */
-export function paymentTypeServes(row: { status: string; effectiveFrom: number; effectiveTo?: number; restaurantExternalIds: string[] }, restaurantExternalId: string, now = Date.now()) {
-  return (
-    row.status === "published" &&
-    row.effectiveFrom <= now &&
-    (row.effectiveTo === undefined || now < row.effectiveTo) &&
-    (row.restaurantExternalIds.length === 0 || row.restaurantExternalIds.includes("*") || row.restaurantExternalIds.includes(restaurantExternalId))
-  )
+/** The business day of a booking in Almaty — the paid checks of this day close a banquet. */
+export const reservationDay = (start: number) => almatyBusinessDate(start)
+
+/** «Чек 124 · 48 500 ₸ · Стол 4 · 21:40» for the «Провести» check picker. */
+export function paidOrderLabel(order: { number: number; total: number; paidAt: number | null; tableLabel: string | null }) {
+  return [`Чек ${order.number}`, formatTenge(order.total), order.tableLabel, order.paidAt ? formatAlmatyTime(order.paidAt) : null].filter(Boolean).join(" · ")
 }

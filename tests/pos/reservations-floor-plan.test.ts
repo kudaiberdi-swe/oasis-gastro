@@ -18,7 +18,8 @@ import {
   type PlanTable,
 } from "@/office/features/loyalty/model/floor-plan"
 import { dateInputToMs } from "@/office/features/loyalty/model/loyalty-model"
-import { almatyMoment, draftPeriod, formatTimeRange, paymentTypeServes, reservationDraftOf, reservationSaveArgs, shiftDate, validateReservation } from "@/office/features/loyalty/model/reservations"
+import { formatTenge } from "@/shared/lib/format"
+import { almatyMoment, draftPeriod, formatTimeRange, paidOrderLabel, reservationDraftOf, reservationSaveArgs, shiftDate, validateReservation } from "@/office/features/loyalty/model/reservations"
 
 // W2-LOY-07: geometry of the floor plan (hit test, snapping, pointer → grid) and the booking card rules.
 
@@ -154,8 +155,11 @@ describe("booking card rules", () => {
     expect(validateReservation(filled, capacity)).toEqual({ guestCount: "Вместимость выбранных столов — 4, гостей 5" })
     expect(validateReservation({ ...filled, tableExternalIds: ["t4", "t5"] }, capacity)).toEqual({})
     expect(validateReservation({ ...filled, tableExternalIds: ["t4", "t5"], prepayment: 10_000 }, capacity)).toEqual({ prepaymentTypeExternalId: "Укажите тип оплаты предоплаты" })
-    // A masked phone (no PII right) is not the user's input to check.
+    // A masked phone (no PII right) is not the user's input to check: the server keeps the stored one…
     expect(validateReservation({ ...filled, tableExternalIds: ["t4", "t5"], phone: "7701•••••22" }, capacity)).toEqual({})
+    expect(validateReservation({ ...filled, tableExternalIds: ["t4", "t5"], phone: "7701•••••22" }, capacity, { phoneOnFile: true })).toEqual({})
+    // …but a new booking without a chosen guest has nothing to keep.
+    expect(validateReservation({ ...filled, tableExternalIds: ["t4", "t5"], phone: "7701•••••22" }, capacity, { phoneOnFile: false })).toEqual({ phone: "Телефон скрыт — выберите гостя из базы или введите номер" })
   })
 
   it("save arguments: Almaty start/end, tenge, the payment type only with an advance", () => {
@@ -178,13 +182,8 @@ describe("booking card rules", () => {
     expect(reservationSaveArgs({ ...draft, prepayment: 15_000 }, "r1", { externalId: "rsv-1", version: 3 })).toMatchObject({ externalId: "rsv-1", expectedVersion: 3, prepayment: 15_000, prepaymentTypeExternalId: "pt-cash" })
   })
 
-  it("offers only payment types in force for the restaurant", () => {
-    const now = 1_000
-    const row = { status: "published", effectiveFrom: 0, restaurantExternalIds: [] as string[] }
-    expect(paymentTypeServes(row, "r1", now)).toBe(true)
-    expect(paymentTypeServes({ ...row, restaurantExternalIds: ["r2"] }, "r1", now)).toBe(false)
-    expect(paymentTypeServes({ ...row, status: "draft" }, "r1", now)).toBe(false)
-    expect(paymentTypeServes({ ...row, effectiveTo: 500 }, "r1", now)).toBe(false)
-    expect(paymentTypeServes({ ...row, effectiveFrom: 2_000 }, "r1", now)).toBe(false)
+  it("labels a paid check of the day for «Провести»", () => {
+    expect(paidOrderLabel({ number: 124, total: 48_500, paidAt: null, tableLabel: "Стол 4" })).toBe(`Чек 124 · ${formatTenge(48_500)} · Стол 4`)
+    expect(paidOrderLabel({ number: 7, total: 1_200, paidAt: null, tableLabel: null })).toBe(`Чек 7 · ${formatTenge(1_200)}`)
   })
 })

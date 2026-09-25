@@ -107,14 +107,11 @@ beforeEach(() => {
     },
     [fn("listTables")]: TABLES,
     [fn("getReservation")]: (args: { externalId: string }) => RESERVATIONS[args.externalId] ?? null,
-    "domains/retail/queries:listSettings": {
-      page: [
-        { _id: "s1", externalId: "pt-cash", kind: "payment-type", name: "Наличные", status: "published", effectiveFrom: 0, restaurantExternalIds: [] },
-        { _id: "s2", externalId: "pt-other", kind: "payment-type", name: "Kaspi другого филиала", status: "published", effectiveFrom: 0, restaurantExternalIds: ["r2"] },
-      ],
-      isDone: true,
-      continueCursor: "",
-    },
+    // Payment types in force for the restaurant (the server filters them) and the paid checks of a day.
+    [fn("references")]: (args: { restaurantExternalId: string; date?: string }) => ({
+      paymentTypes: [{ externalId: "pt-cash", name: "Наличные" }],
+      paidOrders: args.date ? [{ orderId: "order-124", number: 124, total: 48_500, paidAt: null, tableLabel: "Стол 4" }] : [],
+    }),
   }
   mocks.paginated = {
     [fn("listReservations")]: [
@@ -126,7 +123,7 @@ beforeEach(() => {
   mocks.mutations = {
     [fn("saveReservation")]: vi.fn(async () => ({ externalId: "rsv-new", number: "RSV-004", version: 1 })),
     [fn("transitionReservation")]: vi.fn(async () => ({ status: "pending-approval", version: 2 })),
-    [fn("saveTable")]: vi.fn(async () => "table-new"),
+    [fn("saveTables")]: vi.fn(async () => ["table-new"]),
   }
 })
 
@@ -231,7 +228,7 @@ describe("floor plan", () => {
     })
   })
 
-  it("editing: add a table, nudge it with the keyboard, save through saveTable", async () => {
+  it("editing: add a table, nudge it with the keyboard, save the plan through saveTables in one call", async () => {
     renderAt("/office/reservations")
     fireEvent.click(screen.getByRole("button", { name: "Редактировать схему" }))
     expect(screen.getByRole("button", { name: "Сохранить схему" }).className).toContain("bg-primary")
@@ -242,23 +239,31 @@ describe("floor plan", () => {
     fireEvent.keyDown(within(plan()).getByRole("button", { name: /^Стол 6/ }), { key: "ArrowDown" })
 
     fireEvent.click(screen.getByRole("button", { name: "Сохранить схему" }))
-    await waitFor(() => expect(mocks.mutations[fn("saveTable")]).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(mocks.mutations[fn("saveTables")]).toHaveBeenCalledTimes(1))
     // freeSpot: right of «Стол 5» (x 6…9) with a free cell between, on the first row; then one cell down.
-    expect(mocks.mutations[fn("saveTable")].mock.calls[0][0]).toEqual({ restaurantExternalId: "r1", hall: "Основной зал", label: "Стол 6", capacity: 8, shape: "rect", x: 10, y: 2, width: 2, height: 2, rotation: 0, active: true })
+    expect(mocks.mutations[fn("saveTables")].mock.calls[0][0]).toEqual({
+      restaurantExternalId: "r1",
+      tables: [{ hall: "Основной зал", label: "Стол 6", capacity: 8, shape: "rect", x: 10, y: 2, width: 2, height: 2, rotation: 0, active: true }],
+    })
     await waitFor(() => expect(screen.getByRole("button", { name: "Редактировать схему" })).toBeTruthy())
   })
 
-  it("editing an existing table sends its externalId; the server error stays on screen", async () => {
-    mocks.mutations[fn("saveTable")].mockRejectedValueOnce(new ConvexError("Стол «Стол 5» в зале «Основной зал» уже есть"))
+  it("all changed tables go in one transaction; a refusal keeps every edit on screen", async () => {
+    mocks.mutations[fn("saveTables")].mockRejectedValueOnce(new ConvexError("Стол «Стол 5» в зале «Основной зал» уже есть"))
     renderAt("/office/reservations")
     fireEvent.click(screen.getByRole("button", { name: "Редактировать схему" }))
+    fireEvent.keyDown(within(plan()).getByRole("button", { name: /^Стол 5/ }), { key: "ArrowDown" })
     fireEvent.keyDown(within(plan()).getByRole("button", { name: /^Стол 4/ }), { key: "ArrowRight" })
     const properties = within(screen.getByRole("group", { name: "Свойства стола Стол 4" }))
     fireEvent.change(properties.getByLabelText("Название стола"), { target: { value: "Стол 5" } })
     fireEvent.click(screen.getByRole("button", { name: "Сохранить схему" }))
-    await waitFor(() => expect(mocks.mutations[fn("saveTable")]).toHaveBeenCalled())
-    expect(mocks.mutations[fn("saveTable")].mock.calls[0][0]).toMatchObject({ externalId: "t4", label: "Стол 5", x: 3, y: 2 })
+    await waitFor(() => expect(mocks.mutations[fn("saveTables")]).toHaveBeenCalledTimes(1))
+    const { tables } = mocks.mutations[fn("saveTables")].mock.calls[0][0] as { tables: Record<string, unknown>[] }
+    expect(tables).toHaveLength(2)
+    expect(tables).toEqual(expect.arrayContaining([expect.objectContaining({ externalId: "t4", label: "Стол 5", x: 3, y: 2 }), expect.objectContaining({ externalId: "t5", x: 6, y: 3 })]))
     expect(await screen.findByText("Стол «Стол 5» в зале «Основной зал» уже есть")).toBeTruthy()
+    // Nothing was saved: both tables are still unsaved edits, the plan stays in the editing mode.
+    expect(screen.getByRole("button", { name: "Сохранить схему" })).toBeTruthy()
   })
 })
 
@@ -289,13 +294,14 @@ describe("booking card", () => {
     expect((await form.findAllByText("Стол «Стол 4» уже забронирован (RSV-001) на это время")).length).toBe(2)
   })
 
-  it("an advance needs a payment type of the restaurant", async () => {
-    renderAt("/office/reservations/new")
+  it("an advance needs a payment type of the restaurant from the reservations references", async () => {
+    // A reservations role without payment-types or delivery rights still gets the list.
+    renderAt("/office/reservations/new", undefined, ["office.reservations.view", "office.reservations.edit"])
     const form = within(await panel())
+    expect(mocks.queryArgs[fn("references")]?.at(-1)).toEqual({ restaurantExternalId: "r1" })
     fireEvent.change(form.getByLabelText("Предоплата"), { target: { value: "15000" } })
     fireEvent.click(form.getByRole("combobox", { name: "Тип оплаты" }))
     expect(screen.getByRole("option", { name: "Наличные" })).toBeTruthy()
-    expect(screen.queryByRole("option", { name: "Kaspi другого филиала" })).toBeNull()
     fireEvent.keyDown(screen.getByRole("option", { name: "Наличные" }), { key: "Escape" })
     fireEvent.click(screen.getByRole("button", { name: "Сохранить черновик" }))
     expect(form.getByText("Укажите тип оплаты предоплаты")).toBeTruthy()
@@ -326,6 +332,67 @@ describe("booking card", () => {
     await panel()
     expect(screen.queryByRole("button", { name: "Согласовать" })).toBeNull()
     expect(screen.queryByRole("button", { name: /Отменить/ })).toBeNull()
+  })
+
+  it("«Провести» links a paid check of the booking's day, or none", async () => {
+    renderAt("/office/reservations/rsv-1")
+    await panel()
+    expect(mocks.queryArgs[fn("references")]?.at(-1)).toEqual({ restaurantExternalId: "r1", date: today })
+    fireEvent.click(screen.getByRole("button", { name: "Провести" }))
+    let dialog = await screen.findByRole("dialog", { name: "Провести RSV-001?" })
+    fireEvent.click(within(dialog).getByRole("combobox", { name: "Оплаченный чек" }))
+    fireEvent.click(await screen.findByRole("option", { name: /Чек 124/ }))
+    fireEvent.click(within(dialog).getByRole("button", { name: "Провести" }))
+    await waitFor(() => expect(mocks.mutations[fn("transitionReservation")]).toHaveBeenCalledWith({ externalId: "rsv-1", action: "complete", expectedVersion: 3, orderId: "order-124" }))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Провести RSV-001?" })).toBeNull())
+
+    fireEvent.click(screen.getByRole("button", { name: "Провести" }))
+    dialog = await screen.findByRole("dialog", { name: "Провести RSV-001?" })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Провести" }))
+    await waitFor(() => expect(mocks.mutations[fn("transitionReservation")]).toHaveBeenLastCalledWith({ externalId: "rsv-1", action: "complete", expectedVersion: 3 }))
+  })
+
+  it("a draft with a masked phone is re-saved without the PII right: the mask goes back as is", async () => {
+    mocks.queries[fn("getReservation")] = () => ({ ...RESERVATIONS["rsv-draft"], phone: "7701•••••22" })
+    renderAt("/office/reservations/rsv-draft", undefined, ["office.reservations.view", "office.reservations.edit"])
+    const form = within(await panel())
+    const phone = form.getByLabelText("Телефон") as HTMLInputElement
+    expect(phone.value).toBe("7701•••••22")
+    expect(form.getByText("Номер скрыт — при сохранении останется прежний")).toBeTruthy()
+    fireEvent.change(form.getByLabelText("Повод"), { target: { value: "Юбилей" } })
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить черновик" }))
+    await waitFor(() => expect(mocks.mutations[fn("saveReservation")]).toHaveBeenCalled())
+    expect(mocks.mutations[fn("saveReservation")].mock.calls[0][0]).toMatchObject({ externalId: "rsv-draft", phone: "7701•••••22", occasion: "Юбилей" })
+  })
+
+  it("a guest with a masked phone is sent with the mask and the guestId; «Ввести новый номер» clears it", async () => {
+    mocks.paginated["domains/loyalty/office:listGuests"] = [{ _id: "g2", _creationTime: 0, name: "Дана", phone: "7702•••••33", points: 0, createdAt: 0 }]
+    renderAt("/office/reservations")
+    fireEvent.click(within(plan()).getByRole("button", { name: /^Стол 5/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Новая бронь за этим столом" }))
+    const form = within(await panel())
+    fireEvent.click(form.getByRole("combobox", { name: "Гость" }))
+    fireEvent.click(await screen.findByRole("option", { name: /Дана/ }))
+    expect((form.getByLabelText("Телефон") as HTMLInputElement).value).toBe("7702•••••33")
+    expect(form.getByText("Номер скрыт — сохранится номер из карточки гостя")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить черновик" }))
+    await waitFor(() => expect(mocks.mutations[fn("saveReservation")]).toHaveBeenCalled())
+    expect(mocks.mutations[fn("saveReservation")].mock.calls[0][0]).toMatchObject({ guestId: "g2", guestName: "Дана", phone: "7702•••••33" })
+  })
+
+  it("«Ввести новый номер» replaces a hidden phone; a mask without a guest is refused on the client", async () => {
+    mocks.paginated["domains/loyalty/office:listGuests"] = [{ _id: "g2", _creationTime: 0, name: "Дана", phone: "7702•••••33", points: 0, createdAt: 0 }]
+    renderAt("/office/reservations/new")
+    const form = within(await panel())
+    fireEvent.click(form.getByRole("combobox", { name: "Гость" }))
+    fireEvent.click(await screen.findByRole("option", { name: /Дана/ }))
+    fireEvent.click(form.getByRole("combobox", { name: "Гость" }))
+    fireEvent.click(await screen.findByRole("option", { name: "Без карточки гостя" }))
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить черновик" }))
+    expect(form.getByText("Телефон скрыт — выберите гостя из базы или введите номер")).toBeTruthy()
+    fireEvent.click(form.getByRole("button", { name: "Ввести новый номер" }))
+    expect((form.getByLabelText("Телефон") as HTMLInputElement).value).toBe("")
+    expect(mocks.mutations[fn("saveReservation")]).not.toHaveBeenCalled()
   })
 
   it("an approved booking: «Провести» and «Отменить бронь» with a reason", async () => {

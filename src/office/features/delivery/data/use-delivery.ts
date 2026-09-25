@@ -23,6 +23,7 @@ export type DeliveryReferences = FunctionReturnType<typeof queries.references>
 export type DeliveryReferenceSource = DeliveryReferences["sources"][number]
 export type DeliveryReferenceCourier = DeliveryReferences["couriers"][number]
 export type DeliveryProduct = FunctionReturnType<typeof queries.products>[number]
+export type DeliveryProductConfiguration = NonNullable<FunctionReturnType<typeof queries.productConfiguration>>
 export type DeliveryZone = FunctionReturnType<typeof queries.zones>[number]
 export type Courier = FunctionReturnType<typeof queries.couriers>[number]
 export type CourierStatus = Courier["status"]
@@ -46,20 +47,28 @@ export function useDeliveryKpis(args: { restaurantExternalId?: string; channel: 
   return useQuery(queries.kpis, args.enabled ? { restaurantExternalId: args.restaurantExternalId, channel: args.channel } : "skip")
 }
 
+// The card's reads and moves take `channel`: the call center passes "call-center" and the server checks
+// office.call-center.* instead of office.delivery-orders.* (an operator needs no delivery-orders rights).
+
 /** undefined while loading, null when missing or outside the scope; skipped for a new order. */
-export function useDeliveryOrder(externalId: string | null) {
-  return useQuery(queries.order, externalId ? { externalId } : "skip")
+export function useDeliveryOrder(externalId: string | null, channel: DeliveryChannel) {
+  return useQuery(queries.order, externalId ? { externalId, channel } : "skip")
 }
 
 /** Restaurants in scope always; sources, couriers and payment types once a restaurant is chosen. */
-export function useDeliveryReferences(restaurantExternalId: string | undefined, enabled = true) {
-  return useQuery(queries.references, enabled ? { restaurantExternalId } : "skip")
+export function useDeliveryReferences(restaurantExternalId: string | undefined, enabled: boolean, channel: DeliveryChannel) {
+  return useQuery(queries.references, enabled ? { restaurantExternalId, channel } : "skip")
 }
 
 /** Dishes at the restaurant's price in force (resolvePrice); searched on the server as the user types. */
-export function useDeliveryProducts(restaurantExternalId: string | undefined, search: string) {
+export function useDeliveryProducts(restaurantExternalId: string | undefined, search: string, channel: DeliveryChannel) {
   const debounced = useDebounced(search)
-  return useQuery(queries.products, restaurantExternalId ? { restaurantExternalId, search: debounced } : "skip")
+  return useQuery(queries.products, restaurantExternalId ? { restaurantExternalId, search: debounced, channel } : "skip")
+}
+
+/** Sizes and modifier groups of a dish at the restaurant's prices (as the POS getProductConfiguration). */
+export function useDeliveryProductConfiguration(restaurantExternalId: string | undefined, productExternalId: string | null, channel: DeliveryChannel) {
+  return useQuery(queries.productConfiguration, restaurantExternalId && productExternalId ? { restaurantExternalId, productExternalId, channel } : "skip")
 }
 
 export function useDeliveryZones(enabled = true) {

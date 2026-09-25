@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react"
 
 import { useCan } from "@/office/components/can"
-import { Banner, Combobox, Field, Input, Select, Switch, useToast } from "@/shared/components/ui"
+import { Banner, Button, Combobox, Field, Input, Select, Switch, useToast } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 
 import { useCourierMutations, useRestaurantEmployees, type Courier, type CourierTransport } from "../data/use-delivery"
@@ -21,8 +21,9 @@ export function CourierEditor({ courier, restaurants, readOnly, onSaved }: { cou
   const [restaurant, setRestaurant] = useState<string | undefined>(courier?.restaurantExternalId ?? (restaurants.length === 1 ? restaurants[0].externalId : undefined))
   const [employeeCode, setEmployeeCode] = useState(courier?.employeeCode ?? "")
   const [name, setName] = useState(courier?.name ?? "")
-  // A masked phone (no PII right) cannot be sent back: it has to be typed again to save.
-  const [phone, setPhone] = useState(courier && !maskedPhone ? (courier.phone ?? "") : "")
+  // A masked phone (no PII right) is sent back as is: saveCourier keeps the stored number.
+  const [phone, setPhone] = useState(courier?.phone ?? "")
+  const keepsMasked = maskedPhone && phone === courier?.phone
   const [transport, setTransport] = useState<CourierTransport>(courier?.transport ?? "foot")
   const [active, setActive] = useState(courier?.active ?? true)
   const [employeeSearch, setEmployeeSearch] = useState("")
@@ -41,7 +42,7 @@ export function CourierEditor({ courier, restaurants, readOnly, onSaved }: { cou
     const employee = employees.results.find((row) => row.code === code)
     if (!employee) return
     setName(employee.displayName)
-    if (employee.phone && !/[•*]/.test(employee.phone)) setPhone(employee.phone)
+    if (employee.phone && !isMaskedPhone(employee.phone)) setPhone(employee.phone)
   }
 
   function validate(): CourierErrors {
@@ -49,7 +50,7 @@ export function CourierEditor({ courier, restaurants, readOnly, onSaved }: { cou
     if (!restaurant) next.restaurant = "Выберите ресторан"
     if (!employeeCode.trim()) next.employeeCode = "Выберите сотрудника"
     const digits = phone.replace(/\D/g, "")
-    if (digits.length < 10 || digits.length > 15) next.phone = maskedPhone && !phone ? "Телефон скрыт — введите его заново, чтобы сохранить" : "Телефон — от 10 до 15 цифр"
+    if (!keepsMasked && (digits.length < 10 || digits.length > 15)) next.phone = "Телефон — от 10 до 15 цифр"
     return next
   }
 
@@ -110,9 +111,16 @@ export function CourierEditor({ courier, restaurants, readOnly, onSaved }: { cou
         <Field label="Имя" hint="Пусто — имя сотрудника">
           {(control) => <Input {...control} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} disabled={readOnly} />}
         </Field>
-        <Field label="Телефон" error={errors.phone} hint={maskedPhone && !errors.phone ? `Сейчас: ${courier!.phone} (скрыт)` : undefined}>
-          {(control) => <Input {...control} type="tel" inputMode="tel" autoComplete="off" placeholder="+7 700 000 00 00" value={phone} onChange={(event) => setPhone(event.target.value)} disabled={readOnly} />}
-        </Field>
+        <div className="flex flex-col gap-1.5">
+          <Field label="Телефон" error={errors.phone} hint={keepsMasked ? "Номер скрыт — при сохранении останется прежний" : undefined}>
+            {(control) => <Input {...control} type="tel" inputMode="tel" autoComplete="off" placeholder="+7 700 000 00 00" value={phone} readOnly={keepsMasked} onChange={(event) => setPhone(event.target.value)} disabled={readOnly} />}
+          </Field>
+          {keepsMasked && !readOnly ? (
+            <Button type="button" size="sm" variant="ghost" className="self-start" onClick={() => setPhone("")}>
+              Ввести новый номер
+            </Button>
+          ) : null}
+        </div>
         <Field label="Транспорт">
           {(control) => <Select {...control} value={transport} onValueChange={(value) => setTransport(value as CourierTransport)} options={TRANSPORT_OPTIONS} disabled={readOnly} />}
         </Field>

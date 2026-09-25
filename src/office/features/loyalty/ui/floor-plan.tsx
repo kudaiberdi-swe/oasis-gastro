@@ -31,7 +31,7 @@ import { almatyToday, formatTimeRange, RECORD_TYPE_LABELS, shiftDate, type Reser
 
 // The floor plan above the register (W2-LOY-07, L-24): tables of a hall on a grid, coloured by the
 // bookings of the chosen day; «Редактировать схему» moves, resizes and adds tables and saves them
-// through saveTable. Geometry (hit test, snapping, pointer → grid) lives in model/floor-plan.ts.
+// through saveTables in one transaction. Geometry (hit test, snapping, pointer → grid) lives in model/floor-plan.ts.
 
 const DEFAULT_HALL = "Основной зал"
 const NEW_HALL = "__new-hall__"
@@ -65,7 +65,7 @@ export interface FloorPlanSectionProps {
 export function FloorPlanSection({ restaurantExternalId, canEdit, editing, onEditingChange, primaryAllowed, onOpenReservation, onCreate }: FloorPlanSectionProps) {
   const [date, setDate] = useState(() => almatyToday())
   const plan = useFloorPlan(restaurantExternalId, date)
-  const { saveTable } = useReservationMutations()
+  const { saveTables } = useReservationMutations()
   const toast = useToast()
   const [hallChoice, setHallChoice] = useState<string | null>(null)
   const [extraHalls, setExtraHalls] = useState<string[]>([])
@@ -131,13 +131,18 @@ export function FloorPlanSection({ restaurantExternalId, canEdit, editing, onEdi
       setError(`Проверьте стол «${invalid.label || "без названия"}»: название и вместимость от 1 до 200`)
       return
     }
+    if (pending.length > 100) {
+      setError(`Изменено столов: ${pending.length}. За один раз сохраняется не больше 100 — отмените часть изменений`)
+      return
+    }
     setSaving(true)
     setError(null)
     try {
-      for (const table of pending) {
-        await saveTable({
+      // One transaction: every changed table is saved, or none (a clash leaves all edits on screen).
+      await saveTables({
+        restaurantExternalId,
+        tables: pending.map((table) => ({
           ...(table.externalId ? { externalId: table.externalId } : {}),
-          restaurantExternalId,
           hall: table.hall,
           label: table.label.trim(),
           capacity: table.capacity,
@@ -148,14 +153,8 @@ export function FloorPlanSection({ restaurantExternalId, canEdit, editing, onEdi
           height: table.height,
           rotation: table.rotation,
           active: table.active,
-        })
-        // Saved rows come back through floorPlan; only the rest stay as edits.
-        setDrafts((current) => {
-          const copy = { ...current }
-          delete copy[table.key]
-          return copy
-        })
-      }
+        })),
+      })
       toast("Схема зала сохранена", "success")
       setSelectedKey(null)
       finishEditing()

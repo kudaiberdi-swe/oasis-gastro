@@ -6,16 +6,15 @@ import { useCan } from "@/office/components/can"
 import { OfficeStatePage } from "@/office/components/state-page"
 import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import { useRestaurantFilter } from "@/office/features/workforce/data/use-restaurant-filter"
-import { Button, DataTable, FilterTabs, Input, loadMoreFromPaginated, Select, StatusPill, useToast, type Column } from "@/shared/components/ui"
+import { Button, DataTable, FilterTabs, Input, loadMoreFromPaginated, Select, StatusPill, type Column } from "@/shared/components/ui"
 import { formatAlmatyDateTime, formatAlmatyTime } from "@/shared/lib/almaty-time"
-import { errorMessage } from "@/shared/lib/error-message"
 import { formatAmount } from "@/shared/lib/format"
-import { describeStatus } from "@/shared/lib/status-dictionary"
 import { cn } from "@/shared/lib/utils"
 
-import { DELIVERY_PAGE_SIZE, useDeliveryKpis, useDeliveryMutations, useDeliveryOverview, type DeliveryChannel, type DeliveryRow } from "../data/use-delivery"
+import { DELIVERY_PAGE_SIZE, useDeliveryKpis, useDeliveryOverview, type DeliveryChannel, type DeliveryRow } from "../data/use-delivery"
 import { DELIVERY_TABS, quickTransition, transitionLabel, type DeliveryTab } from "../model/statuses"
 import { DeliveryKpis } from "./delivery-kpis"
+import { subjectOfRow, useTransitionFlow, useTransitionRights } from "./delivery-transition-bar"
 
 const MODE = {
   delivery: {
@@ -94,7 +93,7 @@ export function DeliveryOrdersRegister({ mode, basePath }: { mode: DeliveryChann
     },
     { key: "total", header: "Сумма, ₸", numeric: true, cell: (row) => formatAmount(row.total) },
     { key: "status", header: "Статус", cell: (row) => <StatusPill domain="delivery" status={row.status} /> },
-    { key: "action", header: <span className="sr-only">Действие</span>, cell: (row) => <QuickAction row={row} /> },
+    { key: "action", header: <span className="sr-only">Действие</span>, cell: (row) => <QuickAction row={row} channel={mode} /> },
   ]
 
   const unfiltered = tab === "all" && !search.trim()
@@ -152,34 +151,22 @@ export function DeliveryOrdersRegister({ mode, basePath }: { mode: DeliveryChann
   )
 }
 
-/** The row's next step when it needs nothing else (a courier, a payment and a cancel are in the card). */
-function QuickAction({ row }: { row: DeliveryRow }) {
-  const canEdit = useCan("office.delivery-orders.edit")
-  const { transitionOrder } = useDeliveryMutations()
-  const toast = useToast()
-  const [busy, setBusy] = useState(false)
+/**
+ * The row's main next step. «Отправить» without a courier asks for one, «Доставлен» / «Закрыть» ask for
+ * the payment when the server settles the order then (the source's settlementMode); the cancel is in the card.
+ */
+function QuickAction({ row, channel }: { row: DeliveryRow; channel: DeliveryChannel }) {
+  const { canEdit } = useTransitionRights(channel)
+  const flow = useTransitionFlow(subjectOfRow(row), channel, { errors: "toast" })
   const to = quickTransition(row.status)
   if (!canEdit || !to) return null
+  // Dialogs are portals, but their React events still bubble to the row: keep them off onRowClick.
   return (
-    <Button
-      size="sm"
-      variant="secondary"
-      disabled={busy}
-      onClick={async (event) => {
-        event.stopPropagation()
-        setBusy(true)
-        try {
-          await transitionOrder({ externalId: row.externalId, to, expectedVersion: row.version })
-          toast(`Заказ ${row.number}: ${describeStatus("delivery", to).label}`, "success")
-        } catch (caught) {
-          toast(errorMessage(caught, "Не удалось сменить статус"), "error")
-        } finally {
-          setBusy(false)
-        }
-      }}
-      onKeyDown={(event) => event.stopPropagation()}
-    >
-      {transitionLabel(row.status, to)}
-    </Button>
+    <span className="contents" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+      <Button size="sm" variant="secondary" disabled={flow.busy} onClick={() => flow.start(to)}>
+        {transitionLabel(row.status, to)}
+      </Button>
+      {flow.dialogs}
+    </span>
   )
 }
