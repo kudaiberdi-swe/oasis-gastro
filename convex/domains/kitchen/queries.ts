@@ -32,7 +32,9 @@ export const board = query({
     const withLines = await Promise.all(
       tickets.map(async (ticket) => {
         const lines = await ctx.db.query("kitchenTicketLines").withIndex("by_ticket", (q) => q.eq("ticketId", ticket._id)).take(100)
-        return { ...ticket, lines: lines.filter((line) => line.status !== "cancelled" && (!args.prepArea || (line.prepArea ?? "hot") === args.prepArea)) }
+        // A delivery ticket carries when the courier picks it up (W2-KDS-01).
+        const delivery = ticket.source === "delivery" ? await ctx.db.query("deliveryOrders").withIndex("by_order", (q) => q.eq("orderId", ticket.orderId)).unique() : null
+        return { ...ticket, pickupAt: delivery?.predictedCookingCompleteAt ?? null, deliveryNumber: delivery?.number ?? null, lines: lines.filter((line) => line.status !== "cancelled" && (!args.prepArea || (line.prepArea ?? "hot") === args.prepArea)) }
       }),
     )
     return withLines.filter((ticket) => ticket.lines.length > 0)
