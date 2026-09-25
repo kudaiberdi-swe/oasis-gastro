@@ -4,7 +4,7 @@ import { v } from "convex/values"
 import { query } from "../../_generated/server"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
-import { requireOperator } from "../../lib/auth"
+import { getOpenShift, requireOperator } from "../../lib/auth"
 import { orderStatus as orderStatusValidator } from "../../lib/validators"
 
 export async function hydrateOrder(ctx: QueryCtx | MutationCtx, order: Doc<"orders">) {
@@ -71,11 +71,21 @@ export const list = query({
     search: v.optional(v.string()),
     status: v.optional(orderStatusValidator),
     direction: v.union(v.literal("asc"), v.literal("desc")),
+    // Only the orders of the terminal's open shift (POS history panel).
+    currentShiftOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const search = args.search?.trim().toLocaleLowerCase("ru")
-    const result = search
+    const shift = args.currentShiftOnly ? await getOpenShift(ctx, access.terminal._id) : null
+    if (args.currentShiftOnly && !shift) return { page: [], isDone: true, continueCursor: "" }
+    const result = shift && !search
+      ? await ctx.db
+          .query("orders")
+          .withIndex("by_shift_status_created", (q) => (args.status ? q.eq("currentShiftId", shift._id).eq("status", args.status) : q.eq("currentShiftId", shift._id)))
+          .order(args.direction)
+          .paginate(args.paginationOpts)
+      : search
       ? await ctx.db
           .query("orders")
           .withSearchIndex("search_orders", (q) => {
@@ -105,7 +115,12 @@ export const list = query({
             order.createdBy ? ctx.db.get(order.createdBy) : null,
           ])
           const refundableByMethod = { cash: 0, card: 0, qr: 0 }
-          for (const payment of payments) refundableByMethod[payment.method] += payment.type === "sale" ? payment.amount : -payment.amount
+          const refundableByPaymentType: Record<string, number> = {}
+          for (const payment of payments) {
+            const delta = payment.type === "sale" ? payment.amount : -payment.amount
+            refundableByMethod[payment.method] += delta
+            if (payment.paymentTypeExternalId) refundableByPaymentType[payment.paymentTypeExternalId] = (refundableByPaymentType[payment.paymentTypeExternalId] ?? 0) + delta
+          }
           return {
             ...order,
             lines,
@@ -113,6 +128,7 @@ export const list = query({
             createdByName: creator?.displayName ?? "Исторический заказ",
             itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
             refundableByMethod,
+            refundableByPaymentType,
             refundableAmount: Object.values(refundableByMethod).reduce((sum, amount) => sum + amount, 0),
           }
         }),

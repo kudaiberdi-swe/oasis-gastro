@@ -44,3 +44,13 @@ export const suggestion = query({
     return null
   },
 })
+
+/** Unread notifications of this employee on the terminal (the bell badge), counted over the latest 200. */
+export const unreadNotificationCount = query({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const access = await requireOperator(ctx, args.sessionToken)
+    const latest = await ctx.db.query("posNotifications").withIndex("by_terminal_created", (q) => q.eq("terminalId", access.terminal._id)).order("desc").take(200)
+    return latest.reduce((count, item) => count + (item.readBy.includes(access.employee._id) ? 0 : 1), 0)
+  },
+})
