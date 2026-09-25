@@ -27,7 +27,7 @@ const GROUPS: { id: string; sections: [id: string, kind: SectionKind][] }[] = [
   {
     id: "stock",
     sections: [
-      ["nomenclature", "versioned"], ["product-groups", "reference"], ["modifiers", "reference"], ["size-scales", "reference"], ["price-orders", "document"], ["price-lists", "reference"],
+      ["nomenclature", "versioned"], ["product-groups", "reference"], ["modifiers", "reference"], ["size-scales", "reference"], ["price-orders", "document"], ["price-lists", "versioned"],
       ["warehouses", "reference"], ["stock", "view"], ["receipts", "document"], ["outgoing-invoices", "document"], ["supplier-returns", "document"], ["inventories", "document"],
       ["transfers", "document"], ["writeoffs", "document"], ["suppliers", "reference"], ["units", "reference"],
     ],

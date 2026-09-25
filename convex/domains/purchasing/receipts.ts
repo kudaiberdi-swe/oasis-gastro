@@ -10,6 +10,7 @@ import { effectiveScopes, getOfficeAuthEmail, hasScope, requireOfficeCapability,
 import { nextNumber } from "../../lib/numbering"
 import { appendOutboxEvent } from "../../lib/outbox"
 import { assertPeriodOpen } from "../../lib/periods"
+import { checkReceiptLinePrice, supplierPriceListAt } from "../../lib/priceListCheck"
 import { checkPrice, type PriceCheck } from "../../lib/priceChecks"
 import { applyStockMovement, roundQuantity } from "../../lib/stockAccounting"
 import { reverseStockSource, stockAccountOf } from "../../lib/stockPosting"
@@ -38,9 +39,13 @@ const vatShare = (gross: number, rate: number) => (rate > 0 ? gross - gross / (1
 async function priceChecksFor(ctx: QueryCtx, receipt: Doc<"receipts">, lines: Doc<"receiptLines">[]): Promise<PriceCheck[]> {
   const supplier = await ctx.db.get(receipt.supplierId)
   if (!supplier) return []
+  const list = await supplierPriceListAt(ctx, supplier._id, receipt.date)
   return Promise.all(
     lines.map(async (line) => {
       const item = await ctx.db.get(line.inventoryItemId)
+      // The supplier's published price list first (W2-CAT-15), else the warehouse average.
+      const listed = await checkReceiptLinePrice(ctx, { supplierId: supplier._id, inventoryItemId: line.inventoryItemId, price: line.unitCostGross, at: receipt.date, list })
+      if (listed) return { lineNo: line.lineNo, itemName: item?.name ?? "", unitCost: line.unitCostGross, reference: Math.round(listed.expected * 100) / 100, deviationPercent: listed.deviationPercent, outcome: listed.verdict }
       const balance = await ctx.db.query("stockBalances").withIndex("by_warehouse_item", (q) => q.eq("warehouseId", receipt.warehouseId).eq("inventoryItemId", line.inventoryItemId)).unique()
       return checkPrice(supplier, { lineNo: line.lineNo, itemName: item?.name ?? "", unitCost: line.unitCostGross }, balance?.averageUnitCost ?? 0)
     }),

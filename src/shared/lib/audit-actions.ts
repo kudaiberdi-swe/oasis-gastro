@@ -107,6 +107,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "payroll.post": "Проведение ведомости",
   "payroll.reverse": "Сторно ведомости",
   "production.preparation": "Настройка заготовки",
+  "price-list.save": "Сохранение прайс-листа",
+  "price-list.publish": "Публикация прайс-листа",
   "purchase-orders.receipt": "Приходная накладная по заказу",
   "payroll.payout": "Выплата зарплаты",
   "workforce.create": "Создание сотрудника кассы",

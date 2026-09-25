@@ -91,6 +91,7 @@ import type * as domains_sizeScales_mutations from "../domains/sizeScales/mutati
 import type * as domains_sizeScales_queries from "../domains/sizeScales/queries.js";
 import type * as domains_stock_internal from "../domains/stock/internal.js";
 import type * as domains_stock_master from "../domains/stock/master.js";
+import type * as domains_stock_priceLists from "../domains/stock/priceLists.js";
 import type * as domains_stockDocuments_access from "../domains/stockDocuments/access.js";
 import type * as domains_stockDocuments_mutations from "../domains/stockDocuments/mutations.js";
 import type * as domains_stockDocuments_queries from "../domains/stockDocuments/queries.js";
@@ -129,6 +130,7 @@ import type * as lib_periods from "../lib/periods.js";
 import type * as lib_pii from "../lib/pii.js";
 import type * as lib_policy from "../lib/policy.js";
 import type * as lib_priceChecks from "../lib/priceChecks.js";
+import type * as lib_priceListCheck from "../lib/priceListCheck.js";
 import type * as lib_pricing from "../lib/pricing.js";
 import type * as lib_recipeConsumption from "../lib/recipeConsumption.js";
 import type * as lib_recipeMath from "../lib/recipeMath.js";
@@ -238,6 +240,7 @@ declare const fullApi: ApiFromModules<{
   "domains/sizeScales/queries": typeof domains_sizeScales_queries;
   "domains/stock/internal": typeof domains_stock_internal;
   "domains/stock/master": typeof domains_stock_master;
+  "domains/stock/priceLists": typeof domains_stock_priceLists;
   "domains/stockDocuments/access": typeof domains_stockDocuments_access;
   "domains/stockDocuments/mutations": typeof domains_stockDocuments_mutations;
   "domains/stockDocuments/queries": typeof domains_stockDocuments_queries;
@@ -276,6 +279,7 @@ declare const fullApi: ApiFromModules<{
   "lib/pii": typeof lib_pii;
   "lib/policy": typeof lib_policy;
   "lib/priceChecks": typeof lib_priceChecks;
+  "lib/priceListCheck": typeof lib_priceListCheck;
   "lib/pricing": typeof lib_pricing;
   "lib/recipeConsumption": typeof lib_recipeConsumption;
   "lib/recipeMath": typeof lib_recipeMath;

@@ -1641,6 +1641,45 @@ export default defineSchema({
     .index("by_restaurant_active", ["restaurantExternalId", "active"])
     .index("by_iiko_store", ["iikoStoreExternalId"]),
 
+  // Price lists (W2-CAT-15): each version is a row of its series; publishing one expires the previous.
+  priceLists: defineTable({
+    externalId: v.string(),
+    seriesExternalId: v.string(),
+    version: v.number(),
+    name: v.string(),
+    kind: v.union(v.literal("internal"), v.literal("supplier")),
+    supplierId: v.optional(v.id("suppliers")),
+    effectiveFrom: v.number(),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("expired")),
+    deviationPolicy: v.union(v.literal("ignore"), v.literal("warn"), v.literal("block"), v.literal("block-higher")),
+    deviationPercent: v.number(),
+    lineCount: v.number(),
+    searchText: v.string(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    publishedAt: v.optional(v.number()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_series_version", ["seriesExternalId", "version"])
+    .index("by_kind_status", ["kind", "status"])
+    .index("by_supplier_status_effective", ["supplierId", "status", "effectiveFrom"])
+    .searchIndex("search_price_lists", { searchField: "searchText", filterFields: ["kind", "status"] }),
+
+  priceListLines: defineTable({
+    priceListId: v.id("priceLists"),
+    lineNo: v.number(),
+    inventoryItemId: v.id("inventoryItems"),
+    supplierSku: v.string(),
+    supplierName: v.string(),
+    unitExternalId: v.optional(v.string()),
+    packageCoefficient: v.number(), // stock units in one supplier package
+    price: v.number(), // per supplier package, with VAT
+    deviationPercent: v.optional(v.number()), // overrides the list's tolerance
+  })
+    .index("by_list", ["priceListId", "lineNo"])
+    .index("by_list_item", ["priceListId", "inventoryItemId"]),
+
   suppliers: defineTable({
     externalId: v.string(),
     name: v.string(),
