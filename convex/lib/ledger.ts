@@ -35,7 +35,14 @@ export type JournalPosting = {
 
 async function resolveAccount(ctx: MutationCtx, reference: string, manual: boolean) {
   const externalId = isSystemAccountKey(reference) ? SYSTEM_ACCOUNTS[reference].externalId : reference
-  const account = await ctx.db.query("accounts").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()
+  let account = await ctx.db.query("accounts").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()
+  // A system account added to the code after the chart was seeded (3520, 1250, 1280 in W2) is created on
+  // its first posting, exactly as seedChartOfAccounts would, instead of failing the document.
+  if (!account && isSystemAccountKey(reference)) {
+    const definition = SYSTEM_ACCOUNTS[reference]
+    const id = await ctx.db.insert("accounts", { externalId: definition.externalId, code: definition.code, name: definition.name, type: definition.type, system: true, allowManualEntries: true, active: true })
+    account = (await ctx.db.get(id))!
+  }
   if (!account) throw new ConvexError(`Счёт ${reference} не найден в плане счетов`)
   if (!account.active) throw new ConvexError(`Счёт ${account.code} «${account.name}» отключён`)
   if (manual && !account.allowManualEntries) throw new ConvexError(`На счёт ${account.code} нельзя делать ручные проводки`)

@@ -14,13 +14,13 @@ export function restaurantCode(externalId: string) {
 }
 
 /** Select / Combobox options; `hint` only where the name repeats. */
-export function restaurantSelectOptions(restaurants: readonly RestaurantLike[]): RestaurantOption[] {
+export function restaurantSelectOptions(restaurants: readonly RestaurantLike[] | null | undefined): RestaurantOption[] {
   const groups = new Map<string, RestaurantLike[]>()
-  for (const restaurant of restaurants) {
+  for (const restaurant of restaurants ?? []) {
     const key = nameKey(restaurant.name)
     groups.set(key, [...(groups.get(key) ?? []), restaurant])
   }
-  return restaurants.map((restaurant) => {
+  return (restaurants ?? []).map((restaurant) => {
     const label = restaurant.name.replace(/\s+/g, " ").trim() || restaurant.externalId
     const group = groups.get(nameKey(restaurant.name)) ?? []
     if (group.length < 2) return { value: restaurant.externalId, label }

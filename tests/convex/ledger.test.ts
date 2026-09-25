@@ -145,3 +145,18 @@ describe("postings name accounts by key", () => {
     }
   })
 })
+
+describe("system accounts added after seeding (W2)", () => {
+  it("a posting to a system account missing from the chart creates it once", async () => {
+    const t = convexTest(schema, import.meta.glob("../../convex/**/*.ts"))
+    await t.mutation(internal.domains.finance.seed.seedChartOfAccounts, {})
+    await t.run(async (ctx) => {
+      await ctx.db.insert("organizations", { externalId: "sandyq", name: "Sandyq", currency: "KZT", timezone: "Asia/Almaty", active: true })
+      await ctx.db.insert("restaurants", { externalId: "almaty", organizationExternalId: "sandyq", name: "Алматы", address: "—", timezone: "Asia/Almaty", active: true })
+      const advances = await ctx.db.query("accounts").withIndex("by_external_id", (q) => q.eq("externalId", "acc-3520")).unique()
+      if (advances) await ctx.db.delete(advances._id)
+      for (const key of ["a", "b"]) await postJournalEntry(ctx, { externalId: `je-${key}`, restaurantExternalId: "almaty", sourceModuleId: "test", sourceExternalId: key, sourceNumber: key, occurredAt: Date.now(), debitAccount: "cash", creditAccount: "customerAdvances", amount: 100, description: "t" })
+      expect(await ctx.db.query("accounts").withIndex("by_external_id", (q) => q.eq("externalId", "acc-3520")).collect()).toHaveLength(1)
+    })
+  })
+})
