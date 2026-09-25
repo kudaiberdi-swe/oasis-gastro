@@ -3,6 +3,7 @@ import { v } from "convex/values"
 import { query } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
 import { requireAnyOperator } from "../../lib/auth"
+import { requireOfficeCapability, scopedRestaurants } from "../../lib/officeAccess"
 import { ticketRestaurantId } from "./access"
 
 const OPEN = ["queued", "preparing", "ready"] as const
@@ -35,5 +36,27 @@ export const board = query({
       }),
     )
     return withLines.filter((ticket) => ticket.lines.length > 0)
+  },
+})
+
+/**
+ * Office «Экран кухни» (W1-KDS-03): per restaurant in scope, the active tickets and the kitchen terminal
+ * to open /kitchen on. The kitchen screen itself only opens with a PIN, never with the office session.
+ */
+export const officeSummary = query({
+  args: {},
+  handler: async (ctx) => {
+    const { user } = await requireOfficeCapability(ctx, "office.kitchen-board.view")
+    const restaurants = await scopedRestaurants(ctx, user)
+    const rows = []
+    for (const restaurant of restaurants) {
+      let active = 0
+      for (const status of OPEN) active += (await ctx.db.query("kitchenTickets").withIndex("by_restaurant_status_created", (q) => q.eq("restaurantId", restaurant._id).eq("status", status)).take(100)).length
+      const terminals = await ctx.db.query("posTerminals").withIndex("by_restaurant_active_and_number", (q) => q.eq("restaurantId", restaurant._id).eq("active", true)).take(50)
+      const kitchen = terminals.find((terminal) => terminal.kind === "kds") ?? terminals.find((terminal) => terminal.kind === undefined || terminal.kind === "pos")
+      if (!kitchen && !active) continue
+      rows.push({ restaurantExternalId: restaurant.externalId, restaurantName: restaurant.name, activeTickets: active, terminalExternalId: kitchen?.externalId ?? null, terminalName: kitchen?.name ?? null })
+    }
+    return rows
   },
 })

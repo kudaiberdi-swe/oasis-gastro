@@ -156,4 +156,18 @@ describe("kitchen before payment (W1-POS-04, W1-KDS-01)", () => {
     expect(await t.query(kitchen.queries.board, { sessionToken: "on-kds" })).toHaveLength(1)
     await expect(t.mutation(orders.saveDraft, { sessionToken: "on-kds", clientOrderId: "x", orderType: "dine-in", discountPercent: 0, comment: "", lines: [] })).rejects.toThrow(/терминал кухни/)
   })
+
+  it("office summary counts active tickets per restaurant and needs the office right", async () => {
+    const { t, productId } = await setup()
+    const order = await draft(t, productId)
+    await t.mutation(orders.sendToKitchen, { sessionToken: cashier, orderId: order._id })
+    await t.run(async (ctx) => {
+      await ctx.db.insert("officeRoles", { externalId: "k", name: "Кухня", capabilities: ["office.kitchen-board.view"], system: false })
+      await ctx.db.insert("officeRoles", { externalId: "n", name: "Нет", capabilities: ["office.guests.view"], system: false })
+      await ctx.db.insert("officeUsers", { externalId: "k", email: "k@sandyq.test", name: "Шеф", roleExternalId: "k", restaurantScopes: ["almaty"], active: true })
+      await ctx.db.insert("officeUsers", { externalId: "n", email: "n@sandyq.test", name: "Нет", roleExternalId: "n", restaurantScopes: ["almaty"], active: true })
+    })
+    expect(await t.withIdentity({ email: "k@sandyq.test" }).query(kitchen.queries.officeSummary, {})).toEqual([{ restaurantExternalId: "almaty", restaurantName: "Алматы", activeTickets: 1, terminalExternalId: "t1", terminalName: "Касса 1" }])
+    await expect(t.withIdentity({ email: "n@sandyq.test" }).query(kitchen.queries.officeSummary, {})).rejects.toThrow()
+  })
 })
