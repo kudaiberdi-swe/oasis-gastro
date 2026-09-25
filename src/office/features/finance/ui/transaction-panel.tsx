@@ -10,7 +10,7 @@ import { formatTenge } from "@/shared/lib/format"
 import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useFinanceMutations, type FinanceRecord, type FinanceReferences } from "../data/use-finance-records"
-import { formatBusinessDate, transactionDraftOf, transactionSaveArgs, validateTransaction, type DraftErrors, type TransactionDraft } from "../model/modules"
+import { categoriesForRestaurant, formatBusinessDate, transactionDraftOf, transactionSaveArgs, validateTransaction, type DraftErrors, type TransactionDraft } from "../model/modules"
 import { FormSection, RecordAudit } from "./record-parts"
 
 const MODULE = "transactions"
@@ -66,7 +66,7 @@ export function TransactionPanel({ record, references, defaultRestaurantExternal
     const account = references.accounts.find((candidate) => candidate.externalId === externalId)
     return account ? `${account.code} · ${account.name}` : externalId || "—"
   }
-  const categoryOptions = [{ value: NONE, label: "Не указана" }, ...references.cashflowCategories.map((row) => ({ value: row.externalId, label: row.name }))]
+  const categoryOptions = [{ value: NONE, label: "Не указана" }, ...categoriesForRestaurant(references.cashflowCategories, references.restaurants, draft.restaurantExternalId, record?.cashflowCategoryExternalId).map((row) => ({ value: row.externalId, label: row.name }))]
   const counterpartyOptions = [{ value: NONE, label: "Не указан" }, ...references.counterparties.map((row) => ({ value: row.externalId, label: row.name }))]
   const nameOf = (options: { value: string; label: string }[], value: string) => (value ? (options.find((option) => option.value === value)?.label ?? value) : "—")
   const restaurantName = references.restaurants.find((restaurant) => restaurant.externalId === draft.restaurantExternalId)?.name ?? draft.restaurantExternalId
@@ -204,7 +204,7 @@ export function TransactionPanel({ record, references, defaultRestaurantExternal
                       <Select
                         {...control}
                         value={draft.restaurantExternalId || undefined}
-                        onValueChange={(restaurantExternalId) => set({ restaurantExternalId })}
+                        onValueChange={(restaurantExternalId) => set({ restaurantExternalId, cashflowCategoryExternalId: "" })}
                         options={restaurantSelectOptions(references.restaurants)}
                       />
                     )}

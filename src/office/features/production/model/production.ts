@@ -227,6 +227,31 @@ export function isReadOnly(status: ProductionStatus, canEdit: boolean) {
   return status !== "draft" || !canEdit
 }
 
+// ── saveDocument warnings (minimum order) ──────────────────────────────────────────────────────
+
+/** Navigation state that carries the last save's warnings to the new document's URL. */
+export interface SaveWarningsState {
+  saveWarnings: string[]
+}
+
+export function saveWarningsState(warnings: readonly string[]): SaveWarningsState | null {
+  return warnings.length ? { saveWarnings: [...warnings] } : null
+}
+
+/** Warnings passed by saveWarningsState (anything else — none). */
+export function saveWarningsFromState(state: unknown): string[] {
+  const value = state && typeof state === "object" ? (state as Partial<SaveWarningsState>).saveWarnings : undefined
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
+}
+
+/**
+ * The last save's warnings stay until the next save — also after «Отправить на согласование» (the save
+ * runs right before the submit); a closed or cancelled order no longer needs them.
+ */
+export function visibleSaveWarnings(status: ProductionStatus, warnings: readonly string[]): readonly string[] {
+  return status === "draft" || status === "pending-approval" || status === "approved" ? warnings : []
+}
+
 export const WRITE_OFF_METHODS = [
   { value: "finished-product", label: "Готовой продукцией", hint: "Акт выпускает заготовку, продажа списывает её саму." },
   { value: "ingredients", label: "По составу", hint: "Продажа списывает ингредиенты техкарты; актом такую заготовку не выпустить." },

@@ -60,6 +60,22 @@ export type CashflowActivity = "operating" | "investing" | "financing"
 export const DIRECTION_LABELS: Record<CashflowDirection, string> = { incoming: "Приход", outgoing: "Расход", both: "Приход и расход" }
 export const ACTIVITY_LABELS: Record<CashflowActivity, string> = { operating: "Операционная", investing: "Инвестиционная", financing: "Финансовая" }
 
+/**
+ * «Статья ДДС» of a record: the categories of its restaurant's organization (each organization has its own
+ * set, so one list over all of them repeats every name). An unknown organization — every category; `keep` —
+ * the record's own category stays listed even if it belongs elsewhere.
+ */
+export function categoriesForRestaurant<T extends { externalId: string; organizationExternalId?: string }>(
+  categories: readonly T[],
+  restaurants: readonly { externalId: string; organizationExternalId?: string }[],
+  restaurantExternalId: string,
+  keep?: string,
+): T[] {
+  const organization = restaurants.find((restaurant) => restaurant.externalId === restaurantExternalId)?.organizationExternalId
+  if (!organization) return [...categories]
+  return categories.filter((row) => !row.organizationExternalId || row.organizationExternalId === organization || (keep !== undefined && row.externalId === keep))
+}
+
 export interface CashflowDraft {
   name: string
   code: string

@@ -10,7 +10,7 @@ import { errorMessage } from "@/shared/lib/error-message"
 import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useScheduleMutations, useScheduleWeek, type ScheduleRow, type ScheduleShift, type ScheduleWeek } from "../data/use-workforce-w2"
-import { addDays, currentWeekStart, dayLabel, formatShiftHours, mondayOf, shiftBlockLayout, weekRangeLabel } from "../model/w2"
+import { addDays, currentWeekStart, dayLabel, defaultShiftDate, formatShiftHours, mondayOf, shiftBlockLayout, weekRangeLabel } from "../model/w2"
 import { ScheduleShiftDialog } from "./schedule-shift-dialog"
 import { ColorSwatch } from "./shift-types-workspace"
 import { ScheduleWeekGrid } from "./schedule-week"
@@ -122,7 +122,7 @@ function Schedule() {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {canEdit ? (
             <>
-              <Button variant="secondary" onClick={() => setDialog({ entry: null, defaults: { date: weekStart } })}>
+              <Button variant="secondary" onClick={() => setDialog({ entry: null, defaults: { date: defaultShiftDate(weekStart) } })}>
                 <Plus aria-hidden />
                 Новая смена
               </Button>

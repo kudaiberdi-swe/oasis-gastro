@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { useNavigate, useSearchParams } from "react-router"
+import { useLocation, useNavigate, useSearchParams } from "react-router"
 
 import { useCan, useCapabilities } from "@/office/components/can"
 import { OfficeStatePage } from "@/office/components/state-page"
@@ -18,7 +18,7 @@ import { formatTenge } from "@/shared/lib/format"
 import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useLineRefs, usePreparationOptions, useProductionDocument, useProductionMutations, useRecipes, useWarehouseBalances, type PreparationRow, type ProductionDocument, type Shortage } from "../data/use-production"
-import { ACTION_LABELS, checkStock, documentActions, ingredientDemand, isReadOnly, productionChecks, type DocAction, type ProductionStatus, type ProductionTypeConfig } from "../model/production"
+import { ACTION_LABELS, checkStock, documentActions, ingredientDemand, isReadOnly, productionChecks, saveWarningsFromState, saveWarningsState, visibleSaveWarnings, type DocAction, type ProductionStatus, type ProductionTypeConfig } from "../model/production"
 import { draftFromDocument, emptyActDraft, fromDateInput, isValid, toSaveArgs, useActDraft, validateActDraft, type ActDraft, type HeaderErrors, type LineErrors } from "../model/use-act-draft"
 import { ActLinesTable } from "./act-lines-table"
 import { MaterialWriteoffPreview } from "./material-writeoff-preview"
@@ -29,6 +29,7 @@ import { ShortageDialog } from "./shortage-dialog"
 export function ActEditor({ config, externalId }: { config: ProductionTypeConfig; externalId: string }) {
   const isNew = externalId === "new"
   const navigate = useNavigate()
+  const location = useLocation()
   const [params] = useSearchParams()
   const restaurants = useRestaurantFilter()
   const document = useProductionDocument(isNew ? null : externalId)
@@ -39,8 +40,9 @@ export function ActEditor({ config, externalId }: { config: ProductionTypeConfig
   const lastRefs = useRef(matched)
   if (matched) lastRefs.current = matched
   const refs = matched ?? lastRefs.current
-  // saveDocument warnings (minimum order) outlive the form's remount after a save.
-  const [warnings, setWarnings] = useState<string[]>([])
+  // saveDocument warnings (minimum order) outlive the form's remount after a save or a submit; a new
+  // document brings them to its URL in the navigation state (the editor remounts there).
+  const [warnings, setWarnings] = useState<string[]>(() => saveWarningsFromState(location.state))
   const back = () => navigate(`/office/${config.section}`)
 
   if (isNew) {
@@ -120,8 +122,8 @@ function ActForm({
 
   // A new document gets its URL once saved, the blocker released and nothing is in flight or asked.
   useEffect(() => {
-    if (created && !dirty && busy === null && shortages === null) navigate(`/office/${config.section}/${encodeURIComponent(created)}`, { replace: true })
-  }, [created, dirty, busy, shortages, navigate, config.section])
+    if (created && !dirty && busy === null && shortages === null) navigate(`/office/${config.section}/${encodeURIComponent(created)}`, { replace: true, state: saveWarningsState(warnings) })
+  }, [created, dirty, busy, shortages, navigate, config.section, warnings])
 
   // Warehouses: the restaurant's own; an internal order may take any warehouse of the organization in scope.
   const warehouseOptions = useMemo(() => {
@@ -157,6 +159,7 @@ function ActForm({
       })
     : []
 
+  const shownWarnings = visibleSaveWarnings(status, warnings)
   const actions = documentActions(config, status, can, { saved: document !== null, receiptExternalId: document?.receiptExternalId })
 
   function validate() {
@@ -310,9 +313,9 @@ function ActForm({
         {status === "approved" && config.lifecycle === "purchase" && document?.receiptExternalId ? (
           <Banner tone="info" title="Приходная накладная создана">Заказ завершится, когда накладная будет проведена.</Banner>
         ) : null}
-        {warnings.length && status === "draft" ? (
+        {shownWarnings.length ? (
           <Banner tone="warning" title="Проверьте заказ">
-            {warnings.join(" · ")}
+            {shownWarnings.join(" · ")}
           </Banner>
         ) : null}
         {error ? (

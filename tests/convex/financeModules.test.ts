@@ -30,6 +30,23 @@ describe("finance modules (W1-FIN-03/04/05)", () => {
     await expect(admin.mutation(records.save, { ...base, moduleId: "cashflow-categories", externalId: parent, expectedVersion: suppliers.version, name: suppliers.name, data: { ...suppliers.data, parentExternalId: child.externalId } })).rejects.toThrow(/самой себя/)
   })
 
+  it("references: every category and restaurant carries its organization, one set per organization", async () => {
+    const { t } = await setup()
+    const admin = await withAccountant(t)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("organizations", { externalId: "tary", name: "Tary", currency: "KZT", timezone: "Asia/Almaty", active: true })
+      await ctx.db.insert("restaurants", { externalId: "tary-1", organizationExternalId: "tary", name: "Tary 1", address: "—", timezone: "Asia/Almaty", active: true })
+    })
+    expect((await t.mutation(internal.domains.finance.seed.seedCashflowCategories, {})).created).toBe(12)
+    const refs = await admin.query(records.references, { moduleId: "payments" })
+    expect(refs.restaurants).toEqual(expect.arrayContaining([expect.objectContaining({ externalId: "almaty", organizationExternalId: "sandyq" }), expect.objectContaining({ externalId: "tary-1", organizationExternalId: "tary" })]))
+    // The same six names twice over all organizations; per organization — once.
+    expect(refs.cashflowCategories.filter((row) => row.name === "Оплата поставщикам")).toHaveLength(2)
+    const sandyq = refs.cashflowCategories.filter((row) => row.organizationExternalId === "sandyq")
+    expect(sandyq).toHaveLength(6)
+    expect(new Set(sandyq.map((row) => row.name)).size).toBe(6)
+  })
+
   it("counterparties: 12-digit unique BIN and debt from posted receipts", async () => {
     const { t } = await setup()
     const admin = await withAccountant(t)

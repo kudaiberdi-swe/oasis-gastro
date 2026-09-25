@@ -165,4 +165,16 @@ describe("«Возвраты поставщикам» (W2-STK-13)", () => {
     fireEvent.click(await screen.findByRole("option", { name: /Мясной партнёр/ }))
     expect(screen.getByRole("combobox", { name: "На основании прихода" }).textContent).toContain("Без основания")
   })
+
+  it("the posting error disappears once the draft is corrected", async () => {
+    const POST = "domains/stockDocuments/mutations:postDocument"
+    mocks.mutations[POST] = vi.fn(async () => {
+      throw new Error("Возврат больше полученного по приходу: Молоко")
+    })
+    renderAt("/office/supplier-returns/supplier-returns-1", <SupplierReturnsWorkspace />)
+    fireEvent.click(screen.getByRole("button", { name: "Провести" }))
+    expect(await screen.findByText(/Возврат больше полученного/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText("Количество — Молоко"), { target: { value: "1" } })
+    expect(screen.queryByText(/Возврат больше полученного/)).toBeNull()
+  })
 })

@@ -246,6 +246,12 @@ export function mondayOf(date: string) {
 
 export const currentWeekStart = (now = Date.now()) => mondayOf(almatyBusinessDate(now))
 
+/** «Новая смена» from the header: today when it falls in the shown week, else the week's Monday. */
+export function defaultShiftDate(weekStart: string, now = Date.now()) {
+  const today = almatyBusinessDate(now)
+  return mondayOf(today) === weekStart ? today : weekStart
+}
+
 /** "2026-09-28" → { weekday: "Пн", day: "28.09" }. */
 export function dayLabel(date: string) {
   const weekday = (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7

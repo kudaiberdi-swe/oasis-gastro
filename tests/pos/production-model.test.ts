@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import { checkStock, documentActions, documentTitle, ingredientDemand, PRODUCTION_TYPES, productionChecks } from "@/office/features/production/model/production"
+import { serverRef, serverUnit } from "@/office/features/production/data/use-production"
+import { checkStock, documentActions, documentTitle, ingredientDemand, PRODUCTION_TYPES, productionChecks, saveWarningsFromState, saveWarningsState, visibleSaveWarnings } from "@/office/features/production/model/production"
 import { emptyActDraft, newActLine, toSaveArgs, validateActDraft, type ActDraft } from "@/office/features/production/model/use-act-draft"
 
 // W2-PRD-01…06: pure models of the production / logistics documents (buttons by status and right,
@@ -150,5 +151,33 @@ describe("act draft: validation and the saveDocument payload", () => {
   it("the register title is the first comment line, else the first positions", () => {
     expect(documentTitle({ comment: "Переработка овощей\nна неделю", lines: [] })).toBe("Переработка овощей")
     expect(documentTitle({ comment: "", lines: [{ name: "Морковь" }, { name: "Лук" }, { name: "Свёкла" }] })).toBe("Морковь, Лук и ещё 1")
+  })
+})
+
+describe("saveDocument warnings and saved-line refs", () => {
+  const warning = "Минимальный заказ поставщика — 50000 ₸"
+
+  it("warnings round-trip through the navigation state; anything else reads as none", () => {
+    expect(saveWarningsFromState(saveWarningsState([warning]))).toEqual([warning])
+    expect(saveWarningsState([])).toBeNull()
+    expect(saveWarningsFromState(null)).toEqual([])
+    expect(saveWarningsFromState({ saveWarnings: "x" })).toEqual([])
+    expect(saveWarningsFromState({ saveWarnings: [warning, 5] })).toEqual([warning])
+  })
+
+  it("warnings stay visible after «Отправить на согласование», not on a closed order", () => {
+    expect(visibleSaveWarnings("draft", [warning])).toEqual([warning])
+    expect(visibleSaveWarnings("pending-approval", [warning])).toEqual([warning])
+    expect(visibleSaveWarnings("approved", [warning])).toEqual([warning])
+    expect(visibleSaveWarnings("completed", [warning])).toEqual([])
+    expect(visibleSaveWarnings("cancelled", [warning])).toEqual([])
+  })
+
+  it("a saved line takes its external id and «Ед.» from getDocument", () => {
+    expect(serverRef({ productExternalId: null, inventoryItemExternalId: "milk", unit: "л" })).toBe("milk")
+    expect(serverRef({ productExternalId: "sauce", inventoryItemExternalId: null, unit: "кг" })).toBe("sauce")
+    expect(serverRef({})).toBeNull()
+    expect(serverUnit({ unit: "л" })).toBe("л")
+    expect(serverUnit({ unit: null })).toBeNull()
   })
 })

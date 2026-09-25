@@ -6,6 +6,7 @@ import { OfficeStatePage } from "@/office/components/state-page"
 import { SaveStatus, UnsavedChangesDialog } from "@/office/components/unsaved-changes"
 import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
 import { Banner, Button, ConfirmDialog, EmptyState, useToast } from "@/shared/components/ui"
+import { useReveal } from "@/shared/hooks/use-reveal"
 import { errorMessage } from "@/shared/lib/error-message"
 
 import { useFinanceMutations, type FinanceAction, type FinanceModuleId, type FinanceRecord, type SaveFinanceRecordArgs } from "../data/use-finance-records"
@@ -191,6 +192,7 @@ export type RecordEditor<D> = ReturnType<typeof useRecordEditor<D>>
 /** RightPanel + form + dialogs around a card's sections. */
 export function RecordEditorPanel<D>({ editor, title, formLabel, onClose, children }: { editor: RecordEditor<D>; title: ReactNode; formLabel: string; onClose: () => void; children: ReactNode }) {
   const { confirm, setConfirm, setDialogError } = editor
+  const errorRef = useReveal(editor.error)
   return (
     <>
       <RightPanel
@@ -212,7 +214,7 @@ export function RecordEditorPanel<D>({ editor, title, formLabel, onClose, childr
         >
           {editor.note ? <p className="text-caption text-muted-foreground">{editor.note}</p> : null}
           {editor.error ? (
-            <Banner tone="danger" title="Не удалось выполнить действие">
+            <Banner ref={errorRef} tabIndex={-1} tone="danger" title="Не удалось выполнить действие">
               {editor.error}
             </Banner>
           ) : null}

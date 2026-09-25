@@ -7,6 +7,7 @@ import { ReadOnlyRows, RecordPanelFallback } from "@/office/features/finance/ui/
 import { usePlatformScope } from "@/office/features/platform/data/use-platform"
 import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
+import { useReveal } from "@/shared/hooks/use-reveal"
 import {
   Banner,
   Button,
@@ -96,6 +97,8 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
   const [draft, setDraft] = useState(baseline)
   const [errors, setErrors] = useState<DraftErrors<keyof ReservationDraft>>({})
   const [error, setError] = useState<string | null>(null)
+  // The buttons are in the footer, the banner at the top of a scrolled panel: bring it into view.
+  const errorRef = useReveal(error)
   const [busy, setBusy] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<"close" | "cancel" | "complete" | null>(null)
@@ -286,7 +289,7 @@ function ReservationForm({ card, restaurantExternalId, prefill, onClose, onSaved
           ) : null}
           {note ? <p className="text-caption text-muted-foreground">{note}</p> : null}
           {error ? (
-            <Banner tone="danger" title="Не удалось выполнить действие">
+            <Banner ref={errorRef} tabIndex={-1} tone="danger" title="Не удалось выполнить действие">
               {error}
             </Banner>
           ) : null}

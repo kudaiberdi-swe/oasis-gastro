@@ -1,7 +1,7 @@
 import * as React from "react"
 import { AlertTriangle, Info, OctagonAlert } from "lucide-react"
 
-import { cn } from "@/shared/lib/utils"
+import { cn, focusRingClass } from "@/shared/lib/utils"
 
 const toneStyles = {
   info: { className: "border-accent/40 bg-accent/10 text-foreground [&_svg]:text-accent", icon: Info },
@@ -15,13 +15,16 @@ export interface BannerProps {
   children?: React.ReactNode
   action?: React.ReactNode
   className?: string
+  /** For useReveal: scroll to the banner and focus it (with tabIndex={-1}). */
+  ref?: React.Ref<HTMLDivElement>
+  tabIndex?: number
 }
 
 /** Page-level notice, e.g. «Смена открыта более 24 часов». */
-export function Banner({ tone = "warning", title, children, action, className }: BannerProps) {
+export function Banner({ tone = "warning", title, children, action, className, ref, tabIndex }: BannerProps) {
   const { className: toneClassName, icon: Icon } = toneStyles[tone]
   return (
-    <div role={tone === "danger" ? "alert" : "status"} className={cn("flex items-start gap-3 rounded-card border p-3", toneClassName, className)}>
+    <div ref={ref} tabIndex={tabIndex} role={tone === "danger" ? "alert" : "status"} className={cn("flex items-start gap-3 rounded-card border p-3", tabIndex !== undefined && ["scroll-my-3", focusRingClass], toneClassName, className)}>
       <Icon className="mt-0.5 size-5 shrink-0" aria-hidden />
       <div className="flex flex-1 flex-col gap-0.5">
         <p className="text-body-sm font-semibold">{title}</p>

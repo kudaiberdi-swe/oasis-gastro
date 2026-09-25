@@ -8,7 +8,7 @@ import { createMemoryRouter, RouterProvider } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { CapabilitiesProvider } from "@/office/components/can"
-import { receiptTotals } from "@/office/features/receipts/model/receipt-draft"
+import { receiptTotals, warehousesForSupplier } from "@/office/features/receipts/model/receipt-draft"
 import { ReceiptsWorkspace } from "@/office/features/receipts/ui/receipts-workspace"
 import { documentTotals, inventoryDelta } from "@/office/features/stock-documents/model/document-lines"
 import { WriteoffsWorkspace } from "@/office/features/stock-documents/ui/documents-workspace"
@@ -275,6 +275,20 @@ describe("Stock documents (W1-STK-09)", () => {
 })
 
 describe("«Приходные накладные» (W1-STK-11)", () => {
+  it("«Новая накладная»: only the warehouses of the supplier's restaurants (an empty list — all)", () => {
+    const warehouses = [
+      { externalId: "wh-abaya", restaurantExternalId: "abaya" },
+      { externalId: "wh-dostyk", restaurantExternalId: "dostyk" },
+      { externalId: "wh-tary", restaurantExternalId: "tary-1" },
+    ]
+    const ids = (rows: { externalId: string }[]) => rows.map((row) => row.externalId)
+    expect(ids(warehousesForSupplier(warehouses, { restaurantExternalIds: ["abaya", "dostyk"] }))).toEqual(["wh-abaya", "wh-dostyk"])
+    expect(ids(warehousesForSupplier(warehouses, { restaurantExternalIds: [] }))).toEqual(["wh-abaya", "wh-dostyk", "wh-tary"])
+    expect(ids(warehousesForSupplier(warehouses, undefined))).toHaveLength(3)
+    expect(ids(warehousesForSupplier(warehouses, { restaurantExternalIds: ["abaya", "dostyk"] }, "dostyk"))).toEqual(["wh-dostyk"])
+    expect(ids(warehousesForSupplier(warehouses, { restaurantExternalIds: ["abaya"] }, "tary-1"))).toEqual([])
+  })
+
   it("computes the totals like the server", () => {
     expect(
       receiptTotals([

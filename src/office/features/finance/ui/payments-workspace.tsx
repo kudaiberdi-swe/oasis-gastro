@@ -10,7 +10,7 @@ import { restaurantSelectOptions } from "@/shared/lib/restaurant-options"
 
 import { useFinanceRecord, useFinanceReferences, useFinanceRestaurantFilter, type FinanceRecord, type FinanceReferences } from "../data/use-finance-records"
 import { useOpenObligations, usePaymentAllocations, useSetPaymentAllocations } from "../data/use-obligations"
-import { APPROVAL_TABS, formatBusinessDate } from "../model/modules"
+import { APPROVAL_TABS, categoriesForRestaurant, formatBusinessDate } from "../model/modules"
 import {
   allocationFollowingAmount,
   obligationDirectionFor,
@@ -198,7 +198,9 @@ function PaymentPanel({ record, references, allocations, defaultRestaurantExtern
   openRemainders = Object.fromEntries((obligations ?? []).map((row) => [row.externalId, row.open]))
 
   const counterpartyOptions = references.counterparties.map((row) => ({ value: row.externalId, label: row.name }))
-  const categoryOptions = references.cashflowCategories.filter((row) => !row.direction || row.direction === "both" || row.direction === draft.direction).map((row) => ({ value: row.externalId, label: row.name }))
+  const categoryOptions = categoriesForRestaurant(references.cashflowCategories, references.restaurants, draft.restaurantExternalId, record?.cashflowCategoryExternalId)
+    .filter((row) => !row.direction || row.direction === "both" || row.direction === draft.direction)
+    .map((row) => ({ value: row.externalId, label: row.name }))
   const categoryName = references.cashflowCategories.find((row) => row.externalId === draft.cashflowCategoryExternalId)?.name ?? "—"
   const restaurantName = references.restaurants.find((restaurant) => restaurant.externalId === draft.restaurantExternalId)?.name ?? draft.restaurantExternalId
   // Allocations belong to one counterparty, direction and restaurant: changing any of them clears the table.
@@ -257,7 +259,7 @@ function PaymentPanel({ record, references, allocations, defaultRestaurantExtern
                   <Select
                     {...control}
                     value={draft.restaurantExternalId || undefined}
-                    onValueChange={(restaurantExternalId) => reset({ restaurantExternalId })}
+                    onValueChange={(restaurantExternalId) => reset({ restaurantExternalId, cashflowCategoryExternalId: "" })}
                     options={restaurantSelectOptions(references.restaurants)}
                   />
                 )}

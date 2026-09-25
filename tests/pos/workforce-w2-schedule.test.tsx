@@ -6,7 +6,7 @@ import { createMemoryRouter, RouterProvider } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { CapabilitiesProvider } from "@/office/components/can"
-import { addDays, localTimestamp, mondayOf, normLabel, scheduleArgs, scheduleDraftOf, shiftBlockLayout, validateSchedule, weekRangeLabel } from "@/office/features/workforce/model/w2"
+import { addDays, defaultShiftDate, formatShiftHours, localTimestamp, mondayOf, normLabel, scheduleArgs, scheduleDraftOf, shiftBlockLayout, validateSchedule, weekRangeLabel } from "@/office/features/workforce/model/w2"
 import { ScheduleWorkspace } from "@/office/features/workforce/ui/schedule-workspace"
 import { ToastProvider } from "@/shared/components/ui"
 
@@ -117,6 +117,20 @@ describe("model (W2-HR-04)", () => {
     expect(localTimestamp("2026-09-29", 22 * 60)).toBe(at("2026-09-29T22:00:00"))
     expect(validateSchedule({ ...draft, breakMinutes: "600" }).breakMinutes).toBe("Перерыв должен быть короче смены")
     expect(text(normLabel(45, 40))).toBe("45 ч / норма 40 ч")
+  })
+
+  it("zero hours read «0 ч», not «0 мин»", () => {
+    expect(text(formatShiftHours(0))).toBe("0 ч")
+    expect(text(normLabel(0, 40))).toBe("0 ч / норма 40 ч")
+  })
+
+  it("«Новая смена» from the header: today in the shown week, else its Monday", () => {
+    const thursday = at("2026-10-01T10:00:00")
+    expect(defaultShiftDate("2026-09-28", thursday)).toBe("2026-10-01")
+    expect(defaultShiftDate("2026-10-05", thursday)).toBe("2026-10-05")
+    expect(defaultShiftDate("2026-09-21", thursday)).toBe("2026-09-21")
+    // Almaty midnight: 23:30 UTC on Sunday is already Monday in Almaty.
+    expect(defaultShiftDate("2026-10-05", Date.parse("2026-10-04T23:30:00Z"))).toBe("2026-10-05")
   })
 })
 

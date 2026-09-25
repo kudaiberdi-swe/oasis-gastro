@@ -5,6 +5,7 @@ import { RightPanel } from "@/office/components/right-panel"
 import { SaveStatus, UnsavedChangesDialog } from "@/office/components/unsaved-changes"
 import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
 import { Banner, Button, ConfirmDialog } from "@/shared/components/ui"
+import { useReveal } from "@/shared/hooks/use-reveal"
 
 export const NEW_ID = "new"
 
@@ -40,6 +41,7 @@ export interface MasterPanelProps {
 export function MasterPanel({ title, formLabel, dirty, saving, canEdit, isNew, error, onSubmit, onClose, children }: MasterPanelProps) {
   const blocker = useUnsavedChanges(dirty)
   const [confirmClose, setConfirmClose] = useState(false)
+  const errorRef = useReveal(error)
   return (
     <>
       <RightPanel
@@ -73,7 +75,7 @@ export function MasterPanel({ title, formLabel, dirty, saving, canEdit, isNew, e
         >
           <p className="text-caption text-muted-foreground">Все изменения сохраняются в Convex и записываются в аудит.</p>
           {error ? (
-            <Banner tone="danger" title="Не удалось сохранить">
+            <Banner ref={errorRef} tabIndex={-1} tone="danger" title="Не удалось сохранить">
               {error}
             </Banner>
           ) : null}

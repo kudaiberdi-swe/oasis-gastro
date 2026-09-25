@@ -62,9 +62,11 @@ export const references = query({
     const [categories, counterparties, restaurants] = await Promise.all([records("cashflow-categories"), records("counterparties"), scopedRestaurants(ctx, user)])
     return {
       accounts: accounts.filter((account) => account.active).map((account) => ({ externalId: account.externalId, code: account.code, name: account.name, type: account.type, allowManualEntries: account.allowManualEntries })),
-      cashflowCategories: categories.slice(0, LIMIT).map((row) => ({ externalId: row.externalId, name: row.name, direction: typeof row.data.direction === "string" ? row.data.direction : null })),
+      // Categories are kept per organization (the seed creates a set for each): the office picks those of
+      // the record's restaurant's organization, so the organization comes with both lists.
+      cashflowCategories: categories.slice(0, LIMIT).map((row) => ({ externalId: row.externalId, name: row.name, direction: typeof row.data.direction === "string" ? row.data.direction : null, organizationExternalId: row.organizationExternalId })),
       counterparties: counterparties.slice(0, LIMIT).map((row) => ({ externalId: row.externalId, name: row.name })),
-      restaurants: restaurants.map((restaurant) => ({ externalId: restaurant.externalId, name: restaurant.name })),
+      restaurants: restaurants.map((restaurant) => ({ externalId: restaurant.externalId, name: restaurant.name, organizationExternalId: restaurant.organizationExternalId })),
       truncated: categories.length > LIMIT || counterparties.length > LIMIT,
     }
   },

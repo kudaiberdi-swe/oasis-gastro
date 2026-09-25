@@ -113,7 +113,11 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<"save" | "post" | null>(null)
   const [reversing, setReversing] = useState(false)
-  const set = (patch: Partial<DocumentDraft>) => setDraft((current) => ({ ...current, ...patch }))
+  // A server error (e.g. «возврат больше полученного») describes the draft it was raised on: any edit clears it.
+  const set = (patch: Partial<DocumentDraft>) => {
+    setError(null)
+    setDraft((current) => ({ ...current, ...patch }))
+  }
 
   const restaurantWarehouses = (warehouses ?? []).filter((warehouse) => warehouse.restaurantExternalId === document.restaurantExternalId)
   const warehouseOptions = restaurantWarehouses.map((warehouse) => ({ value: warehouse.externalId, label: warehouse.name }))
@@ -197,6 +201,7 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
     try {
       if (dirty || document.lines.length === 0) await persist()
       const result = await postDocument({ type: config.type, externalId: document.externalId })
+      setError(null)
       toast(result.totalAmount !== undefined ? `Документ проведён на ${formatTenge(result.totalAmount)}` : "Документ проведён", "success")
     } catch (caught) {
       setError(errorMessage(caught, "Не удалось провести документ"))
@@ -411,7 +416,10 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
       {!readOnly ? (
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card px-6 py-3 shadow-panel xl:px-8">
           <p className="text-caption text-muted-foreground">Проведённый документ изменить нельзя — только сторнировать.</p>
-          <Button variant="secondary" onClick={() => setDraft(baseline)} disabled={!dirty || busy !== null}>
+          <Button variant="secondary" onClick={() => {
+              setError(null)
+              setDraft(baseline)
+            }} disabled={!dirty || busy !== null}>
             Отменить изменения
           </Button>
         </footer>

@@ -37,12 +37,13 @@ export function formatQuantity(value: number, unit?: string) {
   return unit ? `${text}${NO_BREAK_SPACE}${UNIT_LABELS[unit] ?? unit}` : text
 }
 
-/** 7.5 → "7 ч 30 мин"; 0.25 → "15 мин". */
+/** 7.5 → "7 ч 30 мин"; 0.25 → "15 мин"; 0 → "0 ч" (hours carry «ч», L-10). */
 export function formatHours(hours: number) {
   const totalMinutes = Math.round(Math.abs(hours) * 60)
+  if (totalMinutes === 0) return `0${NO_BREAK_SPACE}ч`
   const h = Math.floor(totalMinutes / 60)
   const m = totalMinutes % 60
-  const parts = [h ? `${h}${NO_BREAK_SPACE}ч` : "", m || !h ? `${m}${NO_BREAK_SPACE}мин` : ""].filter(Boolean)
+  const parts = [h ? `${h}${NO_BREAK_SPACE}ч` : "", m ? `${m}${NO_BREAK_SPACE}мин` : ""].filter(Boolean)
   return `${hours < 0 ? MINUS : ""}${parts.join(" ")}`
 }
 

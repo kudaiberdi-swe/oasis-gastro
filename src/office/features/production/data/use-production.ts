@@ -129,12 +129,10 @@ export function usePreparationCosts(productExternalIds: readonly string[], enabl
   }, [results])
 }
 
-type SavedLine = ProductionDocument["lines"][number]
-
 /**
- * getDocument keeps Convex ids in the lines; saveDocument takes external ids. Until the server returns them
- * (see the report), a saved line is matched back: a preparation by name among the preparations, an item by
- * its id among the items found by its name. Returns undefined while matching.
+ * getDocument returns the lines' external ids and unit; a line without them (an older server, a deleted item)
+ * is matched back: a preparation by name among the preparations, an item by its id among the items found by
+ * its name. Returns undefined while matching.
  */
 export function useLineRefs(document: ProductionDocument | null | undefined, preparationRows: readonly PreparationRow[] | undefined, canViewStock: boolean) {
   const lines = document?.lines ?? []
@@ -153,7 +151,7 @@ export function useLineRefs(document: ProductionDocument | null | undefined, pre
     for (const line of document.lines) {
       const direct = serverRef(line)
       if (direct) {
-        refs.set(line.lineNo, { ref: direct, unit: null })
+        refs.set(line.lineNo, { ref: direct, unit: serverUnit(line) })
         continue
       }
       if (line.productId) {
@@ -175,8 +173,14 @@ export function useLineRefs(document: ProductionDocument | null | undefined, pre
   }, [document, preparationRows, canViewStock, found])
 }
 
-/** Forward-compatible: use the external id when getDocument starts returning it. */
-function serverRef(line: SavedLine): string | null {
-  const extended = line as SavedLine & { productExternalId?: string; inventoryItemExternalId?: string }
-  return extended.productExternalId ?? extended.inventoryItemExternalId ?? null
+type ServerLine = { productExternalId?: string | null; inventoryItemExternalId?: string | null; unit?: string | null }
+
+/** The external id getDocument resolved for the line (product first, then the stock item). */
+export function serverRef(line: ServerLine): string | null {
+  return line.productExternalId || line.inventoryItemExternalId || null
+}
+
+/** «Ед.» of a saved line: the item's unit, else the product's base unit — as getDocument resolved it. */
+export function serverUnit(line: ServerLine): string | null {
+  return line.unit || null
 }

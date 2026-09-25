@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { FinanceRecord } from "@/office/features/finance/data/use-finance-records"
 import {
+  categoriesForRestaurant,
   cashflowSaveArgs,
   counterpartyDraftOf,
   counterpartySaveArgs,
@@ -91,5 +92,28 @@ describe("finance model", () => {
     expect(variancePosting(2300, 2300)).toMatchObject({ kind: "none", variance: 0 })
     expect(variancePosting(2300, 2400)).toMatchObject({ kind: "surplus", variance: 100, debit: { code: "1010" }, credit: { code: "6280" } })
     expect(variancePosting(2300, 2000)).toMatchObject({ kind: "shortage", variance: -300, debit: { code: "7480" }, credit: { code: "1010" } })
+  })
+})
+
+describe("«Статья ДДС»: the categories of the record's organization", () => {
+  const restaurants = [
+    { externalId: "almaty", organizationExternalId: "sandyq" },
+    { externalId: "tary-1", organizationExternalId: "tary" },
+  ]
+  const categories = [
+    { externalId: "cashflow-categories-sandyq-suppliers", name: "Оплата поставщикам", organizationExternalId: "sandyq" },
+    { externalId: "cashflow-categories-tary-suppliers", name: "Оплата поставщикам", organizationExternalId: "tary" },
+    { externalId: "cashflow-categories-sandyq-rent", name: "Аренда", organizationExternalId: "sandyq" },
+  ]
+  const ids = (rows: { externalId: string }[]) => rows.map((row) => row.externalId)
+
+  it("no duplicates: only the restaurant's organization", () => {
+    expect(ids(categoriesForRestaurant(categories, restaurants, "almaty"))).toEqual(["cashflow-categories-sandyq-suppliers", "cashflow-categories-sandyq-rent"])
+    expect(ids(categoriesForRestaurant(categories, restaurants, "tary-1"))).toEqual(["cashflow-categories-tary-suppliers"])
+  })
+
+  it("keeps a saved record's own category; an unknown restaurant shows everything", () => {
+    expect(ids(categoriesForRestaurant(categories, restaurants, "tary-1", "cashflow-categories-sandyq-rent"))).toEqual(["cashflow-categories-tary-suppliers", "cashflow-categories-sandyq-rent"])
+    expect(categoriesForRestaurant(categories, restaurants, "")).toHaveLength(3)
   })
 })

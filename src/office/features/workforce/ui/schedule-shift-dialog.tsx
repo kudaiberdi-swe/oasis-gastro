@@ -1,7 +1,8 @@
 import { useState } from "react"
 
 import { useCan } from "@/office/components/can"
-import { Banner, Button, Combobox, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Field, Input, Select, StatusPill, Textarea, useToast } from "@/shared/components/ui"
+import { Banner, Button, Combobox, ConfirmDialog, Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Field, Input, Select, StatusPill, Textarea, useToast } from "@/shared/components/ui"
+import { useReveal } from "@/shared/hooks/use-reveal"
 import { errorMessage } from "@/shared/lib/error-message"
 
 import { usePositions, useScheduleMutations, useShiftTypes, type SaveEntryArgs, type ScheduleRow, type ScheduleShift } from "../data/use-workforce-w2"
@@ -31,7 +32,8 @@ export function ScheduleShiftDialog({ restaurantExternalId, rows, entry, default
   const readOnly = !canEdit || (entry !== null && entry.status !== "draft" && replacement === null)
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl">
+      {/* flex: the form's DialogBody scrolls, its buttons stay on screen (see DialogBody). */}
+      <DialogContent className="flex max-w-2xl flex-col">
         {readOnly && entry ? (
           <PublishedShift entry={entry} rows={rows} canEdit={canEdit} onClose={onClose} onReplace={setReplacement} />
         ) : (
@@ -143,6 +145,8 @@ function ShiftForm({ restaurantExternalId, rows, entry, initial, onClose }: { re
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<"save" | "remove" | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  // A save error shows at the top of the scrolled body: bring it into view (the removal's goes to its dialog).
+  const errorRef = useReveal(confirmRemove ? null : error)
   const set = (patch: Partial<ScheduleDraft>) => {
     setDraft((current) => ({ ...current, ...patch }))
     setErrors((current) => {
@@ -213,65 +217,67 @@ function ShiftForm({ restaurantExternalId, rows, entry, initial, onClose }: { re
           event.preventDefault()
           void submit()
         }}
-        className="flex flex-col gap-4"
+        className="flex min-h-0 flex-col gap-4"
       >
-        {error ? (
-          <Banner tone="danger" title="Не удалось сохранить">
-            {error}
-          </Banner>
-        ) : null}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Сотрудник" error={errors.employeeId} className="sm:col-span-2">
-            {(control) => (
-              <Combobox
-                {...control}
-                value={draft.employeeId || undefined}
-                onValueChange={(employeeId) => set({ employeeId })}
-                options={employeeOptions}
-                disabled={entry !== null}
-                placeholder="Выберите сотрудника"
-                searchPlaceholder="ФИО или код"
-                emptyText="В ресторане нет активных сотрудников"
-              />
-            )}
-          </Field>
-          {canSeeShiftTypes ? (
-            <Field label="Тип смены" hint="Подставит время и перерыв">
-              {(control) => <Select {...control} value={draft.shiftTypeExternalId || NO_TYPE} onValueChange={pickShiftType} options={typeOptions} disabled={shiftTypes === undefined} />}
-            </Field>
+        <DialogBody className="flex flex-col gap-4">
+          {error ? (
+            <Banner ref={errorRef} tabIndex={-1} tone="danger" title="Не удалось сохранить">
+              {error}
+            </Banner>
           ) : null}
-          {canSeePositions ? (
-            <Field label="Должность">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Сотрудник" error={errors.employeeId} className="sm:col-span-2">
               {(control) => (
-                <Select
+                <Combobox
                   {...control}
-                  value={draft.positionExternalId || EMPLOYEE_POSITION}
-                  onValueChange={(value) => set({ positionExternalId: value === EMPLOYEE_POSITION ? "" : value })}
-                  options={positionOptions}
-                  disabled={positions === undefined}
+                  value={draft.employeeId || undefined}
+                  onValueChange={(employeeId) => set({ employeeId })}
+                  options={employeeOptions}
+                  disabled={entry !== null}
+                  placeholder="Выберите сотрудника"
+                  searchPlaceholder="ФИО или код"
+                  emptyText="В ресторане нет активных сотрудников"
                 />
               )}
             </Field>
-          ) : null}
-          <Field label="Дата" error={errors.date}>
-            {(control) => <Input {...control} type="date" value={draft.date} onChange={(event) => set({ date: event.target.value })} />}
-          </Field>
-          <Field label="Перерыв, мин" error={errors.breakMinutes}>
-            {(control) => <Input {...control} inputMode="numeric" autoComplete="off" className="text-right tabular-nums" value={draft.breakMinutes} onChange={(event) => set({ breakMinutes: event.target.value.replace(/\D/g, "").slice(0, 3) })} />}
-          </Field>
-          <Field label="Начало" error={errors.start} hint="Время Алматы">
-            {(control) => <TimeInput {...control} value={draft.start} onValueChange={(start) => set({ start })} />}
-          </Field>
-          <Field label="Окончание" error={errors.end} hint={times?.nextDay ? "На следующий день" : undefined}>
-            {(control) => <TimeInput {...control} value={draft.end} onValueChange={(end) => set({ end })} />}
-          </Field>
-          <Field label="Комментарий" className="sm:col-span-2">
-            {(control) => <Textarea {...control} value={draft.comment} onChange={(event) => set({ comment: event.target.value })} />}
-          </Field>
-        </div>
-        <p className="text-body-sm text-muted-foreground">
-          Плановые часы: <span className="font-semibold text-foreground">{hours === null ? "—" : formatShiftHours(hours)}</span>
-        </p>
+            {canSeeShiftTypes ? (
+              <Field label="Тип смены" hint="Подставит время и перерыв">
+                {(control) => <Select {...control} value={draft.shiftTypeExternalId || NO_TYPE} onValueChange={pickShiftType} options={typeOptions} disabled={shiftTypes === undefined} />}
+              </Field>
+            ) : null}
+            {canSeePositions ? (
+              <Field label="Должность">
+                {(control) => (
+                  <Select
+                    {...control}
+                    value={draft.positionExternalId || EMPLOYEE_POSITION}
+                    onValueChange={(value) => set({ positionExternalId: value === EMPLOYEE_POSITION ? "" : value })}
+                    options={positionOptions}
+                    disabled={positions === undefined}
+                  />
+                )}
+              </Field>
+            ) : null}
+            <Field label="Дата" error={errors.date}>
+              {(control) => <Input {...control} type="date" value={draft.date} onChange={(event) => set({ date: event.target.value })} />}
+            </Field>
+            <Field label="Перерыв, мин" error={errors.breakMinutes}>
+              {(control) => <Input {...control} inputMode="numeric" autoComplete="off" className="text-right tabular-nums" value={draft.breakMinutes} onChange={(event) => set({ breakMinutes: event.target.value.replace(/\D/g, "").slice(0, 3) })} />}
+            </Field>
+            <Field label="Начало" error={errors.start} hint="Время Алматы">
+              {(control) => <TimeInput {...control} value={draft.start} onValueChange={(start) => set({ start })} />}
+            </Field>
+            <Field label="Окончание" error={errors.end} hint={times?.nextDay ? "На следующий день" : undefined}>
+              {(control) => <TimeInput {...control} value={draft.end} onValueChange={(end) => set({ end })} />}
+            </Field>
+            <Field label="Комментарий" className="sm:col-span-2">
+              {(control) => <Textarea {...control} value={draft.comment} onChange={(event) => set({ comment: event.target.value })} />}
+            </Field>
+          </div>
+          <p className="text-body-sm text-muted-foreground">
+            Плановые часы: <span className="font-semibold text-foreground">{hours === null ? "—" : formatShiftHours(hours)}</span>
+          </p>
+        </DialogBody>
         <DialogFooter>
           {entry ? (
             <Button type="button" variant="danger" onClick={() => setConfirmRemove(true)} disabled={busy !== null}>

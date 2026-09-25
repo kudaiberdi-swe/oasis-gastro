@@ -24,6 +24,7 @@ describe("formatTenge (L-22)", () => {
     expect(formatHours(7.5)).toBe("7 ч 30 мин")
     expect(formatHours(0.25)).toBe("15 мин")
     expect(formatHours(12)).toBe("12 ч")
+    expect(formatHours(0)).toBe("0 ч")
     expect(formatPercent(12.5)).toBe("12,5 %")
     expect(formatPercent(15)).toBe("15 %")
   })

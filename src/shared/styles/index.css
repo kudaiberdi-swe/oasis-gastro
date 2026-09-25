@@ -86,6 +86,13 @@
     height: 100%;
   }
 
+  /* The shell scrolls inside its panes: no macOS rubber-band of the whole document at the top or bottom
+     (inner overflow containers keep scrolling; they only stop chaining to the page). */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
   body {
     margin: 0;
     background: var(--background);

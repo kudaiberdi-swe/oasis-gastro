@@ -14,8 +14,10 @@ const DialogPortal = DialogPrimitive.Portal
 export const overlayClass =
   "fixed inset-0 z-50 bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150"
 
+// Never taller than the visible viewport (100dvh follows the mobile toolbars): what does not fit scrolls
+// inside the dialog, never past the screen edge.
 export const contentClass = cn(
-  "fixed top-1/2 left-1/2 z-50 grid max-h-[92vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 overflow-auto rounded-panel border border-border bg-card p-6 text-card-foreground shadow-float data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150",
+  "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 overflow-auto overscroll-contain rounded-panel border border-border bg-card p-6 text-card-foreground shadow-float data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150",
   focusRingClass,
 )
 
@@ -47,6 +49,15 @@ DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn("flex flex-col gap-1.5 pr-10", className)} {...props} />
 
+/**
+ * The scrolling middle of a long dialog: with `DialogContent className="flex flex-col"` the header and
+ * DialogFooter stay in view and only the body scrolls (a banner appearing on top no longer pushes the
+ * buttons off screen). The inset keeps the fields' focus outline unclipped.
+ */
+const DialogBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("-m-1.5 min-h-0 overflow-y-auto overscroll-contain p-1.5", className)} {...props} />
+)
+
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:sm:min-w-32", className)} {...props} />
 )
@@ -63,4 +74,4 @@ const DialogDescription = React.forwardRef<React.ElementRef<typeof DialogPrimiti
 )
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
-export { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger }
+export { Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger }

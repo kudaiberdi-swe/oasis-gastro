@@ -116,7 +116,7 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
-function renderAt(path: string, element: ReactNode, capabilities: string[] = ["*"]) {
+function renderAt(path: string | { pathname: string; state: unknown }, element: ReactNode, capabilities: string[] = ["*"]) {
   const router = createMemoryRouter(
     [
       { path: "/office/:section/:id?", element },
@@ -306,5 +306,32 @@ describe("«Заказы поставщикам» (W2-PRD-06)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }))
     expect(await screen.findByText("Минимальный заказ поставщика — 50000 ₸")).toBeTruthy()
     expect(mocks.mutations[SAVE]).toHaveBeenCalledWith(expect.objectContaining({ supplierExternalId: "sup-milk", destinationWarehouseExternalId: "wh-main", expectedDate: Date.parse("2026-09-25T19:00:00Z"), lines: [{ inventoryItemExternalId: "milk", quantity: 20, expectedUnitCost: 400 }] }))
+  })
+
+  it("«Отправить на согласование» saves first and shows the minimum-order warning", async () => {
+    mocks.queries[GET] = order({ status: "draft" })
+    mocks.mutations[SAVE] = vi.fn(async () => ({ externalId: "purchase-order-1", warnings: ["Минимальный заказ поставщика — 50000 ₸"] }))
+    renderAt("/office/purchase-orders/purchase-order-1", <PurchaseOrdersWorkspace />)
+    fireEvent.change(screen.getByLabelText("Ожидаемая цена — Молоко"), { target: { value: "400" } })
+    fireEvent.click(screen.getByRole("button", { name: "Отправить на согласование" }))
+    await waitFor(() => expect(mocks.mutations[TRANSITION]).toHaveBeenCalledWith({ externalId: "purchase-order-1", action: "submit" }))
+    expect(await screen.findByText("Минимальный заказ поставщика — 50000 ₸")).toBeTruthy()
+  })
+
+  it("a new order brings the save's warnings to its URL; they stay while on approval", () => {
+    mocks.queries[GET] = order({ status: "pending-approval" })
+    renderAt({ pathname: "/office/purchase-orders/purchase-order-1", state: { saveWarnings: ["Минимальный заказ поставщика — 50000 ₸"] } }, <PurchaseOrdersWorkspace />)
+    expect(screen.getByText("Минимальный заказ поставщика — 50000 ₸")).toBeTruthy()
+  })
+
+  it("«Ед.» of a saved line comes from the server (getDocument returns the unit and external id)", () => {
+    mocks.queries["domains/stock/master:listInventoryItems"] = { page: [], isDone: true, continueCursor: "" }
+    mocks.queries[GET] = order({
+      status: "pending-approval",
+      lines: [{ lineNo: 1, inventoryItemId: "i1", name: "Молоко", quantity: 20, direction: "output", expectedUnitCost: 450, productExternalId: null, inventoryItemExternalId: "milk", unit: "л" }],
+    })
+    renderAt("/office/purchase-orders/purchase-order-1", <PurchaseOrdersWorkspace />)
+    const row = screen.getAllByRole("row").find((candidate) => candidate.textContent?.includes("Молоко"))!
+    expect(within(row).getByText("л")).toBeTruthy()
   })
 })

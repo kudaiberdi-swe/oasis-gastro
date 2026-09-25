@@ -89,3 +89,12 @@ export function validateReceipt(draft: ReceiptDraft, parseDate: (text: string) =
 }
 
 export const hasReceiptErrors = (errors: ReceiptErrors) => Boolean(errors.supplier || errors.warehouse || errors.date || errors.lines) || Object.keys(errors.rows).length > 0
+
+/**
+ * «Оприходовать на склад» of a new receipt: the warehouses of the restaurant in the filter, and of the
+ * supplier's restaurants when the supplier is bound to some (an empty list — it delivers everywhere).
+ */
+export function warehousesForSupplier<W extends { restaurantExternalId: string }>(warehouses: readonly W[], supplier: { restaurantExternalIds?: readonly string[] } | undefined, restaurantExternalId?: string): W[] {
+  const bound = supplier?.restaurantExternalIds?.length ? new Set(supplier.restaurantExternalIds) : null
+  return warehouses.filter((warehouse) => (!restaurantExternalId || warehouse.restaurantExternalId === restaurantExternalId) && (!bound || bound.has(warehouse.restaurantExternalId)))
+}

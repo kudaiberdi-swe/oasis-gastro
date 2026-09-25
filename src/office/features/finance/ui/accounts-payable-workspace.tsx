@@ -91,7 +91,7 @@ function AccountsPayable() {
         return (
           <div className="flex min-w-0 flex-col">
             <span className="font-semibold whitespace-nowrap">{row.number}</span>
-            <span className="text-caption whitespace-nowrap text-muted-foreground">{[obligationSourceLabel(parsed.sourceModuleId), parsed.sourceNumber].filter(Boolean).join(" ")}</span>
+            <span className="max-w-44 text-caption text-muted-foreground">{[obligationSourceLabel(parsed.sourceModuleId), parsed.sourceNumber].filter(Boolean).join(" ")}</span>
           </div>
         )
       },
@@ -101,8 +101,10 @@ function AccountsPayable() {
       key: "counterparty",
       header: "Контрагент",
       cell: (row) => (
-        <div className="flex min-w-0 flex-col">
-          <span className="font-semibold">{row.counterpartyExternalId ? counterpartyName(references?.counterparties, row.counterpartyExternalId) : OBLIGATION_KIND_LABELS[obligationOf(row).kind]}</span>
+        // A bounded width: a long counterparty wraps and the obligation name truncates, so the table fits
+        // at ~1500px and «Оплатить» in the last column is never cut off.
+        <div className="flex w-56 max-w-full min-w-0 flex-col">
+          <span className="font-semibold break-words">{row.counterpartyExternalId ? counterpartyName(references?.counterparties, row.counterpartyExternalId) : OBLIGATION_KIND_LABELS[obligationOf(row).kind]}</span>
           <span className="truncate text-caption text-muted-foreground">{row.name}</span>
         </div>
       ),

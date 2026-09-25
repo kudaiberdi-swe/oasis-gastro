@@ -13,6 +13,7 @@ import { errorMessage } from "@/shared/lib/error-message"
 import { formatAmount } from "@/shared/lib/format"
 
 import { RECEIPTS_PAGE_SIZE, useAllSuppliers, useReceiptMutations, useReceipts, useWarehouseDocs, type ReceiptRow, type ReceiptStatus } from "../data/use-receipts"
+import { warehousesForSupplier } from "../model/receipt-draft"
 
 const TABS = STATUS_TABS.map((tab) => (tab.value === "all" ? { ...tab, label: "Все документы" } : tab))
 
@@ -103,7 +104,15 @@ function NewReceiptDialog({ restaurantExternalId, onClose, onCreated }: { restau
   const [warehouse, setWarehouse] = useState<string | undefined>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const available: WarehouseOption[] = (warehouses ?? []).filter((option) => !restaurantExternalId || option.restaurantExternalId === restaurantExternalId)
+  const chosenSupplier = suppliers?.find((option) => option.externalId === supplier)
+  const available: WarehouseOption[] = warehousesForSupplier(warehouses ?? [], chosenSupplier, restaurantExternalId)
+  // Another supplier may not deliver to the chosen warehouse's restaurant: the choice is dropped then.
+  const pickSupplier = (next: string) => {
+    setSupplier(next)
+    const restaurants = suppliers?.find((option) => option.externalId === next)?.restaurantExternalIds
+    const current = warehouses?.find((option) => option.externalId === warehouse)
+    if (current && restaurants?.length && !restaurants.includes(current.restaurantExternalId)) setWarehouse(undefined)
+  }
 
   async function submit() {
     if (!supplier || !warehouse || busy) return
@@ -135,7 +144,7 @@ function NewReceiptDialog({ restaurantExternalId, onClose, onCreated }: { restau
             <Combobox
               {...control}
               value={supplier}
-              onValueChange={setSupplier}
+              onValueChange={pickSupplier}
               options={(suppliers ?? []).map((option) => ({ value: option.externalId, label: option.name, hint: `БИН ${option.bin}` }))}
               placeholder="Выберите поставщика"
               searchPlaceholder="Название или БИН"

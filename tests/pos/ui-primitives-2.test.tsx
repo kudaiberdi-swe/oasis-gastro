@@ -5,7 +5,8 @@ import userEvent from "@testing-library/user-event"
 import { useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { ConfirmDialog, DataTable, Dialog, DialogContent, DialogTitle, PinPad, StatusPill, type Column } from "@/shared/components/ui"
+import { Banner, ConfirmDialog, DataTable, Dialog, DialogContent, DialogTitle, PinPad, StatusPill, type Column } from "@/shared/components/ui"
+import { useReveal } from "@/shared/hooks/use-reveal"
 
 afterEach(cleanup)
 
@@ -125,5 +126,35 @@ describe("DataTable (L-23)", () => {
     expect(screen.getByText("Чеков пока нет")).toBeTruthy()
     rerender(<DataTable columns={columns} rows={[]} getRowId={(row) => row.id} error="Сеть недоступна" />)
     expect(screen.getByRole("alert").textContent).toContain("Сеть недоступна")
+  })
+})
+
+describe("useReveal: an error banner out of sight in a scrolled panel", () => {
+  function Harness() {
+    const [error, setError] = useState<string | null>(null)
+    const ref = useReveal(error)
+    return (
+      <>
+        {error ? (
+          <Banner ref={ref} tabIndex={-1} tone="danger" title="Не удалось выполнить действие">
+            {error}
+          </Banner>
+        ) : null}
+        <button type="button" onClick={() => setError("Стол «5» уже забронирован")}>
+          Сохранить
+        </button>
+      </>
+    )
+  }
+
+  it("scrolls the banner into view (nearest) and focuses it when an error appears", () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    render(<Harness />)
+    expect(scroll).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }))
+    const banner = screen.getByRole("alert")
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest" })
+    expect(document.activeElement).toBe(banner)
   })
 })
