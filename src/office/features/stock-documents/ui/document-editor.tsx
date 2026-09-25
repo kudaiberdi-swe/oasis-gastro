@@ -9,6 +9,7 @@ import { fromAlmatyInput, toAlmatyInput } from "@/office/features/price-orders/m
 import { useSupplierOptions, useWarehouseOptions } from "@/office/features/stock/data/use-stock-master"
 import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
 import { Banner, Button, Combobox, EmptyState, Field, Input, KpiCard, Select, StatusPill, Textarea, useToast } from "@/shared/components/ui"
+import { useReveal } from "@/shared/hooks/use-reveal"
 import { formatAlmatyDate, formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
@@ -82,6 +83,8 @@ function draftOf(document: StockDocument): DocumentDraft {
 }
 
 type HeaderErrors = Partial<Record<"date" | "source" | "destination" | "supplier" | "receipt" | "reason" | "lines", string>>
+/** The header error each draft field answers (an edit of the field clears it). */
+const ERROR_OF: Partial<Record<keyof DocumentDraft, keyof HeaderErrors>> = { date: "date", sourceWarehouseExternalId: "source", destinationWarehouseExternalId: "destination", supplierExternalId: "supplier", receiptExternalId: "receipt", reason: "reason" }
 
 /** Combobox value for «none» (a Combobox option can't be empty). */
 const NONE = "__none__"
@@ -111,12 +114,23 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
   const [errors, setErrors] = useState<HeaderErrors>({})
   const [lineErrors, setLineErrors] = useState<LineErrors>({})
   const [error, setError] = useState<string | null>(null)
+  // The error banner sits above the lines: bring it into view when «Провести» at the bottom of a long document raises it.
+  const errorRef = useReveal(error)
   const [busy, setBusy] = useState<"save" | "post" | null>(null)
   const [reversing, setReversing] = useState(false)
-  // A server error (e.g. «возврат больше полученного») describes the draft it was raised on: any edit clears it.
+  // A server error (e.g. «возврат больше полученного») describes the draft it was raised on: any edit clears it;
+  // a field's own error clears once that field changes.
   const set = (patch: Partial<DocumentDraft>) => {
     setError(null)
     setDraft((current) => ({ ...current, ...patch }))
+    setErrors((current) => {
+      const next = { ...current }
+      for (const key of Object.keys(patch) as (keyof DocumentDraft)[]) {
+        const errorKey = ERROR_OF[key]
+        if (errorKey) delete next[errorKey]
+      }
+      return next
+    })
   }
 
   const restaurantWarehouses = (warehouses ?? []).filter((warehouse) => warehouse.restaurantExternalId === document.restaurantExternalId)
@@ -261,7 +275,7 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
           </Banner>
         ) : null}
         {error ? (
-          <Banner tone="danger" title="Не удалось выполнить действие">
+          <Banner ref={errorRef} tabIndex={-1} tone="danger" title="Не удалось выполнить действие">
             {error}
           </Banner>
         ) : null}

@@ -177,4 +177,15 @@ describe("«Возвраты поставщикам» (W2-STK-13)", () => {
     fireEvent.change(screen.getByLabelText("Количество — Молоко"), { target: { value: "1" } })
     expect(screen.queryByText(/Возврат больше полученного/)).toBeNull()
   })
+
+  it("a field's own error disappears once the field is filled", async () => {
+    mocks.queries[GET] = { ...(mocks.queries[GET] as object), supplierId: undefined }
+    renderAt("/office/supplier-returns/supplier-returns-1", <SupplierReturnsWorkspace />)
+    fireEvent.click(screen.getByRole("button", { name: "Провести" }))
+    const supplier = screen.getByRole("combobox", { name: "Поставщик" })
+    await waitFor(() => expect(supplier.getAttribute("aria-invalid")).toBe("true"))
+    fireEvent.click(supplier)
+    fireEvent.click(await screen.findByRole("option", { name: /Молочный двор/ }))
+    expect(screen.getByRole("combobox", { name: "Поставщик" }).getAttribute("aria-invalid")).not.toBe("true")
+  })
 })

@@ -11,6 +11,7 @@ import { ReverseDialog } from "@/office/features/stock-documents/ui/reverse-dial
 import { parseDecimal, useSupplierOptions, useWarehouseOptions } from "@/office/features/stock/data/use-stock-master"
 import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
 import { Banner, Button, Combobox, Field, Input, KpiCard, Select, StatusPill, useToast } from "@/shared/components/ui"
+import { useReveal } from "@/shared/hooks/use-reveal"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatPercent, formatTenge } from "@/shared/lib/format"
@@ -51,6 +52,8 @@ function ReceiptForm({ receipt, onBack }: { receipt: Receipt; onBack: () => void
   const blocker = useUnsavedChanges(dirty && !readOnly)
   const [errors, setErrors] = useState<ReceiptErrors>({ rows: {} })
   const [error, setError] = useState<string | null>(null)
+  // The error banner sits above the lines: bring it into view when «Провести» at the bottom of a long document raises it.
+  const errorRef = useReveal(error)
   const [busy, setBusy] = useState<"save" | "post" | null>(null)
   const [reversing, setReversing] = useState(false)
   const set = (patch: Partial<ReceiptDraft>) => setDraft((current) => ({ ...current, ...patch }))
@@ -176,7 +179,7 @@ function ReceiptForm({ receipt, onBack }: { receipt: Receipt; onBack: () => void
           </Banner>
         ) : null}
         {error ? (
-          <Banner tone="danger" title="Не удалось выполнить действие">
+          <Banner ref={errorRef} tabIndex={-1} tone="danger" title="Не удалось выполнить действие">
             {error}
           </Banner>
         ) : null}
