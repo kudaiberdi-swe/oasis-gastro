@@ -112,6 +112,7 @@ export default defineSchema({
     jurisdiction: v.optional(v.union(v.literal("KZ"), v.literal("RU"))),
     vatPayer: v.optional(v.boolean()), // receipts cost net of VAT only when the organization and the supplier are VAT payers
     sourceReadOnly: v.optional(v.boolean()),
+    version: v.optional(v.number()), // optimistic concurrency for office edits (W2-ADM-06)
   }).index("by_external_id", ["externalId"]),
 
   restaurants: defineTable({
@@ -130,10 +131,34 @@ export default defineSchema({
     departmentExternalId: v.optional(v.string()),
     serviceMode: v.optional(v.string()),
     sourceReadOnly: v.optional(v.boolean()),
+    version: v.optional(v.number()), // optimistic concurrency for office edits (W2-ADM-07)
   })
     .index("by_external_id", ["externalId"])
     .index("by_active_and_name", ["active", "name"])
     .index("by_organization", ["organizationExternalId", "name"]),
+
+  // Departments (W2-ADM-08): the management structure — restaurants, production, warehouses, office,
+  // delivery — as a tree inside an organization.
+  departments: defineTable({
+    externalId: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.optional(v.string()),
+    code: v.string(),
+    name: v.string(),
+    parentExternalId: v.optional(v.string()),
+    kind: v.union(v.literal("restaurant"), v.literal("production"), v.literal("warehouse"), v.literal("office"), v.literal("delivery")),
+    managerEmployeeId: v.optional(v.id("employees")),
+    costCenter: v.optional(v.string()),
+    active: v.boolean(),
+    sourceSystem: v.optional(v.string()),
+    iikoDepartmentExternalId: v.optional(v.string()),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_org_parent", ["organizationExternalId", "parentExternalId"])
+    .index("by_restaurant", ["restaurantExternalId"]),
 
   posTerminals: defineTable({
     externalId: v.string(),
