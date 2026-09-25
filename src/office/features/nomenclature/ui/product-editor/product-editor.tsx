@@ -15,8 +15,10 @@ import { cn } from "@/shared/lib/utils"
 
 import { ITEM_TYPE_LABELS, useNomenclatureMutations, useProductCard, useProductId, type NomenclatureLocationState, type ProductCard, type ProductId } from "../../data/use-nomenclature"
 import { areFieldsDirty, changedBranchPrices, saveArgs, useProductDraft, validateDraft, type DraftErrors } from "../../model/use-product-draft"
+import { useRecipeDraft } from "../../model/use-recipe-draft"
 import { ImageTab } from "./image-tab"
 import { MainTab } from "./main-tab"
+import { RecipeTab } from "./recipe-tab"
 import { SizeScaleTab } from "./size-scale-tab"
 import { TechnologyTab } from "./technology-tab"
 import { UnitsTab } from "./units-tab"
@@ -66,9 +68,9 @@ export function ProductEditor({ externalId }: { externalId: string }) {
 }
 
 function ProductEditorForm({ card, onBack, productIdFromState }: { card: ProductCard; onBack: () => void; productIdFromState: ProductId | undefined }) {
-  const { draft, state, dirty, set, setBranchPrice, reset, markSaved } = useProductDraft(card)
-  const blocker = useUnsavedChanges(dirty)
+  const { draft, state, dirty: productDirty, set, setBranchPrice, reset: resetProduct, markSaved } = useProductDraft(card)
   const canEdit = useCan("office.nomenclature.edit")
+  const canActivateRecipe = useCan("office.nomenclature.post")
   const canEditPrices = useCan("office.price-lists.edit")
   const canViewScales = useCan("office.size-scales.view")
   const canEditScales = useCan("office.size-scales.edit")
@@ -79,9 +81,15 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
   const toast = useToast()
   const breakpoint = useBreakpoint()
   const [tab, setTab] = useState<TabKey>("main")
+  // The recipe card loads once its tab was opened and then stays, so its edits survive a tab switch.
+  const [recipeOpened, setRecipeOpened] = useState(false)
+  const recipe = useRecipeDraft({ card, enabled: recipeOpened, basePrice: draft.basePrice })
+  const dirty = productDirty || recipe.dirty
+  const blocker = useUnsavedChanges(dirty)
   const [errors, setErrors] = useState<DraftErrors>({})
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ title: string; message: string; tone?: "danger" | "warning" } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [activating, setActivating] = useState(false)
   const [closeAfterSave, setCloseAfterSave] = useState(false)
   const iiko = card.source === "iiko-server"
   const readOnly = !canEdit
@@ -98,6 +106,10 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
     if (closeAfterSave && !dirty) onBack()
   }, [closeAfterSave, dirty, onBack])
 
+  useEffect(() => {
+    if (tab === "recipe") setRecipeOpened(true)
+  }, [tab])
+
   async function save(close: boolean) {
     if (saving) return
     const found = validateDraft(draft)
@@ -106,25 +118,56 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
       setTab(found.unitWeightKg && !found.name && !found.basePrice && !found.categoryExternalId ? "units" : "main")
       return
     }
+    const saveRecipe = canEdit && recipe.dirty
+    if (saveRecipe && !recipe.validate()) {
+      setTab("recipe")
+      return
+    }
     setSaving(true)
     setError(null)
     try {
-      if (canEdit && areFieldsDirty(state)) await saveProductCard(saveArgs(card.externalId, draft))
-      if (productId && canEditPrices) {
-        for (const price of changedBranchPrices(state)) await setProductPrice({ productId, ...price })
+      if (productDirty) {
+        if (canEdit && areFieldsDirty(state)) await saveProductCard(saveArgs(card.externalId, draft))
+        if (productId && canEditPrices) {
+          for (const price of changedBranchPrices(state)) await setProductPrice({ productId, ...price })
+        }
+        markSaved()
       }
-      markSaved()
-      toast("Сохранено", "success")
+      if (saveRecipe) await recipe.save(draft.technology)
+      toast(saveRecipe ? (recipe.savesAsNewVersion ? "Сохранено: техкарта — новый черновик версии" : "Сохранено: черновик техкарты") : "Сохранено", "success")
       if (close) setCloseAfterSave(true)
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось сохранить"))
+      setError({ title: "Не удалось сохранить", message: errorMessage(caught, "Не удалось сохранить") })
+      if (saveRecipe) setTab("recipe")
     } finally {
       setSaving(false)
     }
   }
 
+  async function activateRecipe() {
+    if (activating || !recipe.canActivate) return
+    setActivating(true)
+    setError(null)
+    try {
+      const result = await recipe.activate()
+      if (result) toast(`Версия${result.version ? ` v${result.version}` : ""} техкарты активирована`, "success")
+      if (result?.warning) setError({ title: "Версия активирована с предупреждением", message: result.warning, tone: "warning" })
+    } catch (caught) {
+      setError({ title: "Не удалось активировать версию", message: errorMessage(caught, "Не удалось активировать версию") })
+    } finally {
+      setActivating(false)
+    }
+  }
+
+  function reset() {
+    resetProduct()
+    recipe.reset()
+  }
+
   const priceNotice = !canEditPrices ? undefined : productId ? undefined : "Цены филиалов можно изменить, открыв позицию из списка номенклатуры."
   const canSave = canEdit || canEditPrices
+  // One primary per screen: on the recipe tab a saved draft version is activated from the header.
+  const activateInHeader = tab === "recipe" && !dirty && canActivateRecipe && recipe.canActivate
   const vertical = breakpoint === "tablet" || breakpoint === "laptop"
 
   const panels = (
@@ -152,7 +195,7 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
         <SizeScaleTab card={card} canEdit={canEdit} canEditScales={canEditScales} canViewScales={canViewScales} />
       </TabsContent>
       <TabsContent value="recipe" className={cn(vertical && "min-w-0 flex-1 pt-0")}>
-        <EmptyState title="Появится в следующих задачах" description="Технологическая карта подключается вместе с рецептурами." />
+        <RecipeTab card={card} product={draft} recipe={recipe} canEdit={canEdit} canActivate={canActivateRecipe} activating={activating} onActivate={() => void activateRecipe()} />
       </TabsContent>
       <TabsContent value="technology" className={cn(vertical && "min-w-0 flex-1 pt-0")}>
         <TechnologyTab card={card} draft={draft} set={set} readOnly={readOnly} />
@@ -181,7 +224,11 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
             <Button variant="secondary" onClick={onBack}>
               <ArrowLeft aria-hidden />К списку
             </Button>
-            {canSave ? (
+            {activateInHeader ? (
+              <Button onClick={() => void activateRecipe()} disabled={activating}>
+                Активировать версию
+              </Button>
+            ) : canSave ? (
               <Button onClick={() => void save(false)} disabled={!dirty || saving}>
                 {dirty ? "Сохранить" : "Сохранено"}
               </Button>
@@ -195,8 +242,8 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
           </Banner>
         ) : null}
         {error ? (
-          <Banner tone="danger" title="Не удалось сохранить">
-            {error}
+          <Banner tone={error.tone ?? "danger"} title={error.title}>
+            {error.message}
           </Banner>
         ) : null}
 
