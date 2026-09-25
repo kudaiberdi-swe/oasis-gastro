@@ -119,7 +119,7 @@ export function CatalogPanel({
   }
 
   const configurable: ConfigurableProduct | null = configuring
-    ? { productId: configuring._id, externalId: configuring.externalId, name: configuring.name, nameKk: configuring.nameKk, price: configuring.price, description: configuring.description, imageUrl: configuring.imagePath }
+    ? { productId: configuring._id, externalId: configuring.externalId, name: configuring.name, nameKk: configuring.nameKk, price: configuring.price, description: configuring.description, imageUrl: configuring.imageUrl ?? configuring.imagePath }
     : null
 
   async function star(product: CatalogProduct) {
@@ -218,7 +218,7 @@ export function CatalogPanel({
                 nameKk={product.nameKk}
                 price={product.price}
                 tone={toneByCategory.get(product.category)}
-                imageUrl={product.imagePath}
+                imageUrl={product.imageUrl ?? product.imagePath}
                 badge={product.badge}
                 available={product.available !== false}
                 favorite={favoriteSet.has(product.externalId)}

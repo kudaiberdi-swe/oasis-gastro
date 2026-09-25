@@ -48,6 +48,9 @@ export const listOpenChecks = query({
           total: order.total,
           itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
           updatedAt: order.updatedAt ?? order.createdAt,
+          createdAt: order.createdAt,
+          kitchenSentAt: order.kitchenSentAt ?? null,
+          unsentCount: lines.filter((line) => !line.sentToKitchenAt && !line.voidedAt).length,
         }
       }),
     )

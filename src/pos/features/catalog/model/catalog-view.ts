@@ -14,8 +14,9 @@ export type CatalogProduct = {
   imagePath?: string
   customizable?: boolean
   sizeScaleId?: string
-  /** false — in the branch stop list («нет в наличии»). listProducts does not send it yet. */
+  /** false — in the branch stop list («нет в наличии»). */
   available?: boolean
+  imageUrl?: string
 }
 
 export type CatalogView = { kind: "all" } | { kind: "popular" } | { kind: "favorites" } | { kind: "recent" } | { kind: "category"; categoryExternalId: string }
@@ -70,8 +71,8 @@ export function pushRecent(list: CatalogProduct[], product: CatalogProduct): Cat
 
 /** Keeps only the fields the grid needs, so a stored entry never carries the whole document. */
 export function recentEntry(product: CatalogProduct): CatalogProduct {
-  const { _id, externalId, name, nameKk, price, category, popular, badge, description, imagePath, customizable, sizeScaleId } = product
-  return { _id, externalId, name, nameKk, price, category, popular, badge, description, imagePath, customizable, sizeScaleId }
+  const { _id, externalId, name, nameKk, price, category, popular, badge, description, imagePath, imageUrl, customizable, sizeScaleId, available } = product
+  return { _id, externalId, name, nameKk, price, category, popular, badge, description, imagePath, imageUrl, customizable, sizeScaleId, available }
 }
 
 export function parseRecent(raw: string | null): CatalogProduct[] {

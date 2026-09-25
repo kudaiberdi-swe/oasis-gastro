@@ -3,6 +3,7 @@ import { v } from "convex/values"
 
 import type { QueryCtx } from "../../_generated/server"
 import { query } from "../../_generated/server"
+import { isAvailable } from "../../lib/availability"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { requireOperator } from "../../lib/auth"
 import { resolvePrice } from "../../lib/pricing"
@@ -16,7 +17,8 @@ export async function resolveProductPrice(ctx: QueryCtx, product: Doc<"products"
 
 async function withResolvedPrice(ctx: QueryCtx, product: Doc<"products">, restaurantExternalId: string): Promise<PosProduct> {
   const { basePrice: _basePrice, ...rest } = product
-  return { ...rest, price: await resolveProductPrice(ctx, product, restaurantExternalId) }
+  const imageUrl = product.imageStorageId ? ((await ctx.storage.getUrl(product.imageStorageId)) ?? undefined) : product.imagePath
+  return { ...rest, price: await resolveProductPrice(ctx, product, restaurantExternalId), available: await isAvailable(ctx, product._id, restaurantExternalId, Date.now()), ...(imageUrl ? { imageUrl } : {}) }
 }
 
 export const listCategories = query({
