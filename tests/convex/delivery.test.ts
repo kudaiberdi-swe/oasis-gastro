@@ -136,4 +136,21 @@ describe("delivery orders (W2-DLV-02/03/07)", () => {
     const commission = await t.run((ctx) => ctx.db.query("journalEntries").withIndex("by_source", (q) => q.eq("sourceExternalId", second.externalId)).collect())
     expect(commission.map((row) => [row.debitAccountExternalId, row.creditAccountExternalId, row.amount])).toEqual([["acc-7110", "acc-1250", 500]])
   })
+
+  it("saveOrder keeps the phone when it comes masked and assigns the courier like assignCourier", async () => {
+    const { t } = await setup()
+    const { admin } = await office(t)
+    const courier = await admin.mutation(delivery.mutations.saveCourier, { employeeCode: "101", restaurantExternalId: "almaty", name: "Курьер", phone: "+77010000090", transport: "car", active: true })
+    await expect(admin.mutation(delivery.mutations.saveOrder, body(2, { courierExternalId: courier }))).rejects.toThrow(/занят/)
+    await admin.mutation(delivery.mutations.setCourierStatus, { externalId: courier, status: "available" })
+    const saved = await admin.mutation(delivery.mutations.saveOrder, body(2, { courierExternalId: courier }))
+    const courierStatus = () => t.run(async (ctx) => (await ctx.db.query("couriers").first())!.status)
+    expect(await courierStatus()).toBe("assigned")
+    await admin.mutation(delivery.mutations.saveOrder, { ...body(2), externalId: saved.externalId, phone: "7701•••••67" })
+    const card = (await admin.query(delivery.queries.order, { externalId: saved.externalId }))!
+    expect(card).toMatchObject({ phone: "77011234567", courier: { externalId: courier } })
+    await admin.mutation(delivery.mutations.saveOrder, { ...body(2), externalId: saved.externalId, courierExternalId: null })
+    expect(await courierStatus()).toBe("available")
+    await expect(admin.mutation(delivery.mutations.saveCourier, { externalId: courier, employeeCode: "101", restaurantExternalId: "almaty", name: "Курьер", phone: "+7 701 ••• •• 90", transport: "car", active: true })).resolves.toBe(courier)
+  })
 })

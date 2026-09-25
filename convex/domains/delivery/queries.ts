@@ -8,12 +8,15 @@ import { hasScope, requireOfficeCapability, requireRestaurantScope, scopedRestau
 import { isAvailable } from "../../lib/availability"
 import { maskPhone } from "../../lib/pii"
 import { resolvePrice } from "../../lib/pricing"
+import { productConfigurationFor } from "../catalog/pos"
 import { activeSettingsAt } from "../../lib/retailSettings"
 import { sourceServes, TAB_STATUSES, todayStart } from "./shared"
 
 // Delivery registries and cards (W2-DLV-02/04…08). Every list goes through an index and the user's scope.
 
 const channel = v.optional(v.union(v.literal("delivery"), v.literal("call-center")))
+/** The call center works on the same orders under its own section rights. */
+const orderCapability = (from: "delivery" | "call-center" | undefined, action: string) => (from === "call-center" ? `office.call-center.${action}` : `office.delivery-orders.${action}`)
 
 async function canSeePii(ctx: QueryCtx) {
   try {
@@ -26,6 +29,7 @@ async function canSeePii(ctx: QueryCtx) {
 
 async function row(ctx: QueryCtx, order: Doc<"deliveryOrders">, pii: boolean) {
   const courier = order.courierExternalId ? await ctx.db.query("couriers").withIndex("by_external_id", (q) => q.eq("externalId", order.courierExternalId!)).unique() : null
+  const source = await ctx.db.query("deliverySources").withIndex("by_external_id", (q) => q.eq("externalId", order.sourceExternalId)).unique()
   return {
     externalId: order.externalId,
     number: order.number,
@@ -37,6 +41,9 @@ async function row(ctx: QueryCtx, order: Doc<"deliveryOrders">, pii: boolean) {
     expectedAt: order.expectedAt,
     predictedCookingCompleteAt: order.predictedCookingCompleteAt ?? null,
     courierName: courier?.name ?? null,
+    courierExternalId: order.courierExternalId ?? null,
+    sourceExternalId: order.sourceExternalId,
+    settlementMode: source?.settlementMode ?? "on-delivered",
     total: order.total,
     paymentStatus: order.paymentStatus,
     late: OPEN_DELIVERY_STATUSES.includes(order.status) && order.expectedAt < Date.now(),
@@ -94,9 +101,9 @@ export const kpis = query({
 })
 
 export const order = query({
-  args: { externalId: v.string() },
+  args: { externalId: v.string(), channel },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.delivery-orders.view")
+    const { user } = await requireOfficeCapability(ctx, orderCapability(args.channel, "view"))
     const delivery = await ctx.db.query("deliveryOrders").withIndex("by_external_id", (q) => q.eq("externalId", args.externalId)).unique()
     if (!delivery || !hasScope(user.restaurantScopes, delivery.restaurantExternalId)) return null
     await requireRestaurantScope(ctx, user, delivery.restaurantExternalId)
@@ -119,9 +126,9 @@ export const order = query({
 
 /** Pickers of the order card: restaurants in scope, the restaurant's sources, couriers and payment types. */
 export const references = query({
-  args: { restaurantExternalId: v.optional(v.string()) },
+  args: { restaurantExternalId: v.optional(v.string()), channel },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.delivery-orders.view")
+    const { user } = await requireOfficeCapability(ctx, orderCapability(args.channel, "view"))
     const restaurants = (await scopedRestaurants(ctx, user)).filter((restaurant) => restaurant.active)
     if (!args.restaurantExternalId) return { restaurants: restaurants.map(({ externalId, name }) => ({ externalId, name })), sources: [], couriers: [], paymentTypes: [] }
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
@@ -140,9 +147,9 @@ export const references = query({
 
 /** Dishes for the order card at the restaurant's price in force (resolvePrice), with the stop list. */
 export const products = query({
-  args: { restaurantExternalId: v.string(), search: v.string() },
+  args: { restaurantExternalId: v.string(), search: v.string(), channel },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.delivery-orders.view")
+    const { user } = await requireOfficeCapability(ctx, orderCapability(args.channel, "view"))
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     const needle = args.search.trim().toLocaleLowerCase("ru")
     const rows = needle
@@ -158,6 +165,16 @@ export const products = query({
         hasSizes: Boolean(product.sizeScaleId),
       })),
     )
+  },
+})
+
+/** Sizes and modifier groups of a dish for the order card, at the restaurant's prices. */
+export const productConfiguration = query({
+  args: { restaurantExternalId: v.string(), productExternalId: v.string(), channel },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, orderCapability(args.channel, "view"))
+    await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    return productConfigurationFor(ctx, args.restaurantExternalId, args.productExternalId)
   },
 })
 

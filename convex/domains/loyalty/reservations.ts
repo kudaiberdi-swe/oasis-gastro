@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values"
 import { mutation, query, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
 import { resolvePaymentType } from "../../lib/checkoutCore"
+import { activeSettingsAt } from "../../lib/retailSettings"
 import { journalReady, postJournalEntry, reverseJournalEntries } from "../../lib/ledger"
 import { normalizePhone } from "../../lib/loyalty"
 import { nextNumber } from "../../lib/numbering"
@@ -59,32 +60,72 @@ export const listTables = query({
   },
 })
 
+const tableInput = { externalId: v.optional(v.string()), hall: v.string(), label: v.string(), capacity: v.number(), shape: v.union(v.literal("rect"), v.literal("circle")), x: v.number(), y: v.number(), width: v.number(), height: v.number(), rotation: v.number(), active: v.boolean() }
+type TableInput = { externalId?: string; hall: string; label: string; capacity: number; shape: "rect" | "circle"; x: number; y: number; width: number; height: number; rotation: number; active: boolean }
+
+async function writeTable(ctx: MutationCtx, email: string, restaurantExternalId: string, args: TableInput) {
+  const hall = args.hall.trim()
+  const label = args.label.trim()
+  if (!hall || !label) throw new ConvexError("Укажите зал и название стола")
+  if (!(Number.isInteger(args.capacity) && args.capacity >= 1 && args.capacity <= 200)) throw new ConvexError("Вместимость — от 1 до 200 гостей")
+  if (!(args.width > 0 && args.height > 0) || [args.x, args.y].some((value) => !(value >= 0 && value <= 10_000))) throw new ConvexError("Проверьте размеры и положение стола")
+  const existing = args.externalId ? await ctx.db.query("diningTables").withIndex("by_external_id", (q) => q.eq("externalId", args.externalId!)).unique() : null
+  if (args.externalId && !existing) throw new ConvexError("Стол не найден")
+  if (existing && existing.restaurantExternalId !== restaurantExternalId) throw new ConvexError("Стол другого ресторана")
+  const twin = await ctx.db.query("diningTables").withIndex("by_restaurant_hall", (q) => q.eq("restaurantExternalId", restaurantExternalId).eq("hall", hall).eq("label", label)).first()
+  if (twin && twin._id !== existing?._id) throw new ConvexError(`Стол «${label}» в зале «${hall}» уже есть`)
+  if (existing && !args.active) {
+    const future = await ctx.db.query("tableReservations").withIndex("by_table_start", (q) => q.eq("tableExternalId", existing.externalId).gt("start", Date.now())).first()
+    if (future) throw new ConvexError(`На стол «${label}» есть будущие брони — отключить можно после них`)
+  }
+  const value = { restaurantExternalId, hall, label, capacity: args.capacity, shape: args.shape, x: args.x, y: args.y, width: args.width, height: args.height, rotation: ((args.rotation % 360) + 360) % 360, active: args.active, updatedAt: Date.now() }
+  const externalId = existing?.externalId ?? `table-${crypto.randomUUID()}`
+  if (existing) await ctx.db.patch(existing._id, value)
+  else await ctx.db.insert("diningTables", { ...value, externalId })
+  await writeOfficeAudit(ctx, email, { action: "reservation.table", summary: `Стол «${label}» (${hall}), ${args.capacity} мест`, resourceType: "reservations", resourceExternalId: externalId, restaurantExternalId, capability: "office.reservations.edit" })
+  return externalId
+}
+
 export const saveTable = mutation({
-  args: { externalId: v.optional(v.string()), restaurantExternalId: v.string(), hall: v.string(), label: v.string(), capacity: v.number(), shape: v.union(v.literal("rect"), v.literal("circle")), x: v.number(), y: v.number(), width: v.number(), height: v.number(), rotation: v.number(), active: v.boolean() },
+  args: { restaurantExternalId: v.string(), ...tableInput },
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.reservations.edit")
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    const { restaurantExternalId, ...table } = args
+    return writeTable(ctx, (await getOfficeAuthEmail(ctx))!, restaurantExternalId, table)
+  },
+})
+
+/** «Сохранить схему»: every changed table in one transaction — all or nothing. */
+export const saveTables = mutation({
+  args: { restaurantExternalId: v.string(), tables: v.array(v.object(tableInput)) },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.reservations.edit")
+    await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    if (args.tables.length > 100) throw new ConvexError("Не больше 100 столов за раз")
     const email = (await getOfficeAuthEmail(ctx))!
-    const hall = args.hall.trim()
-    const label = args.label.trim()
-    if (!hall || !label) throw new ConvexError("Укажите зал и название стола")
-    if (!(Number.isInteger(args.capacity) && args.capacity >= 1 && args.capacity <= 200)) throw new ConvexError("Вместимость — от 1 до 200 гостей")
-    if (!(args.width > 0 && args.height > 0) || [args.x, args.y].some((value) => !(value >= 0 && value <= 10_000))) throw new ConvexError("Проверьте размеры и положение стола")
-    const existing = args.externalId ? await ctx.db.query("diningTables").withIndex("by_external_id", (q) => q.eq("externalId", args.externalId!)).unique() : null
-    if (args.externalId && !existing) throw new ConvexError("Стол не найден")
-    if (existing && existing.restaurantExternalId !== args.restaurantExternalId) throw new ConvexError("Стол другого ресторана")
-    const twin = await ctx.db.query("diningTables").withIndex("by_restaurant_hall", (q) => q.eq("restaurantExternalId", args.restaurantExternalId).eq("hall", hall).eq("label", label)).first()
-    if (twin && twin._id !== existing?._id) throw new ConvexError(`Стол «${label}» в зале «${hall}» уже есть`)
-    if (existing && !args.active) {
-      const future = await ctx.db.query("tableReservations").withIndex("by_table_start", (q) => q.eq("tableExternalId", existing.externalId).gt("start", Date.now())).first()
-      if (future) throw new ConvexError("На стол есть будущие брони — отключить можно после них")
+    const ids = []
+    for (const table of args.tables) ids.push(await writeTable(ctx, email, args.restaurantExternalId, table))
+    return ids
+  },
+})
+
+/** Pickers of the card under the reservations right: payment types in force, and paid checks of a day to close a banquet with. */
+export const references = query({
+  args: { restaurantExternalId: v.string(), date: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.reservations.view")
+    await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    const paymentTypes = await activeSettingsAt(ctx, "payment-type", args.restaurantExternalId, Date.now())
+    let paidOrders: { orderId: Doc<"orders">["_id"]; number: number; total: number; paidAt: number | null; tableLabel: string | null }[] = []
+    if (args.date) {
+      const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", args.restaurantExternalId)).unique()
+      if (restaurant) {
+        const orders = await ctx.db.query("orders").withIndex("by_restaurant_business_date", (q) => q.eq("restaurantId", restaurant._id).eq("businessDate", args.date!)).take(200)
+        paidOrders = orders.filter((order) => order.status === "paid").map((order) => ({ orderId: order._id, number: order.number, total: order.total, paidAt: order.paidAt ?? null, tableLabel: order.tableLabel ?? null }))
+      }
     }
-    const value = { restaurantExternalId: args.restaurantExternalId, hall, label, capacity: args.capacity, shape: args.shape, x: args.x, y: args.y, width: args.width, height: args.height, rotation: ((args.rotation % 360) + 360) % 360, active: args.active, updatedAt: Date.now() }
-    const externalId = existing?.externalId ?? `table-${crypto.randomUUID()}`
-    if (existing) await ctx.db.patch(existing._id, value)
-    else await ctx.db.insert("diningTables", { ...value, externalId })
-    await writeOfficeAudit(ctx, email, { action: "reservation.table", summary: `Стол «${label}» (${hall}), ${args.capacity} мест`, resourceType: "reservations", resourceExternalId: externalId, restaurantExternalId: args.restaurantExternalId, capability: "office.reservations.edit" })
-    return externalId
+    return { paymentTypes: paymentTypes.map((row) => ({ externalId: row.externalId, name: row.name })), paidOrders }
   },
 })
 
@@ -211,9 +252,12 @@ export const saveReservation = mutation({
     if (!(Number.isInteger(args.prepayment) && args.prepayment >= 0)) throw new ConvexError("Предоплата — целое число тенге")
     if (args.prepayment > 0 && !args.prepaymentTypeExternalId) throw new ConvexError("Укажите тип оплаты предоплаты")
     const guestName = args.guestName.trim()
-    const phone = normalizePhone(args.phone)
+    // A masked phone (no office.guests.pii) keeps the stored one, or the chosen guest's.
+    const guest = args.guestId ? await ctx.db.get(args.guestId) : null
+    const masked = args.phone.includes("•")
+    const phone = masked ? (existing?.phone ?? guest?.phone ?? null) : normalizePhone(args.phone)
     if (guestName.length < 2 || !phone) throw new ConvexError("Укажите имя и телефон гостя")
-    if (args.guestId && !(await ctx.db.get(args.guestId))) throw new ConvexError("Гость не найден")
+    if (args.guestId && !guest) throw new ConvexError("Гость не найден")
     if (!args.tableExternalIds.length) throw new ConvexError("Выберите стол")
     let capacity = 0
     for (const tableExternalId of new Set(args.tableExternalIds)) {

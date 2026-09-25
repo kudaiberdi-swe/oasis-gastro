@@ -49,4 +49,21 @@ describe("reservations and the floor plan (W2-LOY-07)", () => {
     expect(rows.reduce((sum, row) => sum + (row.reversalOf ? -row.amount : row.amount), 0)).toBe(0)
     await admin.mutation(rsv.saveReservation, booking([t4], "19:30", "21:00"))
   })
+
+  it("keeps the stored phone when the card sends it masked; saves the plan in one batch; lists payment types", async () => {
+    const { t } = await setup()
+    const { admin, t4 } = await office(t)
+    const saved = await admin.mutation(rsv.saveReservation, booking([t4], "19:00", "21:00"))
+    await admin.mutation(rsv.saveReservation, { ...booking([t4], "19:00", "21:30"), externalId: saved.externalId, phone: "7701•••••67" })
+    expect((await admin.query(rsv.getReservation, { externalId: saved.externalId }))?.phone).toBe("77011234567")
+
+    await expect(admin.mutation(rsv.saveTables, { restaurantExternalId: "almaty", tables: [
+      { hall: "Терраса", label: "Т1", capacity: 2, shape: "circle", x: 1, y: 1, width: 1, height: 1, rotation: 0, active: true },
+      { hall: "Терраса", label: "Т1", capacity: 2, shape: "circle", x: 3, y: 1, width: 1, height: 1, rotation: 0, active: true },
+    ] })).rejects.toThrow(/уже есть/)
+    expect(await admin.query(rsv.listTables, { restaurantExternalId: "almaty", hall: "Терраса" })).toHaveLength(0)
+    const refs = await admin.query(rsv.references, { restaurantExternalId: "almaty", date: "2026-09-25" })
+    expect(refs.paymentTypes.map((row) => row.externalId)).toContain("payment-type-cash")
+    expect(refs.paidOrders).toEqual([])
+  })
 })

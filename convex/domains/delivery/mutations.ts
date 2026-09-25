@@ -42,7 +42,7 @@ export const saveOrder = mutation({
     longitude: v.optional(v.number()),
     sourceExternalId: v.string(),
     expectedAt: v.number(),
-    courierExternalId: v.optional(v.string()),
+    courierExternalId: v.optional(v.union(v.string(), v.null())), // null unassigns; absent keeps the current one
     comment: v.string(),
     lines: v.array(v.object({ productExternalId: v.string(), quantity: v.number(), sizeExternalId: v.optional(v.string()), modifierSelections: v.optional(v.array(v.object({ modifierExternalId: v.string(), quantity: v.number() }))) })),
     expectedVersion: v.optional(v.number()),
@@ -58,20 +58,29 @@ export const saveOrder = mutation({
     await assertPeriodOpen(ctx, { organizationExternalId: restaurant.organizationExternalId, restaurantExternalId: restaurant.externalId, businessDate: businessDateFor(args.expectedAt, restaurant.businessDayCutoffMinutes), moduleId: "delivery-orders" })
 
     const customerName = args.customerName.trim()
-    const phone = normalizePhone(args.phone)
+    const existing = args.externalId ? await requireDelivery(ctx, args.externalId) : null
+    // A masked phone (no office.guests.pii) keeps the stored one.
+    const phone = args.phone.includes("•") ? (existing?.phone ?? null) : normalizePhone(args.phone)
     if (customerName.length < 2 || !phone) throw new ConvexError("Укажите имя и корректный телефон гостя")
     const address = args.address.trim()
     if (address.length < 3) throw new ConvexError("Укажите адрес")
-    const existing = args.externalId ? await requireDelivery(ctx, args.externalId) : null
     if (existing && existing.restaurantExternalId !== restaurant.externalId) throw new ConvexError("Ресторан заказа изменить нельзя — отмените и создайте новый")
     if (existing && args.expectedVersion !== undefined && existing.version !== args.expectedVersion) throw new ConvexError("Заказ изменён другим пользователем. Обновите карточку")
     if (existing && !EDITABLE.includes(existing.status)) throw new ConvexError("Заказ в текущем статусе нельзя редактировать")
     if (!existing && args.expectedAt < now - 60_000) throw new ConvexError("Время доставки уже прошло")
     const source = await ctx.db.query("deliverySources").withIndex("by_external_id", (q) => q.eq("externalId", args.sourceExternalId)).unique()
     if (!source?.active || !sourceServes(source, restaurant.externalId)) throw new ConvexError("Источник заказа недоступен для ресторана")
-    if (args.courierExternalId) {
-      const courier = await requireCourier(ctx, args.courierExternalId)
+    // The courier: absent keeps the current one, null frees them, a new one must be free (as assignCourier).
+    const courierExternalId = args.courierExternalId === undefined ? existing?.courierExternalId : (args.courierExternalId ?? undefined)
+    if (courierExternalId && courierExternalId !== existing?.courierExternalId) {
+      const courier = await requireCourier(ctx, courierExternalId)
       if (courier.restaurantExternalId !== restaurant.externalId || !courier.active) throw new ConvexError("Курьер другого ресторана или отключён")
+      if (!["available", "returning"].includes(courier.status)) throw new ConvexError(`Курьер «${courier.name}» сейчас занят`)
+      await ctx.db.patch(courier._id, { status: "assigned", updatedAt: now })
+    }
+    if (existing?.courierExternalId && existing.courierExternalId !== courierExternalId) {
+      const previous = await requireCourier(ctx, existing.courierExternalId)
+      if (previous.status === "assigned") await ctx.db.patch(previous._id, { status: "available", updatedAt: now })
     }
     if (!args.lines.length) throw new ConvexError("Добавьте хотя бы одну позицию")
 
@@ -148,7 +157,7 @@ export const saveOrder = mutation({
       longitude: args.longitude,
       zoneExternalId: zone?.externalId,
       sourceExternalId: source.externalId,
-      courierExternalId: args.courierExternalId,
+      courierExternalId,
       guestId,
       expectedAt: args.expectedAt,
       cookingStartAt: args.expectedAt - deliveryMs - cookingMs,
@@ -209,9 +218,10 @@ async function settleDelivery(ctx: MutationCtx, delivery: Doc<"deliveryOrders">,
 }
 
 export const transitionOrder = mutation({
-  args: { externalId: v.string(), to: deliveryStatus, expectedVersion: v.number(), courierExternalId: v.optional(v.string()), reason: v.optional(v.string()), payment: v.optional(v.object({ paymentTypeExternalId: v.optional(v.string()), amount: v.optional(v.number()) })) },
+  args: { externalId: v.string(), to: deliveryStatus, expectedVersion: v.number(), courierExternalId: v.optional(v.string()), reason: v.optional(v.string()), payment: v.optional(v.object({ paymentTypeExternalId: v.optional(v.string()), amount: v.optional(v.number()) })), channel: v.optional(v.union(v.literal("delivery"), v.literal("call-center"))) },
   handler: async (ctx, args) => {
-    const capability = args.to === "cancelled" ? "office.delivery-orders.cancel" : "office.delivery-orders.edit"
+    const section = args.channel === "call-center" ? "office.call-center" : "office.delivery-orders"
+    const capability = args.to === "cancelled" ? `${section}.cancel` : `${section}.edit`
     const { user } = await requireOfficeCapability(ctx, capability)
     const email = (await getOfficeAuthEmail(ctx))!
     const delivery = await requireDelivery(ctx, args.externalId)
@@ -268,9 +278,10 @@ export const transitionOrder = mutation({
 
 /** Assigns a free courier of the order's restaurant; the previous one (if only assigned) is freed. */
 export const assignCourier = mutation({
-  args: { deliveryExternalId: v.string(), courierExternalId: v.string(), expectedVersion: v.number() },
+  args: { deliveryExternalId: v.string(), courierExternalId: v.string(), expectedVersion: v.number(), channel: v.optional(v.union(v.literal("delivery"), v.literal("call-center"))) },
   handler: async (ctx, args) => {
-    const { user } = await requireOfficeCapability(ctx, "office.delivery-orders.edit")
+    const capability = args.channel === "call-center" ? "office.call-center.edit" : "office.delivery-orders.edit"
+    const { user } = await requireOfficeCapability(ctx, capability)
     const email = (await getOfficeAuthEmail(ctx))!
     const delivery = await requireDelivery(ctx, args.deliveryExternalId)
     await requireRestaurantScope(ctx, user, delivery.restaurantExternalId)
@@ -286,7 +297,7 @@ export const assignCourier = mutation({
     }
     await ctx.db.patch(courier._id, { status: "assigned", updatedAt: now })
     await ctx.db.patch(delivery._id, { courierExternalId: courier.externalId, version: delivery.version + 1, updatedAt: now })
-    await writeOfficeAudit(ctx, email, { action: "delivery-order.assign", summary: `Доставка ${delivery.number}: курьер «${courier.name}»`, resourceType: "delivery-orders", resourceExternalId: delivery.externalId, restaurantExternalId: delivery.restaurantExternalId, capability: "office.delivery-orders.edit" })
+    await writeOfficeAudit(ctx, email, { action: "delivery-order.assign", summary: `Доставка ${delivery.number}: курьер «${courier.name}»`, resourceType: "delivery-orders", resourceExternalId: delivery.externalId, restaurantExternalId: delivery.restaurantExternalId, capability })
     await appendOutboxEvent(ctx, { aggregateType: "delivery-order", aggregateExternalId: delivery.externalId, eventType: "delivery-order.courier-assigned", restaurantExternalId: delivery.restaurantExternalId, payload: { courierExternalId: courier.externalId } })
     return { version: delivery.version + 1 }
   },
@@ -334,10 +345,10 @@ export const saveCourier = mutation({
     const employee = await ctx.db.query("employees").withIndex("by_code", (q) => q.eq("code", args.employeeCode.trim())).unique()
     if (!employee) throw new ConvexError("Сотрудник с таким кодом не найден")
     if (!employee.restaurantIds.includes(restaurant._id)) throw new ConvexError("Сотрудник не назначен в выбранный ресторан")
-    const phone = normalizePhone(args.phone)
-    if (!phone) throw new ConvexError("Укажите корректный телефон")
     const name = args.name.trim() || employee.displayName
     const existing = args.externalId ? await requireCourier(ctx, args.externalId) : await ctx.db.query("couriers").withIndex("by_employee_code", (q) => q.eq("employeeCode", employee.code)).unique()
+    const phone = args.phone.includes("•") ? (existing?.phone ?? null) : normalizePhone(args.phone)
+    if (!phone) throw new ConvexError("Укажите корректный телефон")
     if (existing) await requireRestaurantScope(ctx, user, existing.restaurantExternalId)
     if (existing && !args.active && ["assigned", "on-delivery"].includes(existing.status)) throw new ConvexError("Курьер на заказе — отключить можно после его завершения")
     const externalId = existing?.externalId ?? `courier-${employee.code}`

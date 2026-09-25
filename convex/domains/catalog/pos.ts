@@ -30,62 +30,66 @@ export const getProductConfiguration = query({
   args: { sessionToken: v.string(), productExternalId: v.string() },
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
-    const restaurantExternalId = access.restaurant.externalId
-    const product = await productByExternalId(ctx, args.productExternalId)
-    if (!product) return null
-    const at = Date.now()
-    const [price, stop, options, assignments] = await Promise.all([
-      resolvePrice(ctx, { product, restaurantExternalId, at }),
-      stopListRow(ctx, product._id, restaurantExternalId),
-      product.sizeScaleId ? ctx.db.query("sizeOptions").withIndex("by_scale_sort", (q) => q.eq("scaleId", product.sizeScaleId!)).take(20) : Promise.resolve([]),
-      loadModifierAssignments(ctx, product),
-    ])
-    const sizes = await Promise.all(
-      options.map(async (option) => ({
-        externalId: option.externalId,
-        label: option.label,
-        labelKk: option.labelKk ?? null,
-        price: (await resolveSizedPrice(ctx, { product, restaurantExternalId, at, sizeOption: option })).price,
-        isDefault: option.isDefault,
-        available: option.available,
-      })),
-    )
-    const groupRows = await ctx.db.query("productModifierGroups").withIndex("by_product", (q) => q.eq("productId", product._id)).take(20)
-    const groupDocs = await Promise.all(groupRows.map((row) => ctx.db.get(row.groupId)))
-    return {
-      product: {
-        externalId: product.externalId,
-        name: product.name,
-        nameKk: product.nameKk,
-        imageUrl: await imageUrl(ctx, product),
-        price: price.price,
-        prepArea: product.prepArea ?? "hot",
-        available: product.enabled && !stopListActive(stop, at),
-      },
-      sizes,
-      groups: assignments.map((group, index) => ({
-        groupExternalId: groupDocs[index]?.externalId ?? "",
-        name: groupDocs[index]?.name ?? "",
-        required: group.required,
-        minQuantity: group.minQuantity,
-        maxQuantity: group.maxQuantity,
-        freeQuantity: group.freeQuantity,
-        enforceItemLimits: group.enforceItemLimits,
-        options: group.rules.map((rule) => ({
-          externalId: rule.modifier.externalId,
-          name: rule.modifier.name,
-          price: rule.modifier.price,
-          imageUrl: null,
-          minQuantity: rule.minQuantity,
-          maxQuantity: rule.maxQuantity,
-          defaultQuantity: rule.defaultQuantity,
-          freeQuantity: rule.freeQuantity,
-          available: rule.modifier.available,
-        })),
-      })),
-    }
+    return productConfigurationFor(ctx, access.restaurant.externalId, args.productExternalId)
   },
 })
+
+/** Sizes and modifier groups of a dish at a restaurant's prices — the POS dialog and the delivery card (W2-DLV-05). */
+export async function productConfigurationFor(ctx: QueryCtx, restaurantExternalId: string, productExternalId: string) {
+  const product = await productByExternalId(ctx, productExternalId)
+  if (!product) return null
+  const at = Date.now()
+  const [price, stop, options, assignments] = await Promise.all([
+    resolvePrice(ctx, { product, restaurantExternalId, at }),
+    stopListRow(ctx, product._id, restaurantExternalId),
+    product.sizeScaleId ? ctx.db.query("sizeOptions").withIndex("by_scale_sort", (q) => q.eq("scaleId", product.sizeScaleId!)).take(20) : Promise.resolve([]),
+    loadModifierAssignments(ctx, product),
+  ])
+  const sizes = await Promise.all(
+    options.map(async (option) => ({
+      externalId: option.externalId,
+      label: option.label,
+      labelKk: option.labelKk ?? null,
+      price: (await resolveSizedPrice(ctx, { product, restaurantExternalId, at, sizeOption: option })).price,
+      isDefault: option.isDefault,
+      available: option.available,
+    })),
+  )
+  const groupRows = await ctx.db.query("productModifierGroups").withIndex("by_product", (q) => q.eq("productId", product._id)).take(20)
+  const groupDocs = await Promise.all(groupRows.map((row) => ctx.db.get(row.groupId)))
+  return {
+    product: {
+      externalId: product.externalId,
+      name: product.name,
+      nameKk: product.nameKk,
+      imageUrl: await imageUrl(ctx, product),
+      price: price.price,
+      prepArea: product.prepArea ?? "hot",
+      available: product.enabled && !stopListActive(stop, at),
+    },
+    sizes,
+    groups: assignments.map((group, index) => ({
+      groupExternalId: groupDocs[index]?.externalId ?? "",
+      name: groupDocs[index]?.name ?? "",
+      required: group.required,
+      minQuantity: group.minQuantity,
+      maxQuantity: group.maxQuantity,
+      freeQuantity: group.freeQuantity,
+      enforceItemLimits: group.enforceItemLimits,
+      options: group.rules.map((rule) => ({
+        externalId: rule.modifier.externalId,
+        name: rule.modifier.name,
+        price: rule.modifier.price,
+        imageUrl: null,
+        minQuantity: rule.minQuantity,
+        maxQuantity: rule.maxQuantity,
+        defaultQuantity: rule.defaultQuantity,
+        freeQuantity: rule.freeQuantity,
+        available: rule.modifier.available,
+      })),
+    })),
+  }
+}
 
 export const favoriteIds = query({
   args: { sessionToken: v.string() },
