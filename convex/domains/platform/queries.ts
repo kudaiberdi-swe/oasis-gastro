@@ -138,3 +138,87 @@ export const listPeriodLocks = query({
     }
   },
 })
+
+/**
+ * Start page (W1-ADM-05): aggregates only — revenue, paid orders and average check from the sales facts
+ * with the previous period for the delta, posted and draft documents, exchange errors, the restaurants
+ * with their turnover and whether a shift ran today, and 30 days of revenue for the chart.
+ */
+export const dashboard = query({
+  args: { restaurantExternalId: v.optional(v.string()), from: v.string(), to: v.string() },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.dashboard.view")
+    if (args.restaurantExternalId) await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.from) || !/^\d{4}-\d{2}-\d{2}$/.test(args.to) || args.from > args.to) throw new ConvexError("Укажите период")
+    const scoped = await scopedRestaurants(ctx, user)
+    const restaurants = args.restaurantExternalId ? scoped.filter((row) => row.externalId === args.restaurantExternalId) : scoped
+    const dayMs = 86_400_000
+    const shift = (date: string, by: number) => new Date(Date.parse(`${date}T00:00:00Z`) + by * dayMs).toISOString().slice(0, 10)
+    const days = (Date.parse(`${args.to}T00:00:00Z`) - Date.parse(`${args.from}T00:00:00Z`)) / dayMs + 1
+    const previousFrom = shift(args.from, -days)
+    const seriesFrom = shift(args.to, -29)
+    const from = Date.parse(`${args.from}T00:00:00+05:00`)
+    const to = Date.parse(`${args.to}T23:59:59+05:00`)
+    const todayStart = Date.parse(`${args.to}T00:00:00+05:00`)
+    const series = new Map<string, number>()
+    let revenue = 0
+    let previousRevenue = 0
+    let orders = 0
+    let previousOrders = 0
+    let postedDocuments = 0
+    let draftDocuments = 0
+    const rows = []
+    for (const restaurant of restaurants) {
+      let net = 0
+      let count = 0
+      const start = previousFrom < seriesFrom ? previousFrom : seriesFrom
+      for await (const fact of ctx.db.query("dailySalesFacts").withIndex("by_restaurant_type_date", (q) => q.eq("restaurantExternalId", restaurant.externalId).eq("factType", "branch").gte("businessDate", start).lte("businessDate", args.to))) {
+        const value = fact.netAmount - fact.refundAmount
+        if (fact.businessDate >= seriesFrom) series.set(fact.businessDate, (series.get(fact.businessDate) ?? 0) + value)
+        if (fact.businessDate >= args.from) {
+          net += value
+          count += fact.orderCount
+        } else if (fact.businessDate >= previousFrom && fact.businessDate < args.from) {
+          previousRevenue += value
+          previousOrders += fact.orderCount
+        }
+      }
+      revenue += net
+      orders += count
+      let documents = 0
+      for (const status of ["posted", "draft"] as const) {
+        const receipts = await ctx.db.query("receipts").withIndex("by_restaurant_status_date", (q) => (status === "posted" ? q.eq("restaurantExternalId", restaurant.externalId).eq("status", status).gte("date", from).lte("date", to) : q.eq("restaurantExternalId", restaurant.externalId).eq("status", status))).take(200)
+        let total = receipts.length
+        for (const type of ["inventory", "transfer", "writeoff", "outgoing-invoice", "supplier-return"] as const) {
+          const docs = await ctx.db.query("stockDocuments").withIndex("by_type_restaurant_status_date", (q) => (status === "posted" ? q.eq("type", type).eq("restaurantExternalId", restaurant.externalId).eq("status", status).gte("date", from).lte("date", to) : q.eq("type", type).eq("restaurantExternalId", restaurant.externalId).eq("status", status))).take(200)
+          total += docs.length
+        }
+        if (status === "posted") {
+          postedDocuments += total
+          documents += total
+        } else draftDocuments += total
+      }
+      const lastShift = await ctx.db.query("shifts").withIndex("by_restaurant_opened", (q) => q.eq("restaurantId", restaurant._id)).order("desc").first()
+      const working = Boolean(lastShift && (lastShift.status === "open" || (lastShift.closedAt ?? 0) >= todayStart))
+      rows.push({ restaurantExternalId: restaurant.externalId, name: restaurant.name, documents, turnover: net, orders: count, status: working ? ("working" as const) : ("no-shifts" as const) })
+    }
+    const organizations = new Set(restaurants.map((row) => row.organizationExternalId))
+    let exchangeErrors = 0
+    for (const status of ["failed", "dead-letter"] as const) {
+      const jobs = await ctx.db.query("integrationJobs").withIndex("by_status_attempt", (q) => q.eq("status", status)).take(200)
+      exchangeErrors += jobs.filter((job) => !job.organizationExternalId || organizations.has(job.organizationExternalId) || user.restaurantScopes.includes("*")).length
+    }
+    return {
+      revenue,
+      previousRevenue,
+      orders,
+      previousOrders,
+      averageCheck: orders ? Math.round(revenue / orders) : 0,
+      postedDocuments,
+      draftDocuments,
+      exchangeErrors,
+      restaurants: rows.sort((a, b) => b.turnover - a.turnover),
+      series: Array.from({ length: 30 }, (_, index) => shift(seriesFrom, index)).map((date) => ({ date, value: series.get(date) ?? 0 })),
+    }
+  },
+})

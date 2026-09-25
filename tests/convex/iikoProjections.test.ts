@@ -54,6 +54,8 @@ describe("iiko stock master projections (W1-IIKO-02/03/06)", () => {
     expect(links.restaurants[0]).toMatchObject({ restaurantExternalId: "almaty", iikoDepartmentName: "Sandyq Алматы" })
     const overview = await admin.query(api.domains.iiko.office.integrationOverview, {})
     expect(overview.kpis.mirrored).toBe(4)
+    const terminals = await admin.query(api.domains.iiko.office.listEndpointStates, { domain: "terminal", paginationOpts: { numItems: 10, cursor: null } })
+    expect(terminals.page.map((row) => row.path)).toEqual(["/corporation/terminals"])
     await expect(stranger.query(api.domains.iiko.office.integrationOverview, {})).rejects.toThrow()
   })
 })

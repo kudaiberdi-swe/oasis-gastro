@@ -34,10 +34,10 @@ export const failRun = internalMutation({
 })
 
 export const recordEndpointState = internalMutation({
-  args: { endpointKey: v.string(), status: v.union(v.literal("ok"), v.literal("error"), v.literal("unsupported")), message: v.optional(v.string()) },
+  args: { endpointKey: v.string(), status: v.union(v.literal("ok"), v.literal("error"), v.literal("unsupported")), message: v.optional(v.string()), domain: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("iikoEndpointStates").withIndex("by_endpoint_key", (q) => q.eq("endpointKey", args.endpointKey)).unique()
-    const value = { endpointKey: args.endpointKey, lastStatus: args.status, lastRunAt: Date.now(), message: args.message }
+    const value = { endpointKey: args.endpointKey, lastStatus: args.status, lastRunAt: Date.now(), message: args.message, ...(args.domain ? { domain: args.domain, path: `/${args.endpointKey}`, method: "GET" } : {}) }
     if (existing) await ctx.db.patch(existing._id, value)
     else await ctx.db.insert("iikoEndpointStates", value)
   },
@@ -167,7 +167,7 @@ export const importBatch = internalMutation({
     }
     const changed: Record<string, number> = {}
     const skipped: Record<string, string[]> = {}
-    const run = async <T,>(endpointKey: string, rows: T[] | undefined, apply: (row: T) => Promise<{ changed: boolean; skipped?: string }>) => {
+    const run = async <T,>(endpointKey: string, domain: string, rows: T[] | undefined, apply: (row: T) => Promise<{ changed: boolean; skipped?: string }>) => {
       if (!rows?.length) return
       changed[endpointKey] = 0
       for (const row of rows) {
@@ -177,14 +177,14 @@ export const importBatch = internalMutation({
       }
       const list = skipped[endpointKey] ?? []
       const existing = await ctx.db.query("iikoEndpointStates").withIndex("by_endpoint_key", (q) => q.eq("endpointKey", endpointKey)).unique()
-      const state = { endpointKey, lastStatus: "ok" as const, lastRunAt: Date.now(), classification: "mirrored" as const, method: "GET", recordCount: rows.length, message: list.length ? `Пропущено ${list.length}: ${list.slice(0, 5).join("; ")}` : undefined }
+      const state = { endpointKey, lastStatus: "ok" as const, lastRunAt: Date.now(), classification: "mirrored" as const, method: "GET", domain, path: `/${endpointKey}`, recordCount: rows.length, message: list.length ? `Пропущено ${list.length}: ${list.slice(0, 5).join("; ")}` : undefined }
       if (existing) await ctx.db.patch(existing._id, state)
       else await ctx.db.insert("iikoEndpointStates", state)
     }
-    await run("corporation/stores", args.warehouses, (row) => applyWarehouse(ctx, row))
-    await run("corporation/terminals", args.terminals, (row) => applyTerminal(ctx, row))
-    await run("v2/entities/list?rootType=MeasureUnit", args.units, (row) => applyUnit(ctx, row))
-    await run("suppliers", args.suppliers, (row) => applySupplier(ctx, row))
+    await run("corporation/stores", "warehouse", args.warehouses, (row) => applyWarehouse(ctx, row))
+    await run("corporation/terminals", "terminal", args.terminals, (row) => applyTerminal(ctx, row))
+    await run("v2/entities/list?rootType=MeasureUnit", "unit", args.units, (row) => applyUnit(ctx, row))
+    await run("suppliers", "supplier", args.suppliers, (row) => applySupplier(ctx, row))
     return { departments: args.departments.length, employees: args.employees.length, departmentsChanged, employeesChanged, changed, skipped }
   },
 })
