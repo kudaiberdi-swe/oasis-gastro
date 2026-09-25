@@ -94,6 +94,17 @@ export async function validateFinanceRecord(ctx: QueryCtx, moduleId: FinanceModu
       if (!(args.amount > 0)) throw new ConvexError("Сумма платежа должна быть больше нуля")
       return {}
     }
+    case "accounts-payable": {
+      // A manual obligation; those of documents are created posted and never pass through here.
+      const direction = text(args.data, "direction")
+      if (direction !== "payable" && direction !== "receivable") throw new ConvexError("Укажите вид задолженности: кредиторская или дебиторская")
+      if (!(Number.isInteger(args.amount) && args.amount > 0)) throw new ConvexError("Сумма — целое число тенге больше нуля")
+      const due = text(args.data, "dueDate")
+      if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw new ConvexError("Срок оплаты — ГГГГ-ММ-ДД")
+      if (args.data.sourceModuleId) throw new ConvexError("Обязательство документа меняется только через документ")
+      Object.assign(args.data, { originalAmount: args.amount, allocatedAmount: 0, obligationKind: text(args.data, "obligationKind") || "other", dueDate: due || null })
+      return {}
+    }
     default:
       return {}
   }
@@ -144,6 +155,14 @@ export function financeHooks(ctx: MutationCtx, moduleId: FinanceModuleId): Trans
         await reverse(record)
       },
     }
+  }
+  if (moduleId === "accounts-payable") {
+    // An obligation of a document is reversed with its document; a settled one after its payments.
+    const guard = async (record: Doc<"financeRecords">) => {
+      if (record.data.sourceModuleId) throw new ConvexError(`Обязательство создано документом${record.data.sourceNumber ? ` ${record.data.sourceNumber}` : ""} — сторнируйте документ`)
+      if (Number(record.data.allocatedAmount ?? 0) > 0) throw new ConvexError("Сначала сторнируйте распределённые платежи")
+    }
+    return { beforeReverse: guard, beforeCancel: guard }
   }
   if (moduleId === "payments") {
     return {

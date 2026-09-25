@@ -53,7 +53,8 @@ export const openObligations = query({
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     const rows = await openObligationsOf(ctx, [args.restaurantExternalId])
     return rows
-      .filter((row) => row.counterpartyExternalId === args.counterpartyExternalId && row.data.direction === args.direction)
+      // Obligations without a counterparty (payroll taxes) can be paid to any recipient.
+      .filter((row) => (!row.counterpartyExternalId || row.counterpartyExternalId === args.counterpartyExternalId) && row.data.direction === args.direction)
       .map((row) => ({ externalId: row.externalId, number: row.number, name: row.name, open: row.amount, original: Number(row.data.originalAmount ?? row.amount), dueDate: row.data.dueDate ?? null, sourceNumber: row.data.sourceNumber ?? null }))
   },
 })
@@ -73,7 +74,7 @@ export const setPaymentAllocations = mutation({
       if (!(Number.isInteger(row.amount) && row.amount > 0)) throw new ConvexError("Сумма распределения — целое число тенге больше нуля")
       const obligation = await ctx.db.query("financeRecords").withIndex("by_external_id", (q) => q.eq("externalId", row.obligationExternalId)).unique()
       if (!obligation || obligation.moduleId !== "accounts-payable" || obligation.restaurantExternalId !== payment.restaurantExternalId) throw new ConvexError("Обязательство не найдено")
-      if (obligation.counterpartyExternalId !== payment.counterpartyExternalId) throw new ConvexError("Обязательство другого контрагента")
+      if (obligation.counterpartyExternalId && obligation.counterpartyExternalId !== payment.counterpartyExternalId) throw new ConvexError("Обязательство другого контрагента")
       if (row.amount > obligation.amount) throw new ConvexError("Сумма платежа превышает открытый остаток")
       total += row.amount
     }

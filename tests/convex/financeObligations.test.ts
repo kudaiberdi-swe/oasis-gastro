@@ -47,6 +47,25 @@ describe("services, obligations and payments (W2-FIN-08/09/10)", () => {
     expect(await admin.query(obligations.openObligations, { counterpartyExternalId: counterparty, direction: "payable", restaurantExternalId: "almaty" })).toEqual([])
   })
 
+  it("a document's obligation is reversed only with its document; a manual one is validated and paid without a counterparty match", async () => {
+    const { t } = await setup()
+    const { admin, base, counterparty, category } = await office(t)
+    const act = await admin.mutation(records.save, { ...base, moduleId: "services", name: "Охрана", amount: 50_000, counterpartyExternalId: counterparty, data: { serviceDirection: "received", vatRate: 0 } })
+    await admin.mutation(records.transition, { moduleId: "services", externalId: act.externalId, action: "post", expectedVersion: act.version })
+    const [fromAct] = await admin.query(obligations.openObligations, { counterpartyExternalId: counterparty, direction: "payable", restaurantExternalId: "almaty" })
+    const row = (await admin.query(records.get, { moduleId: "accounts-payable", externalId: fromAct.externalId }))!
+    await expect(admin.mutation(records.transition, { moduleId: "accounts-payable", externalId: row.externalId, action: "reverse", expectedVersion: row.version, reason: "Ошибка" })).rejects.toThrow(/сторнируйте документ/)
+
+    await expect(admin.mutation(records.save, { ...base, moduleId: "accounts-payable", name: "Штраф", amount: 10_000, data: {} })).rejects.toThrow(/вид задолженности/)
+    const manual = await admin.mutation(records.save, { ...base, moduleId: "accounts-payable", name: "Налог на имущество", amount: 10_000, data: { direction: "payable", obligationKind: "tax" } })
+    let version = manual.version
+    for (const action of ["submit", "approve", "post"] as const) version = (await admin.mutation(records.transition, { moduleId: "accounts-payable", externalId: manual.externalId, action, expectedVersion: version })).version
+    const open = await admin.query(obligations.openObligations, { counterpartyExternalId: counterparty, direction: "payable", restaurantExternalId: "almaty" })
+    expect(open.find((item) => item.externalId === manual.externalId)).toMatchObject({ open: 10_000, original: 10_000 })
+    const payment = await admin.mutation(records.save, { ...base, moduleId: "payments", name: "Налог", amount: 10_000, counterpartyExternalId: counterparty, cashflowCategoryExternalId: category, data: { direction: "outgoing", method: "bank" } })
+    await admin.mutation(obligations.setPaymentAllocations, { paymentExternalId: payment.externalId, allocations: [{ obligationExternalId: manual.externalId, amount: 10_000 }] })
+  })
+
   it("a posted receipt owes its supplier; reversing the receipt cancels the obligation", async () => {
     const { t } = await setup()
     const { admin, counterparty } = await office(t)

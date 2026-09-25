@@ -179,6 +179,7 @@ export type TransitionHooks = {
   beforePost?: (record: DomainRecord) => Promise<void>
   afterPost?: (record: DomainRecord) => Promise<void>
   beforeReverse?: (record: DomainRecord) => Promise<void>
+  beforeCancel?: (record: DomainRecord) => Promise<void>
 }
 
 export async function transitionDomainRecord(
@@ -203,6 +204,7 @@ export async function transitionDomainRecord(
 
   if (args.action === "post") await hooks.beforePost?.(record)
   if (args.action === "reverse") await hooks.beforeReverse?.(record)
+  if (args.action === "cancel") await hooks.beforeCancel?.(record)
   const now = Date.now()
   const patch = {
     status: transition.to,
