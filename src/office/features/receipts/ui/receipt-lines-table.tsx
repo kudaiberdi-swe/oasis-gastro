@@ -74,7 +74,8 @@ export function ReceiptLinesTable({ lines, readOnly, errors, priceChecks, onAdd,
             {lines.map((line, index) => {
               const gross = lineGross(line)
               const error = errors[line.key]
-              const check = line.lineNo !== null ? checks.get(line.lineNo) : undefined
+              // A line added in this session keeps lineNo null until reload; saved lines are numbered in order.
+              const check = checks.get(line.lineNo ?? index + 1)
               return (
                 <Fragment key={line.key}>
                   <tr className={cn("h-[var(--table-row-h)] align-middle", check ? "" : "border-b border-border")}>
@@ -136,7 +137,7 @@ export function ReceiptLinesTable({ lines, readOnly, errors, priceChecks, onAdd,
                     <tr className="border-b border-border">
                       <td colSpan={columns} className="px-3 pb-3">
                         <Banner tone={check.outcome === "block" ? "danger" : "warning"} title={`Цена «${check.itemName}» отклоняется на ${formatPercent(check.deviationPercent, { explicitPlus: true })}`}>
-                          Средняя на складе — {formatTenge(check.reference)}, в накладной — {formatTenge(check.unitCost)}.
+                          {check.source === "price-list" ? `По прайс-листу «${check.priceListName ?? "поставщика"}» — ${formatTenge(check.reference)}` : `Средняя на складе — ${formatTenge(check.reference)}`}, в накладной — {formatTenge(check.unitCost)}.
                           {check.outcome === "block" ? " Политика поставщика не даст провести накладную." : " Проведение возможно, отклонение попадёт в предупреждения."}
                         </Banner>
                       </td>

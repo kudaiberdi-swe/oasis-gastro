@@ -45,7 +45,7 @@ async function priceChecksFor(ctx: QueryCtx, receipt: Doc<"receipts">, lines: Do
       const item = await ctx.db.get(line.inventoryItemId)
       // The supplier's published price list first (W2-CAT-15), else the warehouse average.
       const listed = await checkReceiptLinePrice(ctx, { supplierId: supplier._id, inventoryItemId: line.inventoryItemId, price: line.unitCostGross, at: receipt.date, list })
-      if (listed) return { lineNo: line.lineNo, itemName: item?.name ?? "", unitCost: line.unitCostGross, reference: Math.round(listed.expected * 100) / 100, deviationPercent: listed.deviationPercent, outcome: listed.verdict }
+      if (listed) return { lineNo: line.lineNo, itemName: item?.name ?? "", unitCost: line.unitCostGross, reference: Math.round(listed.expected * 100) / 100, deviationPercent: listed.deviationPercent, outcome: listed.verdict, source: "price-list" as const, priceListName: listed.priceListNumber }
       const balance = await ctx.db.query("stockBalances").withIndex("by_warehouse_item", (q) => q.eq("warehouseId", receipt.warehouseId).eq("inventoryItemId", line.inventoryItemId)).unique()
       return checkPrice(supplier, { lineNo: line.lineNo, itemName: item?.name ?? "", unitCost: line.unitCostGross }, balance?.averageUnitCost ?? 0)
     }),
