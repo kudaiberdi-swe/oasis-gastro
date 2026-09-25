@@ -38,6 +38,7 @@ import { AssemblyActsWorkspace, InternalOrdersWorkspace, ProcessingActsWorkspace
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
 import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
 import { ReportFavoritesWorkspace } from "@/office/features/reports/ui/report-favorites-page"
+import { ReportSchedulesWorkspace } from "@/office/features/reports/ui/report-schedules-page"
 import { ReportsWorkspace } from "@/office/features/reports/ui/reports-workspace"
 import { KitchenBoardWorkspace } from "@/office/features/kitchen/ui/kitchen-board-workspace"
 import { CashShiftsWorkspace } from "@/office/features/retail/ui/cash-shifts-workspace"
@@ -123,6 +124,7 @@ const WORKSPACES: Record<string, ComponentType> = {
   "delivery-sources": SourcesWorkspace,
   reports: ReportsWorkspace,
   "report-favorites": ReportFavoritesWorkspace,
+  "report-schedules": ReportSchedulesWorkspace,
   roles: AccessControlWorkspace,
   users: AccessControlWorkspace,
   terminals: TerminalsWorkspace,

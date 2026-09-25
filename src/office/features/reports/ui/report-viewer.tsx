@@ -7,16 +7,18 @@ import { errorMessage } from "@/shared/lib/error-message"
 
 import { useReportResult, type ReportConfig, type ReportCoverage, type ReportRestaurant, type ReportResult } from "../data/use-reports"
 import { findCatalogReport, isNotApplicableKz, type ReportDefinition } from "../model/catalog"
-import { exportFileName, toCsv, type ExportMeta } from "../model/export"
+import { EXPORT_MIME, exportFileName, toCsv, toXlsx, type ExportMeta } from "../model/export"
 import { formatGeneratedAt, formatReportValue } from "../model/format"
 import { configFromFilters, periodError, type ReportFilters } from "../model/url-state"
 import { ReportChart } from "./report-chart"
 import { FavoriteButton } from "./save-view-dialog"
 import { ReportFiltersBar } from "./report-filters"
 import { ReportKpis, ReportTable } from "./report-table"
+import { ScheduleButton } from "./schedule-dialog"
 
 // Report viewer (W1-RPT-03): title and description, the toolbar on its own row under the title (L-16),
-// filters, KPI, a chart for day series, the table with «Итого», the source footer. A report that is not
+// filters, KPI, a chart for day series, the table with «Итого», the source footer. Toolbar: favorites,
+// CSV/XLSX export and «Рассылка» (W2-RPT-06, only for implemented reports). A report that is not
 // implemented yet opens with an honest empty state and never calls `execute`.
 
 type ViewerProps = {
@@ -127,10 +129,15 @@ function ReportBody({ report, filters, onFiltersChange, restaurants }: { report:
     <>
       <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Действия с отчётом">
         <FavoriteButton report={report} config={config} />
-        <Button variant="secondary" size="sm" disabled={!result} onClick={() => result && downloadCsv(result, meta)}>
+        <Button variant="secondary" size="sm" disabled={!result} onClick={() => result && download(result, meta, "csv")}>
           <Download aria-hidden />
           Экспорт CSV
         </Button>
+        <Button variant="secondary" size="sm" disabled={!result} onClick={() => result && download(result, meta, "xlsx")}>
+          <Download aria-hidden />
+          Экспорт XLSX
+        </Button>
+        <ScheduleButton report={report} config={config} />
       </div>
       <ReportFiltersBar filters={filters} onChange={onFiltersChange} restaurants={restaurants} withSearch />
       {invalid ? (
@@ -196,12 +203,14 @@ function daySeries(result: ReportResult) {
   return { label: measure.label, points }
 }
 
-function downloadCsv(result: ReportResult, meta: ExportMeta) {
-  const blob = new Blob([toCsv(result, meta)], { type: "text/csv;charset=utf-8" })
+/** CSV and XLSX from the same module the scheduled mailings use (convex/lib/reportExport.ts). */
+function download(result: ReportResult, meta: ExportMeta, extension: "csv" | "xlsx") {
+  const body: BlobPart = extension === "csv" ? toCsv(result, meta) : (toXlsx(result, meta).slice().buffer as ArrayBuffer)
+  const blob = new Blob([body], { type: EXPORT_MIME[extension] })
   const url = URL.createObjectURL(blob)
   const link = document.createElement("a")
   link.href = url
-  link.download = exportFileName(meta, "csv")
+  link.download = exportFileName(meta, extension)
   document.body.append(link)
   link.click()
   link.remove()
