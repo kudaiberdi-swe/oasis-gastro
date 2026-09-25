@@ -173,7 +173,7 @@ export default defineSchema({
     sourceReadOnly: v.optional(v.boolean()),
     departmentExternalId: v.optional(v.string()),
     salesWarehouseId: v.optional(v.id("warehouses")), // sale write-off warehouse; else the restaurant's isSalesDefault one
-    kind: v.optional(v.union(v.literal("pos"), v.literal("kds"), v.literal("office"))),
+    kind: v.optional(v.union(v.literal("pos"), v.literal("kds"), v.literal("office"), v.literal("delivery"))), // delivery: the restaurant's virtual delivery till (W2-DLV-03)
     lastLoginAt: v.optional(v.number()),
     appVersion: v.optional(v.string()),
     heartbeatUrl: v.optional(v.string()),
@@ -1640,6 +1640,122 @@ export default defineSchema({
     .index("by_external_id", ["externalId"])
     .index("by_restaurant_active", ["restaurantExternalId", "active"])
     .index("by_iiko_store", ["iikoStoreExternalId"]),
+
+  // --- Delivery (W2-DLV-01) -------------------------------------------------
+  // The commercial order is orders(orderType "delivery"); this row holds the logistics around it.
+  deliveryOrders: defineTable({
+    externalId: v.string(),
+    orderId: v.optional(v.id("orders")),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    number: v.string(),
+    status: v.union(v.literal("unprocessed"), v.literal("unconfirmed"), v.literal("waiting"), v.literal("ready-to-cook"), v.literal("cooking"), v.literal("cooked"), v.literal("awaiting-dispatch"), v.literal("on-way"), v.literal("delivered"), v.literal("closed"), v.literal("cancelled")),
+    guestId: v.optional(v.id("guests")),
+    customerName: v.string(),
+    phone: v.string(),
+    email: v.optional(v.string()),
+    address: v.string(),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
+    zoneExternalId: v.optional(v.string()),
+    sourceExternalId: v.string(),
+    operatorKey: v.optional(v.string()),
+    courierExternalId: v.optional(v.string()),
+    expectedAt: v.number(),
+    cookingStartAt: v.optional(v.number()),
+    predictedCookingCompleteAt: v.optional(v.number()),
+    predictedDeliveryAt: v.optional(v.number()),
+    actualDeliveredAt: v.optional(v.number()),
+    subtotal: v.number(),
+    deliveryFee: v.number(),
+    commissionAmount: v.optional(v.number()),
+    total: v.number(),
+    paymentTypeExternalId: v.optional(v.string()),
+    paymentStatus: v.union(v.literal("unpaid"), v.literal("paid"), v.literal("refunded")),
+    comment: v.string(),
+    problemComment: v.optional(v.string()),
+    cancelReason: v.optional(v.string()),
+    version: v.number(),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_order", ["orderId"])
+    .index("by_restaurant_status_time", ["restaurantExternalId", "status", "expectedAt"])
+    .index("by_restaurant_created", ["restaurantExternalId", "createdAt"])
+    .index("by_status_time", ["status", "expectedAt"])
+    .index("by_courier_status_time", ["courierExternalId", "status", "expectedAt"])
+    .index("by_source_created", ["sourceExternalId", "createdAt"])
+    .searchIndex("search_delivery_orders", { searchField: "searchText", filterFields: ["restaurantExternalId", "status", "sourceExternalId"] }),
+
+  deliveryZones: defineTable({
+    externalId: v.string(),
+    restaurantExternalId: v.string(),
+    name: v.string(),
+    priority: v.number(),
+    polygon: v.array(v.object({ latitude: v.number(), longitude: v.number() })),
+    deliveryFee: v.number(),
+    minimumOrder: v.number(),
+    cookingMinutes: v.number(),
+    deliveryMinutes: v.number(),
+    active: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_active", ["restaurantExternalId", "active", "priority"]),
+
+  couriers: defineTable({
+    externalId: v.string(),
+    employeeCode: v.string(),
+    restaurantExternalId: v.string(),
+    name: v.string(),
+    phone: v.string(),
+    transport: v.union(v.literal("foot"), v.literal("bicycle"), v.literal("scooter"), v.literal("car")),
+    status: v.union(v.literal("offline"), v.literal("available"), v.literal("assigned"), v.literal("on-delivery"), v.literal("returning")),
+    shiftStartedAt: v.optional(v.number()),
+    shiftEndedAt: v.optional(v.number()),
+    active: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_employee_code", ["employeeCode"])
+    .index("by_restaurant_status", ["restaurantExternalId", "status"]),
+
+  deliverySources: defineTable({
+    externalId: v.string(),
+    name: v.string(),
+    kind: v.union(v.literal("phone"), v.literal("website"), v.literal("app"), v.literal("aggregator"), v.literal("office")),
+    restaurantExternalIds: v.array(v.string()), // "*" — every restaurant
+    commissionPercent: v.number(),
+    confirmationRequired: v.boolean(),
+    settlementMode: v.union(v.literal("on-delivered"), v.literal("on-closed")),
+    defaultPaymentTypeExternalId: v.optional(v.string()),
+    active: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_kind_active", ["kind", "active"])
+    .index("by_active", ["active"]),
+
+  // Telephony (W3): the table exists so call cards can link orders later.
+  telephonyCalls: defineTable({
+    externalId: v.string(),
+    provider: v.string(),
+    direction: v.union(v.literal("inbound"), v.literal("outbound")),
+    status: v.union(v.literal("ringing"), v.literal("answered"), v.literal("missed"), v.literal("completed"), v.literal("failed")),
+    phone: v.string(),
+    restaurantExternalId: v.optional(v.string()),
+    guestId: v.optional(v.id("guests")),
+    deliveryExternalId: v.optional(v.string()),
+    operatorKey: v.optional(v.string()),
+    startedAt: v.number(),
+    answeredAt: v.optional(v.number()),
+    endedAt: v.optional(v.number()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_started", ["startedAt"])
+    .index("by_phone_started", ["phone", "startedAt"]),
 
   // Price lists (W2-CAT-15): each version is a row of its series; publishing one expires the previous.
   priceLists: defineTable({

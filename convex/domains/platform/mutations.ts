@@ -9,7 +9,7 @@ import { businessDateFor, almatyDayStart } from "../../lib/time"
 // Corporation and administration sections edited in the canonical tables (W1-ADM-01, decision:
 // no platformRecords copy as in bahandi — one source of truth).
 
-const terminalKind = v.union(v.literal("pos"), v.literal("kds"), v.literal("office"))
+const terminalKind = v.union(v.literal("pos"), v.literal("kds"), v.literal("office"), v.literal("delivery"))
 
 export const saveTerminal = mutation({
   args: {

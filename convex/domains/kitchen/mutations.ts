@@ -6,6 +6,7 @@ import { requireAnyOperator } from "../../lib/auth"
 import { writeAudit } from "../../lib/audit"
 import { appendOutboxEvent } from "../../lib/outbox"
 import { kitchenStatus } from "../../lib/validators"
+import { markDeliveryCooked } from "../delivery/internal"
 import { ticketRestaurantId } from "./access"
 
 type Status = Doc<"kitchenTickets">["status"]
@@ -36,6 +37,8 @@ export const setStatus = mutation({
       summary: `Кухня: заказ №${ticket.orderNumber} — ${STATUS_LABEL[ticket.status]} → ${STATUS_LABEL[args.status]}`,
       orderId: ticket.orderId,
     })
+    // A delivery ticket drives its delivery order to «cooked» (W2-KDS-01).
+    if (args.status === "ready" && !back && ticket.source === "delivery") await markDeliveryCooked(ctx, ticket.orderId)
     if (args.status === "ready") {
       await appendOutboxEvent(ctx, { aggregateType: "kitchen-ticket", aggregateExternalId: String(ticket._id), eventType: "kitchen.ready", restaurantExternalId: access.restaurant.externalId, payload: { orderId: String(ticket.orderId), orderNumber: ticket.orderNumber, source: ticket.source } })
     }

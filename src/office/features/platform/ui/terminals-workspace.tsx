@@ -35,7 +35,7 @@ const TABS: { value: StatusTab; label: string }[] = [
   { value: "inactive", label: "Неактивные" },
 ]
 
-export const TERMINAL_KIND_LABELS: Record<TerminalKind, string> = { pos: "Касса", kds: "Экран кухни", office: "Офис" }
+export const TERMINAL_KIND_LABELS: Record<TerminalKind, string> = { pos: "Касса", kds: "Экран кухни", office: "Офис", delivery: "Доставка" }
 
 const KIND_OPTIONS: SegmentOption<TerminalKind>[] = (Object.keys(TERMINAL_KIND_LABELS) as TerminalKind[]).map((value) => ({ value, label: TERMINAL_KIND_LABELS[value] }))
 

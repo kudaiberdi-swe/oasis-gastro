@@ -10,6 +10,7 @@ const DEFINITIONS = {
   bank: { code: "1030", name: "Денежные средства на текущих банковских счетах", type: "asset" },
   inTransit: { code: "1060", name: "Прочие денежные средства (эквайринг, Kaspi QR в пути)", type: "asset" },
   receivables: { code: "1210", name: "Дебиторская задолженность покупателей", type: "asset" },
+  aggregatorSettlements: { code: "1250", name: "Расчёты с агрегаторами доставки", type: "asset" },
   interBranch: { code: "1280", name: "Расчёты между подразделениями", type: "asset" },
   rawMaterials: { code: "1310", name: "Сырьё и материалы", type: "asset" },
   finishedGoods: { code: "1320", name: "Готовая продукция (заготовки)", type: "asset" },

@@ -1,6 +1,7 @@
 import { v } from "convex/values"
 
 import { query } from "../../_generated/server"
+import type { Doc } from "../../_generated/dataModel"
 import { requireAnyOperator } from "../../lib/auth"
 
 export const current = query({
@@ -62,8 +63,9 @@ export const posTerminalOptions = query({
   },
 })
 
-function pickTerminals<T extends { kind?: "pos" | "kds" | "office" }>(terminals: T[], purpose: "pos" | "kitchen") {
-  const cashier = terminals.filter((terminal) => terminal.kind === undefined || terminal.kind === "pos")
+function pickTerminals<T extends { kind?: Doc<"posTerminals">["kind"] }>(terminals: T[], purpose: "pos" | "kitchen") {
+  // The delivery till is picked at the POS too: its shift is where delivery orders are paid (W2-DLV-03).
+  const cashier = terminals.filter((terminal) => terminal.kind === undefined || terminal.kind === "pos" || terminal.kind === "delivery")
   if (purpose === "pos") return cashier
   const kitchen = terminals.filter((terminal) => terminal.kind === "kds")
   return kitchen.length ? kitchen : cashier
