@@ -539,6 +539,7 @@ export default defineSchema({
       v.literal("branch"), v.literal("hour"), v.literal("quarter-hour"), v.literal("product"), v.literal("category"), v.literal("size"), v.literal("modifier"),
       v.literal("payment-type"), v.literal("order-type"), v.literal("employee"), v.literal("cashier"), v.literal("terminal"), v.literal("table"),
       v.literal("deletion-reason"), v.literal("discount-type"), v.literal("service-charge"),
+      v.literal("station"), v.literal("terminal-product"), v.literal("channel"), // W2-RPT-03
     ),
     dimensionKey: v.string(),
     dimensionLabel: v.string(),
@@ -559,6 +560,27 @@ export default defineSchema({
     .index("by_restaurant_type_date", ["restaurantExternalId", "factType", "businessDate"])
     .index("by_restaurant_type_key_date", ["restaurantExternalId", "factType", "dimensionKey", "businessDate"])
     .index("by_restaurant_date", ["restaurantExternalId", "businessDate"]),
+
+  // Daily stock flows per warehouse × item × business date (W2-RPT-01). Only flows are stored — a
+  // backdated movement adds to its own day and never rewrites later days; balances at a date come from
+  // the movement chain (stockMovements.balanceAfter). A reversal counts in its original's kind, negative.
+  dailyStockFacts: defineTable({
+    warehouseId: v.id("warehouses"),
+    restaurantExternalId: v.string(),
+    inventoryItemId: v.id("inventoryItems"),
+    businessDate: v.string(),
+    inQuantity: v.number(),
+    inValue: v.number(),
+    outQuantity: v.number(),
+    outValue: v.number(),
+    // Signed quantity by what moved it: receipts +, sales −, transfers in + / out −…
+    byKind: v.object({ receipt: v.number(), sale: v.number(), writeoff: v.number(), transferIn: v.number(), transferOut: v.number(), inventory: v.number(), production: v.number(), supplierReturn: v.number(), outgoingInvoice: v.number(), other: v.number() }),
+    movementCount: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_warehouse_item_date", ["warehouseId", "inventoryItemId", "businessDate"])
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
+    .index("by_item_date", ["inventoryItemId", "businessDate"]),
 
   // Saved report views and favorites (W1-RPT-05): per office user, typed config.
   reportViews: defineTable({
@@ -1210,6 +1232,7 @@ export default defineSchema({
     sourceNumber: v.optional(v.string()),
     amount: v.optional(v.number()),
     reversalOf: v.optional(v.id("stockMovements")),
+    dailyFactAt: v.optional(v.number()), // W2-RPT-01: when this movement was added to dailyStockFacts
   })
     .index("by_restaurant_item_occurred", ["restaurantExternalId", "inventoryItemId", "occurredAt"])
     .index("by_occurred_at", ["occurredAt"])

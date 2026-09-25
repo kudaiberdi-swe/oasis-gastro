@@ -78,7 +78,11 @@ import type * as domains_recipes_mutations from "../domains/recipes/mutations.js
 import type * as domains_recipes_queries from "../domains/recipes/queries.js";
 import type * as domains_recipes_seed from "../domains/recipes/seed.js";
 import type * as domains_reports_calculators__shared from "../domains/reports/calculators/_shared.js";
+import type * as domains_reports_calculators_employees from "../domains/reports/calculators/employees.js";
+import type * as domains_reports_calculators_finance from "../domains/reports/calculators/finance.js";
+import type * as domains_reports_calculators_menu from "../domains/reports/calculators/menu.js";
 import type * as domains_reports_calculators_operations from "../domains/reports/calculators/operations.js";
+import type * as domains_reports_calculators_sales from "../domains/reports/calculators/sales.js";
 import type * as domains_reports_calculators_stock from "../domains/reports/calculators/stock.js";
 import type * as domains_reports_catalog from "../domains/reports/catalog.js";
 import type * as domains_reports_internal from "../domains/reports/internal.js";
@@ -147,6 +151,7 @@ import type * as lib_reportFacts from "../lib/reportFacts.js";
 import type * as lib_restaurants from "../lib/restaurants.js";
 import type * as lib_retailSettings from "../lib/retailSettings.js";
 import type * as lib_stockAccounting from "../lib/stockAccounting.js";
+import type * as lib_stockFacts from "../lib/stockFacts.js";
 import type * as lib_stockPosting from "../lib/stockPosting.js";
 import type * as lib_systemRoles from "../lib/systemRoles.js";
 import type * as lib_time from "../lib/time.js";
@@ -156,6 +161,7 @@ import type * as migrations_m3StockWarehouses from "../migrations/m3StockWarehou
 import type * as migrations_m4LedgerToJournal from "../migrations/m4LedgerToJournal.js";
 import type * as migrations_m5Loyalty from "../migrations/m5Loyalty.js";
 import type * as migrations_m7KitchenTickets from "../migrations/m7KitchenTickets.js";
+import type * as migrations_m9DailyStockFacts from "../migrations/m9DailyStockFacts.js";
 
 import type {
   ApiFromModules,
@@ -234,7 +240,11 @@ declare const fullApi: ApiFromModules<{
   "domains/recipes/queries": typeof domains_recipes_queries;
   "domains/recipes/seed": typeof domains_recipes_seed;
   "domains/reports/calculators/_shared": typeof domains_reports_calculators__shared;
+  "domains/reports/calculators/employees": typeof domains_reports_calculators_employees;
+  "domains/reports/calculators/finance": typeof domains_reports_calculators_finance;
+  "domains/reports/calculators/menu": typeof domains_reports_calculators_menu;
   "domains/reports/calculators/operations": typeof domains_reports_calculators_operations;
+  "domains/reports/calculators/sales": typeof domains_reports_calculators_sales;
   "domains/reports/calculators/stock": typeof domains_reports_calculators_stock;
   "domains/reports/catalog": typeof domains_reports_catalog;
   "domains/reports/internal": typeof domains_reports_internal;
@@ -303,6 +313,7 @@ declare const fullApi: ApiFromModules<{
   "lib/restaurants": typeof lib_restaurants;
   "lib/retailSettings": typeof lib_retailSettings;
   "lib/stockAccounting": typeof lib_stockAccounting;
+  "lib/stockFacts": typeof lib_stockFacts;
   "lib/stockPosting": typeof lib_stockPosting;
   "lib/systemRoles": typeof lib_systemRoles;
   "lib/time": typeof lib_time;
@@ -312,6 +323,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/m4LedgerToJournal": typeof migrations_m4LedgerToJournal;
   "migrations/m5Loyalty": typeof migrations_m5Loyalty;
   "migrations/m7KitchenTickets": typeof migrations_m7KitchenTickets;
+  "migrations/m9DailyStockFacts": typeof migrations_m9DailyStockFacts;
 }>;
 
 /**

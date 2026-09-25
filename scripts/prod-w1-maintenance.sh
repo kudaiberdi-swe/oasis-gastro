@@ -18,6 +18,7 @@
 #  13. M-8 sales facts          domains/reports/internal:backfillDailySalesFacts (paged; after M-2 business dates)
 #  14. KZ payroll rules 2026    domains/workforce/payroll:seedRules2026 (draft; the accountant activates it)
 #  15. Delivery sources          domains/delivery/internal:seedSources («Телефон», «Сайт sandyq.kz», 0 %)
+#  16. M-9 daily stock facts    migrations/m9DailyStockFacts:backfill (paged; after M-3)
 # Each step runs as a dry run first and prints what it would change; then asks before writing.
 #
 #   bash scripts/prod-w1-maintenance.sh          # production
@@ -64,6 +65,7 @@ paged domains/catalog/migrations:m1bOverlays true
 run migrations/m3StockWarehouses:ensureMainWarehouses '{"dryRun":true}'
 paged migrations/m3StockWarehouses:backfillBalances true
 paged migrations/m3StockWarehouses:backfillMovements true
+paged migrations/m9DailyStockFacts:backfill true
 run domains/retail/internal:seedDefaults '{"dryRun":true}'
 paged migrations/m2Orders:backfillOrders true
 paged migrations/m2Orders:backfillLines true
@@ -88,6 +90,7 @@ paged domains/catalog/migrations:m1bOverlays false
 run migrations/m3StockWarehouses:ensureMainWarehouses '{}'
 paged migrations/m3StockWarehouses:backfillBalances false
 paged migrations/m3StockWarehouses:backfillMovements false
+paged migrations/m9DailyStockFacts:backfill false
 run domains/retail/internal:seedDefaults '{}'
 paged migrations/m2Orders:backfillOrders false
 paged migrations/m2Orders:backfillLines false

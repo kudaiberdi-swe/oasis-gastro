@@ -4,6 +4,7 @@ import type { GenericMutationCtx } from "convex/server"
 import { internal } from "../_generated/api"
 import type { DataModel, Doc, Id } from "../_generated/dataModel"
 import { assertPeriodOpen } from "./periods"
+import { applyStockFact } from "./stockFacts"
 import { businessDateFor } from "./time"
 
 type MutationCtx = GenericMutationCtx<DataModel>
@@ -107,6 +108,7 @@ export async function applyStockMovement(ctx: MutationCtx, input: StockMovementI
     ...(input.reversalOf ? { reversalOf: input.reversalOf } : {}),
   })
 
+  await applyStockFact(ctx, (await ctx.db.get(id))!) // W2-RPT-01, same transaction
   if (backdated) {
     // Later movements' balanceAfter/averageAfter are now stale: re-chain them in batches.
     await ctx.db.patch(balance._id, { recalculating: true, updatedAt: Date.now() })
