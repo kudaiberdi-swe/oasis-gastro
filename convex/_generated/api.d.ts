@@ -39,6 +39,7 @@ import type * as domains_iiko_internal from "../domains/iiko/internal.js";
 import type * as domains_iiko_mutations from "../domains/iiko/mutations.js";
 import type * as domains_iiko_office from "../domains/iiko/office.js";
 import type * as domains_iiko_projections from "../domains/iiko/projections.js";
+import type * as domains_integrations_adapters_email from "../domains/integrations/adapters/email.js";
 import type * as domains_integrations_internal from "../domains/integrations/internal.js";
 import type * as domains_integrations_mutations from "../domains/integrations/mutations.js";
 import type * as domains_integrations_queries from "../domains/integrations/queries.js";
@@ -77,6 +78,7 @@ import type * as domains_purchasing_receipts from "../domains/purchasing/receipt
 import type * as domains_recipes_mutations from "../domains/recipes/mutations.js";
 import type * as domains_recipes_queries from "../domains/recipes/queries.js";
 import type * as domains_recipes_seed from "../domains/recipes/seed.js";
+import type * as domains_reports_calculators__facts from "../domains/reports/calculators/_facts.js";
 import type * as domains_reports_calculators__shared from "../domains/reports/calculators/_shared.js";
 import type * as domains_reports_calculators_employees from "../domains/reports/calculators/employees.js";
 import type * as domains_reports_calculators_finance from "../domains/reports/calculators/finance.js";
@@ -84,6 +86,7 @@ import type * as domains_reports_calculators_menu from "../domains/reports/calcu
 import type * as domains_reports_calculators_operations from "../domains/reports/calculators/operations.js";
 import type * as domains_reports_calculators_sales from "../domains/reports/calculators/sales.js";
 import type * as domains_reports_calculators_stock from "../domains/reports/calculators/stock.js";
+import type * as domains_reports_calculators_stockHelpers from "../domains/reports/calculators/stockHelpers.js";
 import type * as domains_reports_catalog from "../domains/reports/catalog.js";
 import type * as domains_reports_internal from "../domains/reports/internal.js";
 import type * as domains_reports_mutations from "../domains/reports/mutations.js";
@@ -204,6 +207,7 @@ declare const fullApi: ApiFromModules<{
   "domains/iiko/mutations": typeof domains_iiko_mutations;
   "domains/iiko/office": typeof domains_iiko_office;
   "domains/iiko/projections": typeof domains_iiko_projections;
+  "domains/integrations/adapters/email": typeof domains_integrations_adapters_email;
   "domains/integrations/internal": typeof domains_integrations_internal;
   "domains/integrations/mutations": typeof domains_integrations_mutations;
   "domains/integrations/queries": typeof domains_integrations_queries;
@@ -242,6 +246,7 @@ declare const fullApi: ApiFromModules<{
   "domains/recipes/mutations": typeof domains_recipes_mutations;
   "domains/recipes/queries": typeof domains_recipes_queries;
   "domains/recipes/seed": typeof domains_recipes_seed;
+  "domains/reports/calculators/_facts": typeof domains_reports_calculators__facts;
   "domains/reports/calculators/_shared": typeof domains_reports_calculators__shared;
   "domains/reports/calculators/employees": typeof domains_reports_calculators_employees;
   "domains/reports/calculators/finance": typeof domains_reports_calculators_finance;
@@ -249,6 +254,7 @@ declare const fullApi: ApiFromModules<{
   "domains/reports/calculators/operations": typeof domains_reports_calculators_operations;
   "domains/reports/calculators/sales": typeof domains_reports_calculators_sales;
   "domains/reports/calculators/stock": typeof domains_reports_calculators_stock;
+  "domains/reports/calculators/stockHelpers": typeof domains_reports_calculators_stockHelpers;
   "domains/reports/catalog": typeof domains_reports_catalog;
   "domains/reports/internal": typeof domains_reports_internal;
   "domains/reports/mutations": typeof domains_reports_mutations;

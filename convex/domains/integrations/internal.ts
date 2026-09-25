@@ -16,6 +16,8 @@ type AdapterResult = { ok: true; result?: unknown } | { ok: false; error: string
  */
 const ADAPTERS: Record<string, (job: Doc<"integrationJobs">) => AdapterResult> = {
   [EVENT_BUS]: () => ({ ok: true, result: { delivered: true } }),
+  // W2-ACL-08: no e-mail provider yet (blocker Б-B6) — the letter is never reported as sent.
+  email: () => ({ ok: false, error: "Провайдер e-mail не настроен (Б-B6)" }),
 }
 
 /** min(1 hour, 2^attempts × 30 s). */

@@ -118,6 +118,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "delivery-source.save": "Сохранение источника заказов",
   "reservation.table": "Стол на схеме зала",
   "report-schedule.save": "Сохранение рассылки отчёта",
+  "office-user.password-reset": "Запрос восстановления пароля",
   "report-schedule.active": "Включение / отключение рассылки",
   "report-schedule.delete": "Удаление рассылки",
   "reservation.save": "Сохранение брони",
