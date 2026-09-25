@@ -48,6 +48,10 @@ import { SuppliersPage } from "@/office/features/stock/ui/suppliers-page"
 import { UnitsPage } from "@/office/features/stock/ui/units-page"
 import { WarehousesPage } from "@/office/features/stock/ui/warehouses-page"
 import { AttendanceWorkspace } from "@/office/features/workforce/ui/attendance-workspace"
+import { PayrollWorkspace } from "@/office/features/workforce/ui/payroll-workspace"
+import { PositionsWorkspace } from "@/office/features/workforce/ui/positions-workspace"
+import { ScheduleWorkspace } from "@/office/features/workforce/ui/schedule-workspace"
+import { ShiftTypesWorkspace } from "@/office/features/workforce/ui/shift-types-workspace"
 import { WorkforceWorkspace } from "@/office/features/workforce/ui/workforce-workspace"
 import { allowsCapability } from "@/office/model/capabilities"
 import { filterNavigationByCapabilities } from "@/office/model/nav-filter"
@@ -89,7 +93,11 @@ const WORKSPACES: Record<string, ComponentType> = {
   "accounts-payable": AccountsPayableWorkspace,
   payments: PaymentsWorkspace,
   employees: WorkforceWorkspace,
+  positions: PositionsWorkspace,
+  "shift-types": ShiftTypesWorkspace,
+  schedule: ScheduleWorkspace,
   attendance: AttendanceWorkspace,
+  payroll: PayrollWorkspace,
   guests: LoyaltyWorkspace,
   "loyalty-programs": LoyaltyProgramsWorkspace,
   "guest-categories": GuestCategoriesWorkspace,
