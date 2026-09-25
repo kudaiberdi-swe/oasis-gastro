@@ -93,3 +93,55 @@ describe("stock documents (W1-STK-08)", () => {
     await expect(admin.mutation(docs.mutations.postDocument, { type: "writeoff", externalId: big.externalId })).rejects.toThrow(/закрыт/)
   })
 })
+
+describe("outgoing invoices and supplier returns (W2-STK-13)", () => {
+  const obligation = (t: TestConvex<typeof schema>, externalId: string) => t.run((ctx) => ctx.db.query("financeRecords").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique())
+
+  it("a return based on a receipt shrinks its bill, can't exceed what was received, and reversal restores it", async () => {
+    const { t, admin } = await setup()
+    await t.run((ctx) => ctx.db.insert("suppliers", { externalId: "partner", name: "Мясной партнёр", bin: "", supplierType: "external", vatPayer: false, priceDeviationPolicy: "ignore", allowedDeviationPercent: 10, restaurantExternalIds: [], active: true, searchText: "мясной" }))
+    const receipts = api.domains.purchasing.receipts
+    const { externalId: receipt } = await admin.mutation(receipts.createReceiptDraft, { supplierExternalId: "partner", warehouseExternalId: "main" })
+    await admin.mutation(receipts.saveReceipt, { externalId: receipt, date: at("2026-09-05T10:00:00"), supplierExternalId: "partner", warehouseExternalId: "main", invoiceNumber: "INV-7", lines: [{ itemExternalId: "meat", quantity: 5, unitCostGross: 4400, vatRate: 0 }] })
+    await admin.mutation(receipts.postReceipt, { externalId: receipt })
+    const bill = `obligation:receipts:${receipt}:main`
+    expect(await obligation(t, bill)).toMatchObject({ amount: 22000 })
+
+    const body = (quantity: number) => ({ sourceWarehouseExternalId: "main", supplierExternalId: "partner", receiptExternalId: receipt, lines: [{ itemExternalId: "meat", quantity }] })
+    const create = async (quantity: number) => {
+      const { externalId } = await admin.mutation(docs.mutations.createDocument, { type: "supplier-return", restaurantExternalId: "almaty" })
+      await admin.mutation(docs.mutations.saveDocument, { type: "supplier-return", externalId, date: at("2026-09-10T12:00:00"), counterpartyName: "", reason: "Брак", comment: "", ...body(quantity) })
+      return externalId
+    }
+    const first = await create(2)
+    const { totalAmount } = await admin.mutation(docs.mutations.postDocument, { type: "supplier-return", externalId: first })
+    expect(totalAmount).toBe(Math.round((2 * (10 * 4000 + 5 * 4400)) / 15))
+    expect(await obligation(t, bill)).toMatchObject({ amount: 22000 - totalAmount! })
+    expect(await balance(t, "main")).toMatchObject({ quantity: 13 })
+    const [entry] = await journal(t, first)
+    expect(entry).toMatchObject({ debitAccountExternalId: SYSTEM_ACCOUNTS.payables.externalId, creditAccountExternalId: SYSTEM_ACCOUNTS.rawMaterials.externalId, amount: totalAmount })
+
+    const second = await create(4)
+    await expect(admin.mutation(docs.mutations.postDocument, { type: "supplier-return", externalId: second })).rejects.toThrow(/больше полученного/)
+    await expect(admin.mutation(receipts.reverseReceipt, { externalId: receipt, reason: "Ошибка" })).rejects.toThrow(/Сначала/)
+
+    await admin.mutation(docs.mutations.reverseDocument, { type: "supplier-return", externalId: first, reason: "Ошибка" })
+    expect(await obligation(t, bill)).toMatchObject({ amount: 22000 })
+    expect(await balance(t, "main")).toMatchObject({ quantity: 15 })
+  })
+
+  it("an outgoing invoice with sale prices books COGS at cost, revenue at price, and the buyer's debt", async () => {
+    const { t, admin } = await setup()
+    const { externalId } = await admin.mutation(docs.mutations.createDocument, { type: "outgoing-invoice", restaurantExternalId: "almaty" })
+    await admin.mutation(docs.mutations.saveDocument, { type: "outgoing-invoice", externalId, date: at("2026-09-10T12:00:00"), sourceWarehouseExternalId: "main", counterpartyName: "Кафе «Жол»", reason: "", comment: "", lines: [{ itemExternalId: "meat", quantity: 2, salePrice: 6000 }] })
+    expect(await admin.mutation(docs.mutations.postDocument, { type: "outgoing-invoice", externalId })).toMatchObject({ totalAmount: 8000 })
+    const entries = await journal(t, externalId)
+    expect(entries.map((row) => [row.debitAccountExternalId, row.creditAccountExternalId, row.amount]).sort()).toEqual([
+      [SYSTEM_ACCOUNTS.cogs.externalId, SYSTEM_ACCOUNTS.rawMaterials.externalId, 8000],
+      [SYSTEM_ACCOUNTS.receivables.externalId, SYSTEM_ACCOUNTS.revenue.externalId, 12000],
+    ].sort())
+    expect(await obligation(t, `obligation:outgoing-invoices:${externalId}:main`)).toMatchObject({ amount: 12000, status: "posted", data: expect.objectContaining({ direction: "receivable" }) })
+    await admin.mutation(docs.mutations.reverseDocument, { type: "outgoing-invoice", externalId, reason: "Ошибка" })
+    expect(await obligation(t, `obligation:outgoing-invoices:${externalId}:main`)).toMatchObject({ status: "reversed", amount: 0 })
+  })
+})

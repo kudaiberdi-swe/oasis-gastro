@@ -1355,6 +1355,51 @@ export default defineSchema({
     .index("by_module_restaurant_date", ["moduleId", "restaurantExternalId", "businessDate"])
     .index("by_counterparty_module", ["counterpartyExternalId", "moduleId"])
     .searchIndex("search_finance_records", { searchField: "searchText", filterFields: ["moduleId", "status", "restaurantExternalId"] }),
+  // Production and logistics documents (W2-PRD-02…06): production acts, processing, assembly and sales
+  // acts, internal orders, purchase orders — one typed table, lines inline.
+  productionDocuments: defineTable({
+    externalId: v.string(),
+    type: v.union(v.literal("production"), v.literal("processing"), v.literal("assembly"), v.literal("sales"), v.literal("internal-order"), v.literal("purchase-order")),
+    number: v.string(),
+    date: v.number(),
+    status: v.union(v.literal("draft"), v.literal("pending-approval"), v.literal("approved"), v.literal("posted"), v.literal("completed"), v.literal("reversed"), v.literal("cancelled")),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    sourceWarehouseId: v.optional(v.id("warehouses")),
+    destinationWarehouseId: v.optional(v.id("warehouses")),
+    supplierId: v.optional(v.id("suppliers")),
+    expectedDate: v.optional(v.number()),
+    concept: v.optional(v.string()),
+    comment: v.string(),
+    lines: v.array(
+      v.object({
+        lineNo: v.number(),
+        productId: v.optional(v.id("products")), // production acts: the preparation made
+        inventoryItemId: v.optional(v.id("inventoryItems")),
+        name: v.string(),
+        quantity: v.number(),
+        direction: v.union(v.literal("input"), v.literal("output")),
+        expectedUnitCost: v.optional(v.number()),
+        costShare: v.optional(v.number()),
+        amount: v.optional(v.number()), // set when posted
+      }),
+    ),
+    totalAmount: v.number(),
+    receiptExternalId: v.optional(v.string()), // purchase order → its receipt
+    searchText: v.string(),
+    version: v.number(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    postedAt: v.optional(v.number()),
+    reversedAt: v.optional(v.number()),
+    reverseReason: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_type_restaurant_date", ["type", "restaurantExternalId", "date"])
+    .index("by_type_status_date", ["type", "status", "date"])
+    .searchIndex("search_production_documents", { searchField: "searchText", filterFields: ["type", "status", "restaurantExternalId"] }),
+
   // Payment ↔ obligation allocations (W2-FIN-10): one row per obligation a payment settles.
   paymentAllocations: defineTable({
     paymentExternalId: v.string(),
@@ -1690,6 +1735,11 @@ export default defineSchema({
     destinationWarehouseExternalId: v.optional(v.string()),
     supplierId: v.optional(v.id("suppliers")),
     counterpartyName: v.string(),
+    // W2-STK-13: the buyer of an outgoing invoice, the receipt a return is based on, the settled part of its bill.
+    counterpartyExternalId: v.optional(v.string()),
+    receiptExternalId: v.optional(v.string()),
+    saleTotal: v.optional(v.number()),
+    obligationAdjustment: v.optional(v.object({ obligationExternalId: v.string(), amount: v.number() })),
     reason: v.string(),
     comment: v.string(),
     totalQuantity: v.number(),
@@ -1706,6 +1756,7 @@ export default defineSchema({
     .index("by_type_restaurant_date", ["type", "restaurantExternalId", "date"])
     .index("by_type_status_date", ["type", "status", "date"])
     .index("by_source_warehouse_status", ["sourceWarehouseId", "status"])
+    .index("by_receipt", ["receiptExternalId"])
     .searchIndex("search_stock_documents", { searchField: "searchText", filterFields: ["type", "status", "restaurantExternalId"] }),
 
   stockDocumentLines: defineTable({
@@ -1717,6 +1768,7 @@ export default defineSchema({
     actualQuantity: v.optional(v.number()),
     unitCost: v.number(),
     vatRate: v.number(),
+    salePrice: v.optional(v.number()), // outgoing invoice: the buyer's price per unit, with VAT
   }).index("by_document", ["documentId", "lineNo"]),
   // Sales that could not write off stock (W1-RCP-03) — the source of «Продажи без техкарты».
   salesWithoutRecipe: defineTable({

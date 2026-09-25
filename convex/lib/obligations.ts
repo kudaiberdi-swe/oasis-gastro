@@ -73,5 +73,12 @@ export async function cancelObligations(ctx: MutationCtx, sourceModuleId: string
   }
 }
 
+/** A supplier's counterparty in finance: the one linked, or the one with the same BIN. */
+export async function supplierCounterparty(ctx: MutationCtx, supplier: Doc<"suppliers">) {
+  if (supplier.counterpartyExternalId) return supplier.counterpartyExternalId
+  if (!supplier.bin) return undefined
+  return (await ctx.db.query("financeRecords").withIndex("by_bin", (q) => q.eq("bin", supplier.bin)).take(5)).find((row) => row.moduleId === "counterparties")?.externalId
+}
+
 /** Due date N days after a date (YYYY-MM-DD). */
 export const dueAfter = (businessDate: string, days: number) => new Date(Date.parse(`${businessDate}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)

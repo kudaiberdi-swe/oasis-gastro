@@ -205,3 +205,10 @@ export async function reverseOrderConsumption(ctx: MutationCtx, args: { order: D
   const hasCogs = await ctx.db.query("journalEntries").withIndex("by_source", (q) => q.eq("sourceExternalId", source)).first()
   if (hasCogs) await reverseJournalEntries(ctx, { sourceExternalId: source, occurredAt: args.occurredAt, reversalKey: args.refundKey, share: args.share, businessDate: args.businessDate, description: `Возврат по заказу №${args.order.number}`, only: (entry) => entry.debitAccountExternalId === SYSTEM_ACCOUNTS.cogs.externalId })
 }
+
+/** A preparation's recipe for `quantity` units of output, as inventory quantities (production acts, W2-PRD-02). */
+export async function planRecipeOutput(ctx: QueryCtx, product: Doc<"products">, quantity: number, at: number) {
+  const out = { components: [] as ConsumptionComponent[], warnings: [] as ConsumptionWarning[] }
+  await expand(ctx, product, quantity, at, "" as Id<"orderLines">, out, 0)
+  return out
+}

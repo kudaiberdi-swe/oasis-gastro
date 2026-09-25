@@ -106,6 +106,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "payroll.calculate": "Расчёт ведомости",
   "payroll.post": "Проведение ведомости",
   "payroll.reverse": "Сторно ведомости",
+  "production.preparation": "Настройка заготовки",
+  "purchase-orders.receipt": "Приходная накладная по заказу",
   "payroll.payout": "Выплата зарплаты",
   "workforce.create": "Создание сотрудника кассы",
   "workforce.profile.update": "Изменение карточки сотрудника",
@@ -150,6 +152,7 @@ export const AUDIT_ACTION_SUFFIX_LABELS: Record<string, string> = {
   activate: "Активация",
   deactivate: "Деактивация",
   expire: "Завершение действия",
+  save: "Сохранение черновика",
 }
 
 export type AuditActionLabel = {

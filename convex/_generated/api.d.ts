@@ -65,6 +65,8 @@ import type * as domains_pos_queries from "../domains/pos/queries.js";
 import type * as domains_pricing_crons from "../domains/pricing/crons.js";
 import type * as domains_pricing_mutations from "../domains/pricing/mutations.js";
 import type * as domains_pricing_queries from "../domains/pricing/queries.js";
+import type * as domains_production_documents from "../domains/production/documents.js";
+import type * as domains_production_preparations from "../domains/production/preparations.js";
 import type * as domains_purchasing_receipts from "../domains/purchasing/receipts.js";
 import type * as domains_recipes_mutations from "../domains/recipes/mutations.js";
 import type * as domains_recipes_queries from "../domains/recipes/queries.js";
@@ -210,6 +212,8 @@ declare const fullApi: ApiFromModules<{
   "domains/pricing/crons": typeof domains_pricing_crons;
   "domains/pricing/mutations": typeof domains_pricing_mutations;
   "domains/pricing/queries": typeof domains_pricing_queries;
+  "domains/production/documents": typeof domains_production_documents;
+  "domains/production/preparations": typeof domains_production_preparations;
   "domains/purchasing/receipts": typeof domains_purchasing_receipts;
   "domains/recipes/mutations": typeof domains_recipes_mutations;
   "domains/recipes/queries": typeof domains_recipes_queries;

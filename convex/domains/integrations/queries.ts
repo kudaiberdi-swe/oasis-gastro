@@ -22,7 +22,10 @@ export const listIntegrationJobs = query({
     return {
       ...result,
       // Jobs without an organization are system-level: network users only.
-      page: result.page.filter((job) => (job.organizationExternalId ? hasScope(scopes.organizationScopes, job.organizationExternalId) : network)),
+      // payload/result are read through getIntegrationJob only, where secrets are masked.
+      page: result.page
+        .filter((job) => (job.organizationExternalId ? hasScope(scopes.organizationScopes, job.organizationExternalId) : network))
+        .map(({ payload: _payload, result: _result, ...job }) => job),
     }
   },
 })
