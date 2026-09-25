@@ -1,5 +1,5 @@
 import { useMutation, useQueries, useQuery } from "convex/react"
-import type { FunctionArgs, FunctionReference, FunctionReturnType } from "convex/server"
+import { getFunctionName, makeFunctionReference, type FunctionArgs, type FunctionReference, type FunctionReturnType } from "convex/server"
 import { useEffect, useMemo, useState } from "react"
 
 import { api } from "../../../../../convex/_generated/api"
@@ -27,11 +27,14 @@ function useSafeQuery<Query extends FunctionReference<"query">>(query: Query, ar
     if (retrying) setRetrying(false)
   }, [retrying])
   const key = args === "skip" || retrying ? null : JSON.stringify(args)
+  // `api.…` references are proxies: a new object on every access, so the memo keys on the function
+  // name — keying on the reference re-created the request each render and looped useQueries.
+  const name = getFunctionName(query)
   const queries = useMemo(() => {
     const request: Parameters<typeof useQueries>[0] = {}
-    if (key !== null) request.value = { query, args: JSON.parse(key) as FunctionArgs<Query> }
+    if (key !== null) request.value = { query: makeFunctionReference<"query">(name), args: JSON.parse(key) as FunctionArgs<Query> }
     return request
-  }, [query, key])
+  }, [name, key])
   const value = useQueries(queries).value as FunctionReturnType<Query> | Error | undefined
   const error = value instanceof Error ? value : undefined
   return {
