@@ -41,6 +41,13 @@ export function ticketOrigin(ticket: { tableLabel?: string; fulfillment: string;
   return place === source ? place : `${place} · ${source}`
 }
 
+/** The badge of a ticket that did not come from the till (W2-KDS-01): «Доставка» / «Киоск». */
+export function channelBadge(source: string): string | null {
+  if (source === "delivery") return "Доставка"
+  if (source === "kiosk") return "Киоск"
+  return null
+}
+
 export type InstructionKind = "remove" | "add" | "note"
 
 /** Kitchen modifiers arrive as «БЕЗ ЛУКА», «+СЫР ×2»; anything else is a free note. */

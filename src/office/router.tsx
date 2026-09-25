@@ -15,6 +15,10 @@ import { OrganizationsWorkspace } from "@/office/features/corporation/ui/organiz
 import { RestaurantsWorkspace } from "@/office/features/corporation/ui/restaurants-workspace"
 import { DashboardWorkspace } from "@/office/features/dashboard/ui/office-dashboard"
 import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
+import { CouriersWorkspace } from "@/office/features/delivery/ui/couriers-workspace"
+import { CallCenterWorkspace, DeliveryOrdersWorkspace } from "@/office/features/delivery/ui/delivery-orders-workspace"
+import { SourcesWorkspace } from "@/office/features/delivery/ui/sources-workspace"
+import { ZonesWorkspace } from "@/office/features/delivery/ui/zones-workspace"
 import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
 import { ShiftAcceptanceWorkspace } from "@/office/features/finance/ui/shift-acceptance-workspace"
 import { AccountsPayableWorkspace } from "@/office/features/finance/ui/accounts-payable-workspace"
@@ -23,10 +27,12 @@ import { ServicesWorkspace } from "@/office/features/finance/ui/services-workspa
 import { GuestCategoriesWorkspace } from "@/office/features/loyalty/ui/categories-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
 import { LoyaltyProgramsWorkspace } from "@/office/features/loyalty/ui/programs-workspace"
+import { ReservationsWorkspace } from "@/office/features/loyalty/ui/reservations-workspace"
 import { ModifiersWorkspace } from "@/office/features/modifiers/ui/modifiers-workspace"
 import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomenclature-workspace"
 import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
 import { PeriodLocksWorkspace } from "@/office/features/platform/ui/period-locks-workspace"
+import { PriceListsWorkspace } from "@/office/features/price-lists/ui/price-lists-workspace"
 import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-orders-workspace"
 import { AssemblyActsWorkspace, InternalOrdersWorkspace, ProcessingActsWorkspace, ProductionWorkspace, PurchaseOrdersWorkspace, SalesActsWorkspace } from "@/office/features/production/ui/production-workspace"
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
@@ -76,6 +82,7 @@ const WORKSPACES: Record<string, ComponentType> = {
   modifiers: ModifiersWorkspace,
   "size-scales": SizeScalesWorkspace,
   "price-orders": PriceOrdersWorkspace,
+  "price-lists": PriceListsWorkspace,
   stock: BalancesPage,
   units: UnitsPage,
   warehouses: WarehousesPage,
@@ -108,6 +115,12 @@ const WORKSPACES: Record<string, ComponentType> = {
   guests: LoyaltyWorkspace,
   "loyalty-programs": LoyaltyProgramsWorkspace,
   "guest-categories": GuestCategoriesWorkspace,
+  reservations: ReservationsWorkspace,
+  "delivery-orders": DeliveryOrdersWorkspace,
+  "delivery-zones": ZonesWorkspace,
+  couriers: CouriersWorkspace,
+  "call-center": CallCenterWorkspace,
+  "delivery-sources": SourcesWorkspace,
   reports: ReportsWorkspace,
   "report-favorites": ReportFavoritesWorkspace,
   roles: AccessControlWorkspace,

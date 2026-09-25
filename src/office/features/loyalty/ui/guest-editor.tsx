@@ -19,6 +19,7 @@ import {
   guestSaveArgs,
   guestStatusOf,
   isMasked,
+  expirationLine,
   TRANSACTION_KIND_LABELS,
   validateGuest,
   type DraftErrors,
@@ -364,6 +365,7 @@ function Accounts({ card }: { card: GuestCard }) {
           Счетов по программам пока нет. Баланс гостя: <span className="font-semibold text-foreground">{formatQuantity(card.guest.points)} б.</span>
         </p>
       )}
+      {card.nextExpiration ? <p className="text-body-sm font-medium text-warning-foreground">{expirationLine(card.nextExpiration)}</p> : null}
       <p className="text-caption text-muted-foreground">1 балл = 1 ₸ при оплате.</p>
       {canAdjust && adjusting ? <BalanceAdjustDialog open onOpenChange={setAdjusting} card={card} programs={programs} /> : null}
     </FormSection>

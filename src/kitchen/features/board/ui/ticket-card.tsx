@@ -2,9 +2,10 @@ import { Clock, Undo2 } from "lucide-react"
 import { useState } from "react"
 
 import type { KitchenTicket } from "@/kitchen/features/board/data/use-kitchen-board"
-import { instructionKind, NEXT_STEP, PREVIOUS_STEP, ticketOrigin, type BoardStatus, type InstructionKind } from "@/kitchen/features/board/model/ticket"
+import { channelBadge, instructionKind, NEXT_STEP, PREVIOUS_STEP, ticketOrigin, type BoardStatus, type InstructionKind } from "@/kitchen/features/board/model/ticket"
 import { ticketTimer, type TimerTone } from "@/kitchen/features/board/model/timer"
-import { Button, StatusPill } from "@/shared/components/ui"
+import { Button, StatusPill, TonePill } from "@/shared/components/ui"
+import { formatAlmatyTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatQuantity } from "@/shared/lib/format"
 import { cn } from "@/shared/lib/utils"
@@ -36,6 +37,7 @@ export function TicketCard({ ticket, now, onSetStatus, leaving = false }: Ticket
   const timer = ticketTimer(ticket, now)
   const next = NEXT_STEP[ticket.status]
   const back = PREVIOUS_STEP[ticket.status]
+  const badge = channelBadge(ticket.source)
 
   async function move(status: KitchenStatus) {
     if (pending) return
@@ -67,6 +69,15 @@ export function TicketCard({ ticket, now, onSetStatus, leaving = false }: Ticket
           <span className="text-body-sm font-semibold text-muted-foreground">Заказ</span>
           <span className="font-display text-[40px] leading-none font-semibold tabular-nums">№{ticket.orderNumber}</span>
           <span className="mt-1.5 truncate text-body text-muted-foreground">{ticketOrigin(ticket)}</span>
+          {badge ? (
+            <span className="mt-2 flex flex-wrap items-center gap-2">
+              <TonePill tone="info" className="h-7 text-body-sm">
+                {badge}
+                {ticket.deliveryNumber ? ` ${ticket.deliveryNumber}` : ""}
+              </TonePill>
+              {ticket.pickupAt ? <span className="text-body-sm font-semibold tabular-nums">К выдаче курьеру {formatAlmatyTime(ticket.pickupAt)}</span> : null}
+            </span>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <StatusPill domain="kitchen" status={ticket.status} className="h-7 text-body-sm" />

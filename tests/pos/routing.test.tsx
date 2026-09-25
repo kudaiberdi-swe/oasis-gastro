@@ -59,9 +59,9 @@ describe("app routes (W0-FND-01)", () => {
     expect(router.state.location.pathname).toBe("/office/nomenclature")
 
     cleanup()
-    renderAt("/office/price-lists")
+    renderAt("/office/telephony")
     expect(await screen.findByText("Раздел в разработке")).toBeTruthy()
-    expect(screen.getByRole("heading", { level: 1, name: "Прайс-листы" })).toBeTruthy()
+    expect(screen.getByRole("heading", { level: 1, name: "Телефония" })).toBeTruthy()
     expect(screen.queryByText(/Касса №|Смена закрыта/)).toBeNull()
   })
 

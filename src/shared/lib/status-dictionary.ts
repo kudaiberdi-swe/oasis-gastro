@@ -5,7 +5,7 @@ export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info"
 
 export type StatusEntry = { label: string; tone: StatusTone }
 
-export type StatusDomain = "document" | "order" | "kitchen" | "shift" | "courier" | "call" | "job"
+export type StatusDomain = "document" | "order" | "kitchen" | "shift" | "courier" | "call" | "job" | "delivery" | "transport" | "price-list"
 
 const DOCUMENT: Record<string, StatusEntry> = {
   draft: { label: "Черновик", tone: "neutral" },
@@ -53,8 +53,38 @@ const COURIER: Record<string, StatusEntry> = {
   offline: { label: "Не на смене", tone: "neutral" },
   available: { label: "Свободен", tone: "success" },
   assigned: { label: "Назначен", tone: "info" },
-  "on-delivery": { label: "В пути", tone: "info" },
+  "on-delivery": { label: "На доставке", tone: "info" },
   returning: { label: "Возвращается", tone: "neutral" },
+}
+
+// deliveryOrders.status (W2-DLV-01); tones as in bahandi delivery-workspace: done — success, in work — info.
+const DELIVERY: Record<string, StatusEntry> = {
+  unprocessed: { label: "Не обработан", tone: "warning" },
+  unconfirmed: { label: "Не подтверждён", tone: "warning" },
+  waiting: { label: "Ожидает", tone: "info" },
+  "ready-to-cook": { label: "Пора готовить", tone: "info" },
+  cooking: { label: "Готовится", tone: "info" },
+  cooked: { label: "Приготовлен", tone: "info" },
+  "awaiting-dispatch": { label: "Ждёт отправки", tone: "info" },
+  "on-way": { label: "В пути", tone: "info" },
+  delivered: { label: "Доставлен", tone: "success" },
+  closed: { label: "Закрыт", tone: "success" },
+  cancelled: { label: "Отменён", tone: "neutral" },
+}
+
+// couriers.transport: not a status, but shown the same way (L-9: «scooter» → «Самокат»).
+const TRANSPORT: Record<string, StatusEntry> = {
+  foot: { label: "Пешком", tone: "neutral" },
+  bicycle: { label: "Велосипед", tone: "neutral" },
+  scooter: { label: "Самокат", tone: "neutral" },
+  car: { label: "Автомобиль", tone: "neutral" },
+}
+
+// priceLists.status (W2-CAT-15): a published version expires when the next one is published.
+const PRICE_LIST: Record<string, StatusEntry> = {
+  draft: { label: "Черновик", tone: "neutral" },
+  published: { label: "Опубликован", tone: "success" },
+  expired: { label: "Истёк", tone: "neutral" },
 }
 
 const CALL: Record<string, StatusEntry> = {
@@ -84,6 +114,9 @@ export const STATUS_DICTIONARY: Record<StatusDomain, Record<string, StatusEntry>
   courier: COURIER,
   call: CALL,
   job: JOB,
+  delivery: DELIVERY,
+  transport: TRANSPORT,
+  "price-list": PRICE_LIST,
 }
 
 /** Normalizes iiko-style values: "PUBLISHED" → "published", "PENDING_APPROVAL" → "pending-approval". */

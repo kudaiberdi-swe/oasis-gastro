@@ -1,5 +1,6 @@
 import { almatyBusinessDate, formatAlmatyDate } from "@/shared/lib/almaty-time"
-import { formatTenge } from "@/shared/lib/format"
+import { plural } from "@/office/features/dashboard/model/dashboard"
+import { formatQuantity, formatTenge } from "@/shared/lib/format"
 
 import type { ConsentChannel, Guest, GuestCard, GuestCategory, GuestConsent, LoyaltyProgram, SaveCategoryArgs, SaveGuestArgs, SaveProgramArgs } from "../data/use-office-loyalty"
 
@@ -80,6 +81,12 @@ export function categoryColorClass(token: string | undefined) {
 }
 
 /** Personal data the user may not see comes masked with «•»; the server keeps such values as they are. */
+/** «Сгорит 60 бонусов 25.10» — the nearest expiry of unspent accruals in the guest card (W2-LOY-09). */
+export function expirationLine(expiration: { at: number; points: number }) {
+  const day = new Date(expiration.at).toLocaleDateString("ru-RU", { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit" })
+  return `Сгорит ${formatQuantity(expiration.points)} ${plural(expiration.points, ["бонус", "бонуса", "бонусов"])} ${day}`
+}
+
 export const isMasked = (value: string | undefined | null) => Boolean(value?.includes("•"))
 
 export const guestStatusOf = (guest: Pick<Guest, "status">) => guest.status ?? "active"

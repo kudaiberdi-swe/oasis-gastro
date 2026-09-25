@@ -167,12 +167,12 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     icon: Bike,
     whisper: "Доставка",
     items: [
-      item("delivery-orders", "Заказы доставки", "Приём, подтверждение и исполнение доставок"),
-      item("delivery-zones", "Зоны доставки", "География, тарифы и нормативы времени"),
-      item("couriers", "Курьеры", "Смены, маршруты и статусы курьеров"),
-      item("call-center", "Колл-центр", "Очередь заказов и рабочее место оператора"),
+      item("delivery-orders", "Заказы доставки", "Подтверждение, приготовление, отправка и контроль SLA"),
+      item("delivery-zones", "Зоны доставки", "География, тарифы, минимальная сумма и нормативы SLA"),
+      item("couriers", "Курьеры", "Смены, доступность, назначения и возвращение на точку"),
+      item("call-center", "Колл-центр", "Очередь новых заказов, гости, обещанное время и распределение по точкам"),
       item("telephony", "Телефония", "Линии, звонки и сопоставление с гостями"),
-      item("delivery-sources", "Источники заказов", "Сайт, приложения, агрегаторы и телефон"),
+      item("delivery-sources", "Источники заказов", "Сайт, приложение, агрегаторы, телефон и правила подтверждения"),
     ],
   },
   {
@@ -230,7 +230,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     items: [
       item("reports", "Все отчёты", "Полный каталог iiko и конструктор OLAP", undefined, "report"),
       item("report-favorites", "Избранные отчёты", "Закреплённые представления", undefined, "report"),
-      item("report-schedules", "Рассылки отчётов", "Расписание XLSX, CSV и PDF", undefined, "report"),
+      item("report-schedules", "Рассылки отчётов", "Автоматическая доставка XLSX и CSV по расписанию", undefined, "report"),
     ],
   },
 ]
