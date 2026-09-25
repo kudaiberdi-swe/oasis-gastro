@@ -25,10 +25,15 @@
 #
 #   bash scripts/prod-w1-maintenance.sh          # production
 #   bash scripts/prod-w1-maintenance.sh --dev    # the dev deployment, no key
+#   bash scripts/prod-w1-maintenance.sh --yes    # production, apply after the dry run without asking
+#                                                # (for `! bash …` in Claude Code, where there is no prompt input)
 #
 # Uses a one-off prod deploy key: minted into a temp file (never printed), used, deleted on exit.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+APPLY_WITHOUT_ASKING=false
+[ "${1:-}" = "--yes" ] && APPLY_WITHOUT_ASKING=true && shift
 
 if [ "${1:-}" = "--dev" ]; then
   run() { npx convex run "$@"; }
@@ -81,8 +86,13 @@ run migrations/m5Loyalty:ensureBaseProgram '{"dryRun":true}'
 paged migrations/m5Loyalty:migrateGuests true
 paged domains/reports/internal:backfillDailySalesFacts true
 
-read -r -p "Apply these changes to production? [y/N] " ANSWER
-[ "$ANSWER" = "y" ] || { echo "Nothing written."; exit 0; }
+if $APPLY_WITHOUT_ASKING; then
+  ANSWER=y
+  echo "--yes: applying the changes shown above."
+else
+  read -r -p "Apply these changes to production? [y/N] " ANSWER || ANSWER=""
+fi
+[ "$ANSWER" = "y" ] || { echo "Nothing written (no «y»; run with --yes when there is no prompt input)."; exit 0; }
 
 echo "── Applying ──"
 run domains/finance/seed:seedChartOfAccounts '{}'
