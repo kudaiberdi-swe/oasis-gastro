@@ -4,7 +4,7 @@ import { query } from "../../_generated/server"
 import { requireOfficeCapability, restaurantScopeFilter } from "../../lib/officeAccess"
 import { resolvePrice } from "../../lib/pricing"
 import { foodCostPercent, recipeChecks } from "../../lib/recipeMath"
-import { costRecipe, recipeVersionAt } from "../../lib/recipes"
+import { averageItemCost, costRecipe, recipeVersionAt } from "../../lib/recipes"
 
 async function productOf(ctx: Parameters<typeof recipeVersionAt>[0], externalId: string) {
   return ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()
@@ -31,9 +31,21 @@ export const getRecipe = query({
       firstSaleAt: product.firstSaleAt,
     })
     return {
-      product: { externalId: product.externalId, name: product.name },
+      product: { externalId: product.externalId, name: product.name, firstSaleAt: product.firstSaleAt ?? null },
       version: { _id: version._id, version: version.version, status: version.status, effectiveFrom: version.effectiveFrom, batchYield: version.batchYield, technology: version.technology },
-      lines: costed.lines.map((line, index) => ({ ...costed.summary.lines[index], name: line.name, kind: line.kind, inventoryItemId: line.inventoryItemId ?? null, componentProductId: line.componentProductId ?? null })),
+      lines: await Promise.all(
+        costed.lines.map(async (line, index) => ({
+          ...costed.summary.lines[index],
+          name: line.name,
+          kind: line.kind,
+          inventoryItemId: line.inventoryItemId ?? null,
+          componentProductId: line.componentProductId ?? null,
+          // What saveRecipeDraft takes back, so the editor needn't map ids itself.
+          inventoryItemExternalId: line.inventoryItemId ? ((await ctx.db.get(line.inventoryItemId))?.externalId ?? null) : null,
+          componentProductExternalId: line.componentProductId ? ((await ctx.db.get(line.componentProductId))?.externalId ?? null) : null,
+          unitCost: line.unitCost,
+        })),
+      ),
       summary: { ...costed.summary, lines: undefined, price, foodCostPercent: foodCostPercent(costed.summary.costPerPortion, price) },
       checks,
     }
@@ -48,5 +60,17 @@ export const listRecipeVersions = query({
     if (!product) return []
     const versions = await ctx.db.query("recipeVersions").withIndex("by_product_effective", (q) => q.eq("productId", product._id)).order("desc").take(50)
     return versions.map((version) => ({ _id: version._id, version: version.version, status: version.status, effectiveFrom: version.effectiveFrom, batchYield: version.batchYield, createdBy: version.createdBy, createdAt: version.createdAt }))
+  },
+})
+
+/** Average stock cost of an item (per its unit) for a new ingredient row before the draft is saved. */
+export const itemCost = query({
+  args: { inventoryItemExternalId: v.string(), restaurantExternalId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.nomenclature.view")
+    restaurantScopeFilter(user, args.restaurantExternalId)
+    const item = await ctx.db.query("inventoryItems").withIndex("by_external_id", (q) => q.eq("externalId", args.inventoryItemExternalId)).unique()
+    if (!item) return null
+    return { unit: item.unit, averageCost: await averageItemCost(ctx, item._id, args.restaurantExternalId) }
   },
 })
