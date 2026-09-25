@@ -94,4 +94,18 @@ describe("loyalty v2 (W1-LOY-01/02/03)", () => {
     const [found] = await t.query(loyalty.queries.searchForPos, { sessionToken: cashier, query: "7701" })
     expect(found.phone).toBe("7701•••••67")
   })
+
+  it("attaches a searched guest by id and pays a check fully with points", async () => {
+    const { t, productId } = await setup()
+    await program(t, { maxRedemptionPercent: 100 })
+    const guestId = await guestWithPoints(t, 5000)
+    await t.run((ctx) => ctx.db.insert("loyaltyAccounts", { externalId: "a", guestId, programExternalId: "p-main", kind: "bonus", balance: 5000, reserved: 0, updatedAt: 0 }))
+    const check = await draft(t, productId) // 2300
+    await t.mutation(loyalty.mutations.attachGuestToOrder, { sessionToken: cashier, orderId: check._id, guestId })
+    expect((await t.query(loyalty.queries.quoteForPos, { sessionToken: cashier, orderId: check._id }))?.accrualPercent).toBe(5)
+    await t.mutation(loyalty.mutations.setOrderRedemption, { sessionToken: cashier, orderId: check._id, redemption: 2300 })
+    await t.mutation(orders.checkout, { sessionToken: cashier, orderId: check._id, idempotencyKey: "points", payments: [] })
+    expect(await t.run(async (ctx) => (await ctx.db.get(check._id))!)).toMatchObject({ status: "paid", loyaltyRedeemed: 2300, loyaltyAccrued: 0 })
+  })
 })
+

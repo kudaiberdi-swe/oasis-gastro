@@ -18,13 +18,20 @@ async function requireOpenOrder(ctx: MutationCtx, orderId: Id<"orders">, access:
 }
 
 export const attachGuestToOrder = mutation({
-  args: { sessionToken: v.string(), orderId: v.id("orders"), phone: v.string(), name: v.optional(v.string()) },
+  // guestId from searchForPos (its phones are masked); phone to find or create a guest by number.
+  args: { sessionToken: v.string(), orderId: v.id("orders"), guestId: v.optional(v.id("guests")), phone: v.optional(v.string()), name: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const order = await requireOpenOrder(ctx, args.orderId, access)
-    const phone = normalizePhone(args.phone)
-    if (!phone) throw new ConvexError("Укажите корректный номер телефона")
-    const guest = await findOrCreateGuest(ctx, phone, args.name?.trim() || undefined)
+    let guest
+    if (args.guestId) {
+      guest = await ctx.db.get(args.guestId)
+      if (!guest) throw new ConvexError("Гость не найден")
+    } else {
+      const phone = args.phone ? normalizePhone(args.phone) : null
+      if (!phone) throw new ConvexError("Укажите корректный номер телефона")
+      guest = await findOrCreateGuest(ctx, phone, args.name?.trim() || undefined)
+    }
     if (guest.status === "inactive") throw new ConvexError("Гость отключён в программе лояльности")
     // Deliberately doesn't bump `version` — that field is saveDraft's optimistic-concurrency guard
     // against two terminals editing the same order's *content* at once. Attaching a guest isn't a

@@ -73,7 +73,8 @@ export async function settleOrder(
   },
 ) {
   const { order, shift, actor, occurredAt: now } = args
-  if (!args.payments.length) throw new ConvexError("Добавьте оплату")
+  // An order paid in full with points has no money payments.
+  if (!args.payments.length && order.total - (order.loyaltyRedemptionPlanned ?? 0) !== 0) throw new ConvexError("Добавьте оплату")
   const restaurantExternalId = actor.restaurant.externalId
   const resolved: { input: PaymentInput; type: ResolvedPaymentType }[] = []
   for (const input of args.payments) {

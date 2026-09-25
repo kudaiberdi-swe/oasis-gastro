@@ -123,7 +123,7 @@ describe("«Гость и программа лояльности» dialog", () 
     await waitFor(() => expect(second.onDetach).toHaveBeenCalled())
   })
 
-  it("a guest found by name needs the full phone before attaching (search shows it masked)", async () => {
+  it("a guest found by name is attached by id — no need to retype the masked phone", async () => {
     mocks.search = [{ guestId: "g1", name: "Айгерим", phone: "7701•••••67", points: 1000 }]
     const props = renderDialog({ currentGuest: null })
     const search = screen.getByPlaceholderText("Введите минимум 2 символа")
@@ -131,16 +131,11 @@ describe("«Гость и программа лояльности» dialog", () 
     fireEvent.click(screen.getByRole("button", { name: /Айгерим/ }))
     expect(mocks.quoteArgs.at(-1)).toMatchObject({ guestId: "g1", enabled: true })
 
-    const accrue = screen.getByRole("button", { name: "Только начислить" }) as HTMLButtonElement
-    expect(accrue.disabled).toBe(true)
-    const phone = screen.getByLabelText("Телефон гостя полностью")
-    fireEvent.change(phone, { target: { value: "+7 701 123 45 68" } })
-    expect(screen.getByText("Телефон не совпадает с найденным гостем")).toBeTruthy()
-    fireEvent.change(phone, { target: { value: "+7 701 123 45 67" } })
+    expect(screen.queryByLabelText("Телефон гостя полностью")).toBeNull()
     fireEvent.change(screen.getByLabelText("Списать баллами"), { target: { value: "200" } })
     fireEvent.click(screen.getByRole("button", { name: `Списать ${formatTenge(200)}` }))
     await waitFor(() => expect(props.onRedeem).toHaveBeenCalledWith(200))
-    expect(props.onAttach).toHaveBeenCalledWith("+7 701 123 45 67")
+    expect(props.onAttach).toHaveBeenCalledWith({ guestId: "g1" })
   })
 
   it("a full phone with no match offers a new guest and only accrues", async () => {
@@ -152,7 +147,7 @@ describe("«Гость и программа лояльности» dialog", () 
     fireEvent.change(screen.getByLabelText("Имя (необязательно)"), { target: { value: "Ерлан" } })
     expect((screen.getByRole("button", { name: /^Списать/ }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(screen.getByRole("button", { name: "Только начислить" }))
-    await waitFor(() => expect(props.onAttach).toHaveBeenCalledWith("+7 701 555 11 22", "Ерлан"))
+    await waitFor(() => expect(props.onAttach).toHaveBeenCalledWith({ phone: "+7 701 555 11 22" }, "Ерлан"))
     expect(props.onRedeem).not.toHaveBeenCalled()
   })
 

@@ -466,9 +466,9 @@ function AuthenticatedPos({
           await draft.settle()
           await setRedemption({ sessionToken, orderId: draft.orderId, redemption })
         }}
-        onAttach={(phone, name) => {
+        onAttach={(target, name) => {
           if (!draft.orderId) return Promise.resolve()
-          return attachGuest({ sessionToken, orderId: draft.orderId, phone, name })
+          return attachGuest({ sessionToken, orderId: draft.orderId, ...target, name })
         }}
         onDetach={() => {
           if (!draft.orderId) return Promise.resolve()

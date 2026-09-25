@@ -20,7 +20,8 @@ export interface GuestDialogProps {
   /** The order total before points. */
   total: number
   currentGuest: { phone: string; name?: string; points: number } | null | undefined
-  onAttach: (phone: string, name?: string) => Promise<unknown>
+  /** A guest from the search by id, or a new / typed number by phone. */
+  onAttach: (target: { guestId?: Id<"guests">; phone?: string }, name?: string) => Promise<unknown>
   onDetach: () => Promise<unknown>
   /** Plans how many points this check spends (setOrderRedemption); 0 — only accrue. */
   onRedeem: (redemption: number) => Promise<unknown>
@@ -48,8 +49,10 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
 
   const phoneQuery = isPhoneQuery(query)
   const creating = !attached && !candidate && phoneQuery && isFullPhone(query) && results !== undefined && results.length === 0
-  const attachPhone = candidate ? [query, confirmPhone].find((phone) => phoneMatchesMask(candidate.phone, phone)) : creating ? query : undefined
-  const needsConfirm = candidate !== null && !(phoneQuery && phoneMatchesMask(candidate.phone, query))
+  // A guest found in the search is attached by id — its phone is masked there and needn't be retyped.
+  const attachTarget = candidate ? { guestId: candidate.guestId as Id<"guests"> } : creating ? { phone: query } : undefined
+  const attachPhone = attachTarget ? (attachTarget.phone ?? candidate?.phone) : undefined
+  const needsConfirm = false
 
   const limit = quote ? redemptionLimit(quote.maxRedemption, total) : 0
   const value = redemption === undefined ? (attached ? (quote?.planned ?? 0) : 0) : redemption
@@ -90,15 +93,15 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
         if (quote?.planned) await onRedeem(0)
         return
       }
-      if (!attachPhone) return
-      await onAttach(attachPhone, creating ? newName.trim() || undefined : undefined)
+      if (!attachTarget) return
+      await onAttach(attachTarget, creating ? newName.trim() || undefined : undefined)
     }, "Не удалось прикрепить гостя")
   const redeem = () =>
     run(async () => {
       if (!value) return
       if (!attached) {
-        if (!attachPhone) return
-        await onAttach(attachPhone)
+        if (!attachTarget) return
+        await onAttach(attachTarget)
       }
       await onRedeem(value)
     }, "Не удалось запланировать списание")
