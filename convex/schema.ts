@@ -582,6 +582,162 @@ export default defineSchema({
     .index("by_source_key", ["sourceKey"])
     .index("by_restaurant_date", ["restaurantExternalId", "businessDate"]),
 
+  // ── Workforce W2 (typed tables, like attendanceRecords) ──
+  positions: defineTable({
+    externalId: v.string(),
+    code: v.string(),
+    name: v.string(),
+    departmentExternalId: v.optional(v.string()),
+    payType: v.union(v.literal("hourly"), v.literal("salary"), v.literal("piecework")),
+    defaultRate: v.number(),
+    weeklyHours: v.number(),
+    posRole: v.optional(v.union(v.literal("cashier"), v.literal("manager"), v.literal("administrator"), v.literal("kitchen"))),
+    description: v.optional(v.string()),
+    active: v.boolean(),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_external_id", ["externalId"]),
+
+  shiftTypes: defineTable({
+    externalId: v.string(),
+    code: v.string(),
+    name: v.string(),
+    startMinute: v.number(), // 0–1439
+    endMinute: v.number(), // less than start = over midnight
+    breakMinutes: v.number(),
+    nightCoefficient: v.number(),
+    holidayCoefficient: v.number(),
+    colorToken: v.string(), // a design token name (cat-*), never a hex
+    active: v.boolean(),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_external_id", ["externalId"]),
+
+  scheduleEntries: defineTable({
+    externalId: v.string(),
+    employeeId: v.id("employees"),
+    employeeCode: v.string(),
+    employeeName: v.string(),
+    restaurantExternalId: v.string(),
+    businessDate: v.string(),
+    shiftTypeExternalId: v.optional(v.string()),
+    positionExternalId: v.optional(v.string()),
+    start: v.number(),
+    end: v.number(),
+    breakMinutes: v.number(),
+    plannedHours: v.number(),
+    comment: v.optional(v.string()),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("inactive")),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_employee_start", ["employeeId", "start"])
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"]),
+
+  // Kazakhstan statutory payroll rules (W2-HR-06): one active version per date.
+  payrollRules: defineTable({
+    externalId: v.string(),
+    version: v.string(),
+    effectiveFrom: v.string(), // YYYY-MM-DD
+    status: v.union(v.literal("draft"), v.literal("active"), v.literal("inactive")),
+    mzp: v.number(),
+    mrp: v.number(),
+    opvRate: v.number(),
+    opvMaxMzp: v.number(),
+    vosmsRate: v.number(),
+    vosmsMaxMzp: v.number(),
+    oosmsRate: v.number(),
+    oosmsMaxMzp: v.number(),
+    opvrRate: v.number(),
+    socialContributionRate: v.number(),
+    socialTaxRate: v.number(),
+    basicDeductionMrp: v.number(),
+    ipnRate: v.number(),
+    ipnHighRate: v.number(),
+    ipnAnnualThresholdMrp: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_status_effective", ["status", "effectiveFrom"]),
+
+  payrollRuns: defineTable({
+    externalId: v.string(),
+    number: v.string(), // PAY-YYYY-MM-<restaurant>
+    restaurantExternalId: v.string(),
+    organizationExternalId: v.string(),
+    from: v.string(),
+    to: v.string(),
+    ruleExternalId: v.string(),
+    ruleVersion: v.string(),
+    status: v.union(v.literal("draft"), v.literal("posted"), v.literal("reversed")),
+    lines: v.array(
+      v.object({
+        employeeId: v.id("employees"),
+        employeeCode: v.string(),
+        employeeName: v.string(),
+        hours: v.number(),
+        payType: v.union(v.literal("hourly"), v.literal("salary"), v.literal("piecework")),
+        rate: v.number(),
+        adjustments: v.number(), // bonuses − penalties
+        advances: v.number(),
+        gross: v.number(),
+        opv: v.number(),
+        vosms: v.number(),
+        ipn: v.number(),
+        oosms: v.number(),
+        opvr: v.number(),
+        socialContribution: v.number(),
+        socialTax: v.number(),
+        taxable: v.number(),
+        employeeTaxes: v.number(),
+        employerTaxes: v.number(),
+        net: v.number(),
+      }),
+    ),
+    totals: v.object({ gross: v.number(), employeeTaxes: v.number(), employerTaxes: v.number(), net: v.number(), toPay: v.number() }),
+    paidAmount: v.number(),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    postedAt: v.optional(v.number()),
+    reversedAt: v.optional(v.number()),
+    reverseReason: v.optional(v.string()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_number", ["number"])
+    .index("by_restaurant_to", ["restaurantExternalId", "to"]),
+
+  payrollAdjustments: defineTable({
+    externalId: v.string(),
+    employeeId: v.id("employees"),
+    employeeCode: v.string(),
+    restaurantExternalId: v.string(),
+    businessDate: v.string(),
+    kind: v.union(v.literal("bonus"), v.literal("penalty"), v.literal("advance")),
+    amount: v.number(),
+    comment: v.string(),
+    runExternalId: v.optional(v.string()), // the run that took it
+    createdBy: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"]),
+
+  payrollPayouts: defineTable({
+    externalId: v.string(),
+    runExternalId: v.string(),
+    method: v.union(v.literal("cash"), v.literal("bank")),
+    amount: v.number(),
+    lines: v.array(v.object({ employeeCode: v.string(), amount: v.number() })),
+    createdBy: v.string(),
+    createdAt: v.number(),
+  }).index("by_run", ["runExternalId"]),
+
   // Terminal notifications (W1-POS-09): stock below minimum, office messages, a shift open over 24 h.
   posNotifications: defineTable({
     terminalId: v.id("posTerminals"),

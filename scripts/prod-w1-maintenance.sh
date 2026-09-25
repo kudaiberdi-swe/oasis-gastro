@@ -16,6 +16,7 @@
 #                               the dry run prints the sums per account to check against the legacy P&L)
 #  12. M-5 loyalty              migrations/m5Loyalty: ensureBaseProgram, migrateGuests (paged; reports mismatches)
 #  13. M-8 sales facts          domains/reports/internal:backfillDailySalesFacts (paged; after M-2 business dates)
+#  14. KZ payroll rules 2026    domains/workforce/payroll:seedRules2026 (draft; the accountant activates it)
 # Each step runs as a dry run first and prints what it would change; then asks before writing.
 #
 #   bash scripts/prod-w1-maintenance.sh          # production
@@ -96,6 +97,7 @@ paged migrations/m4LedgerToJournal:migrateLedgerToJournal false
 run migrations/m5Loyalty:ensureBaseProgram '{}'
 paged migrations/m5Loyalty:migrateGuests false
 paged domains/reports/internal:backfillDailySalesFacts false
+run domains/workforce/payroll:seedRules2026 '{}'
 echo "── M-3 verify (expect no mismatches) ──"
 run migrations/m3StockWarehouses:verify '{"paginationOpts":{"numItems":200,"cursor":null}}'
 echo "Done."

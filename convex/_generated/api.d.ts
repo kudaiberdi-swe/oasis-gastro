@@ -95,7 +95,10 @@ import type * as domains_stockDocuments_queries from "../domains/stockDocuments/
 import type * as domains_stockDocuments_validators from "../domains/stockDocuments/validators.js";
 import type * as domains_workforce_attendance from "../domains/workforce/attendance.js";
 import type * as domains_workforce_mutations from "../domains/workforce/mutations.js";
+import type * as domains_workforce_payroll from "../domains/workforce/payroll.js";
 import type * as domains_workforce_queries from "../domains/workforce/queries.js";
+import type * as domains_workforce_references from "../domains/workforce/references.js";
+import type * as domains_workforce_schedule from "../domains/workforce/schedule.js";
 import type * as http from "../http.js";
 import type * as lib_accounts from "../lib/accounts.js";
 import type * as lib_attendance from "../lib/attendance.js";
@@ -119,6 +122,7 @@ import type * as lib_obligations from "../lib/obligations.js";
 import type * as lib_officeAccess from "../lib/officeAccess.js";
 import type * as lib_orderPricing from "../lib/orderPricing.js";
 import type * as lib_outbox from "../lib/outbox.js";
+import type * as lib_payroll from "../lib/payroll.js";
 import type * as lib_periods from "../lib/periods.js";
 import type * as lib_pii from "../lib/pii.js";
 import type * as lib_policy from "../lib/policy.js";
@@ -236,7 +240,10 @@ declare const fullApi: ApiFromModules<{
   "domains/stockDocuments/validators": typeof domains_stockDocuments_validators;
   "domains/workforce/attendance": typeof domains_workforce_attendance;
   "domains/workforce/mutations": typeof domains_workforce_mutations;
+  "domains/workforce/payroll": typeof domains_workforce_payroll;
   "domains/workforce/queries": typeof domains_workforce_queries;
+  "domains/workforce/references": typeof domains_workforce_references;
+  "domains/workforce/schedule": typeof domains_workforce_schedule;
   http: typeof http;
   "lib/accounts": typeof lib_accounts;
   "lib/attendance": typeof lib_attendance;
@@ -260,6 +267,7 @@ declare const fullApi: ApiFromModules<{
   "lib/officeAccess": typeof lib_officeAccess;
   "lib/orderPricing": typeof lib_orderPricing;
   "lib/outbox": typeof lib_outbox;
+  "lib/payroll": typeof lib_payroll;
   "lib/periods": typeof lib_periods;
   "lib/pii": typeof lib_pii;
   "lib/policy": typeof lib_policy;
