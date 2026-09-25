@@ -582,6 +582,34 @@ export default defineSchema({
     .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
     .index("by_item_date", ["inventoryItemId", "businessDate"]),
 
+  // Report mailings (W2-RPT-06): the file is rendered on schedule as its owner, with the owner's rights then.
+  reportSchedules: defineTable({
+    externalId: v.string(),
+    ownerKey: v.string(), // office email
+    reportId: v.string(),
+    viewExternalId: v.optional(v.string()),
+    name: v.string(),
+    recipients: v.array(v.string()),
+    format: v.union(v.literal("xlsx"), v.literal("csv"), v.literal("pdf")),
+    cadence: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly")),
+    timeOfDay: v.string(), // HH:MM Almaty
+    weekday: v.optional(v.number()), // 1 = Monday … 7 = Sunday
+    dayOfMonth: v.optional(v.number()), // 1…31, clamped to the month's last day
+    periodPreset: v.union(v.literal("yesterday"), v.literal("last-7-days"), v.literal("last-month"), v.literal("month-to-date")),
+    config: reportConfig, // its dates are replaced by periodPreset at every run
+    nextRunAt: v.number(),
+    active: v.boolean(),
+    lastRunAt: v.optional(v.number()),
+    lastStatus: v.optional(v.string()),
+    lastFileStorageId: v.optional(v.id("_storage")),
+    lastRunKey: v.optional(v.string()), // scheduleId:runAt of the last dispatched run (idempotency)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_owner", ["ownerKey"])
+    .index("by_next_run", ["active", "nextRunAt"]),
+
   // Saved report views and favorites (W1-RPT-05): per office user, typed config.
   reportViews: defineTable({
     externalId: v.string(),
