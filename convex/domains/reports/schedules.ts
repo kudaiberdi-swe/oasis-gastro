@@ -115,7 +115,7 @@ export const runScheduleNow = mutation({
     const { user } = await requireOfficeCapability(ctx, "office.report-schedules.edit")
     const schedule = await ownSchedule(ctx, user, args.externalId)
     await ctx.scheduler.runAfter(0, internal.domains.reports.schedules.renderScheduledReport, { scheduleId: schedule._id, runAt: Date.now() })
-    await ctx.db.patch(schedule._id, { lastStatus: "Формируется", updatedAt: Date.now() })
+    await ctx.db.patch(schedule._id, { lastStatus: "Формируется", lastState: "running", updatedAt: Date.now() })
   },
 })
 
@@ -133,7 +133,7 @@ export const dispatchSchedules = internalMutation({
         await ctx.db.patch(schedule._id, { nextRunAt: next })
         continue
       }
-      await ctx.db.patch(schedule._id, { lastRunKey: runKey, nextRunAt: next, lastStatus: "Формируется", updatedAt: now })
+      await ctx.db.patch(schedule._id, { lastRunKey: runKey, nextRunAt: next, lastStatus: "Формируется", lastState: "running", updatedAt: now })
       await ctx.scheduler.runAfter(0, internal.domains.reports.schedules.renderScheduledReport, { scheduleId: schedule._id, runAt: schedule.nextRunAt })
       dispatched += 1
     }
@@ -170,7 +170,7 @@ export const computeScheduledReport = internalQuery({
 })
 
 export const recordRun = internalMutation({
-  args: { scheduleId: v.id("reportSchedules"), runAt: v.number(), status: v.string(), storageId: v.optional(v.id("_storage")), fileName: v.optional(v.string()) },
+  args: { scheduleId: v.id("reportSchedules"), runAt: v.number(), status: v.string(), state: v.union(v.literal("ready"), v.literal("no-access"), v.literal("error")), storageId: v.optional(v.id("_storage")), fileName: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const schedule = await ctx.db.get(args.scheduleId)
     if (!schedule) {
@@ -178,7 +178,7 @@ export const recordRun = internalMutation({
       return
     }
     if (args.storageId && schedule.lastFileStorageId) await ctx.storage.delete(schedule.lastFileStorageId)
-    await ctx.db.patch(schedule._id, { lastRunAt: args.runAt, lastStatus: args.status, ...(args.storageId ? { lastFileStorageId: args.storageId } : {}), updatedAt: Date.now() })
+    await ctx.db.patch(schedule._id, { lastRunAt: args.runAt, lastStatus: args.status, lastState: args.state, ...(args.storageId ? { lastFileStorageId: args.storageId, lastFileName: args.fileName } : {}), updatedAt: Date.now() })
     const owner = await ctx.db.query("officeUsers").withIndex("by_email", (q) => q.eq("email", schedule.ownerKey)).unique()
     const organization = owner?.organizationScopes?.find((id) => id !== "*") ?? (await ctx.db.query("organizations").first())?.externalId
     if (args.storageId && organization) {
@@ -191,22 +191,20 @@ export const recordRun = internalMutation({
 export const renderScheduledReport = internalAction({
   args: { scheduleId: v.id("reportSchedules"), runAt: v.number() },
   handler: async (ctx, args) => {
-    let computed: Computed
+    // Any failure — computing, rendering or storing — is recorded, so a run never stays «Формируется».
     try {
-      computed = await ctx.runQuery(internal.domains.reports.schedules.computeScheduledReport, args)
+      const computed: Computed = await ctx.runQuery(internal.domains.reports.schedules.computeScheduledReport, args)
+      if (!computed.ok) {
+        await ctx.runMutation(internal.domains.reports.schedules.recordRun, { ...args, status: computed.status, state: computed.status === "Нет доступа" ? "no-access" : "error" })
+        return
+      }
+      const meta = { title: computed.title, dateFrom: computed.dateFrom, dateTo: computed.dateTo, restaurants: computed.restaurants }
+      const extension = computed.schedule.format === "csv" ? "csv" : "xlsx"
+      const body: BlobPart = extension === "csv" ? toCsv(computed.result, meta) : (toXlsx(computed.result, meta).slice().buffer as ArrayBuffer)
+      const storageId: Id<"_storage"> = await ctx.storage.store(new Blob([body], { type: EXPORT_MIME[extension] }))
+      await ctx.runMutation(internal.domains.reports.schedules.recordRun, { ...args, status: "Готово · ожидает провайдера отправки", state: "ready", storageId, fileName: exportFileName(meta, extension) })
     } catch (error) {
-      await ctx.runMutation(internal.domains.reports.schedules.recordRun, { ...args, status: `Ошибка: ${error instanceof Error ? error.message : "не удалось сформировать"}` })
-      return
+      await ctx.runMutation(internal.domains.reports.schedules.recordRun, { ...args, status: `Ошибка: ${error instanceof Error ? error.message : "не удалось сформировать"}`, state: "error" })
     }
-    if (!computed.ok) {
-      await ctx.runMutation(internal.domains.reports.schedules.recordRun, { ...args, status: computed.status })
-      return
-    }
-    const meta = { title: computed.title, dateFrom: computed.dateFrom, dateTo: computed.dateTo, restaurants: computed.restaurants }
-    const extension = computed.schedule.format === "csv" ? "csv" : "xlsx"
-    const body: BlobPart = extension === "csv" ? toCsv(computed.result, meta) : (toXlsx(computed.result, meta).slice().buffer as ArrayBuffer)
-    const storageId: Id<"_storage"> = await ctx.storage.store(new Blob([body], { type: EXPORT_MIME[extension] }))
-    await ctx.runMutation(internal.domains.reports.schedules.recordRun, { ...args, status: "Готово · ожидает провайдера отправки", storageId, fileName: exportFileName(meta, extension) })
   },
 })
-

@@ -602,6 +602,8 @@ export default defineSchema({
     lastRunAt: v.optional(v.number()),
     lastStatus: v.optional(v.string()),
     lastFileStorageId: v.optional(v.id("_storage")),
+    lastFileName: v.optional(v.string()),
+    lastState: v.optional(v.union(v.literal("running"), v.literal("ready"), v.literal("no-access"), v.literal("error"))),
     lastRunKey: v.optional(v.string()), // scheduleId:runAt of the last dispatched run (idempotency)
     createdAt: v.number(),
     updatedAt: v.number(),
