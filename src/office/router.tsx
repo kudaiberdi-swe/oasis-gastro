@@ -17,6 +17,9 @@ import { DashboardWorkspace } from "@/office/features/dashboard/ui/office-dashbo
 import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
 import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
 import { ShiftAcceptanceWorkspace } from "@/office/features/finance/ui/shift-acceptance-workspace"
+import { AccountsPayableWorkspace } from "@/office/features/finance/ui/accounts-payable-workspace"
+import { PaymentsWorkspace } from "@/office/features/finance/ui/payments-workspace"
+import { ServicesWorkspace } from "@/office/features/finance/ui/services-workspace"
 import { GuestCategoriesWorkspace } from "@/office/features/loyalty/ui/categories-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
 import { LoyaltyProgramsWorkspace } from "@/office/features/loyalty/ui/programs-workspace"
@@ -82,6 +85,9 @@ const WORKSPACES: Record<string, ComponentType> = {
   counterparties: CounterpartiesWorkspace,
   transactions: TransactionsWorkspace,
   "shift-acceptance": ShiftAcceptanceWorkspace,
+  services: ServicesWorkspace,
+  "accounts-payable": AccountsPayableWorkspace,
+  payments: PaymentsWorkspace,
   employees: WorkforceWorkspace,
   attendance: AttendanceWorkspace,
   guests: LoyaltyWorkspace,

@@ -5,7 +5,7 @@ import type { FinanceRecord, JournalRow, SaveFinanceRecordArgs } from "../data/u
 // Module rules the office checks before a call (W1-FIN-03…06): the same as convex/domains/finance/modules.ts,
 // so a typo never reaches the server; the server checks everything again.
 
-export type StatusTab = { value: string; label: string; status?: "active" | "inactive" | "draft" | "posted" | "reversed" }
+export type StatusTab = { value: string; label: string; status?: "active" | "inactive" | "draft" | "pending-approval" | "approved" | "posted" | "reversed" }
 
 /** master: «Все / Активные / Неактивные» (OFFICE-DESIGN §3.5). */
 export const MASTER_TABS: StatusTab[] = [
@@ -20,6 +20,15 @@ export const DOCUMENT_TABS: StatusTab[] = [
   { value: "draft", label: "Черновики", status: "draft" },
   { value: "posted", label: "Проведённые", status: "posted" },
   { value: "reversed", label: "Сторно", status: "reversed" },
+]
+
+/** approval: «Все / Черновики / На согласовании / Согласованные / Проведённые» (OFFICE-DESIGN §3.5). */
+export const APPROVAL_TABS: StatusTab[] = [
+  { value: "all", label: "Все" },
+  { value: "draft", label: "Черновики", status: "draft" },
+  { value: "pending", label: "На согласовании", status: "pending-approval" },
+  { value: "approved", label: "Согласованные", status: "approved" },
+  { value: "posted", label: "Проведённые", status: "posted" },
 ]
 
 export const todayBusinessDate = () => almatyBusinessDate(Date.now())
@@ -253,6 +262,9 @@ export const JOURNAL_SOURCES: Record<string, { label: string; section?: string }
   transfers: { label: "Перемещение", section: "transfers" },
   writeoffs: { label: "Акт списания", section: "writeoffs" },
   transactions: { label: "Ручная операция", section: "transactions" },
+  services: { label: "Акт услуг", section: "services" },
+  payments: { label: "Платёж", section: "payments" },
+  payroll: { label: "Ведомость", section: "payroll" },
   "shift-acceptance": { label: "Принятие смены" },
   "cash-operations": { label: "Внесение / изъятие" },
   stock: { label: "Склад" },
