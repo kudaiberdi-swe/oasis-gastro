@@ -7,12 +7,15 @@ import { useFinanceRestaurantFilter } from "@/office/features/finance/data/use-f
 import { formatBusinessDate } from "@/office/features/finance/model/modules"
 import { AcceptShiftDialog } from "@/office/features/finance/ui/accept-shift-dialog"
 import { PlatformErrorBoundary } from "@/office/features/platform/data/use-platform"
+import { buildZReportHtml } from "@/pos/features/shifts/model/z-report"
+import { printHtml } from "@/pos/features/print/print-document"
 import { Button, EmptyState, FilterTabs, Input, Money, Select, StatusPill, useToast } from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
+import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
 
-import { RETAIL_OFFICE_PAGE_SIZE, useAcceptShift, useOfficeShifts, useShiftAcceptanceAccounts, type ShiftCard, type ShiftStatusTab } from "../data/use-retail-office"
-import { canAcceptShift, SHIFT_TABS, shiftCandidate, Z_PRINT_UNAVAILABLE } from "../model/retail-office"
+import { RETAIL_OFFICE_PAGE_SIZE, useAcceptShift, useLoadZReport, useOfficeShifts, useShiftAcceptanceAccounts, type ShiftCard, type ShiftStatusTab } from "../data/use-retail-office"
+import { canAcceptShift, SHIFT_TABS, shiftCandidate, Z_REPORT_MISSING } from "../model/retail-office"
 
 /** «Кассовые смены» (/office/cash-shifts, W1-RTL-06): shift cards with sales, refunds, cash and acceptance. */
 export function CashShiftsWorkspace() {
@@ -176,16 +179,48 @@ export function ShiftCardView({ shift, canAccept, onAccept }: { shift: ShiftCard
               Принять смену
             </Button>
           ) : null}
-          {/* The office has no query for the Z-report's content yet (only the POS one with a session). */}
-          <Button variant="secondary" aria-disabled="true" aria-describedby={hintId} title={Z_PRINT_UNAVAILABLE} className="cursor-not-allowed opacity-45 hover:bg-card" onClick={(event) => event.preventDefault()}>
-            <Printer aria-hidden />
-            Печать Z
-          </Button>
-          <span id={hintId} className="sr-only">
-            {Z_PRINT_UNAVAILABLE}
-          </span>
+          {shift.zReportId ? (
+            <PrintZButton zReportId={shift.zReportId} label={`Печать Z · смена №${shift.number}`} />
+          ) : (
+            <>
+              <Button variant="secondary" aria-disabled="true" aria-describedby={hintId} title={Z_REPORT_MISSING} className="cursor-not-allowed opacity-45 hover:bg-card" onClick={(event) => event.preventDefault()}>
+                <Printer aria-hidden />
+                Печать Z
+              </Button>
+              <span id={hintId} className="sr-only">
+                {Z_REPORT_MISSING}
+              </span>
+            </>
+          )}
         </div>
       ) : null}
     </article>
+  )
+}
+
+/** «Печать Z»: the saved report (retail/office.getZReport) on the POS 80 mm print form. */
+function PrintZButton({ zReportId, label }: { zReportId: NonNullable<ShiftCard["zReportId"]>; label: string }) {
+  const loadZReport = useLoadZReport()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+
+  async function print() {
+    setBusy(true)
+    try {
+      const report = await loadZReport(zReportId)
+      if (!report) toast("Z-отчёт не найден или относится к ресторану вне вашего доступа", "error")
+      else if (!printHtml(buildZReportHtml(report, { restaurantName: report.restaurantName, terminalName: report.terminalName }))) toast("Браузер не может напечатать Z-отчёт", "error")
+    } catch (caught) {
+      toast(errorMessage(caught, "Не удалось загрузить Z-отчёт"), "error")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Button variant="secondary" aria-label={label} disabled={busy} onClick={() => void print()}>
+      <Printer aria-hidden />
+      {busy ? "Готовим…" : "Печать Z"}
+    </Button>
   )
 }

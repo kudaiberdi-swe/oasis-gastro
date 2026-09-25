@@ -61,8 +61,8 @@ export function shiftCandidate(shift: ShiftCard): ShiftCandidate {
 /** Only a closed shift without an active acceptance can be accepted. */
 export const canAcceptShift = (shift: ShiftCard) => shift.status === "closed" && !shift.acceptance
 
-/** «Печать Z» needs the saved report's snapshot; the office has no query for it yet (only the POS one). */
-export const Z_PRINT_UNAVAILABLE = "Печать Z из офиса пока недоступна: нет офисного запроса содержимого Z-отчёта. Распечатайте Z на кассе в истории смен."
+/** A closed shift without a saved Z-report (should not happen after W1-POS-08) has nothing to print. */
+export const Z_REPORT_MISSING = "У смены нет сохранённого Z-отчёта — печатать нечего."
 
 /** The receipt card as the POS print form (80 mm, non-fiscal). Voided lines are not printed. */
 export function receiptFromDetail(detail: OrderDetail): OrderReceiptData {

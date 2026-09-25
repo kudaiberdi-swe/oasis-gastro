@@ -20,6 +20,17 @@ const mocks = vi.hoisted(() => ({
   paginated: {} as Record<string, unknown[]>,
   paginatedArgs: [] as { name: string; args: unknown }[],
   mutations: {} as Record<string, (...args: unknown[]) => Promise<unknown>>,
+  /** One-off client queries (useConvex().query): «Печать Z» loads the saved report. */
+  clientQueries: {} as Record<string, (args: unknown) => Promise<unknown>>,
+  printed: [] as string[],
+}))
+
+vi.mock("@/pos/features/print/print-document", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/pos/features/print/print-document")>()),
+  printHtml: (html: string) => {
+    mocks.printed.push(html)
+    return true
+  },
 }))
 
 vi.mock("convex/react", () => ({
@@ -34,10 +45,33 @@ vi.mock("convex/react", () => ({
     const name = getFunctionName(reference)
     return (...args: unknown[]) => mocks.mutations[name](...args)
   },
+  useConvex: () => CLIENT,
 }))
+
+const CLIENT = { query: (reference: FunctionReference<"query">, args: unknown) => mocks.clientQueries[getFunctionName(reference)](args) }
 
 const LIST = "domains/retail/office:listShifts"
 const ACCEPT = "domains/finance/shiftAcceptance:acceptShift"
+const Z_REPORT = "domains/retail/office:getZReport"
+
+const SNAPSHOT = {
+  catalogGrossSales: 126_000,
+  discounts: 1_000,
+  serviceCharge: 0,
+  sales: 125_000,
+  refunds: 1_500,
+  netSales: 123_500,
+  averageCheck: 10_417,
+  expectedCash: 60_000,
+  payments: { cash: { sales: 40000, refunds: 0, net: 40000, saleCount: 4, refundCount: 0 }, card: { sales: 85000, refunds: 1500, net: 83500, saleCount: 8, refundCount: 1 }, qr: { sales: 0, refunds: 0, net: 0, saleCount: 0, refundCount: 0 } },
+  cashMovements: { cashIn: 0, cashOut: 0, cashInCount: 0, cashOutCount: 0 },
+  orderCounts: { paid: 12, partiallyRefunded: 0, refunded: 1, cancelled: 0, draft: 0, held: 0, discounted: 1 },
+  openOrders: { count: 0, total: 0 },
+  heldOrders: { count: 0, total: 0 },
+  cancelledAmount: 0,
+  saleOrderCount: 12,
+  refundOrderCount: 1,
+}
 
 const shift = (overrides: Partial<ShiftCard>): ShiftCard => ({
   _id: "s181" as ShiftCard["_id"],
@@ -104,6 +138,30 @@ beforeEach(() => {
   }
   mocks.paginated = { [LIST]: [OPEN, CLOSED, ACCEPTED] }
   mocks.mutations = { [ACCEPT]: vi.fn(async () => "acceptance-1") }
+  mocks.printed = []
+  mocks.clientQueries = {
+    [Z_REPORT]: vi.fn(async (args: unknown) =>
+      (args as { zReportId: string }).zReportId === "z180"
+        ? {
+            _id: "z180",
+            number: "Z-20260903-01-180",
+            businessDate: "2026-09-03",
+            shiftNumber: 180,
+            openedAt: Date.parse("2026-09-03T09:00:00+05:00"),
+            closedAt: Date.parse("2026-09-03T23:10:00+05:00"),
+            closedByName: "Айгерім",
+            openingCash: 20_000,
+            countedCash: 59_700,
+            variance: -300,
+            snapshot: SNAPSHOT,
+            restaurantName: "Sandyq Абая",
+            restaurantAddress: "пр. Абая, 1",
+            terminalName: "Главная касса",
+            terminalNumber: 1,
+          }
+        : null,
+    ),
+  }
 })
 
 afterEach(cleanup)
@@ -153,12 +211,27 @@ describe("«Кассовые смены» (W1-RTL-06)", () => {
     expect(within(accepted).queryByRole("button", { name: /Принять смену/ })).toBeNull()
   })
 
-  it("«Печать Z» is inactive with a hint: the office cannot read the Z-report's content yet", () => {
+  it("«Печать Z» loads the saved Z-report and prints it on the POS form", async () => {
     renderPage()
-    const button = within(card("Смена №180 · Главная касса")).getByRole("button", { name: "Печать Z" })
-    expect(button.getAttribute("aria-disabled")).toBe("true")
-    expect(button.getAttribute("title")).toMatch(/Печать Z из офиса пока недоступна/)
-    expect(screen.getAllByText(/Печать Z из офиса пока недоступна/).length).toBeGreaterThan(0)
+    fireEvent.click(within(card("Смена №180 · Главная касса")).getByRole("button", { name: "Печать Z · смена №180" }))
+    await waitFor(() => expect(mocks.printed).toHaveLength(1))
+    expect(mocks.clientQueries[Z_REPORT]).toHaveBeenCalledWith({ zReportId: "z180" })
+    expect(mocks.printed[0]).toContain("Z-ОТЧЁТ")
+    expect(mocks.printed[0]).toContain("Z-20260903-01-180")
+    expect(mocks.printed[0]).toContain("Sandyq Абая")
+    expect(mocks.printed[0]).toContain("Главная касса")
+    expect(mocks.printed[0]).toContain("Айгерім")
+  })
+
+  it("a Z-report outside the scope is not printed; a closed shift without one has an inactive button", async () => {
+    mocks.paginated[LIST] = [{ ...CLOSED, zReportId: "z-foreign" as ShiftCard["zReportId"] }, { ...CLOSED, _id: "s178" as ShiftCard["_id"], number: 178, zReportId: null }]
+    renderPage()
+    fireEvent.click(screen.getByRole("button", { name: "Печать Z · смена №180" }))
+    expect(await screen.findByText(/Z-отчёт не найден/)).toBeTruthy()
+    expect(mocks.printed).toHaveLength(0)
+    const missing = within(card("Смена №178 · Главная касса")).getByRole("button", { name: "Печать Z" })
+    expect(missing.getAttribute("aria-disabled")).toBe("true")
+    expect(missing.getAttribute("title")).toMatch(/нет сохранённого Z-отчёта/)
   })
 
   it("the tabs narrow the status on the server", () => {
@@ -184,7 +257,7 @@ describe("«Кассовые смены» (W1-RTL-06)", () => {
     renderPage(["office.cash-shifts.view"])
     expect(screen.queryByRole("button", { name: /Принять смену/ })).toBeNull()
     expect(screen.queryByLabelText("Комментарий при принятии")).toBeNull()
-    expect(within(card("Смена №180 · Главная касса")).getByRole("button", { name: "Печать Z" })).toBeTruthy()
+    expect(within(card("Смена №180 · Главная касса")).getByRole("button", { name: "Печать Z · смена №180" })).toBeTruthy()
   })
 
   it("an empty tab says where shifts come from", () => {

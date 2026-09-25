@@ -20,6 +20,7 @@ import { PeriodLocksWorkspace } from "@/office/features/platform/ui/period-locks
 import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-orders-workspace"
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
 import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
+import { ReportFavoritesWorkspace } from "@/office/features/reports/ui/report-favorites-page"
 import { ReportsWorkspace } from "@/office/features/reports/ui/reports-workspace"
 import { KitchenBoardWorkspace } from "@/office/features/kitchen/ui/kitchen-board-workspace"
 import { CashShiftsWorkspace } from "@/office/features/retail/ui/cash-shifts-workspace"
@@ -77,6 +78,7 @@ const WORKSPACES: Record<string, ComponentType> = {
   attendance: AttendanceWorkspace,
   guests: LoyaltyWorkspace,
   reports: ReportsWorkspace,
+  "report-favorites": ReportFavoritesWorkspace,
   roles: AccessControlWorkspace,
   users: AccessControlWorkspace,
   terminals: TerminalsWorkspace,

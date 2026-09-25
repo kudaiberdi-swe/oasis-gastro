@@ -1,4 +1,5 @@
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react"
+import { useConvex, useMutation, usePaginatedQuery, useQuery } from "convex/react"
+import { useCallback } from "react"
 import type { FunctionArgs, FunctionReturnType } from "convex/server"
 
 import { api } from "../../../../../convex/_generated/api"
@@ -18,6 +19,7 @@ export type OrderStatusTab = NonNullable<FunctionArgs<typeof office.listOrders>[
 export type OrderDetail = NonNullable<FunctionReturnType<typeof office.getOrderDetail>>
 export type ShiftCard = FunctionReturnType<typeof office.listShifts>["page"][number]
 export type ShiftStatusTab = NonNullable<FunctionArgs<typeof office.listShifts>["status"]>
+export type OfficeZReport = NonNullable<FunctionReturnType<typeof office.getZReport>>
 
 const withRestaurant = (restaurantExternalId: string | undefined) => (restaurantExternalId ? { restaurantExternalId } : {})
 
@@ -65,4 +67,13 @@ export function useShiftAcceptanceAccounts(enabled: boolean) {
 /** The one acceptShift (finance, B-21) — the card only calls it. */
 export function useAcceptShift() {
   return useMutation(api.domains.finance.shiftAcceptance.acceptShift)
+}
+
+/**
+ * Reads a saved Z-report once, on «Печать Z» (not a live subscription per card). null when it is missing
+ * or outside the scope; the server checks `office.cash-shifts.view`.
+ */
+export function useLoadZReport() {
+  const convex = useConvex()
+  return useCallback((zReportId: NonNullable<ShiftCard["zReportId"]>) => convex.query(office.getZReport, { zReportId }), [convex])
 }
