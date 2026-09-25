@@ -255,7 +255,8 @@ export const saveReservation = mutation({
     // A masked phone (no office.guests.pii) keeps the stored one, or the chosen guest's.
     const guest = args.guestId ? await ctx.db.get(args.guestId) : null
     const masked = args.phone.includes("•")
-    const phone = masked ? (existing?.phone ?? guest?.phone ?? null) : normalizePhone(args.phone)
+    const guestChanged = Boolean(guest) && guest!._id !== existing?.guestId
+    const phone = masked ? ((guestChanged ? guest?.phone : existing?.phone) ?? guest?.phone ?? null) : normalizePhone(args.phone)
     if (guestName.length < 2 || !phone) throw new ConvexError("Укажите имя и телефон гостя")
     if (args.guestId && !guest) throw new ConvexError("Гость не найден")
     if (!args.tableExternalIds.length) throw new ConvexError("Выберите стол")

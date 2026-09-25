@@ -119,7 +119,11 @@ export const order = query({
       source: source ? { externalId: source.externalId, name: source.name, kind: source.kind, settlementMode: source.settlementMode, defaultPaymentTypeExternalId: source.defaultPaymentTypeExternalId ?? null } : null,
       zone: zone ? { externalId: zone.externalId, name: zone.name, deliveryFee: zone.deliveryFee, minimumOrder: zone.minimumOrder } : null,
       courier: courier ? { externalId: courier.externalId, name: courier.name, status: courier.status } : null,
-      lines: lines.filter((line) => !line.voidedAt).map((line) => ({ productExternalId: line.productExternalId ?? "", productName: line.productName, quantity: line.quantity, unitPrice: line.unitPrice, lineTotal: line.lineTotal ?? line.unitPrice * line.quantity, sizeExternalId: line.sizeExternalId ?? null, sizeLabel: line.sizeLabel ?? null, modifierSelections: line.modifierSelections ?? [] })),
+      lines: lines.filter((line) => !line.voidedAt).map((line) => ({ productExternalId: line.productExternalId ?? "", productName: line.productName, quantity: line.quantity, unitPrice: line.unitPrice, lineTotal: line.lineTotal ?? line.unitPrice * line.quantity, sizeExternalId: line.sizeExternalId ?? null, sizeLabel: line.sizeLabel ?? null, modifierSelections: [
+        ...(line.modifierSelections ?? []),
+        // Removed defaults («БЕЗ ЛУКА») as explicit zeros, so saving the card again keeps them removed.
+        ...(line.kitchenModifiers ?? []).filter((modifier) => modifier.quantity === 0).map((modifier) => ({ externalId: modifier.externalId, name: modifier.label, quantity: 0, unitPrice: 0 })),
+      ] })),
     }
   },
 })
@@ -163,6 +167,7 @@ export const products = query({
         price: (await resolvePrice(ctx, { product, restaurantExternalId: args.restaurantExternalId, at: now })).price,
         available: await isAvailable(ctx, product._id, args.restaurantExternalId, now),
         hasSizes: Boolean(product.sizeScaleId),
+        hasModifiers: Boolean(await ctx.db.query("productModifierGroups").withIndex("by_product", (q) => q.eq("productId", product._id)).first()),
       })),
     )
   },

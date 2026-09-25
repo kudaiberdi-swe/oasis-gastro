@@ -153,4 +153,18 @@ describe("delivery orders (W2-DLV-02/03/07)", () => {
     expect(await courierStatus()).toBe("available")
     await expect(admin.mutation(delivery.mutations.saveCourier, { externalId: courier, employeeCode: "101", restaurantExternalId: "almaty", name: "Курьер", phone: "+7 701 ••• •• 90", transport: "car", active: true })).resolves.toBe(courier)
   })
+
+  it("assignCourier with null frees the courier in the kitchen statuses", async () => {
+    const { t } = await setup()
+    const { admin } = await office(t)
+    const courier = await admin.mutation(delivery.mutations.saveCourier, { employeeCode: "101", restaurantExternalId: "almaty", name: "Курьер", phone: "+77010000090", transport: "car", active: true })
+    await admin.mutation(delivery.mutations.setCourierStatus, { externalId: courier, status: "available" })
+    const saved = await admin.mutation(delivery.mutations.saveOrder, body(2))
+    let version = 1
+    for (const to of ["waiting", "ready-to-cook"] as const) version = (await admin.mutation(delivery.mutations.transitionOrder, { externalId: saved.externalId, to, expectedVersion: version })).version
+    version = (await admin.mutation(delivery.mutations.assignCourier, { deliveryExternalId: saved.externalId, courierExternalId: courier, expectedVersion: version })).version
+    await admin.mutation(delivery.mutations.assignCourier, { deliveryExternalId: saved.externalId, courierExternalId: null, expectedVersion: version })
+    expect(await t.run(async (ctx) => (await ctx.db.query("couriers").first())!.status)).toBe("available")
+    expect((await admin.query(delivery.queries.order, { externalId: saved.externalId }))?.courier).toBeNull()
+  })
 })

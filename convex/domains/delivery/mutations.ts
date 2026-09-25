@@ -278,7 +278,7 @@ export const transitionOrder = mutation({
 
 /** Assigns a free courier of the order's restaurant; the previous one (if only assigned) is freed. */
 export const assignCourier = mutation({
-  args: { deliveryExternalId: v.string(), courierExternalId: v.string(), expectedVersion: v.number(), channel: v.optional(v.union(v.literal("delivery"), v.literal("call-center"))) },
+  args: { deliveryExternalId: v.string(), courierExternalId: v.union(v.string(), v.null()), expectedVersion: v.number(), channel: v.optional(v.union(v.literal("delivery"), v.literal("call-center"))) },
   handler: async (ctx, args) => {
     const capability = args.channel === "call-center" ? "office.call-center.edit" : "office.delivery-orders.edit"
     const { user } = await requireOfficeCapability(ctx, capability)
@@ -287,10 +287,20 @@ export const assignCourier = mutation({
     await requireRestaurantScope(ctx, user, delivery.restaurantExternalId)
     if (delivery.version !== args.expectedVersion) throw new ConvexError("Заказ уже изменён. Обновите карточку")
     if (["on-way", "delivered", "closed", "cancelled"].includes(delivery.status)) throw new ConvexError("Курьера назначают до отправки")
+    const now = Date.now()
+    if (args.courierExternalId === null) {
+      // «Не назначен»: the assigned courier is free again.
+      if (delivery.courierExternalId) {
+        const previous = await requireCourier(ctx, delivery.courierExternalId)
+        if (previous.status === "assigned") await ctx.db.patch(previous._id, { status: "available", updatedAt: now })
+      }
+      await ctx.db.patch(delivery._id, { courierExternalId: undefined, version: delivery.version + 1, updatedAt: now })
+      await writeOfficeAudit(ctx, email, { action: "delivery-order.assign", summary: `Доставка ${delivery.number}: курьер снят`, resourceType: "delivery-orders", resourceExternalId: delivery.externalId, restaurantExternalId: delivery.restaurantExternalId, capability })
+      return { version: delivery.version + 1 }
+    }
     const courier = await requireCourier(ctx, args.courierExternalId)
     if (courier.restaurantExternalId !== delivery.restaurantExternalId || !courier.active) throw new ConvexError("Курьер другого ресторана или отключён")
     if (!["available", "returning"].includes(courier.status) && courier.externalId !== delivery.courierExternalId) throw new ConvexError(`Курьер «${courier.name}» сейчас занят`)
-    const now = Date.now()
     if (delivery.courierExternalId && delivery.courierExternalId !== courier.externalId) {
       const previous = await requireCourier(ctx, delivery.courierExternalId)
       if (previous.status === "assigned") await ctx.db.patch(previous._id, { status: "available", updatedAt: now })
