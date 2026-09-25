@@ -5,6 +5,7 @@ import { internal } from "../../_generated/api"
 import { internalMutation, mutation, query, type QueryCtx } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
 import { normalizePhone } from "../../lib/loyalty"
+import { accrualRemainders } from "../../lib/loyaltyCore"
 import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
 import { redactGuest } from "../../lib/pii"
 
@@ -62,7 +63,12 @@ export const getGuest = query({
       ctx.db.query("loyaltyTransactions").withIndex("by_guest_occurred", (q) => q.eq("guestId", guest._id)).order("desc").take(50),
       ctx.db.query("guestConsents").withIndex("by_guest_channel_recorded", (q) => q.eq("guestId", guest._id)).order("desc").take(50),
     ])
-    return { guest: publicGuest(guest, await canSeePii(ctx)), accounts, transactions, consents }
+    // «Сгорит N бонусов DD.MM»: the unspent rest of the accruals with the nearest expiry date (W2-LOY-09).
+    const now = Date.now()
+    const lots = (await Promise.all(accounts.map((account) => accrualRemainders(ctx, account._id)))).flat().filter((lot) => lot.remaining > 0 && lot.expiresAt && lot.expiresAt > now)
+    const nearest = lots.reduce<number | null>((min, lot) => (min === null || lot.expiresAt! < min ? lot.expiresAt! : min), null)
+    const nextExpiration = nearest === null ? null : { at: nearest, points: lots.filter((lot) => lot.expiresAt! - nearest < 86_400_000).reduce((sum, lot) => sum + lot.remaining, 0) }
+    return { guest: publicGuest(guest, await canSeePii(ctx)), accounts, transactions, consents, nextExpiration }
   },
 })
 

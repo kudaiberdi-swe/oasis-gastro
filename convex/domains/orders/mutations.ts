@@ -8,7 +8,7 @@ import { writeAudit } from "../../lib/audit"
 import { postLedgerEntry } from "../../lib/finance"
 import { journalReady, resolvePaymentType, settleOrder } from "../../lib/checkoutCore"
 import { postJournalEntry } from "../../lib/ledger"
-import { reverseOrderLoyalty } from "../../lib/loyaltyCore"
+import { releaseReservation, reverseOrderLoyalty } from "../../lib/loyaltyCore"
 import { calculateDiscountAmount, calculateOrderTotal, calculateServiceCharge, roundKzt } from "../../lib/money"
 import { cancelTicketLine, cancelTicketsForOrder, createKitchenTicket } from "../../lib/kitchen"
 import { settingInForce } from "../../lib/retailSettings"
@@ -239,6 +239,7 @@ export const cancel = mutation({
     const manager = await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id)
     await ctx.db.patch(order._id, { status: "cancelled", cancelledAt: now, updatedAt: now, updatedBy: access.employee._id, version: (order.version ?? 1) + 1 })
     await cancelTicketsForOrder(ctx, order._id, now)
+    await releaseReservation(ctx, order._id, now)
     if (data?.writeOff) {
       const lines = await ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(200)
       const cooked = lines.filter((line) => line.sentToKitchenAt && !line.voidedAt)

@@ -11,6 +11,8 @@ crons.daily("recalculate guest categories", { hourUTC: 21, minuteUTC: 30 }, inte
 crons.daily("rebuild yesterday sales facts", { hourUTC: 22, minuteUTC: 0 }, internal.domains.reports.internal.rebuildYesterday, {})
 crons.interval("flag shifts open over 24 hours", { hours: 1 }, internal.domains.pos.internal.flagLongShifts, {})
 crons.interval("expire retail settings", { minutes: 10 }, internal.domains.retail.internal.expireSettings, {})
+crons.daily("expire loyalty points", { hourUTC: 22, minuteUTC: 0 }, internal.domains.loyalty.expiry.expireLoyaltyPoints, {})
+crons.interval("release stale loyalty reservations", { minutes: 10 }, internal.domains.loyalty.expiry.releaseStaleReservations, {})
 crons.interval("reconcile price order statuses", { minutes: 1 }, internal.domains.pricing.crons.reconcileStatuses, {})
 
 export default crons

@@ -352,12 +352,15 @@ export default defineSchema({
     splitFromOrderId: v.optional(v.id("orders")),
     kitchenSentAt: v.optional(v.number()),
     loyaltyRedemptionPlanned: v.optional(v.number()), // W1-LOY-03: set at the POS, applied at checkout
+    loyaltyReserved: v.optional(v.number()), // W2-LOY-09: points held on the guest's account for this open check
+    loyaltyReservedAt: v.optional(v.number()),
     migratedBy: v.optional(v.literal("M-2")),
   })
     .index("by_number", ["number"])
     .index("by_restaurant_business_date", ["restaurantId", "businessDate"])
     .index("by_restaurant_status_created", ["restaurantId", "status", "createdAt"])
     .index("by_split_from", ["splitFromOrderId"])
+    .index("by_loyalty_reserved_at", ["loyaltyReservedAt"])
     .index("by_client_order_id", ["clientOrderId"])
     .index("by_status_created", ["status", "createdAt"])
     .index("by_restaurant_created", ["restaurantId", "createdAt"])

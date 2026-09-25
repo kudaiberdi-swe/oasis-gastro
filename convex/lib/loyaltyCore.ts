@@ -36,13 +36,14 @@ async function accountOf(ctx: QueryCtx, guestId: Id<"guests">, programExternalId
 }
 
 /** What the guest can spend and would earn on `payable` ₸ (before redemption). Null without a program. */
-export async function quoteLoyalty(ctx: QueryCtx, args: { guestId: Id<"guests">; restaurantExternalId: string; payable: number; at: number }) {
+export async function quoteLoyalty(ctx: QueryCtx, args: { guestId: Id<"guests">; restaurantExternalId: string; payable: number; at: number; ownReserved?: number }) {
   const guest = await ctx.db.get(args.guestId)
   if (!guest || guest.status === "inactive") return null
   const program = await selectProgram(ctx, args.restaurantExternalId, guest, args.at)
   if (!program) return null
   const account = await accountOf(ctx, guest._id, program.externalId)
-  const balance = Math.max(0, (account?.balance ?? 0) - (account?.reserved ?? 0))
+  // Points reserved by other open checks can't be spent; this check's own reservation can.
+  const balance = Math.max(0, (account?.balance ?? 0) - (account?.reserved ?? 0) + (args.ownReserved ?? 0))
   const maxRedemption = Math.min(balance, Math.floor((args.payable * program.maxRedemptionPercent) / 100))
   const accrual = (redemption: number) => Math.floor(((args.payable - redemption) * program.accrualPercent) / 100)
   return { program, account, balance, maxRedemption, accrualWithout: accrual(0), accrualFor: accrual }
@@ -85,6 +86,7 @@ export async function applyOrderLoyalty(ctx: MutationCtx, args: { order: Doc<"or
     if (args.redemption) throw new ConvexError("Списание баллов без гостя невозможно")
     return { redeemed: 0, accrued: 0 }
   }
+  await releaseReservation(ctx, order._id, args.occurredAt)
   const quote = await quoteLoyalty(ctx, { guestId: order.guestId, restaurantExternalId: args.restaurantExternalId, payable: order.total, at: args.occurredAt })
   if (!quote) {
     if (args.redemption) throw new ConvexError("Для гостя нет программы лояльности")
@@ -142,4 +144,74 @@ export async function reverseOrderLoyalty(ctx: MutationCtx, args: { order: Doc<"
     delta = -current.balance
   }
   await move(ctx, { guest, account, kind: "reversal", points: delta, order, idempotencyKey: `refund:${args.paymentId}:loyalty`, occurredAt: args.occurredAt, description: `Возврат по заказу №${order.number}`, paymentId: args.paymentId, shortfall })
+}
+
+// --- Reservation of points on an open check (W2-LOY-09) ----------------------------------------
+// Only loyaltyAccounts.reserved moves; no transaction is written, so transactions still sum to the balance.
+
+/** Holds `points` of the check's guest while the check is open; replaces the check's previous hold. */
+export async function reserveForOrder(ctx: MutationCtx, order: Doc<"orders">, account: Doc<"loyaltyAccounts"> | null, points: number, at: number) {
+  await releaseReservation(ctx, order._id, at)
+  if (!account || points <= 0) return
+  const current = (await ctx.db.get(account._id))!
+  await ctx.db.patch(current._id, { reserved: current.reserved + points, updatedAt: at })
+  await ctx.db.patch(order._id, { loyaltyReserved: points, loyaltyReservedAt: at, loyaltyProgramExternalId: account.programExternalId })
+}
+
+/** Frees the check's hold (payment, cancel, guest change or the 2-hour timeout). */
+export async function releaseReservation(ctx: MutationCtx, orderId: Id<"orders">, at: number) {
+  const order = await ctx.db.get(orderId)
+  if (!order?.loyaltyReserved) return
+  const account = order.guestId && order.loyaltyProgramExternalId ? await accountOf(ctx, order.guestId, order.loyaltyProgramExternalId) : null
+  const held = account ?? (order.guestId ? await ctx.db.query("loyaltyAccounts").withIndex("by_guest_program", (q) => q.eq("guestId", order.guestId!)).first() : null)
+  if (held) await ctx.db.patch(held._id, { reserved: Math.max(0, held.reserved - order.loyaltyReserved), updatedAt: at })
+  await ctx.db.patch(order._id, { loyaltyReserved: undefined, loyaltyReservedAt: undefined })
+}
+
+// --- Expiration (W2-LOY-09) ----------------------------------------------------------------------
+
+/**
+ * What is left of each accrual after spending, oldest first (FIFO); an expiration consumes its own
+ * accrual. Keys are accrual ids.
+ */
+export async function accrualRemainders(ctx: QueryCtx, accountId: Id<"loyaltyAccounts">) {
+  const lots: { id: Id<"loyaltyTransactions">; remaining: number; expiresAt?: number }[] = []
+  for await (const row of ctx.db.query("loyaltyTransactions").withIndex("by_account_occurred", (q) => q.eq("accountId", accountId))) {
+    if (row.points > 0) {
+      lots.push({ id: row._id, remaining: row.points, expiresAt: row.expiresAt })
+      continue
+    }
+    let spend = -row.points
+    const own = row.kind === "expiration" && row.idempotencyKey?.startsWith("expire:") ? lots.find((lot) => `expire:${lot.id}` === row.idempotencyKey) : undefined
+    if (own) {
+      const taken = Math.min(own.remaining, spend)
+      own.remaining -= taken
+      spend -= taken
+    }
+    for (const lot of lots) {
+      if (spend <= 0) break
+      const taken = Math.min(lot.remaining, spend)
+      lot.remaining -= taken
+      spend -= taken
+    }
+  }
+  return lots
+}
+
+/** Writes the expiration of one accrual's unspent rest, once (key expire:<accrualId>). */
+export async function expireAccrual(ctx: MutationCtx, accrual: Doc<"loyaltyTransactions">, now: number) {
+  if (accrual.kind !== "accrual" || !accrual.accountId || !accrual.expiresAt || accrual.expiresAt > now) return 0
+  const idempotencyKey = `expire:${accrual._id}`
+  if (await ctx.db.query("loyaltyTransactions").withIndex("by_idempotency_key", (q) => q.eq("idempotencyKey", idempotencyKey)).unique()) return 0
+  const lot = (await accrualRemainders(ctx, accrual.accountId)).find((row) => row.id === accrual._id)
+  const account = await ctx.db.get(accrual.accountId)
+  if (!lot || !account) return 0
+  const points = Math.min(lot.remaining, account.balance)
+  if (points <= 0) return 0
+  const guest = (await ctx.db.get(account.guestId))!
+  const balanceAfter = account.balance - points
+  await ctx.db.patch(account._id, { balance: balanceAfter, updatedAt: now })
+  await ctx.db.patch(guest._id, { points: Math.max(0, guest.points - points), updatedAt: now })
+  await ctx.db.insert("loyaltyTransactions", { guestId: guest._id, kind: "expiration", points: -points, balanceAfter, occurredAt: now, accountId: account._id, programExternalId: account.programExternalId, idempotencyKey, description: "Сгорание бонусов по сроку" })
+  return points
 }

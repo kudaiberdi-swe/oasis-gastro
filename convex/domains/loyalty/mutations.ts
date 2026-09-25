@@ -5,7 +5,7 @@ import type { MutationCtx } from "../../_generated/server"
 import type { Id } from "../../_generated/dataModel"
 import { requireOperator, type PosAccess } from "../../lib/auth"
 import { findOrCreateGuest, normalizePhone } from "../../lib/loyalty"
-import { quoteLoyalty } from "../../lib/loyaltyCore"
+import { quoteLoyalty, releaseReservation, reserveForOrder } from "../../lib/loyaltyCore"
 import { getOfficeAuthEmail, requireNetworkScope, requireOfficeCapability, writeOfficeAudit } from "../../lib/officeAccess"
 
 async function requireOpenOrder(ctx: MutationCtx, orderId: Id<"orders">, access: PosAccess) {
@@ -38,6 +38,7 @@ export const attachGuestToOrder = mutation({
     // content edit and happens while the draft stays open on this same terminal; bumping it here
     // would desync the draft hook's locally cached version and make its next content edit fail
     // with a false "order changed on another terminal" conflict.
+    await releaseReservation(ctx, order._id, Date.now())
     await ctx.db.patch(order._id, { guestId: guest._id, loyaltyRedemptionPlanned: undefined, updatedAt: Date.now() })
     return { guestId: guest._id, phone: guest.phone, name: guest.name, points: guest.points }
   },
@@ -48,6 +49,7 @@ export const detachGuestFromOrder = mutation({
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
     const order = await requireOpenOrder(ctx, args.orderId, access)
+    await releaseReservation(ctx, order._id, Date.now())
     await ctx.db.patch(order._id, { guestId: undefined, loyaltyRedemptionPlanned: undefined, updatedAt: Date.now() })
   },
 })
@@ -94,10 +96,13 @@ export const setOrderRedemption = mutation({
     const access = await requireOperator(ctx, args.sessionToken)
     const order = await requireOpenOrder(ctx, args.orderId, access)
     if (!order.guestId) throw new ConvexError("Сначала выберите гостя")
-    const quote = await quoteLoyalty(ctx, { guestId: order.guestId, restaurantExternalId: access.restaurant.externalId, payable: order.total, at: Date.now() })
+    const now = Date.now()
+    const quote = await quoteLoyalty(ctx, { guestId: order.guestId, restaurantExternalId: access.restaurant.externalId, payable: order.total, at: now, ownReserved: order.loyaltyReserved })
     if (!quote) throw new ConvexError("Для гостя нет программы лояльности")
     if (!Number.isInteger(args.redemption) || args.redemption < 0 || args.redemption > quote.maxRedemption) throw new ConvexError(`Списать можно от 0 до ${quote.maxRedemption} баллов`)
-    await ctx.db.patch(order._id, { loyaltyRedemptionPlanned: args.redemption || undefined, updatedAt: Date.now() })
+    // The points are held for this check until it is paid, cancelled or 2 hours pass (W2-LOY-09).
+    await reserveForOrder(ctx, order, quote.account, args.redemption, now)
+    await ctx.db.patch(order._id, { loyaltyRedemptionPlanned: args.redemption || undefined, loyaltyProgramExternalId: quote.program.externalId, updatedAt: now })
     return { redemption: args.redemption, toPay: order.total - args.redemption, accrual: quote.accrualFor(args.redemption) }
   },
 })

@@ -75,7 +75,7 @@ export const quoteForPos = query({
     if (!order || order.terminalId !== access.terminal._id) return null
     const guestId = args.guestId ?? order.guestId
     if (!guestId) return null
-    const quote = await quoteLoyalty(ctx, { guestId, restaurantExternalId: access.restaurant.externalId, payable: order.total, at: Date.now() })
+    const quote = await quoteLoyalty(ctx, { guestId, restaurantExternalId: access.restaurant.externalId, payable: order.total, at: Date.now(), ownReserved: guestId === order.guestId ? order.loyaltyReserved : undefined })
     if (!quote) return { program: null, balance: (await ctx.db.get(guestId))?.points ?? 0, maxRedemption: 0, accrual: Math.floor(order.total / 100), accrualPercent: 1, planned: 0 }
     const planned = order.loyaltyRedemptionPlanned ?? 0
     return { program: { externalId: quote.program.externalId, name: quote.program.name }, balance: quote.balance, maxRedemption: quote.maxRedemption, accrual: quote.accrualFor(planned), accrualWithout: quote.accrualWithout, accrualPercent: quote.program.accrualPercent, planned }
