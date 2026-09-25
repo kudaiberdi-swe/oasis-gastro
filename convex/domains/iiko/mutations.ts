@@ -1,6 +1,7 @@
 import { v } from "convex/values"
 
 import { internalMutation } from "../../_generated/server"
+import { applySupplier, applyTerminal, applyUnit, applyWarehouse, supplierArgs, terminalArgs, unitArgs, warehouseArgs } from "./projections"
 
 // --- Run tracking (called from scripts/iiko/import-convex.mjs via `npx convex run`) -------
 
@@ -15,11 +16,11 @@ export const beginRun = internalMutation({
 })
 
 export const completeRun = internalMutation({
-  args: { runExternalId: v.string(), counts: v.object({ departments: v.number(), employees: v.number() }) },
+  args: { runExternalId: v.string(), counts: v.object({ departments: v.number(), employees: v.number() }), countsByEndpoint: v.optional(v.record(v.string(), v.number())) },
   handler: async (ctx, args) => {
     const run = await ctx.db.query("iikoImportRuns").withIndex("by_external_id", (q) => q.eq("runExternalId", args.runExternalId)).unique()
     if (!run) return
-    await ctx.db.patch(run._id, { status: "completed", completedAt: Date.now(), counts: args.counts })
+    await ctx.db.patch(run._id, { status: "completed", completedAt: Date.now(), counts: args.counts, ...(args.countsByEndpoint ? { countsByEndpoint: args.countsByEndpoint } : {}) })
   },
 })
 
@@ -140,9 +141,19 @@ async function applyEmployee(ctx: any, args: any) {
 export const upsertDepartment = internalMutation({ args: departmentArgs, handler: applyDepartment })
 export const upsertEmployee = internalMutation({ args: employeeArgs, handler: applyEmployee })
 
-/** Single-call import — the Node script uses this instead of one `npx convex run` per record. */
+/**
+ * Single-call import — the Node script uses this instead of one `npx convex run` per record. Stock
+ * master data (W1-IIKO-03) is optional; skipped records are counted and reported on their endpoint.
+ */
 export const importBatch = internalMutation({
-  args: { departments: v.array(v.object(departmentArgs)), employees: v.array(v.object(employeeArgs)) },
+  args: {
+    departments: v.array(v.object(departmentArgs)),
+    employees: v.array(v.object(employeeArgs)),
+    warehouses: v.optional(v.array(v.object(warehouseArgs))),
+    terminals: v.optional(v.array(v.object(terminalArgs))),
+    units: v.optional(v.array(v.object(unitArgs))),
+    suppliers: v.optional(v.array(v.object(supplierArgs))),
+  },
   handler: async (ctx, args) => {
     let departmentsChanged = 0
     let employeesChanged = 0
@@ -154,7 +165,27 @@ export const importBatch = internalMutation({
       const result = await applyEmployee(ctx, employee)
       if (result.changed) employeesChanged += 1
     }
-    return { departments: args.departments.length, employees: args.employees.length, departmentsChanged, employeesChanged }
+    const changed: Record<string, number> = {}
+    const skipped: Record<string, string[]> = {}
+    const run = async <T,>(endpointKey: string, rows: T[] | undefined, apply: (row: T) => Promise<{ changed: boolean; skipped?: string }>) => {
+      if (!rows?.length) return
+      changed[endpointKey] = 0
+      for (const row of rows) {
+        const result = await apply(row)
+        if (result.changed) changed[endpointKey] += 1
+        if (result.skipped) (skipped[endpointKey] ??= []).push(result.skipped)
+      }
+      const list = skipped[endpointKey] ?? []
+      const existing = await ctx.db.query("iikoEndpointStates").withIndex("by_endpoint_key", (q) => q.eq("endpointKey", endpointKey)).unique()
+      const state = { endpointKey, lastStatus: "ok" as const, lastRunAt: Date.now(), classification: "mirrored" as const, method: "GET", recordCount: rows.length, message: list.length ? `Пропущено ${list.length}: ${list.slice(0, 5).join("; ")}` : undefined }
+      if (existing) await ctx.db.patch(existing._id, state)
+      else await ctx.db.insert("iikoEndpointStates", state)
+    }
+    await run("corporation/stores", args.warehouses, (row) => applyWarehouse(ctx, row))
+    await run("corporation/terminals", args.terminals, (row) => applyTerminal(ctx, row))
+    await run("v2/entities/list?rootType=MeasureUnit", args.units, (row) => applyUnit(ctx, row))
+    await run("suppliers", args.suppliers, (row) => applySupplier(ctx, row))
+    return { departments: args.departments.length, employees: args.employees.length, departmentsChanged, employeesChanged, changed, skipped }
   },
 })
 

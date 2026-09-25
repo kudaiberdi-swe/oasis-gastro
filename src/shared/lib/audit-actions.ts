@@ -76,6 +76,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "loyalty.adjust": "Корректировка баллов гостя",
   "finance.shift.accept": "Принятие смены",
   "finance.shift.reverse": "Сторно приёмки смены",
+  "iiko.restaurant.link": "Сопоставление филиала с iiko",
   "workforce.create": "Создание сотрудника кассы",
   "workforce.profile.update": "Изменение карточки сотрудника",
   "attendance.clock-in": "Отметка прихода",

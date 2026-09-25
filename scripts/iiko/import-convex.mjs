@@ -58,6 +58,12 @@ const employees = rows
     payloadHash: row.payloadHash,
   }))
 
+const payloadsOf = (domain) => rows.filter((row) => row.domain === domain)
+const warehouses = payloadsOf("warehouse").map((row) => ({ externalId: row.recordExternalId, parentExternalId: row.payload.parentId ? String(row.payload.parentId) : undefined, code: row.payload.code ? String(row.payload.code) : undefined, name: String(row.payload.name ?? ""), type: row.payload.type ? String(row.payload.type) : undefined, deleted: row.payload.deleted === true, payloadHash: row.payloadHash }))
+const terminals = payloadsOf("terminal").map((row) => ({ externalId: row.recordExternalId, name: String(row.payload.name ?? ""), anonymous: row.payload.anonymous === true, departmentExternalId: row.payload.groupInfo?.id ? String(row.payload.groupInfo.id) : undefined, deleted: row.payload.deleted === true, payloadHash: row.payloadHash }))
+const units = payloadsOf("unit").map((row) => ({ externalId: row.recordExternalId, code: row.payload.code ? String(row.payload.code) : undefined, name: String(row.payload.name ?? ""), fullName: row.payload.fullName ? String(row.payload.fullName) : undefined, deleted: row.payload.deleted === true, payloadHash: row.payloadHash }))
+const suppliers = payloadsOf("supplier").map((row) => ({ externalId: row.recordExternalId, code: row.payload.code ? String(row.payload.code) : undefined, name: String(row.payload.name ?? ""), isSupplier: row.payload.supplier !== false, deleted: row.payload.deleted === true, payloadHash: row.payloadHash }))
+
 function run(fn, jsonArgs) {
   const result = spawnSync("npx", ["convex", "run", fn, JSON.stringify(jsonArgs), "--typecheck", "disable"], { stdio: "inherit" })
   if (result.status !== 0) fail(`convex run ${fn} failed`)
@@ -77,7 +83,13 @@ const CHUNK_SIZE = 50
 run("domains/iiko/mutations:beginRun", { runExternalId: manifest.runExternalId })
 for (const batch of chunk(departments, CHUNK_SIZE)) run("domains/iiko/mutations:importBatch", { departments: batch, employees: [] })
 for (const batch of chunk(employees, CHUNK_SIZE)) run("domains/iiko/mutations:importBatch", { departments: [], employees: batch })
-run("domains/iiko/mutations:completeRun", { runExternalId: manifest.runExternalId, counts: { departments: departments.length, employees: employees.length } })
+// Stock master data after departments: stores and terminals need the restaurant links (W1-IIKO-02).
+for (const [key, list] of [["warehouses", warehouses], ["terminals", terminals], ["units", units], ["suppliers", suppliers]]) {
+  for (const batch of chunk(list, CHUNK_SIZE)) run("domains/iiko/mutations:importBatch", { departments: [], employees: [], [key]: batch })
+}
+const countsByEndpoint = { "corporation/departments": departments.length, employees: employees.length, "corporation/stores": warehouses.length, "corporation/terminals": terminals.length, "v2/entities/list?rootType=MeasureUnit": units.length, suppliers: suppliers.length }
+run("domains/iiko/mutations:completeRun", { runExternalId: manifest.runExternalId, counts: { departments: departments.length, employees: employees.length }, countsByEndpoint })
 
-console.log(`\n✔ Imported ${departments.length} department(s) and ${employees.length} employee(s).`)
+console.log(`\n✔ Imported ${departments.length} department(s), ${employees.length} employee(s), ${warehouses.length} store(s), ${terminals.length} terminal(s), ${units.length} unit(s), ${suppliers.length} supplier(s).`)
+console.log("  Stores and terminals of departments without a restaurant link were skipped — see /office/data-exchange.")
 console.log("  Verify with: npx convex data iikoDepartments   /   npx convex data iikoEmployees")

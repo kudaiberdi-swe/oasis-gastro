@@ -867,6 +867,17 @@ export default defineSchema({
   // Read-only mirror of iiko's organization structure (corporation/departments).
   // Only the fields we actually allowlisted out of the source response — see
   // scripts/iiko/lib.mjs sanitizeDepartment. No PII; department/company records only.
+  // Which Sandyq restaurant an iiko department is (W1-IIKO-02). Confirmed in the office; without a link
+  // an iiko store or terminal is skipped — never attached to the first restaurant at hand (B-24).
+  restaurantSourceLinks: defineTable({
+    restaurantExternalId: v.string(),
+    iikoDepartmentExternalId: v.string(),
+    confirmedBy: v.string(),
+    confirmedAt: v.number(),
+  })
+    .index("by_restaurant", ["restaurantExternalId"])
+    .index("by_department", ["iikoDepartmentExternalId"]),
+
   iikoDepartments: defineTable({
     externalId: v.string(),
     parentExternalId: v.optional(v.string()),

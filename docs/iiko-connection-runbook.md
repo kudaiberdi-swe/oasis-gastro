@@ -70,3 +70,15 @@ Against production, prefix with a one-off deploy key (see [ARCHITECTURE.md § En
 ## Connecting an entity back to the operational side of the system
 
 An imported `iikoEmployees` row is not a POS login by itself. `domains/workforce/mutations.ts:provisionPosAccess` (surfaced in `/office` → Кадры → "Из iiko") bridges one to a real `employees` row — the code and PIN are always generated locally there, never derived from anything iiko returns.
+
+## Stock master data (W1-IIKO-01..03) — still GET only
+
+1. In the office, `/office/data-exchange` → «Сопоставление филиалов»: link every Sandyq restaurant to its iiko
+   department (`restaurantSourceLinks`). Stores and terminals of an unlinked department are skipped and
+   reported on their endpoint — never attached to the first restaurant at hand.
+2. Extract with the stock master endpoints: `npm run iiko:extract -- --with-stock-master`
+   (stores, terminals, measure units, suppliers; all `GET`). Products and balances need
+   `--with-products` / `--with-balances` too and wait for blocker Б-B4.
+3. Import as usual (`npm run iiko:import -- --input=…`). Imported terminals arrive **inactive** with the next
+   free number of their restaurant; enable them in the office. Suppliers arrive without a BIN — fill it in
+   the office. Every re-import only touches records whose payload hash changed.

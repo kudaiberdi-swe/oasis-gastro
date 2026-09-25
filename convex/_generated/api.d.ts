@@ -29,6 +29,8 @@ import type * as domains_finance_shiftAcceptance from "../domains/finance/shiftA
 import type * as domains_finance_validators from "../domains/finance/validators.js";
 import type * as domains_iiko_internal from "../domains/iiko/internal.js";
 import type * as domains_iiko_mutations from "../domains/iiko/mutations.js";
+import type * as domains_iiko_office from "../domains/iiko/office.js";
+import type * as domains_iiko_projections from "../domains/iiko/projections.js";
 import type * as domains_integrations_internal from "../domains/integrations/internal.js";
 import type * as domains_integrations_mutations from "../domains/integrations/mutations.js";
 import type * as domains_integrations_queries from "../domains/integrations/queries.js";
@@ -161,6 +163,8 @@ declare const fullApi: ApiFromModules<{
   "domains/finance/validators": typeof domains_finance_validators;
   "domains/iiko/internal": typeof domains_iiko_internal;
   "domains/iiko/mutations": typeof domains_iiko_mutations;
+  "domains/iiko/office": typeof domains_iiko_office;
+  "domains/iiko/projections": typeof domains_iiko_projections;
   "domains/integrations/internal": typeof domains_integrations_internal;
   "domains/integrations/mutations": typeof domains_integrations_mutations;
   "domains/integrations/queries": typeof domains_integrations_queries;
