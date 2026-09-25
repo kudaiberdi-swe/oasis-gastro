@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { History } from "lucide-react"
+import { ChefHat } from "lucide-react"
 
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { AppHeader } from "@/pos/components/app-header"
+import { LiveSyncIndicator } from "@/pos/components/live-sync-indicator"
 import { CatalogPanel } from "@/pos/features/catalog/ui/catalog-panel"
 import { buildOrderReceiptHtml, precheckFromDraft } from "@/pos/features/checkout/model/order-receipt"
 import { PaymentDialog, type CheckoutPayment } from "@/pos/features/checkout/ui/payment-dialog"
@@ -18,7 +19,7 @@ import { useCheck, useOpenChecks, useOrderMutations, useSuggestion, useTransferT
 import { CancelOrderDialog } from "@/pos/features/order-taking/ui/cancel-dialog"
 import { CommentDialog } from "@/pos/features/order-taking/ui/comment-dialog"
 import { DiscountDialog } from "@/pos/features/order-taking/ui/discount-dialog"
-import { OpenChecksList } from "@/pos/features/order-taking/ui/open-checks-list"
+import { ChecksSwitcher } from "@/pos/features/order-taking/ui/checks-switcher"
 import { OrderActionsDialog, type ActionBlocks, type OrderAction } from "@/pos/features/order-taking/ui/order-actions-dialog"
 import { SplitDialog } from "@/pos/features/order-taking/ui/split-dialog"
 import { TableDialog, type TableSeatInput } from "@/pos/features/order-taking/ui/table-dialog"
@@ -50,8 +51,8 @@ import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
 import type { OrderType } from "@/shared/types/pos"
 
-// Cashier touch targets (POS-DESIGN §5): the action row uses the POS control height.
-const TOOLBAR_BUTTON = "h-[var(--control-h-pos)]"
+// «Касса / Офис» in the header (POS-DESIGN §10): only for roles that also work in the office.
+const OFFICE_ROLES = new Set(["manager", "administrator"])
 
 const LEGACY_ORDER_TYPES: OrderTypeOption[] = [
   { value: "dine-in", label: "В зале", mode: "dine-in" },
@@ -338,6 +339,9 @@ function AuthenticatedPos({
     <AppHeader
       restaurantName={access.restaurant.name}
       terminalName={access.terminal.name}
+      city={access.restaurant.city}
+      showOfficeSwitch={OFFICE_ROLES.has(access.employee.role)}
+      syncIndicator={<LiveSyncIndicator />}
       employeeName={access.employee.displayName}
       employeeRole={ROLE_LABEL[access.employee.role]}
       shiftNumber={shift.number}
@@ -371,25 +375,21 @@ function AuthenticatedPos({
   return (
     <div className="flex h-full flex-col gap-2 p-2">
       {header}
-      <div className="flex items-center gap-2">
-        <Button variant="secondary" className={TOOLBAR_BUTTON} onClick={() => setShowKitchen(true)}>
-          Экран кухни {kitchenTickets.length > 0 && `(${kitchenTickets.length})`}
-        </Button>
-        <Button variant="ghost" className={TOOLBAR_BUTTON} onClick={() => setDialog("history")}>
-          <History /> История заказов
-        </Button>
-      </div>
-      <div className="flex min-h-0 flex-1 gap-3">
-        <OpenChecksList
-          checks={openChecks.map((c) => ({ orderId: c.orderId, tableLabel: c.tableLabel, status: c.status, total: c.total, itemCount: c.itemCount }))}
-          activeOrderId={selectedOrderId}
-          onSelect={(orderId) => selectCheck(orderId)}
-          onNew={() => setDialog("new-table")}
-        />
-        <CatalogPanel sessionToken={sessionToken} onAddProduct={draft.addItem} />
+      <div className="flex min-h-0 flex-1 gap-2 overflow-x-clip">
         <OrderPanel
           tableLabel={draft.tableLabel}
           orderNumber={draft.orderNumber}
+          orderStatus={openChecks.find((check) => check.orderId === draft.orderId)?.status ?? "draft"}
+          titleSlot={
+            <ChecksSwitcher
+              tableLabel={draft.tableLabel}
+              orderNumber={draft.orderNumber}
+              checks={openChecks}
+              activeOrderId={draft.orderId}
+              onSelect={(orderId) => selectCheck(orderId)}
+              onNew={() => setDialog("new-table")}
+            />
+          }
           lines={draft.lines}
           itemCount={draft.itemCount}
           orderTypeOptions={typeOptions}
@@ -430,6 +430,16 @@ function AuthenticatedPos({
           comment={draft.comment}
           suggestion={suggestion}
           onAddSuggestion={suggestion ? () => draft.addItem({ productId: suggestion.productId, name: suggestion.name, nameKk: suggestion.nameKk, price: suggestion.price }) : undefined}
+        />
+        <CatalogPanel
+          sessionToken={sessionToken}
+          onAddProduct={draft.addItem}
+          recentStorageKey={`sandyq-pos-recent:${terminalExternalId}:${access.employee.id}`}
+          footerAction={
+            <Button variant="ghost" onClick={() => setShowKitchen(true)}>
+              <ChefHat /> Экран кухни{kitchenTickets.length > 0 ? ` · ${kitchenTickets.length}` : ""}
+            </Button>
+          }
         />
       </div>
 

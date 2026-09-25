@@ -15,15 +15,17 @@ test("a cashier sells a dish for cash and the kitchen sees it", async ({ page, s
     await openShift.getByRole("button", { name: /Открыть смену/ }).click()
   }
 
+  // «Стол ▾» in the order panel opens the open checks with «+ Новый стол» (W1-POS-10).
+  await page.getByRole("button", { name: /^Открытые чеки/ }).click()
   await page.getByRole("button", { name: /Новый стол/ }).click()
   await page.getByRole("dialog", { name: /Новый стол/ }).getByRole("button", { name: "Открыть стол" }).click()
-  await page.getByRole("button").filter({ hasText: /₸/ }).first().click()
+  await page.getByRole("region", { name: "Меню" }).getByRole("button").filter({ hasText: /₸/ }).first().click()
   await page.getByRole("button", { name: /Оплатить/ }).click()
   const payment = page.getByRole("dialog")
   await payment.getByRole("button", { name: "Без сдачи" }).click()
   await payment.getByRole("button", { name: /Оплатить|Провести оплату/ }).click()
   await expect(payment).toBeHidden()
 
-  await page.getByRole("button", { name: /Кухня/ }).click()
+  await page.getByRole("button", { name: /Экран кухни/ }).click()
   await expect(page.getByText(/№\s*\d+/).first()).toBeVisible()
 })

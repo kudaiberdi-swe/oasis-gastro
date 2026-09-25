@@ -354,9 +354,9 @@ src/
       session/       terminal-picker (+ data/use-terminal-options), login-screen (code → PIN,
                      also the locked screen), manager-approval-dialog, model/use-pos-session
                      (terminal choice, session, idle lock)
-      catalog/        product browsing
+      catalog/        product browsing: catalog-panel (toolbar, chips, sort, favorites, «Последние»), model/catalog-view
       order-taking/   pos-workspace.tsx (the main screen + the picker/login gate), useOrderDraft
-                      (the cart hook), open-checks-list, discount-dialog
+                      (the cart hook), checks-switcher («Стол ▾» in the order panel), discount-dialog
       checkout/       payment-dialog, receipt formatting
       shifts/         open/close/X-report dialog
       loyalty/        guest-dialog — attach/detach a guest during order-taking

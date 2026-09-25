@@ -1,4 +1,5 @@
-import { Bell, LockKeyhole, Menu, Moon, Rows3, Sun } from "lucide-react"
+import type { ReactNode } from "react"
+import { Bell, LockKeyhole, Menu, Monitor, Moon, Rows3, Store, Sun, Wifi, WifiOff } from "lucide-react"
 
 import { useTheme } from "@/shared/components/theme-provider"
 import { Button } from "@/shared/components/ui/button"
@@ -17,13 +18,64 @@ function Mark() {
 // Icon buttons on the dark header: --nav-raised on hover, never white overlays (POS-DESIGN §6.2).
 const navButton = "text-nav-foreground hover:bg-nav-raised hover:text-nav-foreground"
 
+/** Convex connection as the header shows it: «Синхронизировано», sending changes, or no link. */
+export type SyncState = "synced" | "syncing" | "offline"
+
+const SYNC_LABEL: Record<SyncState, string> = { synced: "Синхронизировано", syncing: "Синхронизация…", offline: "Нет связи" }
+
+/** `slow` — a request has been in flight long enough to show; quick ones never flash «Синхронизация…». */
+export function syncStateFrom(connection: { isWebSocketConnected: boolean; hasEverConnected?: boolean }, slow = false): SyncState {
+  if (!connection.isWebSocketConnected) return connection.hasEverConnected === false ? "syncing" : "offline"
+  return slow ? "syncing" : "synced"
+}
+
+/** «24 сентября» in Almaty time — the date under the employee's role. */
+export function headerDate(value: number) {
+  return new Date(value).toLocaleDateString("ru-RU", { timeZone: "Asia/Almaty", day: "numeric", month: "long" })
+}
+
+/** «Касса / Офис» (manager and administrator only). The office has its own sign-in (L-7). */
+function SurfaceSwitch({ officeHref }: { officeHref: string }) {
+  const item = "inline-flex h-9 items-center gap-2 rounded-control px-3 text-body-sm [&_svg]:size-[18px]"
+  return (
+    <nav aria-label="Раздел" className="flex items-center gap-1 rounded-control bg-nav-raised p-1">
+      <span aria-current="page" className={cn(item, "border border-nav-muted/40 bg-nav font-semibold text-nav-foreground")}>
+        <Store aria-hidden />
+        Касса
+      </span>
+      <a href={officeHref} className={cn(item, "font-medium text-nav-muted hover:text-nav-foreground", focusRingClass)}>
+        <Monitor aria-hidden />
+        Офис
+      </a>
+    </nav>
+  )
+}
+
+/** ≥1440 — icon and text; narrower — icon and a dot, the text stays for screen readers (§11.2). */
+export function SyncIndicator({ state }: { state: SyncState }) {
+  const label = SYNC_LABEL[state]
+  return (
+    <span title={label} className="inline-flex h-11 items-center gap-2 px-2 text-body-sm font-medium text-nav-foreground">
+      {state === "offline" ? <WifiOff aria-hidden className="size-[18px] text-nav-muted" /> : <Wifi aria-hidden className={cn("size-[18px]", state === "synced" ? "text-nav-accent" : "text-nav-muted")} />}
+      <span aria-hidden className={cn("size-2 rounded-round min-[1440px]:hidden", state === "offline" ? "bg-destructive" : state === "syncing" ? "bg-warning" : "bg-success")} />
+      <span className="sr-only min-[1440px]:not-sr-only">{label}</span>
+    </span>
+  )
+}
+
 /**
- * POS header (W1-POS-10/14): ☰ main menu, brand and branch, the shift pill (opens the shift
- * dialog), notifications with the unread count, theme, density, profile and lock.
+ * POS header 64px (W1-POS-10/14, POS-DESIGN §11.2): ☰ main menu, brand and «<касса> · <город>»,
+ * «Касса / Офис», the shift pill (opens the shift dialog), «Синхронизировано», notifications with the
+ * unread count, lock, theme, density and the profile (name, role · date).
  */
 export function AppHeader({
   restaurantName,
   terminalName,
+  city,
+  showOfficeSwitch = false,
+  officeHref = "/office",
+  syncIndicator,
+  now,
   employeeName,
   employeeRole,
   shiftNumber,
@@ -38,6 +90,15 @@ export function AppHeader({
 }: {
   restaurantName: string
   terminalName?: string
+  /** «<касса> · <город>» under the brand. */
+  city?: string
+  /** «Касса / Офис» — for manager and administrator. */
+  showOfficeSwitch?: boolean
+  officeHref?: string
+  /** «Синхронизировано»: a SyncIndicator (the live one subscribes to the connection itself). */
+  syncIndicator?: ReactNode
+  /** The date under the role; defaults to now. */
+  now?: number
   employeeName: string
   employeeRole?: string
   shiftNumber?: number
@@ -53,8 +114,9 @@ export function AppHeader({
 }) {
   const { mode, setMode, density, setDensity } = useTheme()
   const brand = restaurantName.startsWith("Sandyq") ? restaurantName : `Sandyq · ${restaurantName}`
+  const place = [terminalName, city].filter(Boolean).join(" · ")
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-3 rounded-panel bg-nav px-2 text-nav-foreground">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-3 rounded-panel bg-nav px-2 text-nav-foreground">
       <div className="flex min-w-0 items-center gap-2">
         {onMenu && (
           <Button variant="ghost" size="icon" aria-label="Главное меню" className={navButton} onClick={onMenu}>
@@ -66,14 +128,19 @@ export function AppHeader({
         </span>
         <span className="flex min-w-0 flex-col leading-tight">
           <span className="truncate font-display text-body font-semibold">{brand}</span>
-          {terminalName && <span className="truncate text-body-sm text-nav-muted">{terminalName}</span>}
+          {place && <span className="truncate text-body-sm text-nav-muted">{place}</span>}
         </span>
+        {showOfficeSwitch && (
+          <span className="ml-2 shrink-0">
+            <SurfaceSwitch officeHref={officeHref} />
+          </span>
+        )}
         {shiftNumber != null && (
           <button
             type="button"
             onClick={onOpenShiftInfo}
             aria-label={`Смена №${shiftNumber}${shiftWarning ? ", открыта более 24 часов" : ""}`}
-            className={cn("ml-2 inline-flex h-9 items-center gap-2 rounded-control bg-nav-raised px-3 text-body-sm font-semibold text-nav-foreground hover:text-nav-accent", focusRingClass)}
+            className={cn("ml-2 inline-flex h-11 shrink-0 items-center gap-2 rounded-control bg-nav-raised px-3 text-body-sm font-semibold text-nav-foreground hover:text-nav-accent", focusRingClass)}
           >
             <span aria-hidden className={cn("size-2 rounded-round", shiftWarning ? "bg-warning" : "bg-success")} />
             Смена №{shiftNumber}
@@ -81,7 +148,8 @@ export function AppHeader({
           </button>
         )}
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
+        {syncIndicator}
         {onNotifications && (
           <Button variant="ghost" size="icon" aria-label={unreadNotifications ? `Уведомления: ${unreadNotifications} новых` : "Уведомления"} className={cn(navButton, "relative")} onClick={onNotifications}>
             <Bell />
@@ -92,6 +160,9 @@ export function AppHeader({
             )}
           </Button>
         )}
+        <Button variant="ghost" size="icon" aria-label="Заблокировать кассу" className={navButton} onClick={onLock}>
+          <LockKeyhole />
+        </Button>
         <Button variant="ghost" size="icon" aria-label={mode === "day" ? "Ночная тема" : "Дневная тема"} className={navButton} onClick={() => setMode(mode === "day" ? "night" : "day")}>
           {mode === "day" ? <Moon /> : <Sun />}
         </Button>
@@ -109,14 +180,11 @@ export function AppHeader({
           type="button"
           onClick={onProfile ?? onOpenShiftInfo}
           aria-label={`Профиль: ${employeeName}`}
-          className={cn("flex h-11 flex-col items-end justify-center rounded-control px-2 leading-tight hover:bg-nav-raised", focusRingClass)}
+          className={cn("ml-1 flex h-12 max-w-56 flex-col items-end justify-center rounded-control px-2 leading-tight hover:bg-nav-raised", focusRingClass)}
         >
-          <span className="text-body-sm font-semibold text-nav-foreground">{employeeName}</span>
-          {employeeRole && <span className="text-body-sm text-nav-muted">{employeeRole}</span>}
+          <span className="max-w-full truncate text-body-sm font-semibold text-nav-foreground">{employeeName}</span>
+          <span className="max-w-full truncate text-body-sm text-nav-muted">{[employeeRole, headerDate(now ?? Date.now())].filter(Boolean).join(" · ")}</span>
         </button>
-        <Button variant="ghost" size="icon" aria-label="Заблокировать кассу" className={navButton} onClick={onLock}>
-          <LockKeyhole />
-        </Button>
       </div>
     </header>
   )
