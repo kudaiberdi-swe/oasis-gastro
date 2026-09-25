@@ -4,6 +4,7 @@ import { authTables } from "@convex-dev/auth/server"
 import { financeModuleId, financeRecordData } from "./domains/finance/validators"
 import { officeDomainStatus } from "./lib/validators"
 import { retailKind, retailSettingData } from "./domains/retail/validators"
+import { reportConfig } from "./lib/reportConfig"
 
 const unit = v.union(v.literal("кг"), v.literal("л"), v.literal("шт"), v.literal("порц."))
 
@@ -530,6 +531,21 @@ export default defineSchema({
     .index("by_restaurant_type_date", ["restaurantExternalId", "factType", "businessDate"])
     .index("by_restaurant_type_key_date", ["restaurantExternalId", "factType", "dimensionKey", "businessDate"])
     .index("by_restaurant_date", ["restaurantExternalId", "businessDate"]),
+
+  // Saved report views and favorites (W1-RPT-05): per office user, typed config.
+  reportViews: defineTable({
+    externalId: v.string(),
+    ownerKey: v.string(), // officeUsers.externalId
+    reportId: v.string(),
+    name: v.string(),
+    favorite: v.boolean(),
+    config: reportConfig,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_owner_report", ["ownerKey", "reportId"])
+    .index("by_owner_favorite", ["ownerKey", "favorite"]),
 
   // Idempotency of fact writes: order:<id>:checkout, order:<id>:refund:<paymentId>, order:<id>:cancel, line:<id>:void.
   reportFactEvents: defineTable({

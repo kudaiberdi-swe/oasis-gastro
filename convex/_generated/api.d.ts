@@ -69,6 +69,7 @@ import type * as domains_reports_calculators_operations from "../domains/reports
 import type * as domains_reports_calculators_stock from "../domains/reports/calculators/stock.js";
 import type * as domains_reports_catalog from "../domains/reports/catalog.js";
 import type * as domains_reports_internal from "../domains/reports/internal.js";
+import type * as domains_reports_mutations from "../domains/reports/mutations.js";
 import type * as domains_reports_queries from "../domains/reports/queries.js";
 import type * as domains_reports_registry from "../domains/reports/registry.js";
 import type * as domains_retail_internal from "../domains/retail/internal.js";
@@ -202,6 +203,7 @@ declare const fullApi: ApiFromModules<{
   "domains/reports/calculators/stock": typeof domains_reports_calculators_stock;
   "domains/reports/catalog": typeof domains_reports_catalog;
   "domains/reports/internal": typeof domains_reports_internal;
+  "domains/reports/mutations": typeof domains_reports_mutations;
   "domains/reports/queries": typeof domains_reports_queries;
   "domains/reports/registry": typeof domains_reports_registry;
   "domains/retail/internal": typeof domains_retail_internal;
