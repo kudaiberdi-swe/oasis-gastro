@@ -70,6 +70,8 @@ const JOB: Record<string, StatusEntry> = {
   completed: { label: "Готово", tone: "success" },
   failed: { label: "Ошибка", tone: "danger" },
   "dead-letter": { label: "Не доставлено", tone: "danger" },
+  // integrationJobs.status also has cancelled (W2-ADM-09).
+  cancelled: { label: "Отменено", tone: "neutral" },
 }
 
 export const STATUS_DICTIONARY: Record<StatusDomain, Record<string, StatusEntry>> = {

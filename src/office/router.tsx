@@ -9,6 +9,10 @@ import { OfficePage, OfficeShell } from "@/office/components/office-shell"
 import { OfficeStatePage } from "@/office/components/state-page"
 import { CashflowCategoriesWorkspace } from "@/office/features/finance/ui/cashflow-categories-workspace"
 import { CounterpartiesWorkspace } from "@/office/features/finance/ui/counterparties-workspace"
+import { DepartmentsWorkspace } from "@/office/features/corporation/ui/departments-workspace"
+import { IntegrationJobsWorkspace } from "@/office/features/corporation/ui/integration-jobs-workspace"
+import { OrganizationsWorkspace } from "@/office/features/corporation/ui/organizations-workspace"
+import { RestaurantsWorkspace } from "@/office/features/corporation/ui/restaurants-workspace"
 import { DashboardWorkspace } from "@/office/features/dashboard/ui/office-dashboard"
 import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
 import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
@@ -91,6 +95,10 @@ const WORKSPACES: Record<string, ComponentType> = {
   "document-locks": PeriodLocksWorkspace,
   "data-exchange": DataExchangeWorkspace,
   "audit-log": AuditLogWorkspace,
+  organizations: OrganizationsWorkspace,
+  restaurants: RestaurantsWorkspace,
+  departments: DepartmentsWorkspace,
+  "integration-jobs": IntegrationJobsWorkspace,
 }
 
 export function OfficeRouter() {
