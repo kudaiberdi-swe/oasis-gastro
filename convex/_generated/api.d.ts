@@ -64,6 +64,7 @@ import type * as domains_pricing_queries from "../domains/pricing/queries.js";
 import type * as domains_purchasing_receipts from "../domains/purchasing/receipts.js";
 import type * as domains_recipes_mutations from "../domains/recipes/mutations.js";
 import type * as domains_recipes_queries from "../domains/recipes/queries.js";
+import type * as domains_recipes_seed from "../domains/recipes/seed.js";
 import type * as domains_reports_calculators__shared from "../domains/reports/calculators/_shared.js";
 import type * as domains_reports_calculators_operations from "../domains/reports/calculators/operations.js";
 import type * as domains_reports_calculators_stock from "../domains/reports/calculators/stock.js";
@@ -198,6 +199,7 @@ declare const fullApi: ApiFromModules<{
   "domains/purchasing/receipts": typeof domains_purchasing_receipts;
   "domains/recipes/mutations": typeof domains_recipes_mutations;
   "domains/recipes/queries": typeof domains_recipes_queries;
+  "domains/recipes/seed": typeof domains_recipes_seed;
   "domains/reports/calculators/_shared": typeof domains_reports_calculators__shared;
   "domains/reports/calculators/operations": typeof domains_reports_calculators_operations;
   "domains/reports/calculators/stock": typeof domains_reports_calculators_stock;
