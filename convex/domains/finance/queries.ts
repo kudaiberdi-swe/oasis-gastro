@@ -139,8 +139,10 @@ export const journal = query({
 })
 
 /**
- * Turnover for the period. With an account: its debit and credit turnover (different numbers); without:
- * one «Оборот за период» — in double entry the whole book's debit always equals its credit (L-11).
+ * Turnover for the period (L-11). With an account: its debit and credit turnover, each summed on its own
+ * index with its own scan budget (the credit side never inherits what the debit side used up) and its own
+ * truncation flag. Without: one «Оборот за период» — in double entry the whole book's debit always equals
+ * its credit, so showing both as two KPIs was the bahandi bug.
  */
 export const overview = query({
   args: { restaurantExternalId: v.optional(v.string()), from: v.string(), to: v.string(), accountExternalId: v.optional(v.string()), sourceModuleId: v.optional(v.string()) },
@@ -150,33 +152,49 @@ export const overview = query({
     checkPeriod(args.from, args.to)
     const inRestaurant = (entry: Doc<"journalEntries">) =>
       inScope(entry.restaurantExternalId) && (!args.restaurantExternalId || entry.restaurantExternalId === args.restaurantExternalId) && (!args.sourceModuleId || entry.sourceModuleId === args.sourceModuleId)
-    let scanned = 0
     const sum = async (entries: AsyncIterable<Doc<"journalEntries">>) => {
       let amount = 0
       let count = 0
+      let scanned = 0
+      let truncated = false
       for await (const entry of entries) {
+        if (scanned >= OVERVIEW_LIMIT) {
+          truncated = true
+          break
+        }
         scanned += 1
-        if (scanned > OVERVIEW_LIMIT) break
         if (!inRestaurant(entry)) continue
         amount += entry.amount
         count += 1
       }
-      return { amount, count }
+      return { amount, count, truncated }
     }
     if (args.accountExternalId) {
-      const debit = await sum(ctx.db.query("journalEntries").withIndex("by_debit_date", (q) => q.eq("debitAccountExternalId", args.accountExternalId!).gte("businessDate", args.from).lte("businessDate", args.to)))
-      const credit = await sum(ctx.db.query("journalEntries").withIndex("by_credit_date", (q) => q.eq("creditAccountExternalId", args.accountExternalId!).gte("businessDate", args.from).lte("businessDate", args.to)))
-      return { mode: "account" as const, debitTurnover: debit.amount, creditTurnover: credit.amount, balance: debit.amount - credit.amount, entriesCount: debit.count + credit.count, truncated: scanned > OVERVIEW_LIMIT }
+      const account = args.accountExternalId
+      const debit = await sum(ctx.db.query("journalEntries").withIndex("by_debit_date", (q) => q.eq("debitAccountExternalId", account).gte("businessDate", args.from).lte("businessDate", args.to)))
+      const credit = await sum(ctx.db.query("journalEntries").withIndex("by_credit_date", (q) => q.eq("creditAccountExternalId", account).gte("businessDate", args.from).lte("businessDate", args.to)))
+      return {
+        mode: "account" as const,
+        debitTurnover: debit.amount,
+        creditTurnover: credit.amount,
+        balance: debit.amount - credit.amount,
+        debitEntries: debit.count,
+        creditEntries: credit.count,
+        entriesCount: debit.count + credit.count,
+        truncated: debit.truncated || credit.truncated,
+      }
     }
     const restaurants = args.restaurantExternalId ? [args.restaurantExternalId] : (await scopedRestaurants(ctx, user)).map((row) => row.externalId)
     let turnover = 0
     let entriesCount = 0
+    let truncated = false
     for (const restaurant of restaurants) {
       const part = await sum(ctx.db.query("journalEntries").withIndex("by_restaurant_date", (q) => q.eq("restaurantExternalId", restaurant).gte("businessDate", args.from).lte("businessDate", args.to)))
       turnover += part.amount
       entriesCount += part.count
+      truncated ||= part.truncated
     }
-    return { mode: "book" as const, turnover, entriesCount, truncated: scanned > OVERVIEW_LIMIT }
+    return { mode: "book" as const, turnover, entriesCount, truncated }
   },
 })
 

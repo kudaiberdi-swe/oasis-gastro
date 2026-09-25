@@ -1,6 +1,7 @@
 import type { Doc } from "../../../_generated/dataModel"
 import type { Calculator } from "../registry"
 import { aggregate, col, dayEnd, dayStart, SCAN_BUDGET } from "./_shared"
+import { STOCK_W2_CALCULATORS } from "./stockW2"
 
 // Stock reports (W1-RPT-07). Warehouses of the restaurants in scope; movements streamed over index
 // ranges with a budget (truncated beyond it).
@@ -106,4 +107,5 @@ export const STOCK_CALCULATORS: Record<string, Calculator> = {
   "stock-09": purchases,
   "stock-24": documentLines("inventory"),
   "stock-25": documentLines("writeoff"),
+  ...STOCK_W2_CALCULATORS, // W2-RPT-02
 }
