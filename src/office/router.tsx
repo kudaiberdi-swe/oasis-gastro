@@ -9,6 +9,7 @@ import { OfficePage, OfficeShell } from "@/office/components/office-shell"
 import { OfficeStatePage } from "@/office/components/state-page"
 import { CashflowCategoriesWorkspace } from "@/office/features/finance/ui/cashflow-categories-workspace"
 import { CounterpartiesWorkspace } from "@/office/features/finance/ui/counterparties-workspace"
+import { DashboardWorkspace } from "@/office/features/dashboard/ui/office-dashboard"
 import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
 import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
 import { ShiftAcceptanceWorkspace } from "@/office/features/finance/ui/shift-acceptance-workspace"
@@ -41,12 +42,13 @@ import { AttendanceWorkspace } from "@/office/features/workforce/ui/attendance-w
 import { WorkforceWorkspace } from "@/office/features/workforce/ui/workforce-workspace"
 import { allowsCapability } from "@/office/model/capabilities"
 import { filterNavigationByCapabilities } from "@/office/model/nav-filter"
-import { findOfficeGroup, findOfficeItem, LEGACY_OFFICE_SECTIONS, OFFICE_LINKS, officeNavigation } from "@/office/model/navigation"
+import { DEFAULT_OFFICE_DESTINATION, findOfficeGroup, findOfficeItem, LEGACY_OFFICE_SECTIONS, OFFICE_LINKS, officeNavigation } from "@/office/model/navigation"
 import { EmptyState } from "@/shared/components/ui"
 import { NotFound } from "@/shared/routing/not-found"
 
 /** Sections with a working screen today; the rest of the 91 show a "coming" page until their W1+ task. */
 const WORKSPACES: Record<string, ComponentType> = {
+  dashboard: DashboardWorkspace,
   orders: OrdersWorkspace,
   "cash-shifts": CashShiftsWorkspace,
   "kitchen-board": KitchenBoardWorkspace,
@@ -114,6 +116,9 @@ export function OfficeRouter() {
   const footerLine = [organization?.name ?? "Sandyq", organization?.timezone ?? "Asia/Almaty", organization?.currency ?? "KZT"].join(" · ")
   const Workspace = WORKSPACES[item.id]
   const allowed = allowsCapability(context.capabilities, item.capability)
+  // /office opens the start page; a role without it lands on its first allowed section, not on «Нет доступа».
+  const startFallback = !allowed && item.id === DEFAULT_OFFICE_DESTINATION ? groups.flatMap((candidate) => candidate.items).find((candidate) => !OFFICE_LINKS[candidate.id]) : undefined
+  if (startFallback) return <Navigate to={`/office/${startFallback.id}`} replace />
 
   return (
     <CapabilitiesProvider capabilities={context.capabilities}>

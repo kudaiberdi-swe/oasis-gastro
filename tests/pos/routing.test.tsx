@@ -17,6 +17,7 @@ vi.mock("@/office/features/session/data/use-office-context", () => ({
   }),
 }))
 vi.mock("@/pos/router", () => ({ PosRouter: () => <p>POS screen</p> }))
+vi.mock("@/office/features/dashboard/ui/office-dashboard", () => ({ DashboardWorkspace: () => <p>DashboardWorkspace</p> }))
 vi.mock("@/office/features/nomenclature/ui/nomenclature-workspace", () => ({ NomenclatureWorkspace: () => <p>NomenclatureWorkspace</p> }))
 vi.mock("@/office/features/stock/ui/balances-page", () => ({ BalancesPage: () => <p>BalancesPage</p> }))
 vi.mock("@/office/features/finance/ui/journal-workspace", () => ({ TransactionsWorkspace: () => <p>TransactionsWorkspace</p> }))
@@ -44,8 +45,8 @@ describe("app routes (W0-FND-01)", () => {
 
   it("sends /office to the default section and unknown sections to Not Found", async () => {
     const router = renderAt("/office")
-    expect(await screen.findByText("NomenclatureWorkspace")).toBeTruthy()
-    expect(router.state.location.pathname).toBe("/office/nomenclature")
+    expect(await screen.findByText("DashboardWorkspace")).toBeTruthy()
+    expect(router.state.location.pathname).toBe("/office/dashboard")
 
     cleanup()
     renderAt("/office/no-such-section")

@@ -52,7 +52,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     icon: House,
     whisper: "Обзор",
     items: [
-      item("dashboard", "Стартовая страница", "Показатели, задачи и состояние ресторанов"),
+      item("dashboard", "Стартовая страница", "Оперативное состояние сети Sandyq и задачи на сегодня"),
       item("favorites", "Избранное", "Закреплённые разделы и отчёты"),
     ],
   },
@@ -249,7 +249,8 @@ export function findOfficeGroup(itemId: string | undefined) {
 // kitchen-board is an office page (W1-KDS-03): its cards open /kitchen?terminal=… in a new tab.
 export const OFFICE_LINKS: Record<string, string> = { pos: "/pos" }
 
-export const DEFAULT_OFFICE_DESTINATION = "nomenclature"
+/** /office opens «Стартовая страница» (W1-ADM-05); the router falls back to the first allowed section. */
+export const DEFAULT_OFFICE_DESTINATION = "dashboard"
 
 /** Section ids of the first sandyq office (before the 12-group shell) → their new ids. */
 export const LEGACY_OFFICE_SECTIONS: Record<string, string> = {
