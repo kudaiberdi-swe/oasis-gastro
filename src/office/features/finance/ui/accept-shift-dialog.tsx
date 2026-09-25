@@ -14,15 +14,17 @@ export interface AcceptShiftDialogProps {
   accounts: readonly AccountReference[]
   onOpenChange: (open: boolean) => void
   onAccept: (args: { shiftId: ShiftCandidate["shiftId"]; recountedCash: number; note: string }) => Promise<unknown>
+  /** Prefills «Комментарий» (the «Комментарий при принятии» field of «Кассовые смены»). */
+  defaultNote?: string
 }
 
 /**
  * «Принять смену» (W1-FIN-06): the accountant's recount is required — never `countedCash ?? expectedCash`;
  * a variance needs a comment and shows the posting it will write.
  */
-export function AcceptShiftDialog({ shift, accounts, onOpenChange, onAccept }: AcceptShiftDialogProps) {
+export function AcceptShiftDialog({ shift, accounts, onOpenChange, onAccept, defaultNote = "" }: AcceptShiftDialogProps) {
   const [recounted, setRecounted] = useState<number | null>(null)
-  const [note, setNote] = useState("")
+  const [note, setNote] = useState(defaultNote)
   const [errors, setErrors] = useState<{ recountedCash?: string; note?: string }>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

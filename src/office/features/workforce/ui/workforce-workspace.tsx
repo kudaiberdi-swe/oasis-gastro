@@ -17,7 +17,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Field,
   FilterTabs,
   Input,
   loadMoreFromPaginated,
@@ -25,11 +24,9 @@ import {
   Select,
   type Column,
 } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
 
 import {
   useEmployeesList,
-  useSuggestedCredentials,
   useUnprovisionedEmployees,
   useWorkforceBranches,
   useWorkforceMutations,
@@ -38,10 +35,11 @@ import {
   type UnprovisionedCandidate,
 } from "../data/use-office-workforce"
 import { useRestaurantFilter } from "../data/use-restaurant-filter"
-import { EMPLOYEE_CODE_PATTERN, formatRate, PAY_TYPE_LABEL, PIN_PATTERN, ROLE_OPTIONS, roleLabel, type Role } from "../model/modules"
+import { formatRate, PAY_TYPE_LABEL, roleLabel } from "../model/modules"
 import { CreateEmployeeDialog } from "./create-employee-dialog"
-import { CredentialsResult, EmployeeCodeInput, PinInput, RestaurantsField } from "./credentials"
+import { CredentialsResult } from "./credentials"
 import { EmployeeEditor } from "./employee-editor"
+import { ProvisionAccessFields, useProvisionAccessForm, type ProvisionAccessArgs } from "./provision-access-form"
 
 // «Сотрудники» (W1-HR-01): /office/employees — the register (§3.5, lifecycle master) with the POS staff and
 // the iiko candidates as a second level; /office/employees/:id — the HR card.
@@ -252,35 +250,15 @@ function ProvisionDialog({
   candidate: UnprovisionedCandidate
   branches: { externalId: string; name: string }[]
   onClose: () => void
-  onProvision: (args: { iikoEmployeeExternalId: string; employeeCode: string; pin: string; role: Role; restaurantExternalIds: string[] }) => Promise<unknown>
+  onProvision: (args: ProvisionAccessArgs) => Promise<unknown>
 }) {
-  const suggested = useSuggestedCredentials(true)
-  const [code, setCode] = useState<string | null>(null)
-  const [pin, setPin] = useState<string | null>(null)
-  const [role, setRole] = useState<Role>("cashier")
-  const [selected, setSelected] = useState<string[]>(() => candidate.branches.map((branch) => branch.externalId))
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const form = useProvisionAccessForm({ candidate, onProvision })
   const [result, setResult] = useState<{ code: string; pin: string } | null>(null)
-
-  const effectiveCode = code ?? suggested?.code ?? ""
-  const effectivePin = pin ?? suggested?.pin ?? ""
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (!EMPLOYEE_CODE_PATTERN.test(effectiveCode)) return setError("Код — от 3 до 12 цифр")
-    if (!PIN_PATTERN.test(effectivePin)) return setError("PIN — от 4 до 6 цифр")
-    if (selected.length === 0) return setError("Выберите хотя бы один ресторан")
-    setSubmitting(true)
-    setError(null)
-    try {
-      await onProvision({ iikoEmployeeExternalId: candidate.externalId, employeeCode: effectiveCode, pin: effectivePin, role, restaurantExternalIds: selected })
-      setResult({ code: effectiveCode, pin: effectivePin })
-    } catch (caught) {
-      setError(errorMessage(caught, "Не удалось выдать доступ"))
-    } finally {
-      setSubmitting(false)
-    }
+    const issued = await form.submit()
+    if (issued) setResult(issued)
   }
 
   return (
@@ -294,19 +272,14 @@ function ProvisionDialog({
               <DialogTitle>Подключить: {candidate.displayName}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} autoComplete="off" className="flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Код сотрудника">{(control) => <EmployeeCodeInput control={control} value={effectiveCode} onValueChange={setCode} />}</Field>
-                <Field label="PIN">{(control) => <PinInput control={control} value={effectivePin} onValueChange={setPin} />}</Field>
-              </div>
-              <Field label="Роль">{(control) => <Select {...control} value={role} onValueChange={(value) => setRole(value as Role)} options={ROLE_OPTIONS} />}</Field>
-              <RestaurantsField options={[...branches, ...candidate.branches.filter((branch) => !branches.some((option) => option.externalId === branch.externalId))]} value={selected} onValueChange={setSelected} />
-              {error ? <Banner tone="danger" title={error} /> : null}
+              <ProvisionAccessFields form={form} branches={branches} variant="dialog" />
+              {form.error ? <Banner tone="danger" title={form.error} /> : null}
               <DialogFooter>
                 <Button type="button" variant="secondary" onClick={onClose}>
                   Отмена
                 </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Сохранение…" : "Выдать доступ"}
+                <Button type="submit" disabled={form.submitting}>
+                  {form.submitting ? "Сохранение…" : "Выдать доступ"}
                 </Button>
               </DialogFooter>
             </form>

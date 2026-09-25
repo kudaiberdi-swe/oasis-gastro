@@ -9,6 +9,7 @@ import { OfficePage, OfficeShell } from "@/office/components/office-shell"
 import { OfficeStatePage } from "@/office/components/state-page"
 import { CashflowCategoriesWorkspace } from "@/office/features/finance/ui/cashflow-categories-workspace"
 import { CounterpartiesWorkspace } from "@/office/features/finance/ui/counterparties-workspace"
+import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
 import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
 import { ShiftAcceptanceWorkspace } from "@/office/features/finance/ui/shift-acceptance-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
@@ -20,6 +21,9 @@ import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-or
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
 import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
 import { ReportsWorkspace } from "@/office/features/reports/ui/reports-workspace"
+import { KitchenBoardWorkspace } from "@/office/features/kitchen/ui/kitchen-board-workspace"
+import { CashShiftsWorkspace } from "@/office/features/retail/ui/cash-shifts-workspace"
+import { OrdersWorkspace } from "@/office/features/retail/ui/orders-workspace"
 import { CashOperationsWorkspace } from "@/office/features/retail-settings/ui/cash-operations-workspace"
 import { DeletionReasonsWorkspace, DiscountTypesWorkspace, OrderTypesWorkspace, PaymentTypesWorkspace } from "@/office/features/retail-settings/ui/retail-settings-workspace"
 import { useOfficeContext } from "@/office/features/session/data/use-office-context"
@@ -42,6 +46,9 @@ import { NotFound } from "@/shared/routing/not-found"
 
 /** Sections with a working screen today; the rest of the 91 show a "coming" page until their W1+ task. */
 const WORKSPACES: Record<string, ComponentType> = {
+  orders: OrdersWorkspace,
+  "cash-shifts": CashShiftsWorkspace,
+  "kitchen-board": KitchenBoardWorkspace,
   "payment-types": PaymentTypesWorkspace,
   "order-types": OrderTypesWorkspace,
   "discount-types": DiscountTypesWorkspace,
@@ -74,6 +81,7 @@ const WORKSPACES: Record<string, ComponentType> = {
   users: AccessControlWorkspace,
   terminals: TerminalsWorkspace,
   "document-locks": PeriodLocksWorkspace,
+  "data-exchange": DataExchangeWorkspace,
   "audit-log": AuditLogWorkspace,
 }
 

@@ -271,7 +271,8 @@ describe("Setting form (W1-RTL-03)", () => {
 describe("«Внесения и изъятия» — типы операций (W1-RTL-04)", () => {
   it("lists cash operation types with direction and limit", () => {
     mocks.paginated = { "domains/retail/queries:listSettings": [COLLECTION] }
-    renderAt("/office/cash-operations", <CashOperationsWorkspace />)
+    // «Журнал операций» is the first tab (W1-RTL-04); `?tab=types` opens the reference directly.
+    renderAt("/office/cash-operations?tab=types", <CashOperationsWorkspace />)
     const table = screen.getByRole("table", { name: "Типы внесений и изъятий" })
     expect(within(table).getByText("Изъятие")).toBeTruthy()
     expect(within(table).getByText("Инкассация")).toBeTruthy()

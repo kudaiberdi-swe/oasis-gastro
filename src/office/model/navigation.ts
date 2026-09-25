@@ -63,13 +63,13 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     whisper: "Продажи",
     items: [
       item("pos", "Касса", "Рабочее место кассира", undefined, "link"),
-      item("orders", "Заказы и чеки", "Открытые и оплаченные заказы, возвраты и чеки"),
-      item("cash-shifts", "Кассовые смены", "Открытие, принятие и закрытие кассовых смен"),
+      item("orders", "Заказы и чеки", "Заказы кассы, платежи, возвраты и снимки кассовых настроек"),
+      item("cash-shifts", "Кассовые смены", "X/Z-итоги, денежный ящик, расхождения и принятие в офисе"),
       item("payment-types", "Типы оплат", "Наличные, карты, QR, без выручки и внешние оплаты"),
       item("order-types", "Типы заказов", "В зале, навынос, доставка и пользовательские типы"),
       item("discount-types", "Скидки и надбавки", "Правила скидок, надбавок и сервисного сбора"),
       item("deletion-reasons", "Причины удалений", "Причины отмен и удалений позиций"),
-      item("cash-operations", "Внесения и изъятия", "Кассовые операции и основания"),
+      item("cash-operations", "Внесения и изъятия", "Опубликованные основания и фактические движения по кассовым сменам"),
     ],
   },
   {
@@ -109,7 +109,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
       item("purchase-orders", "Заказы поставщикам", "Планирование и контроль закупок"),
       item("internal-orders", "Внутренние заказы", "Заказы между ресторанами и складами"),
       item("kitchen-plan", "План на кухню", "План приготовления по прогнозу продаж"),
-      item("kitchen-board", "Экран кухни", "Очередь заказов на кухне в реальном времени", "office.kitchen-plan.view", "link"),
+      item("kitchen-board", "Экран кухни", "Очередь заказов на кухне в реальном времени"),
       item("semi-finished-sheet", "Ведомость полуфабрикатов", "Потребность и выпуск заготовок"),
     ],
   },
@@ -246,7 +246,8 @@ export function findOfficeGroup(itemId: string | undefined) {
 }
 
 /** Where the non-office items lead. */
-export const OFFICE_LINKS: Record<string, string> = { pos: "/pos", "kitchen-board": "/kitchen" }
+// kitchen-board is an office page (W1-KDS-03): its cards open /kitchen?terminal=… in a new tab.
+export const OFFICE_LINKS: Record<string, string> = { pos: "/pos" }
 
 export const DEFAULT_OFFICE_DESTINATION = "nomenclature"
 

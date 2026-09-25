@@ -43,6 +43,8 @@ const KITCHEN: Record<string, StatusEntry> = {
 const SHIFT: Record<string, StatusEntry> = {
   open: { label: "Открыта", tone: "success" },
   closed: { label: "Закрыта", tone: "neutral" },
+  // A closed shift the office accepted (retail/office.listShifts, W1-RTL-06).
+  accepted: { label: "Принята", tone: "info" },
 }
 
 const COURIER: Record<string, StatusEntry> = {

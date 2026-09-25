@@ -11,12 +11,14 @@ import { PIN_PATTERN } from "../model/modules"
 
 type Control = { id: string; "aria-describedby"?: string; "aria-invalid"?: boolean }
 
-export function EmployeeCodeInput({ control, value, onValueChange }: { control: Control; value: string; onValueChange: (value: string) => void }) {
-  return <NumericCodeInput {...control} name="pos-employee-code" autoComplete="off" value={value} onValueChange={onValueChange} maxLength={12} required />
+type CodeInputProps = { control: Control; value: string; onValueChange: (value: string) => void; disabled?: boolean }
+
+export function EmployeeCodeInput({ control, value, onValueChange, disabled }: CodeInputProps) {
+  return <NumericCodeInput {...control} name="pos-employee-code" autoComplete="off" value={value} onValueChange={onValueChange} maxLength={12} required disabled={disabled} />
 }
 
-export function PinInput({ control, value, onValueChange }: { control: Control; value: string; onValueChange: (value: string) => void }) {
-  return <NumericCodeInput {...control} name="pos-employee-pin" autoComplete="off" value={value} onValueChange={onValueChange} maxLength={6} required />
+export function PinInput({ control, value, onValueChange, disabled }: CodeInputProps) {
+  return <NumericCodeInput {...control} name="pos-employee-pin" autoComplete="off" value={value} onValueChange={onValueChange} maxLength={6} required disabled={disabled} />
 }
 
 /** Restaurants as removable chips (OFFICE-DESIGN §3.2), not a column of checkboxes. */
