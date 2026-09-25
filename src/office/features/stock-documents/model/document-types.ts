@@ -21,15 +21,19 @@ export interface DocumentTypeConfig {
   destination: boolean
   /** Supplier return: the supplier is required. */
   supplier: boolean
-  /** Outgoing invoice: «Покупатель / получатель». */
+  /** Outgoing invoice: «Покупатель / получатель» — a FIN counterparty or free text. */
   counterparty: boolean
+  /** Outgoing invoice: «Цена продажи» per line (with VAT) — the buyer's receivable (W2-STK-13). */
+  salePrice: boolean
+  /** Supplier return: «На основании прихода» — a posted receipt of this supplier and warehouse. */
+  basedOnReceipt: boolean
   /** Inventory: «По учёту» and «Факт» instead of «Количество». */
   inventory: boolean
   vat: boolean
   reasonRequired: boolean
 }
 
-const base = { destination: false, supplier: false, counterparty: false, inventory: false, vat: false, reasonRequired: false, sourceLabel: "Склад" }
+const base = { destination: false, supplier: false, counterparty: false, salePrice: false, basedOnReceipt: false, inventory: false, vat: false, reasonRequired: false, sourceLabel: "Склад" }
 
 export const DOCUMENT_TYPES: Record<StockDocumentType, DocumentTypeConfig> = {
   inventory: {
@@ -68,6 +72,7 @@ export const DOCUMENT_TYPES: Record<StockDocumentType, DocumentTypeConfig> = {
     description: "Продажа или передача продукции со склада получателю.",
     entityLabel: "Расходная накладная",
     counterparty: true,
+    salePrice: true,
     vat: true,
   },
   "supplier-return": {
@@ -78,6 +83,7 @@ export const DOCUMENT_TYPES: Record<StockDocumentType, DocumentTypeConfig> = {
     description: "Возврат поставки с уменьшением остатка и задолженности.",
     entityLabel: "Возврат поставщику",
     supplier: true,
+    basedOnReceipt: true,
     vat: true,
   },
 }

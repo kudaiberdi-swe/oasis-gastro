@@ -13,6 +13,8 @@ export interface DocumentLineDraft {
   quantity: string
   actualQuantity: string
   vatRate: string
+  /** Outgoing invoice: the buyer's price per unit with VAT (text); the receivable is the server's sum. */
+  salePrice?: string
   /** From the saved line (server): 0 until posting. */
   unitCost: number
   expectedQuantity: number | null
@@ -28,6 +30,7 @@ export interface SavedDocumentLine {
   expectedQuantity?: number
   unitCost: number
   vatRate: number
+  salePrice?: number
 }
 
 const text = (value: number | undefined) => (value === undefined ? "" : String(value).replace(".", ","))
@@ -43,6 +46,7 @@ export function linesFromSaved(lines: readonly SavedDocumentLine[]): DocumentLin
       quantity: text(line.quantity),
       actualQuantity: text(line.actualQuantity),
       vatRate: String(line.vatRate ?? 0),
+      salePrice: text(line.salePrice),
       unitCost: line.unitCost,
       expectedQuantity: line.expectedQuantity ?? null,
     }))
@@ -51,7 +55,7 @@ export function linesFromSaved(lines: readonly SavedDocumentLine[]): DocumentLin
 let nextKey = 0
 export function newLine(item: { externalId: string; name: string; unit: string | null; defaultVatRate?: number }): DocumentLineDraft {
   nextKey += 1
-  return { key: `new-${nextKey}`, itemExternalId: item.externalId, itemName: item.name, unit: item.unit, quantity: "", actualQuantity: "", vatRate: String(item.defaultVatRate ?? 0), unitCost: 0, expectedQuantity: null }
+  return { key: `new-${nextKey}`, itemExternalId: item.externalId, itemName: item.name, unit: item.unit, quantity: "", actualQuantity: "", vatRate: String(item.defaultVatRate ?? 0), salePrice: "", unitCost: 0, expectedQuantity: null }
 }
 
 /** The counted quantity of a line: «Факт» for an inventory, «Количество» otherwise. */
@@ -84,23 +88,26 @@ export function documentTotals(lines: readonly DocumentLineDraft[], config: Pick
 
 export type LineErrors = Record<string, string>
 
-export function validateLines(lines: readonly DocumentLineDraft[], config: Pick<DocumentTypeConfig, "inventory">): LineErrors {
+export function validateLines(lines: readonly DocumentLineDraft[], config: Pick<DocumentTypeConfig, "inventory"> & Partial<Pick<DocumentTypeConfig, "salePrice">>): LineErrors {
   const errors: LineErrors = {}
   for (const line of lines) {
     const value = lineQuantity(line, config)
     if (config.inventory ? value === null || value < 0 : value === null || value <= 0) errors[line.key] = config.inventory ? "Укажите факт (0 или больше)" : "Количество больше нуля"
+    else if (config.salePrice && line.salePrice?.trim() && !((parseDecimal(line.salePrice) ?? -1) >= 0)) errors[line.key] = "Проверьте цену продажи"
   }
   return errors
 }
 
-export function saveLines(lines: readonly DocumentLineDraft[], config: Pick<DocumentTypeConfig, "inventory" | "vat">) {
+export function saveLines(lines: readonly DocumentLineDraft[], config: Pick<DocumentTypeConfig, "inventory" | "vat"> & Partial<Pick<DocumentTypeConfig, "salePrice">>) {
   return lines.map((line) => {
     const actual = parseDecimal(line.actualQuantity) ?? 0
+    const salePrice = config.salePrice ? parseDecimal(line.salePrice ?? "") : null
     return {
       itemExternalId: line.itemExternalId,
       quantity: config.inventory ? actual : (parseDecimal(line.quantity) ?? 0),
       ...(config.inventory ? { actualQuantity: actual } : {}),
       ...(config.vat ? { vatRate: Number(line.vatRate) || 0 } : {}),
+      ...(salePrice !== null ? { salePrice } : {}),
     }
   })
 }

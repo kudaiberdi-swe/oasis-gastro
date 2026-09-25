@@ -15,6 +15,8 @@ export interface DocumentLinesTableProps {
   readOnly: boolean
   /** Posted amount from the server; drafts show the sum of known costs. */
   postedAmount: number | null
+  /** Outgoing invoice: the posted sale total (receivable) from the server. */
+  saleTotal?: number | null
   errors: LineErrors
   onAdd: (line: DocumentLineDraft) => void
   onChange: (key: string, patch: Partial<DocumentLineDraft>) => void
@@ -22,7 +24,7 @@ export interface DocumentLinesTableProps {
 }
 
 /** «Товары»: № · Позиция · Ед. · Количество (или По учёту / Факт) · Цена / себестоимость · НДС % · Сумма. */
-export function DocumentLinesTable({ config, lines, readOnly, postedAmount, errors, onAdd, onChange, onRemove }: DocumentLinesTableProps) {
+export function DocumentLinesTable({ config, lines, readOnly, postedAmount, saleTotal = null, errors, onAdd, onChange, onRemove }: DocumentLinesTableProps) {
   const totals = documentTotals(lines, config)
   const head = "h-10 px-3 font-semibold"
   return (
@@ -73,6 +75,11 @@ export function DocumentLinesTable({ config, lines, readOnly, postedAmount, erro
               {config.vat ? (
                 <th scope="col" className={cn(head, "w-32 text-left")}>
                   НДС %
+                </th>
+              ) : null}
+              {config.salePrice ? (
+                <th scope="col" className={cn(head, "w-40 text-right")}>
+                  Цена продажи, ₸
                 </th>
               ) : null}
               <th scope="col" className={cn(head, "text-right")}>
@@ -135,6 +142,22 @@ export function DocumentLinesTable({ config, lines, readOnly, postedAmount, erro
                       )}
                     </td>
                   ) : null}
+                  {config.salePrice ? (
+                    <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
+                      {readOnly ? (
+                        line.salePrice ? formatTenge(parseDecimal(line.salePrice) ?? 0) : "—"
+                      ) : (
+                        <Input
+                          aria-label={`Цена продажи — ${line.itemName}`}
+                          inputMode="decimal"
+                          placeholder="с НДС"
+                          className="h-10 text-right tabular-nums"
+                          value={line.salePrice ?? ""}
+                          onChange={(event) => onChange(line.key, { salePrice: event.target.value })}
+                        />
+                      )}
+                    </td>
+                  ) : null}
                   <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{amount === null ? "—" : formatAmount(amount)}</td>
                   {!readOnly ? (
                     <td className="px-3 py-2 text-right">
@@ -158,6 +181,12 @@ export function DocumentLinesTable({ config, lines, readOnly, postedAmount, erro
       <p className="text-right text-body-sm text-muted-foreground">
         Позиций: {lines.length} · Количество <span className="font-semibold text-foreground tabular-nums">{formatQuantity(totals.quantity)}</span> · Итого по документу{" "}
         <span className="sq-price text-title-sm font-semibold text-foreground">{postedAmount !== null ? formatTenge(postedAmount) : totals.amount > 0 ? formatTenge(totals.amount) : "—"}</span>
+        {config.salePrice ? (
+          <>
+            {" "}
+            · Сумма продажи <span className="sq-price text-title-sm font-semibold text-foreground">{saleTotal !== null ? formatTenge(saleTotal) : "—"}</span>
+          </>
+        ) : null}
       </p>
     </section>
   )

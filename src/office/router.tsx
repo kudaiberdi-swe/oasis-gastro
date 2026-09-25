@@ -28,6 +28,7 @@ import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomencl
 import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
 import { PeriodLocksWorkspace } from "@/office/features/platform/ui/period-locks-workspace"
 import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-orders-workspace"
+import { AssemblyActsWorkspace, InternalOrdersWorkspace, ProcessingActsWorkspace, ProductionWorkspace, PurchaseOrdersWorkspace, SalesActsWorkspace } from "@/office/features/production/ui/production-workspace"
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
 import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
 import { ReportFavoritesWorkspace } from "@/office/features/reports/ui/report-favorites-page"
@@ -85,6 +86,12 @@ const WORKSPACES: Record<string, ComponentType> = {
   writeoffs: WriteoffsWorkspace,
   "outgoing-invoices": OutgoingInvoicesWorkspace,
   "supplier-returns": SupplierReturnsWorkspace,
+  production: ProductionWorkspace,
+  "processing-acts": ProcessingActsWorkspace,
+  "assembly-acts": AssemblyActsWorkspace,
+  "sales-acts": SalesActsWorkspace,
+  "purchase-orders": PurchaseOrdersWorkspace,
+  "internal-orders": InternalOrdersWorkspace,
   "cashflow-categories": CashflowCategoriesWorkspace,
   counterparties: CounterpartiesWorkspace,
   transactions: TransactionsWorkspace,

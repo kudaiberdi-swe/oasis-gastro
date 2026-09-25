@@ -8,12 +8,12 @@ import { SaveStatus, UnsavedChangesDialog } from "@/office/components/unsaved-ch
 import { fromAlmatyInput, toAlmatyInput } from "@/office/features/price-orders/model/use-price-order-draft"
 import { useSupplierOptions, useWarehouseOptions } from "@/office/features/stock/data/use-stock-master"
 import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
-import { Banner, Button, Combobox, EmptyState, Field, Input, Select, StatusPill, Textarea, useToast } from "@/shared/components/ui"
-import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
+import { Banner, Button, Combobox, EmptyState, Field, Input, KpiCard, Select, StatusPill, Textarea, useToast } from "@/shared/components/ui"
+import { formatAlmatyDate, formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
 
-import { useRestaurantFilter, useStockDocument, useStockDocumentMutations, type StockDocument } from "../data/use-stock-documents"
+import { useCounterpartyOptions, usePostedReceipts, useRestaurantFilter, useStockDocument, useStockDocumentMutations, useWarehouseIds, type StockDocument } from "../data/use-stock-documents"
 import { linesFromSaved, saveLines, validateLines, type DocumentLineDraft, type LineErrors } from "../model/document-lines"
 import type { DocumentTypeConfig } from "../model/document-types"
 import { DocumentLinesTable } from "./document-lines-table"
@@ -57,6 +57,10 @@ interface DocumentDraft {
   destinationWarehouseExternalId: string
   supplierExternalId: string
   counterpartyName: string
+  /** Outgoing invoice: the FIN counterparty (W2-STK-13); "" — only the free-text name. */
+  counterpartyExternalId: string
+  /** Supplier return: «На основании прихода»; "" — without a receipt. */
+  receiptExternalId: string
   reason: string
   comment: string
   lines: DocumentLineDraft[]
@@ -69,13 +73,18 @@ function draftOf(document: StockDocument): DocumentDraft {
     destinationWarehouseExternalId: document.destinationWarehouseExternalId ?? "",
     supplierExternalId: "",
     counterpartyName: document.counterpartyName,
+    counterpartyExternalId: document.counterpartyExternalId ?? "",
+    receiptExternalId: document.receiptExternalId ?? "",
     reason: document.reason,
     comment: document.comment,
     lines: linesFromSaved(document.lines),
   }
 }
 
-type HeaderErrors = Partial<Record<"date" | "source" | "destination" | "supplier" | "reason" | "lines", string>>
+type HeaderErrors = Partial<Record<"date" | "source" | "destination" | "supplier" | "receipt" | "reason" | "lines", string>>
+
+/** Combobox value for «none» (a Combobox option can't be empty). */
+const NONE = "__none__"
 
 function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig; document: StockDocument; onBack: () => void }) {
   const canEdit = useCan(`office.${config.section}.edit`)
@@ -85,6 +94,12 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
   const restaurants = useRestaurantFilter()
   const warehouses = useWarehouseOptions(useCan("office.stock.view"))
   const suppliers = useSupplierOptions(config.supplier && canViewSuppliers)
+  const canViewCounterparties = useCan("office.counterparties.view")
+  const counterparties = useCounterpartyOptions(config.counterparty && canViewCounterparties)
+  const canViewReceipts = useCan("office.receipts.view")
+  const canViewWarehouses = useCan("office.warehouses.view")
+  const receipts = usePostedReceipts(document.restaurantExternalId, config.basedOnReceipt && canViewReceipts)
+  const warehouseIds = useWarehouseIds(config.basedOnReceipt && canViewWarehouses)
   const { saveDocument, postDocument, reverseDocument } = useStockDocumentMutations()
   const toast = useToast()
 
@@ -111,6 +126,17 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
   const currentSupplier = supplierId ? suppliers?.find((supplier) => supplier._id === supplierId) : undefined
   const supplierValue = draft.supplierExternalId || currentSupplier?.externalId || ""
 
+  // «Покупатель / получатель»: a counterparty of FIN or free text (the server keeps the text if both).
+  const counterpartyOptions = [{ value: NONE, label: "Не выбран — только текст" }, ...(counterparties ?? []).map((row) => ({ value: row.externalId, label: row.name }))]
+  // «На основании прихода»: posted receipts of the chosen supplier into the chosen warehouse.
+  const supplierDocId = suppliers?.find((supplier) => supplier.externalId === supplierValue)?._id ?? (supplierValue === currentSupplier?.externalId ? currentSupplier?._id : undefined)
+  const sourceDocId = warehouseIds?.find((warehouse) => warehouse.externalId === draft.sourceWarehouseExternalId)?._id
+  const receiptRows = (receipts ?? []).filter((receipt) => supplierDocId !== undefined && receipt.supplierId === supplierDocId && (sourceDocId === undefined || receipt.warehouseId === sourceDocId))
+  const receiptLabel = (receipt: { number: string; date: number; totalGross: number }) => `${receipt.number} · ${formatAlmatyDate(receipt.date)} · ${formatTenge(receipt.totalGross)}`
+  const receiptOptions = [{ value: NONE, label: "Без основания" }, ...receiptRows.map((receipt) => ({ value: receipt.externalId, label: receiptLabel(receipt) }))]
+  const knownReceipt = (receipts ?? []).find((receipt) => receipt.externalId === draft.receiptExternalId)
+  if (draft.receiptExternalId && !receiptOptions.some((option) => option.value === draft.receiptExternalId)) receiptOptions.push({ value: draft.receiptExternalId, label: knownReceipt ? receiptLabel(knownReceipt) : draft.receiptExternalId })
+
   function validate() {
     const found: HeaderErrors = {}
     if (fromAlmatyInput(draft.date) === null) found.date = "Укажите дату и время"
@@ -122,6 +148,7 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
     if (config.supplier && !supplierValue) found.supplier = "Выберите поставщика"
     if (config.reasonRequired && draft.reason.trim().length < 3) found.reason = "Укажите причину списания"
     const rows = validateLines(draft.lines, config)
+    if (config.basedOnReceipt && draft.receiptExternalId && receipts && supplierDocId !== undefined && !receiptRows.some((receipt) => receipt.externalId === draft.receiptExternalId)) found.receipt = "Приход другого поставщика или склада — выберите основание заново"
     setErrors(found)
     setLineErrors(rows)
     return Object.keys(found).length === 0 && Object.keys(rows).length === 0
@@ -136,6 +163,8 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
       ...(config.destination && draft.destinationWarehouseExternalId ? { destinationWarehouseExternalId: draft.destinationWarehouseExternalId } : {}),
       ...(config.supplier && supplierValue ? { supplierExternalId: supplierValue } : {}),
       counterpartyName: draft.counterpartyName.trim(),
+      ...(config.counterparty && draft.counterpartyExternalId ? { counterpartyExternalId: draft.counterpartyExternalId } : {}),
+      ...(config.basedOnReceipt && draft.receiptExternalId ? { receiptExternalId: draft.receiptExternalId } : {}),
       reason: draft.reason.trim(),
       comment: draft.comment.trim(),
       lines: saveLines(draft.lines, config),
@@ -232,6 +261,16 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
           </Banner>
         ) : null}
 
+        {document.status !== "draft" && (config.salePrice || config.basedOnReceipt) ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <KpiCard label="Себестоимость" value={formatTenge(document.totalAmount)} hint="По средней склада" />
+            {config.salePrice ? <KpiCard label="Сумма продажи" value={document.saleTotal !== undefined ? formatTenge(document.saleTotal) : "—"} hint="Дебиторская задолженность покупателя" /> : null}
+            {config.basedOnReceipt ? (
+              <KpiCard label="Задолженность поставщику" value={document.obligationAdjustment ? formatTenge(-document.obligationAdjustment.amount) : "—"} hint={document.obligationAdjustment ? "Уменьшена возвратом" : "Открытого счёта не было"} />
+            ) : null}
+          </div>
+        ) : null}
+
         <section aria-label="Реквизиты документа" className="flex flex-col gap-4 rounded-card border border-border bg-card p-5">
           <h3 className="text-title-sm font-semibold">Реквизиты документа</h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -248,7 +287,15 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
               <ReadOnlyField label={config.sourceLabel} value={warehouseName(draft.sourceWarehouseExternalId)} />
             ) : (
               <Field label={config.sourceLabel} error={errors.source}>
-                {(control) => <Select {...control} value={draft.sourceWarehouseExternalId || undefined} onValueChange={(sourceWarehouseExternalId) => set({ sourceWarehouseExternalId })} options={warehouseOptions} placeholder="Выберите склад" />}
+                {(control) => (
+                  <Select
+                    {...control}
+                    value={draft.sourceWarehouseExternalId || undefined}
+                    onValueChange={(sourceWarehouseExternalId) => set({ sourceWarehouseExternalId, ...(config.basedOnReceipt ? { receiptExternalId: "" } : {}) })}
+                    options={warehouseOptions}
+                    placeholder="Выберите склад"
+                  />
+                )}
               </Field>
             )}
             {config.destination ? (
@@ -268,18 +315,62 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
               ) : (
                 <Field label="Поставщик" error={errors.supplier}>
                   {(control) => (
-                    <Combobox {...control} value={supplierValue || undefined} onValueChange={(supplierExternalId) => set({ supplierExternalId })} options={supplierOptions} placeholder="Выберите поставщика" searchPlaceholder="Название или БИН" />
+                    <Combobox
+                      {...control}
+                      value={supplierValue || undefined}
+                      onValueChange={(supplierExternalId) => set({ supplierExternalId, ...(config.basedOnReceipt ? { receiptExternalId: "" } : {}) })}
+                      options={supplierOptions}
+                      placeholder="Выберите поставщика"
+                      searchPlaceholder="Название или БИН"
+                    />
                   )}
                 </Field>
               )
+            ) : null}
+            {config.basedOnReceipt ? (
+              readOnly ? (
+                <ReadOnlyField label="На основании прихода" value={draft.receiptExternalId ? (knownReceipt ? receiptLabel(knownReceipt) : "Приходная накладная") : "—"} />
+              ) : canViewReceipts ? (
+                <Field label="На основании прихода" error={errors.receipt} hint={supplierValue ? "Возврат не больше полученного по этому приходу" : "Сначала выберите поставщика"}>
+                  {(control) => (
+                    <Combobox
+                      {...control}
+                      value={draft.receiptExternalId || NONE}
+                      onValueChange={(value) => set({ receiptExternalId: value === NONE ? "" : value })}
+                      options={receiptOptions}
+                      disabled={!supplierValue}
+                      placeholder="Без основания"
+                      searchPlaceholder="Номер прихода"
+                      emptyText={receipts === undefined ? "Загрузка…" : "Проведённых приходов нет"}
+                    />
+                  )}
+                </Field>
+              ) : null
             ) : null}
             {config.counterparty ? (
               readOnly ? (
                 <ReadOnlyField label="Покупатель / получатель" value={draft.counterpartyName || "—"} />
               ) : (
-                <Field label="Покупатель / получатель">
-                  {(control) => <Input {...control} value={draft.counterpartyName} onChange={(event) => set({ counterpartyName: event.target.value })} autoComplete="off" />}
-                </Field>
+                <>
+                  {canViewCounterparties ? (
+                    <Field label="Покупатель / получатель" hint="Контрагент — для дебиторской задолженности по цене продажи">
+                      {(control) => (
+                        <Combobox
+                          {...control}
+                          value={draft.counterpartyExternalId || NONE}
+                          onValueChange={(value) => set({ counterpartyExternalId: value === NONE ? "" : value })}
+                          options={counterpartyOptions}
+                          placeholder="Выберите контрагента"
+                          searchPlaceholder="Название контрагента"
+                          emptyText={counterparties === undefined ? "Загрузка…" : "Ничего не найдено"}
+                        />
+                      )}
+                    </Field>
+                  ) : null}
+                  <Field label={canViewCounterparties ? "Покупатель / получатель текстом" : "Покупатель / получатель"} hint={canViewCounterparties ? "Если получателя нет среди контрагентов" : undefined}>
+                    {(control) => <Input {...control} value={draft.counterpartyName} onChange={(event) => set({ counterpartyName: event.target.value })} autoComplete="off" />}
+                  </Field>
+                </>
               )
             ) : null}
             {readOnly ? (
@@ -309,6 +400,7 @@ function DocumentForm({ config, document, onBack }: { config: DocumentTypeConfig
           lines={draft.lines}
           readOnly={readOnly}
           postedAmount={document.status === "draft" ? null : document.totalAmount}
+          saleTotal={document.status === "draft" ? null : (document.saleTotal ?? null)}
           errors={lineErrors}
           onAdd={(line) => set({ lines: [...draft.lines, line] })}
           onChange={(key, patch) => set({ lines: draft.lines.map((line) => (line.key === key ? { ...line, ...patch } : line)) })}

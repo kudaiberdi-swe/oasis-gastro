@@ -64,3 +64,18 @@ export function useStockDocumentMutations() {
   const reverseDocument = useMutation(mutations.reverseDocument)
   return { createDocument, saveDocument, postDocument, reverseDocument }
 }
+
+/** «Покупатель / получатель» of an outgoing invoice: active FIN counterparties (office.counterparties.view). */
+export function useCounterpartyOptions(enabled: boolean) {
+  return useQuery(api.domains.finance.records.references, enabled ? { moduleId: "counterparties" } : "skip")?.counterparties
+}
+
+/** «На основании прихода» of a supplier return: posted receipts of the restaurant (office.receipts.view). */
+export function usePostedReceipts(restaurantExternalId: string, enabled: boolean) {
+  return useQuery(api.domains.purchasing.receipts.listReceipts, enabled ? { status: "posted", restaurantExternalId, paginationOpts: { numItems: 200, cursor: null } } : "skip")?.page
+}
+
+/** Warehouses with Convex ids (office.warehouses.view): a receipt keeps its warehouse id. */
+export function useWarehouseIds(enabled: boolean) {
+  return useQuery(api.domains.stock.master.listWarehouses, enabled ? {} : "skip")
+}

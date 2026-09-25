@@ -40,6 +40,8 @@ export const appRoutes: RouteObject[] = [
   { path: "/pos/kitchen", element: <KitchenRedirect /> },
   { path: "/office", element: <Navigate to={`/office/${DEFAULT_OFFICE_DESTINATION}`} replace /> },
   { path: "/office/:section/:id?", element: <div className="h-full w-full"><OfficeRouter /></div> },
+  // A card nested in a section: /office/production/preparations/:productId (W2-PRD-01).
+  { path: "/office/:section/:id/:subId", element: <div className="h-full w-full"><OfficeRouter /></div> },
   ...devRoutes,
   { path: "*", element: <NotFound /> },
 ]

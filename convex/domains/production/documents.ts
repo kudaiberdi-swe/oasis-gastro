@@ -49,17 +49,26 @@ export const listDocuments = query({
     const { user } = await requireOfficeCapability(ctx, cap(args.type, "view"))
     if (args.restaurantExternalId) await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     const needle = args.search?.trim().toLocaleLowerCase("ru")
+    const status = args.status as Doc<"productionDocuments">["status"] | undefined
     const page = needle
       ? await ctx.db.query("productionDocuments").withSearchIndex("search_production_documents", (q) => {
           let scoped = q.search("searchText", needle).eq("type", args.type)
           if (args.restaurantExternalId) scoped = scoped.eq("restaurantExternalId", args.restaurantExternalId)
           return scoped
-        }).paginate(args.paginationOpts)
+        }).filter((q) => (status ? q.eq(q.field("status"), status) : true)).paginate(args.paginationOpts)
       : args.restaurantExternalId
-        ? await ctx.db.query("productionDocuments").withIndex("by_type_restaurant_date", (q) => q.eq("type", args.type).eq("restaurantExternalId", args.restaurantExternalId!)).order("desc").paginate(args.paginationOpts)
-        : await ctx.db.query("productionDocuments").withIndex("by_type_status_date", (q) => q.eq("type", args.type)).order("desc").paginate(args.paginationOpts)
+        ? await ctx.db.query("productionDocuments").withIndex("by_type_restaurant_date", (q) => q.eq("type", args.type).eq("restaurantExternalId", args.restaurantExternalId!)).order("desc").filter((q) => (status ? q.eq(q.field("status"), status) : true)).paginate(args.paginationOpts)
+        : await ctx.db.query("productionDocuments").withIndex("by_type_status_date", (q) => (status ? q.eq("type", args.type).eq("status", status) : q.eq("type", args.type))).order("desc").paginate(args.paginationOpts)
     const network = user.restaurantScopes.includes("*")
-    return { ...page, page: page.page.filter((doc) => (network || user.restaurantScopes.includes(doc.restaurantExternalId)) && (!args.status || doc.status === args.status)) }
+    const rows = page.page.filter((doc) => (network || user.restaurantScopes.includes(doc.restaurantExternalId)) && (!status || doc.status === status))
+    // Names for the register, so it needs no warehouse or supplier rights of its own.
+    const names = new Map<string, string>()
+    const nameOf = async (id: Id<"warehouses"> | Id<"suppliers"> | undefined) => {
+      if (!id) return null
+      if (!names.has(id)) names.set(id, (await ctx.db.get(id))?.name ?? "—")
+      return names.get(id)!
+    }
+    return { ...page, page: await Promise.all(rows.map(async (doc) => ({ ...doc, sourceWarehouseName: await nameOf(doc.sourceWarehouseId), destinationWarehouseName: await nameOf(doc.destinationWarehouseId), supplierName: await nameOf(doc.supplierId) }))) }
   },
 })
 
@@ -71,7 +80,13 @@ export const getDocument = query({
     const { user } = await requireOfficeCapability(ctx, cap(doc.type, "view"))
     await requireRestaurantScope(ctx, user, doc.restaurantExternalId)
     const [source, destination, supplier] = await Promise.all([doc.sourceWarehouseId ? ctx.db.get(doc.sourceWarehouseId) : null, doc.destinationWarehouseId ? ctx.db.get(doc.destinationWarehouseId) : null, doc.supplierId ? ctx.db.get(doc.supplierId) : null])
-    return { ...doc, sourceWarehouse: source ? { externalId: source.externalId, name: source.name } : null, destinationWarehouse: destination ? { externalId: destination.externalId, name: destination.name } : null, supplier: supplier ? { externalId: supplier.externalId, name: supplier.name } : null }
+    // Lines carry the external ids saveDocument takes back.
+    const lines = await Promise.all(doc.lines.map(async (line) => {
+      const product = line.productId ? await ctx.db.get(line.productId) : null
+      const item = line.inventoryItemId ? await ctx.db.get(line.inventoryItemId) : null
+      return { ...line, productExternalId: product?.externalId ?? null, inventoryItemExternalId: item?.externalId ?? null, unit: item?.unit ?? product?.baseUnit ?? null }
+    }))
+    return { ...doc, lines, sourceWarehouse: source ? { externalId: source.externalId, name: source.name } : null, destinationWarehouse: destination ? { externalId: destination.externalId, name: destination.name } : null, supplier: supplier ? { externalId: supplier.externalId, name: supplier.name } : null }
   },
 })
 

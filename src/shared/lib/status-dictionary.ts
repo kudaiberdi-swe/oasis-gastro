@@ -20,6 +20,8 @@ const DOCUMENT: Record<string, StatusEntry> = {
   inactive: { label: "Неактивно", tone: "neutral" },
   expired: { label: "Истекло", tone: "neutral" },
   completed: { label: "Завершено", tone: "success" },
+  // Recipe versions (recipeVersions.status): a version replaced by a newer one.
+  superseded: { label: "Заменено", tone: "neutral" },
 }
 
 const ORDER: Record<string, StatusEntry> = {
