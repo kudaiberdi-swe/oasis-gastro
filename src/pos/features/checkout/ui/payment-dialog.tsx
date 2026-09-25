@@ -6,7 +6,7 @@ import { Button, Chip, Dialog, DialogContent, DialogDescription, DialogHeader, D
 import { cn, focusRingClass, formatTenge } from "@/shared/lib/utils"
 import type { PaymentMethod } from "@/shared/types/pos"
 import { QUICK_CASH_STEPS, roundUpTo } from "../model/order-receipt"
-import { changeDue, initialSplit, paymentOptions, paymentProblem, toCheckoutPayments, type CheckoutPayment, type PaymentOption, type PaymentPart } from "../model/payment-parts"
+import { changeDue, initialSplit, payableTotal, paymentOptions, paymentProblem, toCheckoutPayments, type CheckoutPayment, type PaymentOption, type PaymentPart } from "../model/payment-parts"
 import { PaymentSplitList } from "./payment-split-list"
 
 export type { CheckoutPayment } from "../model/payment-parts"
@@ -30,7 +30,9 @@ export function cashPresets(amount: number): Array<{ label: string; tendered: nu
 export function PaymentDialog({
   open,
   onOpenChange,
-  total,
+  total: orderTotal,
+  loyaltyRedemption = 0,
+  blockedReason,
   orderNumber,
   itemCount,
   paymentTypes = [],
@@ -40,7 +42,12 @@ export function PaymentDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** The order total before points. */
   total: number
+  /** Points planned on this check (W1-POS-16): 1 point = 1 ₸; the payment parts cover total − redemption. */
+  loyaltyRedemption?: number
+  /** Why the check cannot be paid now (e.g. a stale redemption); blocks «Подтвердить». */
+  blockedReason?: string | null
   orderNumber?: number
   itemCount?: number
   paymentTypes?: PosPaymentType[]
@@ -48,6 +55,7 @@ export function PaymentDialog({
   error: string | null
   onSubmit: (payments: CheckoutPayment[]) => void
 }) {
+  const total = payableTotal(orderTotal, loyaltyRedemption)
   const options = paymentOptions(paymentTypes)
   const [mode, setMode] = useState<"single" | "mixed">("single")
   const [selectedKey, setSelectedKey] = useState<string | undefined>(options[0]?.key)
@@ -66,7 +74,7 @@ export function PaymentDialog({
 
   const selected = options.find((option) => option.key === selectedKey) ?? options[0]
   const activeParts: PaymentPart[] = mode === "mixed" ? parts : selected ? [{ id: "single", optionKey: selected.key, amount: total, tendered }] : []
-  const problem = paymentProblem(activeParts, options, total)
+  const problem = blockedReason || paymentProblem(activeParts, options, total)
   const change = changeDue(activeParts, options)
 
   function chooseOption(option: PaymentOption) {
@@ -97,6 +105,11 @@ export function PaymentDialog({
             <div>
               <p className="text-body-sm font-medium text-muted-foreground">К оплате</p>
               <Money value={total} size="xl" />
+              {loyaltyRedemption > 0 && (
+                <p className="text-body-sm text-muted-foreground tabular-nums">
+                  Заказ {formatTenge(orderTotal)} · баллами <span className="font-semibold text-success">{formatTenge(-loyaltyRedemption)}</span>
+                </p>
+              )}
             </div>
             <div role="radiogroup" aria-label="Способ оплаты" className="flex flex-col gap-2">
               {options.map((option) => (
@@ -121,7 +134,7 @@ export function PaymentDialog({
                 <Money value={change} size="lg" className="text-success" />
               </div>
             )}
-            {(error || (problem && mode === "mixed")) && (
+            {(error || (problem && (mode === "mixed" || blockedReason))) && (
               <p role="alert" className="text-body-sm font-semibold text-destructive">
                 {error ?? problem}
               </p>

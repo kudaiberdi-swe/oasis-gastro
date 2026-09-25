@@ -13,7 +13,9 @@ import { DashboardWorkspace } from "@/office/features/dashboard/ui/office-dashbo
 import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
 import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
 import { ShiftAcceptanceWorkspace } from "@/office/features/finance/ui/shift-acceptance-workspace"
+import { GuestCategoriesWorkspace } from "@/office/features/loyalty/ui/categories-workspace"
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
+import { LoyaltyProgramsWorkspace } from "@/office/features/loyalty/ui/programs-workspace"
 import { ModifiersWorkspace } from "@/office/features/modifiers/ui/modifiers-workspace"
 import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomenclature-workspace"
 import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
@@ -79,6 +81,8 @@ const WORKSPACES: Record<string, ComponentType> = {
   employees: WorkforceWorkspace,
   attendance: AttendanceWorkspace,
   guests: LoyaltyWorkspace,
+  "loyalty-programs": LoyaltyProgramsWorkspace,
+  "guest-categories": GuestCategoriesWorkspace,
   reports: ReportsWorkspace,
   "report-favorites": ReportFavoritesWorkspace,
   roles: AccessControlWorkspace,

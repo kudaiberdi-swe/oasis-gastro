@@ -48,6 +48,14 @@ export function paymentOptions(types: PosPaymentType[]): PaymentOption[] {
   }))
 }
 
+/**
+ * What the payment parts must add up to: the order total minus the points planned on it (W1-LOY-03,
+ * orders.loyaltyRedemptionPlanned). settleOrder rejects any other sum.
+ */
+export function payableTotal(total: number, loyaltyRedemption = 0) {
+  return Math.max(0, total - Math.max(0, loyaltyRedemption))
+}
+
 export const newPartId = () => crypto.randomUUID()
 
 export const partTendered = (part: PaymentPart) => part.tendered ?? part.amount ?? 0

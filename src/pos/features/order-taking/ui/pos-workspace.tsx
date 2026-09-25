@@ -29,7 +29,7 @@ import { OrderPanel, type OrderTypeOption } from "@/pos/components/order-panel"
 import { VoidLineDialog } from "@/pos/features/order-taking/ui/void-line-dialog"
 import { printHtml } from "@/pos/features/print/print-document"
 import { useRetailSettings, type PosOrderType } from "@/pos/features/retail/data/use-retail-settings"
-import { useLoyaltyMutations, useOrderGuest } from "@/pos/features/loyalty/data/use-loyalty"
+import { useLoyaltyMutations, useLoyaltyQuote, useOrderGuest } from "@/pos/features/loyalty/data/use-loyalty"
 import { GuestDialog } from "@/pos/features/loyalty/ui/guest-dialog"
 import { useAttendance } from "@/pos/features/session/data/use-attendance"
 import { useTerminalOptions } from "@/pos/features/session/data/use-terminal-options"
@@ -145,7 +145,7 @@ function AuthenticatedPos({
   const { hold, checkout, resume, refund, transfer } = useOrderMutations()
   const retail = useRetailSettings(sessionToken)
   const { requestApproval, dialog: managerDialog } = useManagerApproval(terminalExternalId)
-  const { attachGuest, detachGuest } = useLoyaltyMutations()
+  const { attachGuest, detachGuest, setRedemption } = useLoyaltyMutations()
   const loadZReport = useZReportLoader(sessionToken)
 
   const [selectedOrderId, setSelectedOrderId] = useState<Id<"orders"> | null>(null)
@@ -183,6 +183,10 @@ function AuthenticatedPos({
     selectionKey: selectionNonce,
   })
   const guest = useOrderGuest(sessionToken, draft.orderId)
+  // Points planned at the POS pay part of the check (W1-POS-16); checkout takes total − planned in money.
+  const loyaltyQuote = useLoyaltyQuote(sessionToken, draft.orderId, { enabled: Boolean(guest) })
+  const plannedRedemption = guest ? (loyaltyQuote?.planned ?? 0) : 0
+  const redemptionStale = loyaltyQuote && plannedRedemption > loyaltyQuote.maxRedemption ? "Списание баллами больше допустимого для этого чека — измените его в «Гость»" : null
   const suggestion = useSuggestion(sessionToken, draft.orderId)
   const typeOptions = orderTypeOptions(retail.orderTypes)
   const place = { restaurantName: access.restaurant.name, terminalName: access.terminal.name }
@@ -324,7 +328,7 @@ function AuthenticatedPos({
 
   const voidableLines = draft.lines.filter((line) => !line.voidedAt && line.serverLineId)
   const blocks = orderActionBlocks({ orderId: draft.orderId, lines: draft.lines, transferTargets })
-  const guestLabel = guest ? `${guest.name || guest.phone} · ${guest.points} б.` : undefined
+  const guestLabel = guest ? `${guest.name || "Гость"} · ${loyaltyQuote?.balance ?? guest.points} б.${plannedRedemption ? ` · −${plannedRedemption}` : ""}` : undefined
   // The header is shown over the kitchen board too; its dialogs live on the cashier screen.
   const fromHeader = (open: () => void) => {
     setShowKitchen(false)
@@ -420,6 +424,7 @@ function AuthenticatedPos({
           onCheckout={() => setPaymentOpen(true)}
           onDiscount={() => setDiscountOpen(true)}
           guestLabel={guestLabel}
+          loyaltyRedemption={plannedRedemption}
           onGuest={() => (draft.orderId ? setGuestOpen(true) : toast("Заказ ещё сохраняется — повторите через секунду"))}
           onMore={() => setDialog("actions")}
           comment={draft.comment}
@@ -432,6 +437,8 @@ function AuthenticatedPos({
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
         total={draft.total}
+        loyaltyRedemption={plannedRedemption}
+        blockedReason={redemptionStale}
         orderNumber={draft.orderNumber}
         itemCount={draft.itemCount}
         paymentTypes={retail.paymentTypes}
@@ -451,6 +458,14 @@ function AuthenticatedPos({
         onOpenChange={setGuestOpen}
         currentGuest={guest}
         sessionToken={sessionToken}
+        orderId={draft.orderId}
+        total={draft.total}
+        onRedeem={async (redemption) => {
+          if (!draft.orderId) return
+          // The order total the server checks against must be the one on screen.
+          await draft.settle()
+          await setRedemption({ sessionToken, orderId: draft.orderId, redemption })
+        }}
         onAttach={(phone, name) => {
           if (!draft.orderId) return Promise.resolve()
           return attachGuest({ sessionToken, orderId: draft.orderId, phone, name })

@@ -9,7 +9,7 @@ import { DiscountDialog } from "@/pos/features/order-taking/ui/discount-dialog"
 import { CloseShiftPanel } from "@/pos/features/shifts/ui/shift-dialog"
 import { formatTenge } from "@/shared/lib/utils"
 
-vi.mock("@/pos/features/loyalty/data/use-loyalty", () => ({ useFindGuestByPhone: () => undefined }))
+vi.mock("@/pos/features/loyalty/data/use-loyalty", () => ({ useGuestSearch: () => undefined, useLoyaltyQuote: () => undefined }))
 
 afterEach(cleanup)
 
@@ -51,11 +51,14 @@ describe("guest detach errors are shown (S-21)", () => {
         onOpenChange={() => {}}
         currentGuest={{ phone: "77010000000", name: "Айгерим", points: 40 }}
         sessionToken="token"
+        orderId={null}
+        total={2300}
         onAttach={vi.fn()}
+        onRedeem={vi.fn()}
         onDetach={() => Promise.reject(new Error("Заказ уже оплачен"))}
       />,
     )
-    fireEvent.click(screen.getByRole("button", { name: "Убрать гостя" }))
+    fireEvent.click(screen.getByRole("button", { name: "Без гостя" }))
     await waitFor(() => expect(screen.getByText("Заказ уже оплачен")).toBeTruthy())
   })
 })

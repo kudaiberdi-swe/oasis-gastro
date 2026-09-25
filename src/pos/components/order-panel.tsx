@@ -54,6 +54,7 @@ export function OrderPanel({
   onCheckout,
   onDiscount,
   guestLabel,
+  loyaltyRedemption = 0,
   onGuest,
   onMore,
   comment,
@@ -89,6 +90,8 @@ export function OrderPanel({
   onDiscount: () => void
   /** The attached guest («Айгерим · 40 б.»); «Гость» when none. */
   guestLabel?: string
+  /** Points planned on the check (W1-POS-16): shown as a line and taken off «К оплате». */
+  loyaltyRedemption?: number
   onGuest?: () => void
   /** «Ещё» — the order actions dialog. */
   onMore?: () => void
@@ -98,6 +101,7 @@ export function OrderPanel({
   disabled?: boolean
 }) {
   const hasActive = lines.some((line) => !line.voidedAt)
+  const payable = Math.max(0, total - loyaltyRedemption)
   return (
     <div className="flex h-full w-[420px] shrink-0 flex-col rounded-panel border border-border bg-card">
       <div className="flex flex-col gap-3 border-b border-border px-4 py-3">
@@ -190,12 +194,18 @@ export function OrderPanel({
           <span>Қызмет ақысы · сервисный сбор {serviceChargePercent}%</span>
           <span className="tabular-nums">{formatTenge(serviceChargeAmount)}</span>
         </div>
+        {loyaltyRedemption > 0 && (
+          <div className="flex justify-between text-success">
+            <span>Баллами</span>
+            <span className="tabular-nums">{formatTenge(-loyaltyRedemption)}</span>
+          </div>
+        )}
         <div className="flex items-baseline justify-between border-t border-gold/45 pt-2">
           <span className="flex flex-col">
             <span className="text-body font-semibold">К оплате</span>
             <span className="text-body-sm text-muted-foreground">{positions(itemCount)}</span>
           </span>
-          <Money value={total} size="xl" />
+          <Money value={payable} size="xl" />
         </div>
         {error && (
           <p role="alert" className="text-body-sm font-semibold text-destructive">
@@ -208,7 +218,7 @@ export function OrderPanel({
           Отложить
         </Button>
         <Button size="lg" className="flex-[1.6]" onClick={onCheckout} disabled={disabled || !hasActive || saving}>
-          Оплатить · {formatTenge(total)}
+          Оплатить · {formatTenge(payable)}
         </Button>
       </div>
     </div>
