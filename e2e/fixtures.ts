@@ -63,8 +63,11 @@ export async function openSection(page: Page, label: string) {
  * `npm run seed:e2e` on a dev deployment). Never hard-coded.
  */
 export async function loginPos(page: Page, code: string, pin: string) {
+  // The POS route is a lazy chunk: keys typed before the pad mounts are lost, so wait for each pad.
+  await expect(page.getByRole("status", { name: /^Код сотрудника: введено 0/ })).toBeVisible()
   await page.keyboard.type(code)
   await page.keyboard.press("Enter")
+  await expect(page.getByRole("status", { name: /^PIN-код: введено 0/ })).toBeVisible()
   await page.keyboard.type(pin)
   await page.keyboard.press("Enter")
 }
