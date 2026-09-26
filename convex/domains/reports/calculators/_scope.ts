@@ -27,8 +27,17 @@ export function scopeOf(restaurants: string[], network: boolean) {
 
 /** Guest personal data only with office.guests.pii (Г-2); a mailing without a user always gets the mask. */
 export async function canSeeGuestPii(ctx: QueryCtx) {
+  return hasCapability(ctx, "office.guests.pii")
+}
+
+/** Employee personal data (medical document numbers) only with office.employees.pii; a mailing gets the mask. */
+export async function canSeeEmployeePii(ctx: QueryCtx) {
+  return hasCapability(ctx, "office.employees.pii")
+}
+
+async function hasCapability(ctx: QueryCtx, capability: string) {
   try {
-    await requireOfficeCapability(ctx, "office.guests.pii")
+    await requireOfficeCapability(ctx, capability)
     return true
   } catch {
     return false

@@ -22,13 +22,13 @@ type Status = Row["status"]
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 const STATUSES = ["draft", "pending-approval", "approved", "cancelled"] as const
 const documentType = v.union(v.literal("medical-book"), v.literal("analysis"), v.literal("certificate"))
-const TYPE_LABEL: Record<Row["documentType"], string> = { "medical-book": "Медицинская книжка", analysis: "Анализ", certificate: "Допуск" }
-const MAX_WITHIN_DAYS = 365
+export const TYPE_LABEL: Record<Row["documentType"], string> = { "medical-book": "Медицинская книжка", analysis: "Анализ", certificate: "Допуск" }
+export const MAX_WITHIN_DAYS = 365
 const BATCH = 100
 
 export const DEFAULT_MEDICAL_SETTINGS = { revokeAdmissionOnExpiry: true, notifyWithinDays: 7 }
 
-const addDays = (date: string, days: number) => {
+export const addDays = (date: string, days: number) => {
   const value = new Date(`${date}T00:00:00Z`)
   value.setUTCDate(value.getUTCDate() + days)
   return value.toISOString().slice(0, 10)
@@ -49,13 +49,13 @@ async function canSeePii(ctx: QueryCtx) {
 }
 
 /** The number masked and the comment hidden without office.employees.pii (decision Г-2). */
-function publicRecord(row: Row, pii: boolean) {
+export function publicRecord(row: Row, pii: boolean) {
   const { searchText: _searchText, ...rest } = row
   return pii ? { ...rest, piiHidden: false } : { ...rest, documentNumber: maskValue(row.documentNumber, 2) ?? "", comment: undefined, piiHidden: true }
 }
 
 /** A newer approved document of the same type that is still valid on `today` replaces this one. */
-async function renewed(ctx: QueryCtx, row: Row, today: string) {
+export async function renewed(ctx: QueryCtx, row: Row, today: string) {
   const later = await ctx.db.query("medicalRecords").withIndex("by_employee_type_expires", (q) => q.eq("employeeId", row.employeeId).eq("documentType", row.documentType).gt("expiresAt", row.expiresAt)).take(20)
   return later.some((other) => other.status === "approved" && other.expiresAt >= today && other.issuedAt <= today)
 }
@@ -124,25 +124,33 @@ export const expiringMedicalRecords = query({
     if (args.restaurantExternalId) await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     const withinDays = Math.min(MAX_WITHIN_DAYS, Math.max(0, Math.floor(args.withinDays ?? 30)))
     const today = almatyBusinessDate(Date.now())
-    const until = addDays(today, withinDays)
-    const restaurant = args.restaurantExternalId
-    const soon = restaurant
-      ? await ctx.db.query("medicalRecords").withIndex("by_restaurant_status_expires", (q) => q.eq("restaurantExternalId", restaurant).eq("status", "approved").gte("expiresAt", today).lte("expiresAt", until)).take(200)
-      : await ctx.db.query("medicalRecords").withIndex("by_status_expires", (q) => q.eq("status", "approved").gte("expiresAt", today).lte("expiresAt", until)).take(200)
-    const ended = restaurant
-      ? await ctx.db.query("medicalRecords").withIndex("by_restaurant_status_expires", (q) => q.eq("restaurantExternalId", restaurant).eq("status", "approved").gte("expiresAt", addDays(today, -MAX_WITHIN_DAYS)).lt("expiresAt", today)).take(200)
-      : await ctx.db.query("medicalRecords").withIndex("by_status_expires", (q) => q.eq("status", "approved").gte("expiresAt", addDays(today, -MAX_WITHIN_DAYS)).lt("expiresAt", today)).take(200)
-    const pick = async (rows: Row[]) => {
-      const out: Row[] = []
-      for (const row of rows) if (inScope(user, row) && !(await renewed(ctx, row, today))) out.push(row)
-      return out
-    }
-    const expiring = await pick(soon)
-    const expired = await pick(ended)
+    const { expiring, expired, truncated } = await expiringAndExpired(ctx, { restaurantExternalId: args.restaurantExternalId, today, withinDays, visible: (row) => inScope(user, row) })
     const brief = (row: Row) => ({ externalId: row.externalId, number: row.number, employeeName: row.employeeName, documentType: row.documentType, expiresAt: row.expiresAt, restaurantExternalId: row.restaurantExternalId })
-    return { withinDays, today, count: expiring.length, expiredCount: expired.length, truncated: soon.length === 200 || ended.length === 200, rows: expiring.slice(0, 50).map(brief), expired: expired.slice(0, 50).map(brief) }
+    return { withinDays, today, count: expiring.length, expiredCount: expired.length, truncated, rows: expiring.slice(0, 50).map(brief), expired: expired.slice(0, 50).map(brief) }
   },
 })
+
+/**
+ * The calculation of «Истекающие» (the office banner and report employees-15): approved documents
+ * ending from `today` to `today + withinDays` and those ended within the last year, both without a newer
+ * approved renewal — of one restaurant, or of the network without it.
+ */
+export async function expiringAndExpired(ctx: QueryCtx, args: { restaurantExternalId?: string; today: string; withinDays: number; visible?: (row: Row) => boolean }) {
+  const { today, restaurantExternalId: restaurant } = args
+  const until = addDays(today, args.withinDays)
+  const soon = restaurant
+    ? await ctx.db.query("medicalRecords").withIndex("by_restaurant_status_expires", (q) => q.eq("restaurantExternalId", restaurant).eq("status", "approved").gte("expiresAt", today).lte("expiresAt", until)).take(200)
+    : await ctx.db.query("medicalRecords").withIndex("by_status_expires", (q) => q.eq("status", "approved").gte("expiresAt", today).lte("expiresAt", until)).take(200)
+  const ended = restaurant
+    ? await ctx.db.query("medicalRecords").withIndex("by_restaurant_status_expires", (q) => q.eq("restaurantExternalId", restaurant).eq("status", "approved").gte("expiresAt", addDays(today, -MAX_WITHIN_DAYS)).lt("expiresAt", today)).take(200)
+    : await ctx.db.query("medicalRecords").withIndex("by_status_expires", (q) => q.eq("status", "approved").gte("expiresAt", addDays(today, -MAX_WITHIN_DAYS)).lt("expiresAt", today)).take(200)
+  const pick = async (rows: Row[]) => {
+    const out: Row[] = []
+    for (const row of rows) if ((args.visible?.(row) ?? true) && !(await renewed(ctx, row, today))) out.push(row)
+    return out
+  }
+  return { expiring: await pick(soon), expired: await pick(ended), truncated: soon.length === 200 || ended.length === 200 }
+}
 
 type MedicalInput = { documentType: Row["documentType"]; issuedAt: string; expiresAt: string; issuer: string; documentNumber?: string; fitForWork: boolean; comment?: string }
 

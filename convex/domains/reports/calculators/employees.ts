@@ -1,7 +1,10 @@
 import type { Doc, Id } from "../../../_generated/dataModel"
+import { motivationResults } from "../../../lib/motivation"
 import type { ReportConfig } from "../../../lib/reportConfig"
+import { addDays, expiringAndExpired, MAX_WITHIN_DAYS, publicRecord, renewed, TYPE_LABEL as MEDICAL_TYPE } from "../../workforce/medical"
 import type { Calculator } from "../registry"
 import { facts, matcher, percentOf } from "./_facts"
+import { canSeeEmployeePii } from "./_scope"
 import { aggregate, ALMATY_OFFSET_MS, col } from "./_shared"
 import { newBudget, spend, type Budget } from "./stockHelpers"
 
@@ -70,8 +73,8 @@ const payrollSummary: Calculator = async (ctx, config, restaurants) => {
 // posted payrollRuns (by_restaurant_to), payrollAdjustments (by_restaurant_date), payrollPayouts
 // (by_run) and the employee sales facts. Every employee key is the employee code — the one key the
 // attendance, the schedule, the payroll lines and the sales facts share. The IIN is never output.
-// employees-13/14/15 (motivation, medical records, expiring documents) wait on W3-HR-07/08: their
-// `workforceRecords` modules do not exist yet, so they stay «В разработке».
+// employees-13/14/15 read the W3-HR-07/08 tables (motivationPrograms, medicalRecords) through the
+// calculations of lib/motivation.ts and domains/workforce/medical.ts, never a copy of them.
 
 type QueryCtx = Parameters<Calculator>[0]
 type Attendance = Doc<"attendanceRecords">
@@ -521,6 +524,176 @@ const salesByEmployee: Calculator = async (ctx, config, restaurants) => {
   }
 }
 
+// ── employees-13…15: motivation and medical records (W3-HR-07/08) ───────────────────────────────
+
+type Program = Doc<"motivationPrograms">
+type Medical = Doc<"medicalRecords">
+const METRIC_LABEL: Record<Program["metric"], string> = { sales: "Продажи", "average-check": "Средний чек", "kitchen-time": "Время кухни", attendance: "Дисциплина" }
+const PROGRAM_STATUS: Record<Program["status"], string> = { draft: "Черновик", published: "Опубликована", inactive: "Отключена", expired: "Завершена" }
+const MEDICAL_STATUS: Record<Medical["status"], string> = { draft: "Черновик", "pending-approval": "На согласовании", approved: "Согласована", cancelled: "Отменена" }
+const PROGRAMS_PER_RESTAURANT = 100
+const ruDate = (date: string) => date.split("-").reverse().join(".")
+const grouped = (value: number) => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+const daysFrom = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+
+/** A fact or a threshold in its metric's unit: ₸, minutes or % of shifts on time. */
+function metricText(metric: Program["metric"], value: number | null) {
+  if (value === null) return "Нет данных"
+  if (metric === "kitchen-time") return `${String(value).replace(".", ",")} мин`
+  if (metric === "attendance") return `${String(value).replace(".", ",")} %`
+  return `${grouped(Math.round(value))} ₸`
+}
+
+/**
+ * employees-13: motivation results — every participant of the non-draft programs whose period overlaps
+ * the report period: fact against the threshold, the reward and the bonus already accrued. The fact is
+ * for the program's own period (lib/motivation.ts, the same numbers as the program's «Результаты» tab).
+ */
+const motivation: Calculator = async (ctx, config, restaurants) => {
+  const matches = matcher(config)
+  const columns = [text("group", "Сотрудник"), text("code", "Табельный №"), text("program", "Программа"), text("metric", "Показатель"), text("period", "Период программы"), text("fact", "Факт"), text("threshold", "Порог"), text("basis", "Основание"), text("fulfilled", "Выполнено"), col("reward", "Премия", "money"), col("accrued", "Начислено", "money"), text("status", "Статус программы")]
+  const rows = []
+  let programs = 0
+  let truncated = false
+  for (const restaurant of restaurants) {
+    const started = await ctx.db.query("motivationPrograms").withIndex("by_restaurant_starts", (q) => q.eq("restaurantExternalId", restaurant).lte("startsAt", config.dateTo)).order("desc").take(PROGRAMS_PER_RESTAURANT)
+    if (started.length === PROGRAMS_PER_RESTAURANT) truncated = true
+    const overlapping = started.filter((program) => program.status !== "draft" && program.endsAt >= config.dateFrom)
+    for (const program of overlapping.sort((a, b) => a.number.localeCompare(b.number))) {
+      programs += 1
+      const results = await motivationResults(ctx, program)
+      if (results.kitchenTruncated) truncated = true
+      for (const result of results.rows) {
+        if (!matches(result.employeeName, result.employeeCode, program.name, program.number)) continue
+        rows.push({
+          key: `${program.externalId}:${result.employeeCode}`,
+          cells: {
+            group: result.employeeName, code: result.employeeCode, program: `${program.number} «${program.name}»`, metric: METRIC_LABEL[program.metric], period: `${ruDate(program.startsAt)} – ${ruDate(program.endsAt)}`,
+            fact: metricText(program.metric, result.fact), threshold: metricText(program.metric, program.threshold), basis: result.basis, fulfilled: result.fulfilled ? "Да" : "Нет",
+            reward: result.reward, accrued: result.accrued ?? 0, status: PROGRAM_STATUS[program.status],
+          },
+        })
+      }
+    }
+  }
+  const totals = { reward: rows.reduce((sum, row) => sum + row.cells.reward, 0), accrued: rows.reduce((sum, row) => sum + row.cells.accrued, 0) }
+  return {
+    sourceLabel: "Мотивационные программы, пересекающие период (без черновиков); факт — за период программы",
+    columns,
+    rows,
+    totals,
+    kpis: [
+      { key: "programs", label: "Программ", value: programs, unit: "count" },
+      { key: "participants", label: "Участников", value: rows.length, unit: "count" },
+      { key: "fulfilled", label: "Выполнили", value: rows.filter((row) => row.cells.fulfilled === "Да").length, unit: "count" },
+      { key: "reward", label: "Премий по условиям", value: totals.reward, unit: "money" },
+      { key: "accrued", label: "Начислено в зарплату", value: totals.accrued, unit: "money" },
+    ],
+    truncated,
+  }
+}
+
+/** Where an approved document stands on `date`: in force, ending within 30 days, ended or renewed. */
+async function medicalState(ctx: QueryCtx, row: Medical, date: string) {
+  if (row.status !== "approved") return "—"
+  if (row.issuedAt > date) return "Ещё не действует"
+  if (row.expiresAt < date) return (await renewed(ctx, row, date)) ? "Продлён" : "Истёк"
+  return row.expiresAt <= addDays(date, 30) ? "Истекает" : "Действует"
+}
+
+const medicalColumns = [text("group", "Сотрудник"), text("code", "Табельный №"), text("number", "Запись"), text("type", "Документ"), text("documentNumber", "Номер документа")]
+const medicalCells = (row: Medical, pii: boolean) => ({ group: row.employeeName, code: row.employeeCode, number: row.number, type: MEDICAL_TYPE[row.documentType], documentNumber: publicRecord(row, pii).documentNumber })
+const piiNote = (pii: boolean) => (pii ? "" : "; номера документов скрыты — нужно право «Персональные данные сотрудников»")
+
+/**
+ * employees-14: the register of medical books, analyses and admissions valid at some point of the
+ * period (issued by its end, ending after its start), cancelled ones left out. The state is on the last
+ * day of the period. Document numbers are masked without office.employees.pii; comments never show.
+ */
+const medicalRecords: Calculator = async (ctx, config, restaurants) => {
+  const pii = await canSeeEmployeePii(ctx)
+  const matches = matcher(config)
+  const budget = newBudget()
+  const columns = [...medicalColumns, col("issuedAt", "Выдан", "date"), col("expiresAt", "Действует до", "date"), text("issuer", "Кем выдан"), text("fit", "Допуск к работе"), text("status", "Статус"), text("state", `Состояние на ${ruDate(config.dateTo)}`)]
+  const rows = []
+  const counts = { valid: 0, expiring: 0, expired: 0, unfit: 0 }
+  for (const restaurant of restaurants) {
+    for await (const row of ctx.db.query("medicalRecords").withIndex("by_restaurant_expires", (q) => q.eq("restaurantExternalId", restaurant).gte("expiresAt", config.dateFrom))) {
+      if (!spend(budget)) break
+      if (row.status === "cancelled" || row.issuedAt > config.dateTo) continue
+      if (!matches(row.employeeName, row.employeeCode, row.number, MEDICAL_TYPE[row.documentType])) continue
+      const state = await medicalState(ctx, row, config.dateTo)
+      if (state === "Действует" || state === "Истекает") counts.valid += 1
+      if (state === "Истекает") counts.expiring += 1
+      if (state === "Истёк") counts.expired += 1
+      if (row.status === "approved" && !row.fitForWork) counts.unfit += 1
+      rows.push({ key: row.externalId, cells: { ...medicalCells(row, pii), issuedAt: row.issuedAt, expiresAt: row.expiresAt, issuer: row.issuer, fit: row.fitForWork ? "Годен" : "Не годен", status: MEDICAL_STATUS[row.status], state } })
+    }
+  }
+  rows.sort((a, b) => a.cells.expiresAt.localeCompare(b.cells.expiresAt) || a.cells.group.localeCompare(b.cells.group, "ru"))
+  return {
+    sourceLabel: `Медкнижки, анализы и допуски, действовавшие в периоде${piiNote(pii)}`,
+    columns,
+    rows,
+    totals: {},
+    kpis: [
+      { key: "documents", label: "Документов", value: rows.length, unit: "count" },
+      { key: "valid", label: "Действуют", value: counts.valid, unit: "count" },
+      { key: "expiring", label: "Истекают ≤ 30 дн.", value: counts.expiring, unit: "count" },
+      { key: "expired", label: "Истекли без продления", value: counts.expired, unit: "count" },
+      { key: "unfit", label: "Не годен к работе", value: counts.unfit, unit: "count" },
+    ],
+    truncated: budget.truncated,
+  }
+}
+
+/**
+ * employees-15: expiring HR documents — the approved medical books, analyses and admissions (the only
+ * HR documents with a term) that end within `extra.withinDays` (30 by default) of the last day of the
+ * period or have already ended without a renewal: the calculation of the office's «Истекающие» banner.
+ */
+const expiringDocuments: Calculator = async (ctx, config, restaurants) => {
+  const pii = await canSeeEmployeePii(ctx)
+  const matches = matcher(config)
+  const raw = config.extra?.withinDays
+  const withinDays = typeof raw === "number" && Number.isFinite(raw) ? Math.min(MAX_WITHIN_DAYS, Math.max(0, Math.floor(raw))) : 30
+  const date = config.dateTo
+  const columns = [...medicalColumns, col("expiresAt", "Действует до", "date"), col("daysLeft", "Осталось дней", "count"), text("state", "Состояние"), text("admission", "Допуск сотрудника")]
+  const employee = employeeById(ctx)
+  const rows = []
+  let truncated = false
+  let expiringCount = 0
+  let expiredCount = 0
+  let revoked = 0
+  for (const restaurant of restaurants) {
+    const found = await expiringAndExpired(ctx, { restaurantExternalId: restaurant, today: date, withinDays })
+    if (found.truncated) truncated = true
+    for (const [state, list] of [["Истёк", found.expired], ["Истекает", found.expiring]] as const) {
+      for (const row of list) {
+        if (!matches(row.employeeName, row.employeeCode, row.number, MEDICAL_TYPE[row.documentType])) continue
+        const admitted = (await employee(row.employeeId))?.admitted !== false
+        if (state === "Истёк") expiredCount += 1
+        else expiringCount += 1
+        if (!admitted) revoked += 1
+        rows.push({ key: row.externalId, cells: { ...medicalCells(row, pii), expiresAt: row.expiresAt, daysLeft: daysFrom(date, row.expiresAt), state, admission: admitted ? "Есть" : "Снят" } })
+      }
+    }
+  }
+  rows.sort((a, b) => a.cells.expiresAt.localeCompare(b.cells.expiresAt) || a.cells.group.localeCompare(b.cells.group, "ru"))
+  return {
+    sourceLabel: `Согласованные медкнижки, анализы и допуски: истекают до ${ruDate(addDays(date, withinDays))} (${withinDays} дн. от ${ruDate(date)}) или истекли без продления${piiNote(pii)}`,
+    columns,
+    rows,
+    totals: {},
+    kpis: [
+      { key: "expiring", label: `Истекают за ${withinDays} дн.`, value: expiringCount, unit: "count" },
+      { key: "expired", label: "Истекли без продления", value: expiredCount, unit: "count" },
+      { key: "revoked", label: "Допуск снят", value: revoked, unit: "count" },
+    ],
+    truncated,
+  }
+}
+
 export const EMPLOYEE_CALCULATORS: Record<string, Calculator> = {
   "employees-01": personalReport,
   "employees-02": payrollSummary,
@@ -533,4 +706,7 @@ export const EMPLOYEE_CALCULATORS: Record<string, Calculator> = {
   "employees-10": bonusesAndPenalties,
   "employees-11": efficiency,
   "employees-12": salesByEmployee,
+  "employees-13": motivation,
+  "employees-14": medicalRecords,
+  "employees-15": expiringDocuments,
 }

@@ -113,3 +113,90 @@ describe("employee reports (W3-RPT-01)", () => {
     expect((await execute(admin, "employees-07")).rows).toHaveLength(1)
   })
 })
+
+// employees-13…15 on the W3-HR-07/08 tables: two motivation programs of Айгерим (sales met and
+// accrued, discipline missed), a draft and one of Шымкент; medical records around the end of September.
+async function hr() {
+  const { t, run } = await workforce()
+  await t.run(async (ctx) => {
+    const employees = await ctx.db.query("employees").collect()
+    const aigerim = employees.find((row) => row.code === "101")!
+    const bauyrzhan = employees.find((row) => row.code === "102")!
+    await ctx.db.patch(aigerim._id, { admitted: false })
+    const program = (externalId: string, number: string, name: string, restaurantExternalId: string, metric: "sales" | "attendance", threshold: number, status: "draft" | "published" | "expired", participants: { positionExternalIds?: string[]; employeeCodes?: string[] }) =>
+      ctx.db.insert("motivationPrograms", { externalId, number, name, organizationExternalId: "sandyq", restaurantExternalId, status, metric, threshold, rewardType: "fixed", rewardValue: 5000, startsAt: "2026-09-01", endsAt: "2026-09-30", requiresApproval: false, participants, version: 1, searchText: "", createdAt: 0, updatedAt: 0 })
+    await program("mp-sales", "МП-2026-00001", "План продаж", "almaty", "sales", 40_000, "expired", { employeeCodes: ["101"] })
+    await program("mp-discipline", "МП-2026-00002", "Без опозданий", "almaty", "attendance", 90, "published", { positionExternalIds: ["pos-cashier"] })
+    await program("mp-draft", "МП-2026-00003", "Черновик", "almaty", "sales", 1, "draft", {})
+    await program("mp-shymkent", "МП-2026-00004", "Шымкент", "shymkent", "sales", 10_000, "published", { employeeCodes: ["102"] })
+    await ctx.db.insert("payrollAdjustments", { externalId: "adj-mp", employeeId: aigerim._id, employeeCode: "101", restaurantExternalId: "almaty", businessDate: "2026-09-30", kind: "bonus", amount: 5000, comment: "Мотивация", sourceExternalId: "mp-sales", createdBy: "t", createdAt: 0 })
+    const medical = (externalId: string, who: typeof aigerim, restaurantExternalId: string, documentType: "medical-book" | "analysis" | "certificate", issuedAt: string, expiresAt: string, status: "draft" | "approved" | "cancelled", fitForWork = true) =>
+      ctx.db.insert("medicalRecords", { externalId, number: `МК-${externalId}`, employeeId: who._id, employeeCode: who.code, employeeName: who.displayName, organizationExternalId: "sandyq", restaurantExternalId, status, documentType, issuedAt, expiresAt, issuer: "Поликлиника №1", documentNumber: `KZ-${externalId}-4521`, fitForWork, comment: "Диагноз не пишем", expiryProcessed: false, version: 1, searchText: "", createdAt: 0, updatedAt: 0 })
+    await medical("m1", aigerim, "almaty", "medical-book", "2025-10-01", "2026-10-10", "approved") // ends in 10 days
+    await medical("m2", aigerim, "almaty", "analysis", "2026-03-01", "2026-09-20", "approved", false) // ended, not renewed
+    await medical("m4", aigerim, "almaty", "certificate", "2025-09-05", "2026-09-05", "approved") // ended, renewed by m5
+    await medical("m5", aigerim, "almaty", "certificate", "2026-09-04", "2027-09-04", "approved")
+    await medical("m6", bauyrzhan, "shymkent", "medical-book", "2026-09-10", "2027-09-10", "draft")
+    await medical("m7", bauyrzhan, "shymkent", "analysis", "2026-09-10", "2027-03-10", "cancelled")
+    await medical("m8", bauyrzhan, "shymkent", "analysis", "2025-08-01", "2026-08-01", "approved", false) // ended before the period
+    await ctx.db.insert("officeRoles", { externalId: "hr", name: "Кадровик", capabilities: ["office.reports.view", "office.medical-records.view", "office.motivation.view"], system: false })
+    await ctx.db.insert("officeUsers", { externalId: "hr", email: "hr@sandyq.test", name: "Кадровик", roleExternalId: "hr", restaurantScopes: ["*"], active: true })
+  })
+  const execute = (email: string, reportId: string, config: Partial<ReportConfig> = {}) => t.withIdentity({ email }).query(api.domains.reports.queries.execute, { reportId, config: { ...SEPTEMBER, ...config } })
+  return { run, execute }
+}
+
+describe("motivation and medical records reports (W3-RPT-01: employees-13…15)", () => {
+  it("13 motivation results per participant: fact, threshold, reward and the accrued bonus", async () => {
+    const { run, execute } = await hr()
+    const result = await run("employees-13", ["almaty"])
+    expect(result.rows.map((row) => [row.cells.program, row.cells.group, row.cells.fact, row.cells.threshold, row.cells.fulfilled, row.cells.reward, row.cells.accrued, row.cells.status])).toEqual([
+      ["МП-2026-00001 «План продаж»", "Айгерим", "50 000 ₸", "40 000 ₸", "Да", 5000, 5000, "Завершена"],
+      ["МП-2026-00002 «Без опозданий»", "Айгерим", "33,3 %", "90 %", "Нет", 0, 0, "Опубликована"],
+    ])
+    expect(result.rows[1].cells.basis).toBe("Смен по графику: 3, опозданий и неявок: 2")
+    expect(Object.fromEntries(result.kpis.map((kpi) => [kpi.key, kpi.value]))).toMatchObject({ programs: 2, participants: 2, fulfilled: 1, reward: 5000, accrued: 5000 })
+    expect((await run("employees-13")).kpis.find((kpi) => kpi.key === "programs")?.value).toBe(3) // + Шымкент
+    // A program outside the period is not listed.
+    expect((await run("employees-13", ["almaty"], { ...SEPTEMBER, dateFrom: "2026-10-01", dateTo: "2026-10-31" })).rows).toEqual([])
+    await expect(execute("analyst@sandyq.test", "employees-13")).rejects.toThrow(/Недостаточно прав/)
+  })
+
+  it("14 register with the state at the end of the period; the number is masked without office.employees.pii", async () => {
+    const { run, execute } = await hr()
+    const register = await run("employees-14")
+    expect(register.rows.map((row) => [row.cells.number, row.cells.state, row.cells.status, row.cells.fit])).toEqual([
+      ["МК-m4", "Продлён", "Согласована", "Годен"],
+      ["МК-m2", "Истёк", "Согласована", "Не годен"],
+      ["МК-m1", "Истекает", "Согласована", "Годен"],
+      ["МК-m5", "Действует", "Согласована", "Годен"],
+      ["МК-m6", "—", "Черновик", "Годен"],
+    ])
+    expect(Object.fromEntries(register.kpis.map((kpi) => [kpi.key, kpi.value]))).toMatchObject({ documents: 5, valid: 2, expiring: 1, expired: 1, unfit: 1 })
+    expect(JSON.stringify(register)).not.toContain("Диагноз") // the comment never shows
+
+    const masked = await execute("hr@sandyq.test", "employees-14")
+    expect(masked.rows.find((row) => row.key === "m1")?.cells.documentNumber).toBe("••••••••21")
+    expect(JSON.stringify(masked)).not.toContain("KZ-m1")
+    expect(masked.sourceLabel).toMatch(/номера документов скрыты/)
+    const open = await execute("admin@sandyq.test", "employees-14")
+    expect(open.rows.find((row) => row.key === "m1")?.cells.documentNumber).toBe("KZ-m1-4521")
+    await expect(execute("analyst@sandyq.test", "employees-14")).rejects.toThrow(/Недостаточно прав/)
+  })
+
+  it("15 expiring and expired documents without a renewal — the calculation of the medical banner", async () => {
+    const { run, execute } = await hr()
+    const expiring = await run("employees-15")
+    expect(expiring.rows.map((row) => [row.cells.number, row.cells.state, row.cells.daysLeft, row.cells.admission])).toEqual([
+      ["МК-m8", "Истёк", -60, "Есть"],
+      ["МК-m2", "Истёк", -10, "Снят"],
+      ["МК-m1", "Истекает", 10, "Снят"],
+    ])
+    expect(expiring.kpis.map((kpi) => kpi.value)).toEqual([1, 2, 2])
+    expect((await run("employees-15", ["almaty"])).rows.map((row) => row.key)).toEqual(["m2", "m1"])
+    const soon = await run("employees-15", ["almaty", "shymkent"], { ...SEPTEMBER, extra: { withinDays: 5 } })
+    expect(soon.rows.map((row) => row.key)).toEqual(["m8", "m2"])
+    expect((await execute("hr@sandyq.test", "employees-15")).rows[0].cells.documentNumber).toBe("••••••••21")
+    await expect(execute("analyst@sandyq.test", "employees-15")).rejects.toThrow(/Недостаточно прав/)
+  })
+})
