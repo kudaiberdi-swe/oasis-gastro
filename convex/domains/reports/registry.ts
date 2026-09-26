@@ -7,6 +7,7 @@ import { EMPLOYEE_CALCULATORS } from "./calculators/employees"
 import { FINANCE_CALCULATORS } from "./calculators/finance"
 import { MENU_CALCULATORS } from "./calculators/menu"
 import { OPERATION_CALCULATORS } from "./calculators/operations"
+import { PRODUCTION_CALCULATORS } from "./calculators/production"
 import { SALES_CALCULATORS } from "./calculators/sales"
 import { STOCK_CALCULATORS } from "./calculators/stock"
 
@@ -19,7 +20,7 @@ type QueryCtx = GenericQueryCtx<DataModel>
 export type Calculator = (ctx: QueryCtx, config: ReportConfig, restaurantExternalIds: string[]) => Promise<Omit<ReportResult, "reportId" | "generatedAt">>
 
 export const REPORT_REGISTRY: Record<string, { calculator: Calculator }> = {
-  ...Object.fromEntries(Object.entries({ ...STOCK_CALCULATORS, ...OPERATION_CALCULATORS, ...SALES_CALCULATORS, ...MENU_CALCULATORS, ...FINANCE_CALCULATORS, ...EMPLOYEE_CALCULATORS }).map(([id, calculator]) => [id, { calculator }])),
+  ...Object.fromEntries(Object.entries({ ...STOCK_CALCULATORS, ...OPERATION_CALCULATORS, ...SALES_CALCULATORS, ...MENU_CALCULATORS, ...FINANCE_CALCULATORS, ...EMPLOYEE_CALCULATORS, ...PRODUCTION_CALCULATORS }).map(([id, calculator]) => [id, { calculator }])),
   "sales-11": { calculator: factReport({ factType: "branch", byDay: true, dimensionLabel: "Дата", measures: [count("orderCount", "Заказов"), count("guestCount", "Гостей"), money("netAmount", "Выручка")], average: true }) },
   "sales-13": { calculator: factReport({ factType: "category", dimensionLabel: "Категория", measures: [{ key: "quantity", label: "Количество", unit: "quantity" }, money("grossAmount", "По меню"), money("netAmount", "Выручка")], sortBy: "netAmount" }) },
   "sales-19": { calculator: factReport({ factType: "payment-type", dimensionLabel: "Тип оплаты", measures: [money("netAmount", "Оплачено"), money("refundAmount", "Возвращено"), count("refundCount", "Возвратов")], sortBy: "netAmount" }) },
