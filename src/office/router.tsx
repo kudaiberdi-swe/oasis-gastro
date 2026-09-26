@@ -1,93 +1,116 @@
 import { useAuthActions } from "@convex-dev/auth/react"
 import { useConvexAuth } from "convex/react"
-import { useMemo, type ComponentType } from "react"
+import { lazy, Suspense, useMemo, type ComponentType } from "react"
 import { Navigate, useParams } from "react-router"
 
 import { CapabilitiesProvider } from "@/office/components/can"
-import { AccessControlWorkspace } from "@/office/features/access-control/ui/access-control-workspace"
 import { OfficePage, OfficeShell } from "@/office/components/office-shell"
 import { OfficeStatePage } from "@/office/components/state-page"
-import { CashflowCategoriesWorkspace } from "@/office/features/finance/ui/cashflow-categories-workspace"
-import { CounterpartiesWorkspace } from "@/office/features/finance/ui/counterparties-workspace"
-import { DepartmentsWorkspace } from "@/office/features/corporation/ui/departments-workspace"
-import { IntegrationJobsWorkspace } from "@/office/features/corporation/ui/integration-jobs-workspace"
-import { OrganizationsWorkspace } from "@/office/features/corporation/ui/organizations-workspace"
-import { RestaurantsWorkspace } from "@/office/features/corporation/ui/restaurants-workspace"
-import { DashboardWorkspace } from "@/office/features/dashboard/ui/office-dashboard"
 import { FavoriteStar } from "@/office/features/favorites/ui/favorite-star"
-import { FavoritesWorkspace } from "@/office/features/favorites/ui/favorites-workspace"
-import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
-import { CouriersWorkspace } from "@/office/features/delivery/ui/couriers-workspace"
-import { CallCenterWorkspace, DeliveryOrdersWorkspace } from "@/office/features/delivery/ui/delivery-orders-workspace"
-import { TelephonyWorkspace } from "@/office/features/delivery/ui/telephony-workspace"
-import { SourcesWorkspace } from "@/office/features/delivery/ui/sources-workspace"
-import { ZonesWorkspace } from "@/office/features/delivery/ui/zones-workspace"
-import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
-import { ShiftAcceptanceWorkspace } from "@/office/features/finance/ui/shift-acceptance-workspace"
-import { AccountsPayableWorkspace } from "@/office/features/finance/ui/accounts-payable-workspace"
-import { BankStatementsWorkspace } from "@/office/features/finance/ui/bank-statements-workspace"
-import { BudgetsWorkspace } from "@/office/features/finance/ui/budgets-workspace"
-import { PaymentCalendarWorkspace } from "@/office/features/finance/ui/payment-calendar-workspace"
-import { PaymentsWorkspace } from "@/office/features/finance/ui/payments-workspace"
-import { ServicesWorkspace } from "@/office/features/finance/ui/services-workspace"
-import { GuestCategoriesWorkspace } from "@/office/features/loyalty/ui/categories-workspace"
-import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
-import { LoyaltyProgramsWorkspace } from "@/office/features/loyalty/ui/programs-workspace"
-import { ReservationsWorkspace } from "@/office/features/loyalty/ui/reservations-workspace"
-import { CloudApiWorkspace } from "@/office/features/integrations/ui/cloud-api-workspace"
-import { EgaisUnavailable } from "@/office/features/integrations/ui/egais-unavailable"
-import { IntegrationCardsWorkspace } from "@/office/features/integrations/ui/integration-register"
 import type { CardModuleId } from "@/office/features/integrations/model/cards"
-import { ExternalMenuWorkspace } from "@/office/features/integrations/ui/external-menu-workspace"
-import { CampaignsWorkspace } from "@/office/features/loyalty/ui/campaigns-register"
-import { ModifiersWorkspace } from "@/office/features/modifiers/ui/modifiers-workspace"
-import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomenclature-workspace"
-import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
-import { PeriodLocksWorkspace } from "@/office/features/platform/ui/period-locks-workspace"
-import { PriceListsWorkspace } from "@/office/features/price-lists/ui/price-lists-workspace"
-import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-orders-workspace"
-import { KitchenPlanWorkspace, SemiFinishedSheetWorkspace } from "@/office/features/production-logistics/ui/logistics-page"
-import { AssemblyActsWorkspace, InternalOrdersWorkspace, ProcessingActsWorkspace, ProductionWorkspace, PurchaseOrdersWorkspace, SalesActsWorkspace } from "@/office/features/production/ui/production-workspace"
-import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
-import { EquipmentWorkspace } from "@/office/features/platform/ui/equipment-workspace"
-import { PrintTemplatesWorkspace } from "@/office/features/platform/ui/print-templates-workspace"
-import { SystemSettingsWorkspace } from "@/office/features/platform/ui/system-settings-workspace"
-import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
-import { ReportFavoritesWorkspace } from "@/office/features/reports/ui/report-favorites-page"
-import { ReportSchedulesWorkspace } from "@/office/features/reports/ui/report-schedules-page"
-import { ReportsWorkspace } from "@/office/features/reports/ui/reports-workspace"
-import { KitchenBoardWorkspace } from "@/office/features/kitchen/ui/kitchen-board-workspace"
-import { CashShiftsWorkspace } from "@/office/features/retail/ui/cash-shifts-workspace"
-import { OrdersWorkspace } from "@/office/features/retail/ui/orders-workspace"
-import { CashOperationsWorkspace } from "@/office/features/retail-settings/ui/cash-operations-workspace"
-import { DeletionReasonsWorkspace, DiscountTypesWorkspace, OrderTypesWorkspace, PaymentTypesWorkspace } from "@/office/features/retail-settings/ui/retail-settings-workspace"
 import { useOfficeContext } from "@/office/features/session/data/use-office-context"
 import { OfficeBootstrap } from "@/office/features/session/ui/office-bootstrap"
 import { OfficeAccessDenied, OfficeSignIn } from "@/office/features/session/ui/office-sign-in"
-import { SizeScalesWorkspace } from "@/office/features/size-scales/ui/size-scales-workspace"
-import { ReceiptsWorkspace } from "@/office/features/receipts/ui/receipts-workspace"
-import { InventoriesWorkspace, OutgoingInvoicesWorkspace, SupplierReturnsWorkspace, TransfersWorkspace, WriteoffsWorkspace } from "@/office/features/stock-documents/ui/documents-workspace"
-import { BalancesPage } from "@/office/features/stock/ui/balances-page"
-import { SuppliersPage } from "@/office/features/stock/ui/suppliers-page"
-import { UnitsPage } from "@/office/features/stock/ui/units-page"
-import { WarehousesPage } from "@/office/features/stock/ui/warehouses-page"
-import { AttendanceWorkspace } from "@/office/features/workforce/ui/attendance-workspace"
-import { MedicalRecordsWorkspace } from "@/office/features/workforce/ui/medical-records-workspace"
-import { MotivationWorkspace } from "@/office/features/workforce/ui/motivation-workspace"
-import { PayrollWorkspace } from "@/office/features/workforce/ui/payroll-workspace"
-import { PositionsWorkspace } from "@/office/features/workforce/ui/positions-workspace"
-import { ScheduleWorkspace } from "@/office/features/workforce/ui/schedule-workspace"
-import { ShiftTypesWorkspace } from "@/office/features/workforce/ui/shift-types-workspace"
-import { WorkforceWorkspace } from "@/office/features/workforce/ui/workforce-workspace"
 import { allowsCapability, PERSONAL_SECTIONS } from "@/office/model/capabilities"
 import { filterNavigationByCapabilities } from "@/office/model/nav-filter"
+import { registerSectionPreload } from "@/office/model/section-preload"
 import { DEFAULT_OFFICE_DESTINATION, findOfficeGroup, findOfficeItem, LEGACY_OFFICE_SECTIONS, OFFICE_LINKS, officeNavigation } from "@/office/model/navigation"
 import { EmptyState } from "@/shared/components/ui"
 import { NotFound } from "@/shared/routing/not-found"
 
+// Every section is its own chunk (the POS and the kitchen never download the office, and the office
+// downloads a section when it is opened); the shell and the navigation render at once.
+function lazySection<M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M & string) {
+  return Object.assign(lazy(() => load().then((module) => ({ default: module[name] as ComponentType }))), { preload: load })
+}
+
+const AccessControlWorkspace = lazySection(() => import("@/office/features/access-control/ui/access-control-workspace"), "AccessControlWorkspace")
+const CashflowCategoriesWorkspace = lazySection(() => import("@/office/features/finance/ui/cashflow-categories-workspace"), "CashflowCategoriesWorkspace")
+const CounterpartiesWorkspace = lazySection(() => import("@/office/features/finance/ui/counterparties-workspace"), "CounterpartiesWorkspace")
+const DepartmentsWorkspace = lazySection(() => import("@/office/features/corporation/ui/departments-workspace"), "DepartmentsWorkspace")
+const IntegrationJobsWorkspace = lazySection(() => import("@/office/features/corporation/ui/integration-jobs-workspace"), "IntegrationJobsWorkspace")
+const OrganizationsWorkspace = lazySection(() => import("@/office/features/corporation/ui/organizations-workspace"), "OrganizationsWorkspace")
+const RestaurantsWorkspace = lazySection(() => import("@/office/features/corporation/ui/restaurants-workspace"), "RestaurantsWorkspace")
+const DashboardWorkspace = lazySection(() => import("@/office/features/dashboard/ui/office-dashboard"), "DashboardWorkspace")
+const FavoritesWorkspace = lazySection(() => import("@/office/features/favorites/ui/favorites-workspace"), "FavoritesWorkspace")
+const DataExchangeWorkspace = lazySection(() => import("@/office/features/data-exchange/ui/data-exchange-workspace"), "DataExchangeWorkspace")
+const CouriersWorkspace = lazySection(() => import("@/office/features/delivery/ui/couriers-workspace"), "CouriersWorkspace")
+const CallCenterWorkspace = lazySection(() => import("@/office/features/delivery/ui/delivery-orders-workspace"), "CallCenterWorkspace")
+const DeliveryOrdersWorkspace = lazySection(() => import("@/office/features/delivery/ui/delivery-orders-workspace"), "DeliveryOrdersWorkspace")
+const TelephonyWorkspace = lazySection(() => import("@/office/features/delivery/ui/telephony-workspace"), "TelephonyWorkspace")
+const SourcesWorkspace = lazySection(() => import("@/office/features/delivery/ui/sources-workspace"), "SourcesWorkspace")
+const ZonesWorkspace = lazySection(() => import("@/office/features/delivery/ui/zones-workspace"), "ZonesWorkspace")
+const TransactionsWorkspace = lazySection(() => import("@/office/features/finance/ui/journal-workspace"), "TransactionsWorkspace")
+const ShiftAcceptanceWorkspace = lazySection(() => import("@/office/features/finance/ui/shift-acceptance-workspace"), "ShiftAcceptanceWorkspace")
+const AccountsPayableWorkspace = lazySection(() => import("@/office/features/finance/ui/accounts-payable-workspace"), "AccountsPayableWorkspace")
+const BankStatementsWorkspace = lazySection(() => import("@/office/features/finance/ui/bank-statements-workspace"), "BankStatementsWorkspace")
+const BudgetsWorkspace = lazySection(() => import("@/office/features/finance/ui/budgets-workspace"), "BudgetsWorkspace")
+const PaymentCalendarWorkspace = lazySection(() => import("@/office/features/finance/ui/payment-calendar-workspace"), "PaymentCalendarWorkspace")
+const PaymentsWorkspace = lazySection(() => import("@/office/features/finance/ui/payments-workspace"), "PaymentsWorkspace")
+const ServicesWorkspace = lazySection(() => import("@/office/features/finance/ui/services-workspace"), "ServicesWorkspace")
+const GuestCategoriesWorkspace = lazySection(() => import("@/office/features/loyalty/ui/categories-workspace"), "GuestCategoriesWorkspace")
+const LoyaltyWorkspace = lazySection(() => import("@/office/features/loyalty/ui/loyalty-workspace"), "LoyaltyWorkspace")
+const LoyaltyProgramsWorkspace = lazySection(() => import("@/office/features/loyalty/ui/programs-workspace"), "LoyaltyProgramsWorkspace")
+const ReservationsWorkspace = lazySection(() => import("@/office/features/loyalty/ui/reservations-workspace"), "ReservationsWorkspace")
+const CloudApiWorkspace = lazySection(() => import("@/office/features/integrations/ui/cloud-api-workspace"), "CloudApiWorkspace")
+const EgaisUnavailable = lazySection(() => import("@/office/features/integrations/ui/egais-unavailable"), "EgaisUnavailable")
+const loadIntegrationCards = () => import("@/office/features/integrations/ui/integration-register")
+const IntegrationCardsWorkspace = lazy(() => loadIntegrationCards().then((module) => ({ default: module.IntegrationCardsWorkspace })))
+const ExternalMenuWorkspace = lazySection(() => import("@/office/features/integrations/ui/external-menu-workspace"), "ExternalMenuWorkspace")
+const CampaignsWorkspace = lazySection(() => import("@/office/features/loyalty/ui/campaigns-register"), "CampaignsWorkspace")
+const ModifiersWorkspace = lazySection(() => import("@/office/features/modifiers/ui/modifiers-workspace"), "ModifiersWorkspace")
+const NomenclatureWorkspace = lazySection(() => import("@/office/features/nomenclature/ui/nomenclature-workspace"), "NomenclatureWorkspace")
+const AuditLogWorkspace = lazySection(() => import("@/office/features/platform/ui/audit-log-workspace"), "AuditLogWorkspace")
+const PeriodLocksWorkspace = lazySection(() => import("@/office/features/platform/ui/period-locks-workspace"), "PeriodLocksWorkspace")
+const PriceListsWorkspace = lazySection(() => import("@/office/features/price-lists/ui/price-lists-workspace"), "PriceListsWorkspace")
+const PriceOrdersWorkspace = lazySection(() => import("@/office/features/price-orders/ui/price-orders-workspace"), "PriceOrdersWorkspace")
+const KitchenPlanWorkspace = lazySection(() => import("@/office/features/production-logistics/ui/logistics-page"), "KitchenPlanWorkspace")
+const SemiFinishedSheetWorkspace = lazySection(() => import("@/office/features/production-logistics/ui/logistics-page"), "SemiFinishedSheetWorkspace")
+const AssemblyActsWorkspace = lazySection(() => import("@/office/features/production/ui/production-workspace"), "AssemblyActsWorkspace")
+const InternalOrdersWorkspace = lazySection(() => import("@/office/features/production/ui/production-workspace"), "InternalOrdersWorkspace")
+const ProcessingActsWorkspace = lazySection(() => import("@/office/features/production/ui/production-workspace"), "ProcessingActsWorkspace")
+const ProductionWorkspace = lazySection(() => import("@/office/features/production/ui/production-workspace"), "ProductionWorkspace")
+const PurchaseOrdersWorkspace = lazySection(() => import("@/office/features/production/ui/production-workspace"), "PurchaseOrdersWorkspace")
+const SalesActsWorkspace = lazySection(() => import("@/office/features/production/ui/production-workspace"), "SalesActsWorkspace")
+const TerminalsWorkspace = lazySection(() => import("@/office/features/platform/ui/terminals-workspace"), "TerminalsWorkspace")
+const EquipmentWorkspace = lazySection(() => import("@/office/features/platform/ui/equipment-workspace"), "EquipmentWorkspace")
+const PrintTemplatesWorkspace = lazySection(() => import("@/office/features/platform/ui/print-templates-workspace"), "PrintTemplatesWorkspace")
+const SystemSettingsWorkspace = lazySection(() => import("@/office/features/platform/ui/system-settings-workspace"), "SystemSettingsWorkspace")
+const ProductGroupsWorkspace = lazySection(() => import("@/office/features/product-groups/ui/product-groups-workspace"), "ProductGroupsWorkspace")
+const ReportFavoritesWorkspace = lazySection(() => import("@/office/features/reports/ui/report-favorites-page"), "ReportFavoritesWorkspace")
+const ReportSchedulesWorkspace = lazySection(() => import("@/office/features/reports/ui/report-schedules-page"), "ReportSchedulesWorkspace")
+const ReportsWorkspace = lazySection(() => import("@/office/features/reports/ui/reports-workspace"), "ReportsWorkspace")
+const KitchenBoardWorkspace = lazySection(() => import("@/office/features/kitchen/ui/kitchen-board-workspace"), "KitchenBoardWorkspace")
+const CashShiftsWorkspace = lazySection(() => import("@/office/features/retail/ui/cash-shifts-workspace"), "CashShiftsWorkspace")
+const OrdersWorkspace = lazySection(() => import("@/office/features/retail/ui/orders-workspace"), "OrdersWorkspace")
+const CashOperationsWorkspace = lazySection(() => import("@/office/features/retail-settings/ui/cash-operations-workspace"), "CashOperationsWorkspace")
+const DeletionReasonsWorkspace = lazySection(() => import("@/office/features/retail-settings/ui/retail-settings-workspace"), "DeletionReasonsWorkspace")
+const DiscountTypesWorkspace = lazySection(() => import("@/office/features/retail-settings/ui/retail-settings-workspace"), "DiscountTypesWorkspace")
+const OrderTypesWorkspace = lazySection(() => import("@/office/features/retail-settings/ui/retail-settings-workspace"), "OrderTypesWorkspace")
+const PaymentTypesWorkspace = lazySection(() => import("@/office/features/retail-settings/ui/retail-settings-workspace"), "PaymentTypesWorkspace")
+const SizeScalesWorkspace = lazySection(() => import("@/office/features/size-scales/ui/size-scales-workspace"), "SizeScalesWorkspace")
+const ReceiptsWorkspace = lazySection(() => import("@/office/features/receipts/ui/receipts-workspace"), "ReceiptsWorkspace")
+const InventoriesWorkspace = lazySection(() => import("@/office/features/stock-documents/ui/documents-workspace"), "InventoriesWorkspace")
+const OutgoingInvoicesWorkspace = lazySection(() => import("@/office/features/stock-documents/ui/documents-workspace"), "OutgoingInvoicesWorkspace")
+const SupplierReturnsWorkspace = lazySection(() => import("@/office/features/stock-documents/ui/documents-workspace"), "SupplierReturnsWorkspace")
+const TransfersWorkspace = lazySection(() => import("@/office/features/stock-documents/ui/documents-workspace"), "TransfersWorkspace")
+const WriteoffsWorkspace = lazySection(() => import("@/office/features/stock-documents/ui/documents-workspace"), "WriteoffsWorkspace")
+const BalancesPage = lazySection(() => import("@/office/features/stock/ui/balances-page"), "BalancesPage")
+const SuppliersPage = lazySection(() => import("@/office/features/stock/ui/suppliers-page"), "SuppliersPage")
+const UnitsPage = lazySection(() => import("@/office/features/stock/ui/units-page"), "UnitsPage")
+const WarehousesPage = lazySection(() => import("@/office/features/stock/ui/warehouses-page"), "WarehousesPage")
+const AttendanceWorkspace = lazySection(() => import("@/office/features/workforce/ui/attendance-workspace"), "AttendanceWorkspace")
+const MedicalRecordsWorkspace = lazySection(() => import("@/office/features/workforce/ui/medical-records-workspace"), "MedicalRecordsWorkspace")
+const MotivationWorkspace = lazySection(() => import("@/office/features/workforce/ui/motivation-workspace"), "MotivationWorkspace")
+const PayrollWorkspace = lazySection(() => import("@/office/features/workforce/ui/payroll-workspace"), "PayrollWorkspace")
+const PositionsWorkspace = lazySection(() => import("@/office/features/workforce/ui/positions-workspace"), "PositionsWorkspace")
+const ScheduleWorkspace = lazySection(() => import("@/office/features/workforce/ui/schedule-workspace"), "ScheduleWorkspace")
+const ShiftTypesWorkspace = lazySection(() => import("@/office/features/workforce/ui/shift-types-workspace"), "ShiftTypesWorkspace")
+const WorkforceWorkspace = lazySection(() => import("@/office/features/workforce/ui/workforce-workspace"), "WorkforceWorkspace")
+
 /** Sections with a working screen today; the rest of the 91 show a "coming" page until their W1+ task. */
 /** One Register per «Обмен и интеграции» section with a provider card (W3-INT-01). */
-const cardsWorkspace = (moduleId: CardModuleId): ComponentType => () => <IntegrationCardsWorkspace moduleId={moduleId} />
+const cardsWorkspace = (moduleId: CardModuleId): ComponentType & { preload: () => Promise<unknown> } => Object.assign(() => <IntegrationCardsWorkspace moduleId={moduleId} />, { preload: loadIntegrationCards })
 const CARD_WORKSPACES: Record<CardModuleId, ComponentType> = {
   "integration-1c": cardsWorkspace("integration-1c"),
   "integration-edi": cardsWorkspace("integration-edi"),
@@ -98,7 +121,7 @@ const CARD_WORKSPACES: Record<CardModuleId, ComponentType> = {
   "integration-maps": cardsWorkspace("integration-maps"),
 }
 
-const WORKSPACES: Record<string, ComponentType> = {
+const WORKSPACES: Record<string, ComponentType & { preload?: () => Promise<unknown> }> = {
   ...CARD_WORKSPACES,
   "integration-egais": EgaisUnavailable,
   dashboard: DashboardWorkspace,
@@ -184,6 +207,8 @@ const WORKSPACES: Record<string, ComponentType> = {
   "external-menu": ExternalMenuWorkspace,
 }
 
+for (const [sectionId, workspace] of Object.entries(WORKSPACES)) if (workspace.preload) registerSectionPreload(sectionId, workspace.preload)
+
 export function OfficeRouter() {
   const auth = useConvexAuth()
   const { signOut } = useAuthActions()
@@ -226,7 +251,9 @@ export function OfficeRouter() {
           </OfficePage>
         ) : Workspace ? (
           <OfficePage group={group} title={item.label} description={item.description} layout="fill" favorite={favorite}>
-            <Workspace />
+            <Suspense fallback={<OfficeStatePage state={{ kind: "loading" }} />}>
+              <Workspace />
+            </Suspense>
           </OfficePage>
         ) : (
           <OfficePage group={group} title={item.label} description={item.description} favorite={favorite}>

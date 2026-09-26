@@ -15,6 +15,23 @@ import "@fontsource/cormorant/600.css"
 import "@fontsource/cormorant/500-italic.css"
 import "@/shared/styles/index.css"
 
+// Sections load as separate chunks: after a deploy an open tab still points at the old ones, which the
+// host no longer serves. Reload once to pick up the new build instead of failing the section; the
+// timestamp stops a reload loop when the chunk is missing for another reason.
+window.addEventListener("vite:preloadError", (event) => {
+  const key = "sandyq-chunk-reload"
+  let last = 0
+  try {
+    last = Number(sessionStorage.getItem(key) ?? 0)
+    sessionStorage.setItem(key, String(Date.now()))
+  } catch {
+    // Storage unavailable (private mode): still reload once per page load.
+  }
+  if (Date.now() - last < 10_000) return
+  event.preventDefault()
+  window.location.reload()
+})
+
 const convexUrl = import.meta.env.VITE_CONVEX_URL
 if (!convexUrl) throw new Error("VITE_CONVEX_URL is required")
 const convex = new ConvexReactClient(convexUrl)

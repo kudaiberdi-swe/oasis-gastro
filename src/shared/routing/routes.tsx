@@ -1,11 +1,22 @@
 import { lazy, Suspense } from "react"
 import { Navigate, useLocation, type RouteObject } from "react-router"
 
-import { KitchenRouter } from "@/kitchen/router"
-import { OfficeRouter } from "@/office/router"
 import { DEFAULT_OFFICE_DESTINATION } from "@/office/model/navigation"
-import { PosRouter } from "@/pos/router"
 import { NotFound } from "@/shared/routing/not-found"
+
+// Each surface is its own chunk: a cash register never downloads the office or the kitchen screen.
+const PosRouter = lazy(() => import("@/pos/router").then((module) => ({ default: module.PosRouter })))
+const KitchenRouter = lazy(() => import("@/kitchen/router").then((module) => ({ default: module.KitchenRouter })))
+const OfficeRouter = lazy(() => import("@/office/router").then((module) => ({ default: module.OfficeRouter })))
+
+/** While a surface's chunk loads: the same quiet line the office shows while its session loads. */
+function SurfaceLoading() {
+  return (
+    <div role="status" className="grid h-full place-items-center bg-background text-body-sm text-muted-foreground">
+      Загрузка…
+    </div>
+  )
+}
 
 /** `/` is the cashier: keep `?terminal=` (branch selection) when redirecting. */
 function RootRedirect() {
@@ -35,13 +46,13 @@ const devRoutes: RouteObject[] =
 // The POS is a fixed-size touch surface; the office scrolls its own content (no page-level scroll).
 export const appRoutes: RouteObject[] = [
   { path: "/", element: <RootRedirect /> },
-  { path: "/pos", element: <div className="pos-surface h-full w-full"><PosRouter /></div> },
-  { path: "/kitchen", element: <div className="pos-surface h-full w-full"><KitchenRouter /></div> },
+  { path: "/pos", element: <div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><PosRouter /></Suspense></div> },
+  { path: "/kitchen", element: <div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><KitchenRouter /></Suspense></div> },
   { path: "/pos/kitchen", element: <KitchenRedirect /> },
   { path: "/office", element: <Navigate to={`/office/${DEFAULT_OFFICE_DESTINATION}`} replace /> },
-  { path: "/office/:section/:id?", element: <div className="h-full w-full"><OfficeRouter /></div> },
+  { path: "/office/:section/:id?", element: <div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div> },
   // A card nested in a section: /office/production/preparations/:productId (W2-PRD-01).
-  { path: "/office/:section/:id/:subId", element: <div className="h-full w-full"><OfficeRouter /></div> },
+  { path: "/office/:section/:id/:subId", element: <div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div> },
   ...devRoutes,
   { path: "*", element: <NotFound /> },
 ]

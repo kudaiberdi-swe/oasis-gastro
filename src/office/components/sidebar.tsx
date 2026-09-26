@@ -7,6 +7,7 @@ import { Link } from "react-router"
 import { useExpandedGroups } from "@/office/data/use-office-navigation"
 import { searchNavigation } from "@/office/model/nav-filter"
 import { OFFICE_LINKS, type OfficeNavigationGroup, type OfficeNavigationItem } from "@/office/model/navigation"
+import { preloadSection } from "@/office/model/section-preload"
 import { useTheme } from "@/shared/components/theme-provider"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
@@ -34,6 +35,8 @@ function NavItemLink({ item, active, highlight }: { item: OfficeNavigationItem; 
       to={itemHref(item)}
       target={external ? "_blank" : undefined}
       aria-current={active ? "page" : undefined}
+      onPointerEnter={external ? undefined : () => preloadSection(item.id)}
+      onFocus={external ? undefined : () => preloadSection(item.id)}
       className={cn(
         "relative flex min-h-9 items-center gap-2 rounded-control py-1.5 pr-2 pl-9 text-body-sm text-nav-muted transition-colors hover:bg-nav-raised hover:text-nav-foreground",
         active && "bg-nav-raised font-semibold text-nav-accent before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:bg-gold",
