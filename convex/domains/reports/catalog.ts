@@ -17,8 +17,6 @@ export type ReportDefinition = {
   /** Owner decision Г-11: the report depends only on a mechanic the business does not use (certificates, coupons, referrals, corporate clients). */
   mechanicDisabled: boolean
   requiredCapability?: string
-  /** Decision Г-11: the business does not run this mechanic (coupons, referrals…) — «Недоступно: механика выключена». */
-  mechanicDisabled?: boolean
 }
 
 export const FAMILY_LABELS: Record<ReportFamily, string> = {

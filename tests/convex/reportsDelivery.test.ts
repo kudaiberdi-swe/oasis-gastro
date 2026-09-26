@@ -202,7 +202,7 @@ describe("delivery reports (W3-RPT-03)", () => {
     const admin = t.withIdentity({ email: "asel@sandyq.test" })
     await expect(admin.query(api.domains.reports.queries.execute, { reportId: "delivery-10", config: DAY })).rejects.toThrow(/в разработке/)
     const coverage = await admin.query(api.domains.reports.queries.coverage, {})
-    expect(coverage.mechanicDisabled).toBe(1)
+    expect(coverage.mechanicDisabled).toBe(3) // delivery-10, loyalty-11, loyalty-12 (Г-11)
     expect(coverage.implementedIds).not.toContain("delivery-10")
   })
 })

@@ -64,8 +64,9 @@ function renderAt(url: string) {
 describe("report availability (W3-RPT-03)", () => {
   it("«Корпоративные клиенты»: «Механика выключена» in the catalog, «Недоступно: механика выключена» in the viewer, no execute", () => {
     renderAt("/office/reports/delivery-10?from=2026-09-01&to=2026-09-07")
-    // Role queries over the 190-card catalog are slow in jsdom: the pill is found by text (catalog card + viewer header).
-    expect(screen.getAllByText("Механика выключена")).toHaveLength(2)
+    // Role queries over the 190-card catalog are slow in jsdom: the pill is found by text — three catalog cards
+    // (delivery-10, loyalty-11, loyalty-12, decision Г-11) and the viewer header.
+    expect(screen.getAllByText("Механика выключена")).toHaveLength(4)
     expect(screen.getByText("Недоступно: механика выключена")).toBeTruthy()
     expect(mocks.calls).not.toContain("domains/reports/queries:execute")
   }, 15_000)
