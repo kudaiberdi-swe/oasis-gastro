@@ -125,6 +125,28 @@ describe("iiko recipes and prices (W2-IIKO-08/09)", () => {
   })
 })
 
+describe("«Показать блюда iiko с ценой» (W1-IIKO-04)", () => {
+  it("shows the hidden iiko dishes priced in the user's branches, never one hidden on purpose; the dry run only counts", async () => {
+    const { t, admin, stranger } = await linked()
+    const other = { ...dish, externalId: "i-dish-2", name: "Сорпа", payloadHash: "p9" }
+    const unpriced = { ...dish, externalId: "i-dish-3", name: "Без цены", payloadHash: "p8" }
+    const hidden = { ...dish, externalId: "i-dish-4", name: "Скрыто вручную", payloadHash: "p7" }
+    await t.mutation(internal.domains.iiko.mutations.importBatch, { ...empty, products: [dish, other, unpriced, hidden] })
+    await t.mutation(internal.domains.iiko.mutations.importBatch, { ...empty, prices: ["i-dish", "i-dish-2", "i-dish-4"].map((id) => ({ departmentExternalId: "dep-almaty", productExternalId: id, price: 1000, payloadHash: id })) })
+    await t.run((ctx) => ctx.db.insert("iikoEntityOverlays", { overlayKey: "product:iiko-product-i-dish-4", entityType: "product", sourceExternalId: "iiko-product-i-dish-4", visibleInPos: false }))
+    const page = { paginationOpts: { numItems: 100, cursor: null } }
+    const dry = await admin.mutation(api.domains.catalog.office.showPricedIikoDishes, { ...page, dryRun: true })
+    expect(dry).toMatchObject({ shown: 2, isDone: true })
+    expect((await product(t, "i-dish"))?.enabled).toBe(false)
+    await expect(stranger.mutation(api.domains.catalog.office.showPricedIikoDishes, page)).rejects.toThrow()
+    expect((await admin.mutation(api.domains.catalog.office.showPricedIikoDishes, page)).shown).toBe(2)
+    expect((await Promise.all(["i-dish", "i-dish-2", "i-dish-3", "i-dish-4"].map((id) => product(t, id)))).map((row) => row?.enabled)).toEqual([true, true, false, false])
+    // A re-import keeps them shown (the overlay remembers it).
+    await t.mutation(internal.domains.iiko.mutations.importBatch, { ...empty, products: [{ ...dish, payloadHash: "p1z" }] })
+    expect((await product(t, "i-dish"))?.enabled).toBe(true)
+  })
+})
+
 describe("iiko import run totals", () => {
   it("the endpoint shows the run's total, not the size of its last chunk", async () => {
     const { t } = await linked()

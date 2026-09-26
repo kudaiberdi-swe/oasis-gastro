@@ -24,6 +24,7 @@ import {
 } from "../data/use-nomenclature"
 import { NewProductDialog } from "./new-product-dialog"
 import { ProductEditor, ProductThumb } from "./product-editor/product-editor"
+import { ShowIikoDishesButton } from "./show-iiko-dishes"
 
 /** /office/nomenclature — the register; /office/nomenclature/:externalId — the product card. */
 export function NomenclatureWorkspace() {
@@ -118,7 +119,8 @@ function NomenclatureRegister() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5 xl:px-8">
       {canEdit ? (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <ShowIikoDishesButton />
           <Button onClick={() => setCreating(true)}>
             <Plus aria-hidden />
             Новое блюдо

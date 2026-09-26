@@ -314,6 +314,45 @@ export const saveProductCard = mutation({
   },
 })
 
+/**
+ * «Показать блюда iiko с ценой» (W1-IIKO-04, decision Б-B4): iiko dishes arrive hidden; this shows on the POS
+ * every iiko dish that has an iiko branch price in a restaurant of the user's scope — what iiko actually
+ * sells there. A dish the office hid on purpose (overlay «В продаже» off) and one deleted in iiko stay hidden.
+ * Paged over productPrices; `dryRun` only counts.
+ */
+export const showPricedIikoDishes = mutation({
+  args: { paginationOpts: paginationOptsValidator, dryRun: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.nomenclature.edit")
+    const email = (await getOfficeAuthEmail(ctx))!
+    const inScope = restaurantScopeFilter(user)
+    const page = await ctx.db.query("productPrices").withIndex("by_restaurant").paginate(args.paginationOpts)
+    const seen = new Set<string>()
+    const ids: Id<"products">[] = []
+    let shown = 0
+    for (const price of page.page) {
+      if (price.sourceSystem !== "iiko-server" || !inScope(price.restaurantExternalId) || seen.has(price.productId)) continue
+      seen.add(price.productId)
+      const product = await ctx.db.get(price.productId)
+      if (!product || product.sourceSystem !== "iiko-server" || product.itemType !== "dish" || product.enabled || product.sourceDeleted) continue
+      const overlay = await overlayOf(ctx, product)
+      if (overlay?.visibleInPos === false) continue
+      shown += 1
+      ids.push(product._id)
+      if (args.dryRun) continue
+      await ctx.db.patch(product._id, { enabled: true })
+      const value = { visibleInPos: true, sourceSystem: "iiko-server" as const, updatedBy: email, updatedAt: Date.now() }
+      if (overlay) await ctx.db.patch(overlay._id, value)
+      else await ctx.db.insert("iikoEntityOverlays", { overlayKey: `product:${product.externalId}`, entityType: "product", sourceExternalId: product.externalId, ...value })
+    }
+    if (shown && !args.dryRun) {
+      await writeOfficeAudit(ctx, email, { action: "catalog.product.update", summary: `Показано на кассе блюд iiko с ценой: ${shown}`, resourceType: "product", resourceExternalId: "iiko-priced-dishes", capability: "office.nomenclature.edit", details: { shown } })
+    }
+    // The dry run's ids let the office count each dish once across pages (a dish is priced in several branches).
+    return { shown, productIds: args.dryRun ? ids : [], isDone: page.isDone, continueCursor: page.continueCursor, dryRun: args.dryRun ?? false }
+  },
+})
+
 /** Upload URL for an image; the file is checked and attached by attachProductImage. */
 export const generateImageUploadUrl = mutation({
   args: {},

@@ -94,7 +94,8 @@ export function useNomenclatureMutations() {
   const attachProductImage = useMutation(office.attachProductImage)
   const setProductPrice = useMutation(catalog.setProductPrice)
   const createProduct = useMutation(catalog.createProduct)
-  return { saveProductCard, attachProductImage, setProductPrice, createProduct }
+  const showPricedIikoDishes = useMutation(office.showPricedIikoDishes)
+  return { saveProductCard, attachProductImage, setProductPrice, createProduct, showPricedIikoDishes }
 }
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = { dish: "Блюдо", good: "Товар", preparation: "Заготовка" }
