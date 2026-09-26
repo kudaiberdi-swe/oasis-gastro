@@ -4,7 +4,7 @@
 #   balances, branch prices, and the cash shifts and orders (no personal data) since --from.
 # iiko is only read (GET); every import step is idempotent — a re-run only touches changed records.
 #
-# Before the first run: in the prod office, «Обмен данными → Сопоставление филиалов», link every Sandyq
+# Before the first run: in the prod office, «Корпорация → Обмен данными с iiko → Сопоставление филиалов», link every Sandyq
 # restaurant to its iiko department. Without a link its stores, cash registers, prices and sales are skipped.
 #
 #   bash scripts/prod-iiko-import.sh                      # sales of the last 7 days, asks before importing

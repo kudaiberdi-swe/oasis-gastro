@@ -357,7 +357,7 @@ export function RestaurantEditor({
       </TabsContent>
       <TabsContent value="iiko" className="flex flex-col gap-4">
         <p className="text-body-sm text-foreground">
-          Связь ресторана с подразделением iiko задаётся в разделе «Обмен между точками». Данные iiko только читаются — Sandyq ничего не записывает в iiko.
+          Связь ресторана с подразделением iiko задаётся в разделе «Корпорация → Обмен данными с iiko». Данные iiko только читаются — Sandyq ничего не записывает в iiko.
         </p>
         {canViewExchange ? (
           <Link to="/office/data-exchange" className={buttonVariants({ variant: "secondary" })}>
@@ -365,7 +365,7 @@ export function RestaurantEditor({
             <ArrowUpRight aria-hidden />
           </Link>
         ) : (
-          <p className="text-caption text-muted-foreground">Нет права на раздел «Обмен между точками».</p>
+          <p className="text-caption text-muted-foreground">Нет права на раздел «Обмен данными с iiko».</p>
         )}
       </TabsContent>
     </Tabs>
