@@ -8,6 +8,8 @@ import { CatalogPanel, type CatalogPanelControl } from "@/pos/features/catalog/u
 import { useBarcodeLookup } from "@/pos/features/hotkeys/data/use-barcode-lookup"
 import { useBarcodeScanner, usePosHotkeys } from "@/pos/features/hotkeys/ui/use-pos-hotkeys"
 import { precheckFromDraft } from "@/pos/features/checkout/model/order-receipt"
+import { useCheckoutAttempt } from "@/pos/features/checkout/model/use-checkout-attempt"
+import { PaymentComplete, paidCheckFrom, type PaidCheck } from "@/pos/features/checkout/ui/payment-complete"
 import { PaymentDialog, type CheckoutPayment } from "@/pos/features/checkout/ui/payment-dialog"
 import { useKitchenBoard } from "@/kitchen/features/board/data/use-kitchen-board"
 import { KitchenBoard } from "@/kitchen/features/board/ui/kitchen-board"
@@ -46,6 +48,7 @@ import { TerminalPicker } from "@/pos/features/session/ui/terminal-picker"
 import type { CashMovementInput } from "@/pos/features/shifts/model/cash-operations"
 import { OpenShiftDialog, ShiftDialog, type ShiftTab } from "@/pos/features/shifts/ui/shift-dialog"
 import { useClosePreview, useCurrentShift, useShiftMutations, useZReportLoader } from "@/pos/features/shifts/data/use-shifts"
+import { OFFLINE_MESSAGE, useServerOffline } from "@/pos/model/use-connection"
 import { Button } from "@/shared/components/ui/button"
 import { useToast } from "@/shared/components/ui/toast"
 import { errorMessage } from "@/shared/lib/error-message"
@@ -158,8 +161,10 @@ function AuthenticatedPos({
   const [dialog, setDialog] = useState<PosDialog>(null)
   const [shiftTab, setShiftTab] = useState<ShiftTab>("summary")
   const [paymentOpen, setPaymentOpen] = useState(false)
-  const [paymentError, setPaymentError] = useState<string | null>(null)
-  const [paymentSubmitting, setPaymentSubmitting] = useState(false)
+  // One idempotency key per payment attempt of an order, a 10 s answer timeout, then «Оплачено».
+  const payment = useCheckoutAttempt<Awaited<ReturnType<typeof checkout>>>()
+  const [paid, setPaid] = useState<(PaidCheck & { print: () => boolean }) | null>(null)
+  const offline = useServerOffline()
   const [discountOpen, setDiscountOpen] = useState(false)
   const [showKitchen, setShowKitchen] = useState(false)
   const [guestOpen, setGuestOpen] = useState(false)
@@ -207,7 +212,7 @@ function AuthenticatedPos({
         catalogRef.current?.focusSearch()
       },
       pay: () => {
-        if (showKitchen || !orderReady) return false
+        if (showKitchen || !orderReady || offline) return false
         setPaymentOpen(true)
       },
       hold: () => {
@@ -301,6 +306,8 @@ function AuthenticatedPos({
     setLastClosed({ shiftId: result.shiftId, shiftNumber: currentShift.number, zReportNumber: result.zReportNumber })
     setDialog(null)
     selectCheck(null)
+    // «Закрыть смену и напечатать Z-отчёт»: the Z prints at once; the opening screen can print it again.
+    void printZReport(result.shiftId).catch((caught) => toast(errorMessage(caught, "Z-отчёт не напечатан — напечатайте его из окна открытия смены"), "error"))
   }
 
   async function handleSendToKitchen() {
@@ -315,19 +322,28 @@ function AuthenticatedPos({
   }
 
   async function handleCheckoutSubmit(payments: CheckoutPayment[]) {
-    if (!draft.orderId) return
-    setPaymentSubmitting(true)
-    setPaymentError(null)
-    try {
-      await draft.settle()
-      await checkout({ sessionToken, orderId: draft.orderId, idempotencyKey: crypto.randomUUID(), payments })
-      setPaymentOpen(false)
-      selectCheck(null)
-    } catch (caught) {
-      setPaymentError(errorMessage(caught, "Не удалось провести оплату"))
-    } finally {
-      setPaymentSubmitting(false)
-    }
+    const orderId = draft.orderId
+    if (!orderId) return
+    // A retry of the same order reuses the attempt's key: orders.checkout answers a repeat with the first result.
+    await payment.submit(
+      orderId,
+      async (idempotencyKey) => {
+        await draft.settle()
+        return checkout({ sessionToken, orderId, idempotencyKey, payments })
+      },
+      (result) => {
+        setPaymentOpen(false)
+        setPaid({ ...paidCheckFrom(result), print: () => printHtml(printer.order(receiptFromOrder(result.receipt, place))) })
+        selectCheck(null)
+      },
+    )
+  }
+
+  function handlePaymentOpenChange(open: boolean) {
+    // An attempt in flight cannot be dismissed; after its timeout the cashier may retry or cancel.
+    if (!open && payment.submitting) return
+    if (!open) payment.reset()
+    setPaymentOpen(open)
   }
 
   function printPrecheck() {
@@ -418,6 +434,11 @@ function AuthenticatedPos({
   return (
     <div className="flex h-full flex-col gap-2 p-2">
       {header}
+      {offline && (
+        <p role="status" className="shrink-0 rounded-card border border-destructive/40 bg-destructive/10 px-4 py-2 text-body-sm font-semibold text-foreground">
+          {OFFLINE_MESSAGE}
+        </p>
+      )}
       <div className="flex min-h-0 flex-1 gap-2 overflow-x-clip">
         <OrderPanel
           tableLabel={draft.tableLabel}
@@ -451,6 +472,7 @@ function AuthenticatedPos({
           error={draft.error}
           canSendToKitchen={draft.hasUnsentLines}
           sendingToKitchen={sendingToKitchen}
+          offlineReason={offline ? OFFLINE_MESSAGE : null}
           onIncrement={(id) => {
             const line = draft.lines.find((candidate) => candidate.clientLineId === id)
             if (!line) return
@@ -489,16 +511,25 @@ function AuthenticatedPos({
 
       <PaymentDialog
         open={paymentOpen}
-        onOpenChange={setPaymentOpen}
+        onOpenChange={handlePaymentOpenChange}
         total={draft.total}
         loyaltyRedemption={plannedRedemption}
-        blockedReason={redemptionStale}
+        blockedReason={redemptionStale ?? (offline ? OFFLINE_MESSAGE : null)}
         orderNumber={draft.orderNumber}
         itemCount={draft.itemCount}
         paymentTypes={retail.paymentTypes}
-        submitting={paymentSubmitting}
-        error={paymentError}
+        submitting={payment.submitting}
+        error={payment.error}
         onSubmit={handleCheckoutSubmit}
+      />
+      <PaymentComplete
+        paid={paid}
+        onOpenChange={(open) => !open && setPaid(null)}
+        onPrint={() => paid?.print() ?? false}
+        onNewTable={() => {
+          setPaid(null)
+          selectCheck(null)
+        }}
       />
       <VoidLineDialog
         line={draft.lines.find((line) => line.clientLineId === voidingLineId) ?? null}
@@ -533,6 +564,8 @@ function AuthenticatedPos({
         open={discountOpen}
         onOpenChange={setDiscountOpen}
         currentPercent={draft.discountPercent}
+        subtotal={draft.subtotal}
+        serviceChargePercent={draft.serviceChargePercent}
         onApply={(percent, reason, token) => draft.applyDiscount(percent, reason, token)}
         onManagerRequired={requestApproval}
       />

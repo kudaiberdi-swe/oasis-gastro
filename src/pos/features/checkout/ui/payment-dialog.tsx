@@ -1,8 +1,10 @@
+import * as RadioGroupPrimitive from "@radix-ui/react-radio-group"
 import { Banknote, Check, CreditCard, QrCode, Split } from "lucide-react"
-import { useRef, useState, type ReactNode } from "react"
+import { useRef, useState, type FocusEvent, type ReactNode } from "react"
 
 import type { PosPaymentType } from "@/pos/features/retail/data/use-retail-settings"
 import { Button, Chip, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Field, Money, MoneyInput, TonePill } from "@/shared/components/ui"
+import { useArrowSelection } from "@/shared/components/ui/use-arrow-selection"
 import { cn, focusRingClass, formatTenge } from "@/shared/lib/utils"
 import type { PaymentMethod } from "@/shared/types/pos"
 import { QUICK_CASH_STEPS, roundUpTo } from "../model/order-receipt"
@@ -10,6 +12,9 @@ import { changeDue, initialSplit, payableTotal, paymentOptions, paymentProblem, 
 import { PaymentSplitList } from "./payment-split-list"
 
 export type { CheckoutPayment } from "../model/payment-parts"
+
+/** The radio value of «Смешанная оплата» — never a payment type's externalId. */
+const MIXED = "__mixed__"
 
 const KIND_ICON: Record<PaymentMethod, ReactNode> = { cash: <Banknote aria-hidden />, card: <CreditCard aria-hidden />, qr: <QrCode aria-hidden /> }
 
@@ -26,6 +31,7 @@ export function cashPresets(amount: number): Array<{ label: string; tendered: nu
 /**
  * Payment (W1-POS-17, POS-DESIGN §6.2): tiles from the published payment types (legacy cash / card / QR
  * before they are seeded), «Смешанная оплата» on N parts. The server settles and re-checks every rule.
+ * With more than one type nothing is preselected: the cashier picks the method before «Подтвердить».
  */
 export function PaymentDialog({
   open,
@@ -58,35 +64,40 @@ export function PaymentDialog({
   const total = payableTotal(orderTotal, loyaltyRedemption)
   const options = paymentOptions(paymentTypes)
   const [mode, setMode] = useState<"single" | "mixed">("single")
-  const [selectedKey, setSelectedKey] = useState<string | undefined>(options[0]?.key)
+  const [selectedKey, setSelectedKey] = useState<string | undefined>(onlyOption(options))
   const [tendered, setTendered] = useState<number | null>(total)
   const [parts, setParts] = useState<PaymentPart[]>([])
   const wasOpen = useRef(open)
 
-  // Every opening starts on the first type with the live total — it can change between openings.
+  // Every opening starts with no method picked (the only one, if there is one) and the live total.
   if (open && !wasOpen.current) {
     setMode("single")
-    setSelectedKey(options[0]?.key)
+    setSelectedKey(onlyOption(options))
     setTendered(total)
     setParts([])
   }
   wasOpen.current = open
 
-  const selected = options.find((option) => option.key === selectedKey) ?? options[0]
+  const selected = options.find((option) => option.key === (selectedKey ?? onlyOption(options)))
+  const arrows = useArrowSelection((value) => (value === MIXED ? chooseMixed() : chooseKey(value)))
   const activeParts: PaymentPart[] = mode === "mixed" ? parts : selected ? [{ id: "single", optionKey: selected.key, amount: total, tendered }] : []
   const problem = blockedReason || paymentProblem(activeParts, options, total)
   const change = changeDue(activeParts, options)
 
-  function chooseOption(option: PaymentOption) {
+  function chooseKey(key: string) {
+    if (mode === "single" && key === selected?.key) return
     setMode("single")
-    setSelectedKey(option.key)
+    setSelectedKey(key)
     setTendered(total)
   }
 
   function chooseMixed() {
+    if (mode === "mixed") return
     setMode("mixed")
     setParts(initialSplit(options, total))
   }
+
+  const radioValue = mode === "mixed" ? MIXED : (selected?.key ?? "")
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,20 +122,30 @@ export function PaymentDialog({
                 </p>
               )}
             </div>
-            <div role="radiogroup" aria-label="Способ оплаты" className="flex flex-col gap-2">
+            {/* Radix radio group: roving tabindex; the arrows move the focus and select (useArrowSelection). */}
+            <RadioGroupPrimitive.Root
+              aria-label="Способ оплаты"
+              orientation="vertical"
+              value={radioValue}
+              onValueChange={(value) => (value === MIXED ? chooseMixed() : chooseKey(value))}
+              onKeyDownCapture={arrows.onKeyDownCapture}
+              className="flex flex-col gap-2"
+            >
               {options.map((option) => (
-                <PaymentTile key={option.key} active={mode === "single" && selected?.key === option.key} icon={KIND_ICON[option.method]} title={option.name} hint={option.hint} onClick={() => chooseOption(option)} />
+                <PaymentTile key={option.key} value={option.key} active={radioValue === option.key} icon={KIND_ICON[option.method]} title={option.name} hint={option.hint} onFocus={arrows.itemFocus(option.key)} />
               ))}
               {options.filter((option) => option.combinable).length > 1 && (
-                <PaymentTile active={mode === "mixed"} icon={<Split aria-hidden />} title="Смешанная оплата" hint="Несколько способов в одном чеке" onClick={chooseMixed} />
+                <PaymentTile value={MIXED} active={mode === "mixed"} icon={<Split aria-hidden />} title="Смешанная оплата" hint="Несколько способов в одном чеке" onFocus={arrows.itemFocus(MIXED)} />
               )}
-            </div>
+            </RadioGroupPrimitive.Root>
           </div>
           <div className="flex flex-col gap-4 p-6">
             {mode === "mixed" ? (
               <PaymentSplitList parts={parts} options={options} total={total} onChange={setParts} />
             ) : selected ? (
               <SingleDetails option={selected} total={total} tendered={tendered} onTendered={setTendered} change={change} />
+            ) : options.length ? (
+              <p className="text-body text-muted-foreground">Выберите способ оплаты слева.</p>
             ) : (
               <p className="text-body-sm text-muted-foreground">Типы оплаты не настроены.</p>
             )}
@@ -149,13 +170,16 @@ export function PaymentDialog({
   )
 }
 
-function PaymentTile({ active, icon, title, hint, onClick }: { active: boolean; icon: ReactNode; title: string; hint: string; onClick: () => void }) {
+/** The first opening has no method picked unless there is only one to pick. */
+function onlyOption(options: PaymentOption[]) {
+  return options.length === 1 ? options[0].key : undefined
+}
+
+function PaymentTile({ value, active, icon, title, hint, onFocus }: { value: string; active: boolean; icon: ReactNode; title: string; hint: string; onFocus: (event: FocusEvent) => void }) {
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      onClick={onClick}
+    <RadioGroupPrimitive.Item
+      value={value}
+      onFocus={onFocus}
       className={cn(
         "flex min-h-16 items-center gap-3 rounded-control border bg-card px-3 text-left transition-colors hover:bg-muted [&_svg]:size-6",
         active ? "border-2 border-foreground" : "border-input",
@@ -168,7 +192,7 @@ function PaymentTile({ active, icon, title, hint, onClick }: { active: boolean; 
         <span className="text-body-sm text-muted-foreground">{hint}</span>
       </span>
       {active ? <Check aria-hidden className="text-success" /> : null}
-    </button>
+    </RadioGroupPrimitive.Item>
   )
 }
 

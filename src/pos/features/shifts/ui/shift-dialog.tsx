@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { ArrowDownToLine, ArrowUpFromLine, Clock3, FileText, Printer } from "lucide-react"
+import { ArrowDownToLine, ArrowUpFromLine, Clock3, FileText, Printer, RotateCcw } from "lucide-react"
 
 import type { PosCashOperationType } from "@/pos/features/retail/data/use-retail-settings"
 import type { CurrentShift } from "@/pos/features/shifts/data/use-shifts"
@@ -26,7 +26,7 @@ import {
 } from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
-import { cn, formatTenge } from "@/shared/lib/utils"
+import { formatTenge } from "@/shared/lib/utils"
 
 /** Mirrors convex/lib/policy.ts VARIANCE_APPROVAL_KZT until closePreview answers. */
 const DEFAULT_VARIANCE_THRESHOLD = 1000
@@ -367,7 +367,11 @@ export function CashMovementForm({
           {(control) => <Input {...control} value={comment} onChange={(event) => setComment(event.target.value)} placeholder={direction === "cash-in" ? "Например, размен" : "Например, инкассация"} className="h-[var(--control-h-pos)] text-body" />}
         </Field>
       </div>
-      {direction === "cash-out" && <p className="text-body-sm font-semibold text-warning">Изъятие подтверждается PIN менеджера.</p>}
+      {needsManager && (
+        <p className="text-body-sm text-muted-foreground">
+          {direction === "cash-out" ? "Каждое изъятие" : "Это внесение"} подтверждает менеджер: после «Сохранить операцию» он вводит свой PIN.
+        </p>
+      )}
       {error ? (
         <p role="alert" className="text-body-sm font-semibold text-destructive">
           {error}
@@ -397,8 +401,10 @@ export function CloseShiftPanel({
   onManagerRequired: (reason: string) => Promise<string | null>
   onOpenOrderHistory?: () => void
 }) {
-  // Blind count (POS-DESIGN §6.2, S-12): the cashier enters what is in the drawer first; the expected
-  // amount and the variance appear only after that.
+  // Blind count (POS-DESIGN §6.2, S-12): step «count» shows neither the expected cash nor the variance;
+  // «Сверить» fixes the count and reveals them («review»); «Пересчитать» is the only way back and clears
+  // it. The irreversible close asks once more («confirm»).
+  const [step, setStep] = useState<"count" | "review" | "confirm">("count")
   const [counted, setCounted] = useState<number | null>(null)
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -408,19 +414,37 @@ export function CloseShiftPanel({
   const needsManager = counted !== null && Math.abs(variance) >= managerThreshold
   const noteRequired = counted !== null && variance !== 0
 
-  async function submit() {
-    if (blockers.length) {
-      setError("Закройте или отложите все открытые заказы")
-      return
-    }
+  function reconcile() {
     if (counted === null) {
       setError("Введите фактическую наличность")
+      return
+    }
+    setError(null)
+    setStep("review")
+  }
+
+  function recount() {
+    setCounted(null)
+    setNote("")
+    setError(null)
+    setStep("count")
+  }
+
+  function askConfirm() {
+    if (blockers.length) {
+      setError("Закройте или отложите все открытые заказы")
       return
     }
     if (noteRequired && note.trim().length < 3) {
       setError("При расхождении укажите комментарий")
       return
     }
+    setError(null)
+    setStep("confirm")
+  }
+
+  async function submit() {
+    if (counted === null || blockers.length) return
     setSubmitting(true)
     setError(null)
     try {
@@ -433,56 +457,105 @@ export function CloseShiftPanel({
       await onClose(counted, note, managerApprovalToken)
     } catch (caught) {
       setError(errorMessage(caught, "Не удалось закрыть смену"))
+      setStep("review")
     } finally {
       setSubmitting(false)
     }
   }
 
+  const blockersBanner = blockers.length > 0 && (
+    <Banner
+      tone="danger"
+      title={`Открытых заказов: ${blockers.length}`}
+      action={
+        onOpenOrderHistory ? (
+          <Button variant="link" onClick={onOpenOrderHistory}>
+            Открыть историю
+          </Button>
+        ) : undefined
+      }
+    >
+      {blockers.map((blocker) => blocker.tableLabel || `№${blocker.number}`).join(", ")}
+    </Banner>
+  )
+  const errorLine = error && (
+    <p role="alert" className="text-body-sm font-semibold text-destructive">
+      {error}
+    </p>
+  )
+
+  if (step === "count") {
+    return (
+      <div className="flex flex-col gap-4">
+        <Banner tone="info" title="Пересчитайте наличные в ящике">
+          Введите сумму, которую насчитали. Ожидаемая сумма появится после сверки. Открытые и отложенные заказы блокируют закрытие.
+        </Banner>
+        <Field id="close-shift-counted" label="Фактическая наличность">
+          {(control) => <MoneyInput {...control} value={counted} onValueChange={setCounted} className="h-[var(--control-h-pos)] text-body font-semibold" />}
+        </Field>
+        {blockersBanner}
+        {errorLine}
+        <Button size="lg" onClick={reconcile} disabled={counted === null}>
+          Сверить
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <Banner tone="info" title="Перед закрытием">
-        Введите фактическую сумму, не сверяясь с ожидаемой. Открытые и отложенные заказы блокируют закрытие.
-      </Banner>
-      <Field id="close-shift-counted" label="Фактическая наличность">
-        {(control) => <MoneyInput {...control} value={counted} onValueChange={setCounted} className="h-[var(--control-h-pos)] text-body font-semibold" />}
-      </Field>
-      {counted !== null && (
-        <div className="grid grid-cols-2 gap-3">
-          <p className="text-body-sm text-muted-foreground">
-            Ожидается в кассе: <span className="font-semibold text-foreground tabular-nums">{formatTenge(expectedCash)}</span>
-          </p>
-          <p className={cn("text-body-sm font-semibold tabular-nums", variance === 0 ? "text-muted-foreground" : variance > 0 ? "text-success" : "text-destructive")}>
-            Расхождение: {formatTenge(variance, { explicitPlus: true })}
-          </p>
+      <dl className="grid grid-cols-3 gap-3">
+        <div className="flex flex-col gap-1 rounded-card border border-border bg-card p-4">
+          <dt className="text-body-sm text-muted-foreground">Насчитано</dt>
+          <dd>
+            <Money value={counted ?? 0} size="lg" className="text-foreground" />
+          </dd>
         </div>
-      )}
-      {blockers.length > 0 && (
-        <Banner
-          tone="danger"
-          title={`Открытых заказов: ${blockers.length}`}
-          action={
-            onOpenOrderHistory ? (
-              <Button variant="link" onClick={onOpenOrderHistory}>
-                Открыть историю
-              </Button>
-            ) : undefined
-          }
-        >
-          {blockers.map((blocker) => blocker.tableLabel || `№${blocker.number}`).join(", ")}
-        </Banner>
-      )}
-      <Field id="close-shift-note" label={noteRequired ? "Комментарий (обязательно при расхождении)" : "Комментарий"}>
-        {(control) => <Input {...control} value={note} onChange={(event) => setNote(event.target.value)} className="h-[var(--control-h-pos)]" />}
-      </Field>
-      <p className={cn("text-body-sm", needsManager ? "font-semibold text-warning" : "text-muted-foreground")}>Расхождение от {formatTenge(managerThreshold)} требует PIN менеджера.</p>
-      {error && (
-        <p role="alert" className="text-body-sm font-semibold text-destructive">
-          {error}
+        <div className="flex flex-col gap-1 rounded-card border border-border bg-card p-4">
+          <dt className="text-body-sm text-muted-foreground">Ожидается в кассе</dt>
+          <dd>
+            <Money value={expectedCash} size="lg" className="text-foreground" />
+          </dd>
+        </div>
+        <div className="flex flex-col gap-1 rounded-card border border-border bg-card p-4">
+          <dt className="text-body-sm text-muted-foreground">Расхождение</dt>
+          <dd>
+            <Money value={variance} size="lg" signed />
+          </dd>
+        </div>
+      </dl>
+      {needsManager && (
+        <p className="text-body-sm font-semibold text-warning">
+          Расхождение {formatTenge(managerThreshold)} и больше: закрытие подтверждает менеджер своим PIN.
         </p>
       )}
-      <Button size="lg" onClick={submit} disabled={submitting || counted === null || blockers.length > 0}>
-        <FileText /> {submitting ? "Закрытие…" : "Закрыть смену и сформировать Z-отчёт"}
-      </Button>
+      {blockersBanner}
+      <Field id="close-shift-note" label={noteRequired ? "Комментарий (обязательно при расхождении)" : "Комментарий"}>
+        {(control) => <Input {...control} value={note} onChange={(event) => setNote(event.target.value)} disabled={step === "confirm"} className="h-[var(--control-h-pos)]" />}
+      </Field>
+      {errorLine}
+      {step === "confirm" ? (
+        <div role="group" aria-label="Подтверждение закрытия" className="flex flex-col gap-3 rounded-card border border-input bg-muted p-4">
+          <p className="text-body font-semibold">Закрыть смену и напечатать Z-отчёт? Действие необратимо.</p>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="lg" className="flex-1" onClick={() => setStep("review")} disabled={submitting}>
+              Отмена
+            </Button>
+            <Button size="lg" className="flex-1" onClick={submit} disabled={submitting}>
+              <FileText /> {submitting ? "Закрытие…" : "Закрыть смену"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <Button variant="secondary" size="lg" className="flex-1" onClick={recount}>
+            <RotateCcw /> Пересчитать
+          </Button>
+          <Button size="lg" className="flex-[1.6]" onClick={askConfirm} disabled={blockers.length > 0}>
+            <FileText /> Закрыть смену и Z-отчёт
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

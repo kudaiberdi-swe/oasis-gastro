@@ -1,20 +1,35 @@
 import { useRef, useState } from "react"
 
-import { Button, Chip, Dialog, DialogContent, DialogHeader, DialogTitle, Field, Input } from "@/shared/components/ui"
+import { Button, Chip, Dialog, DialogContent, DialogHeader, DialogTitle, Field, Input, Money } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 
 const QUICK_PERCENTS = [5, 10, 15, 20]
+
+/**
+ * The check total with `percent` off, computed like the order draft (use-order-draft): the discount comes
+ * off the subtotal, the service charge is taken from what remains. The server recomputes it on save.
+ */
+export function totalAfterDiscount(subtotal: number, percent: number, serviceChargePercent = 0) {
+  const discount = Math.round(subtotal * (percent / 100))
+  const service = Math.max(0, Math.round((subtotal - discount) * (serviceChargePercent / 100)))
+  return subtotal - discount + service
+}
 
 export function DiscountDialog({
   open,
   onOpenChange,
   currentPercent,
+  subtotal,
+  serviceChargePercent = 0,
   onApply,
   onManagerRequired,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentPercent: number
+  /** The check's subtotal: with it the dialog previews «Итого после скидки» as the percent changes. */
+  subtotal?: number
+  serviceChargePercent?: number
   onApply: (percent: number, reason: string, managerApprovalToken?: string) => Promise<unknown>
   onManagerRequired: (reason: string) => Promise<string | null>
 }) {
@@ -89,7 +104,17 @@ export function DiscountDialog({
             {(control) => <Input {...control} value={reason} onChange={(event) => setReason(event.target.value)} className="h-[var(--control-h-pos)]" />}
           </Field>
         )}
-        {error && <p className="text-body-sm font-semibold text-destructive">{error}</p>}
+        {subtotal !== undefined && (
+          <div className="flex items-baseline justify-between rounded-control bg-muted px-4 py-3" aria-live="polite">
+            <span className="text-body font-semibold">Итого после скидки</span>
+            <Money value={totalAfterDiscount(subtotal, percent, serviceChargePercent)} size="lg" />
+          </div>
+        )}
+        {error && (
+          <p role="alert" className="text-body-sm font-semibold text-destructive">
+            {error}
+          </p>
+        )}
         <div className="flex gap-2">
           <Button variant="secondary" size="lg" className="flex-1" onClick={() => setPercent(0)} disabled={submitting}>
             Убрать

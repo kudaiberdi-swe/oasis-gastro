@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { Bike, ChefHat, Clock3, Ellipsis, MessageSquareText, Minus, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
 
 import { isLocked, lineDetails, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
@@ -63,6 +63,7 @@ export function OrderPanel({
   suggestion,
   onAddSuggestion,
   disabled,
+  offlineReason,
 }: {
   tableLabel: string
   orderNumber?: number
@@ -105,6 +106,8 @@ export function OrderPanel({
   suggestion?: UpsellSuggestion | null
   onAddSuggestion?: () => void
   disabled?: boolean
+  /** No link to the server: «Оплатить» and «На кухню» are blocked and the reason is shown beside them. */
+  offlineReason?: string | null
 }) {
   const hasActive = lines.some((line) => !line.voidedAt)
   const payable = Math.max(0, total - loyaltyRedemption)
@@ -205,7 +208,7 @@ export function OrderPanel({
             <span className="truncate">{guestLabel || "Гость"}</span>
           </Button>
         )}
-        <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen}>
+        <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen || Boolean(offlineReason)} title={offlineReason ?? undefined}>
           <ChefHat />
           {sendingToKitchen ? "Отправка…" : "На кухню"}
         </Button>
@@ -250,11 +253,23 @@ export function OrderPanel({
           </p>
         )}
       </div>
+      {offlineReason && (
+        <p id="order-offline-reason" className="px-4 pb-2 text-body-sm font-semibold text-destructive">
+          {offlineReason}
+        </p>
+      )}
       <div className="flex gap-2 p-4 pt-0">
         <Button variant="secondary" size="lg" className="flex-1" onClick={onHold} disabled={disabled || !hasActive || saving}>
           Отложить
         </Button>
-        <Button size="lg" className="flex-[1.6]" onClick={onCheckout} disabled={disabled || !hasActive || saving}>
+        <Button
+          size="lg"
+          className="flex-[1.6]"
+          onClick={onCheckout}
+          disabled={disabled || !hasActive || saving || Boolean(offlineReason)}
+          title={offlineReason ?? undefined}
+          aria-describedby={offlineReason ? "order-offline-reason" : undefined}
+        >
           Оплатить · {formatTenge(payable)}
         </Button>
       </div>
@@ -279,7 +294,11 @@ function OrderLineRow({
   const voided = Boolean(line.voidedAt)
   const sent = Boolean(line.sentToKitchenAt) && !voided
   // A sent line is fixed: «−» and the bin open «Удалить позицию»; «+» adds a new portion as its own line.
-  const decrement = () => (sent ? onVoid(line.clientLineId) : onDecrement(line.clientLineId))
+  // «−» on the last portion of an unsent line asks inline «Убрать позицию?» instead of deleting silently.
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  // «+» while asking answers the question: the line keeps its portions.
+  if (confirmRemove && (line.quantity > 1 || sent || voided)) setConfirmRemove(false)
+  const decrement = () => (sent ? onVoid(line.clientLineId) : line.quantity <= 1 ? setConfirmRemove(true) : onDecrement(line.clientLineId))
   const remove = () => (sent ? onVoid(line.clientLineId) : onRemove(line.clientLineId))
 
   return (
@@ -320,6 +339,26 @@ function OrderLineRow({
           </Button>
         )}
       </div>
+      {confirmRemove && (
+        <div role="group" aria-label={`Убрать позицию: ${line.name}`} className="col-span-3 mt-2 flex items-center justify-between gap-2 rounded-control bg-muted px-3 py-2">
+          <span className="text-body font-semibold">Убрать позицию?</span>
+          <span className="flex gap-2">
+            <Button variant="secondary" className="h-[var(--control-h-pos)]" onClick={() => setConfirmRemove(false)}>
+              Отмена
+            </Button>
+            <Button
+              variant="danger"
+              className="h-[var(--control-h-pos)]"
+              onClick={() => {
+                setConfirmRemove(false)
+                onRemove(line.clientLineId)
+              }}
+            >
+              Убрать
+            </Button>
+          </span>
+        </div>
+      )}
     </li>
   )
 }

@@ -14,19 +14,26 @@ vi.mock("@/pos/features/loyalty/data/use-loyalty", () => ({ useGuestSearch: () =
 afterEach(cleanup)
 
 describe("shift close is a blind count (S-12)", () => {
-  it("starts empty and reveals the expected cash and variance only after input", () => {
+  it("starts empty and reveals the expected cash and variance only after «Сверить»", () => {
     const onClose = vi.fn()
     render(<CloseShiftPanel expectedCash={22_300} blockers={[]} onClose={onClose} onManagerRequired={async () => null} />)
 
     const counted = screen.getByLabelText("Фактическая наличность") as HTMLInputElement
     expect(counted.value).toBe("")
     expect(screen.queryByText(/Ожидается в кассе/)).toBeNull()
-    expect(screen.getByRole("button", { name: /Закрыть смену и сформировать Z-отчёт/ })).toHaveProperty("disabled", true)
+    expect(screen.getByRole("button", { name: "Сверить" })).toHaveProperty("disabled", true)
 
     fireEvent.change(counted, { target: { value: "22000" } })
-    expect(screen.getByText(/Ожидается в кассе/)).toBeTruthy()
-    expect(screen.getByText(/Расхождение: \u2212300\s₸/)).toBeTruthy()
+    expect(screen.queryByText(/Ожидается в кассе/)).toBeNull()
+    expect(screen.queryByText(/Расхождение/)).toBeNull()
+    expect(screen.queryByText(/22\s300/)).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Сверить" }))
+    expect(screen.getByText("Ожидается в кассе")).toBeTruthy()
+    expect(screen.getByText("Расхождение")).toBeTruthy()
+    expect(screen.getByText(formatTenge(-300), { normalizer: (text) => text.trim() })).toBeTruthy()
     expect(formatTenge(-300)).toBe("\u2212300\u00a0₸")
+    expect(onClose).not.toHaveBeenCalled()
   })
 })
 

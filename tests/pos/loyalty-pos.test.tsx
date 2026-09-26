@@ -166,6 +166,7 @@ describe("payment with planned points", () => {
     render(<PaymentDialog open onOpenChange={() => {}} total={2300} loyaltyRedemption={300} submitting={false} error={null} onSubmit={onSubmit} />)
     expect(screen.getByText(`Заказ ${formatTenge(2300)} · баллами`, exact)).toBeTruthy()
     expect(screen.getByText(formatTenge(-300), exact)).toBeTruthy()
+    fireEvent.click(screen.getByRole("radio", { name: /Наличные/ }))
     fireEvent.click(screen.getByRole("button", { name: `Подтвердить · ${formatTenge(2000)}` }))
     expect(onSubmit).toHaveBeenCalledWith([{ method: "cash", amount: 2000, tendered: 2000 }])
   })
