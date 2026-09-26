@@ -30,7 +30,7 @@ describe("outbox and integration queue (W1-PLT-06)", () => {
     await t.mutation(internal.domains.integrations.internal.publishOutboxEvents, {})
     await t.mutation(internal.domains.integrations.internal.publishOutboxEvents, {})
     expect(await jobs(t)).toHaveLength(1)
-    await t.mutation(internal.domains.integrations.internal.processIntegrationJobs, {})
+    await t.action(internal.domains.integrations.internal.processIntegrationJobs, {})
     const [job] = await jobs(t)
     expect(job).toMatchObject({ status: "completed", attempts: 1, provider: "convex-event-bus", organizationExternalId: "sandyq" })
   })
@@ -42,20 +42,18 @@ describe("outbox and integration queue (W1-PLT-06)", () => {
     })
   })
 
-  it("a provider without an adapter retries with backoff and ends in dead-letter", async () => {
+  it("a provider without an adapter goes to dead-letter at once and can be retried or cancelled from the office", async () => {
     vi.useFakeTimers()
     try {
       const t = await setup()
       await t.run((ctx) =>
-        ctx.db.insert("integrationJobs", { externalId: "j", provider: "1c", direction: "outbound", operation: "export", idempotencyKey: "k", status: "queued", attempts: 0, payload: {}, nextAttemptAt: 0, createdAt: 0, updatedAt: 0, organizationExternalId: "sandyq" }),
+        ctx.db.insert("integrationJobs", { externalId: "j", provider: "unknown-erp", direction: "outbound", operation: "export", idempotencyKey: "k", status: "queued", attempts: 0, payload: {}, nextAttemptAt: 0, createdAt: 0, updatedAt: 0, organizationExternalId: "sandyq" }),
       )
-      for (let attempt = 1; attempt <= MAX_JOB_ATTEMPTS; attempt += 1) {
-        await t.mutation(internal.domains.integrations.internal.processIntegrationJobs, {})
-        vi.advanceTimersByTime(retryDelayMs(attempt) + 1)
-      }
+      await t.action(internal.domains.integrations.internal.processIntegrationJobs, {})
       const [job] = await jobs(t)
-      expect(job).toMatchObject({ status: "dead-letter", attempts: MAX_JOB_ATTEMPTS, error: "Адаптер «1c» не настроен" })
+      expect(job).toMatchObject({ status: "dead-letter", attempts: 1, error: "Адаптер «unknown-erp» не настроен — провайдер не подключён" })
       expect(retryDelayMs(20)).toBe(60 * 60 * 1000)
+      expect(MAX_JOB_ATTEMPTS).toBe(5)
 
       const admin = t.withIdentity({ email: "admin@sandyq.test" })
       await admin.mutation(api.domains.integrations.mutations.retryIntegrationJob, { externalId: "j" })

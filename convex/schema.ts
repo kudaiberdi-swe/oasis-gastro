@@ -5,6 +5,7 @@ import { financeModuleId, financeRecordData } from "./domains/finance/validators
 import { platformModuleId, platformRecordData, printRoutingRule } from "./domains/platform/validators"
 import { officeDomainStatus } from "./lib/validators"
 import { retailKind, retailSettingData } from "./domains/retail/validators"
+import { integrationCardModule, integrationCardSettings, integrationCardStatus, integrationDirection, integrationMode } from "./domains/integrations/validators"
 import { reportConfig } from "./lib/reportConfig"
 
 const unit = v.union(v.literal("кг"), v.literal("л"), v.literal("шт"), v.literal("порц."))
@@ -1523,7 +1524,38 @@ export default defineSchema({
     .index("by_idempotency_key", ["idempotencyKey"])
     .index("by_status_attempt", ["status", "nextAttemptAt"])
     .index("by_created", ["createdAt"]) // W3-RPT-06: integration reports by period
-    .index("by_provider_created", ["provider", "createdAt"]),
+    .index("by_provider_created", ["provider", "createdAt"])
+    .index("by_provider_status_updated", ["provider", "status", "updatedAt"]),
+
+  // Integration cards (W3-INT-01/06): the provider configuration of an «Обмен и интеграции» section per
+  // organization, publish lifecycle. secretRef is the NAME of an env variable — never the secret itself.
+  integrationCards: defineTable({
+    externalId: v.string(),
+    moduleId: integrationCardModule,
+    number: v.string(),
+    name: v.string(),
+    status: integrationCardStatus,
+    organizationExternalId: v.string(),
+    provider: v.string(),
+    mode: integrationMode,
+    endpoint: v.string(),
+    secretRef: v.string(),
+    direction: integrationDirection,
+    schedule: v.string(),
+    maxAttempts: v.number(),
+    mapping: v.string(), // JSON text, validated on save
+    settings: integrationCardSettings,
+    searchText: v.string(),
+    version: v.number(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    publishedAt: v.optional(v.number()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_module_status_updated", ["moduleId", "status", "updatedAt"])
+    .index("by_module_org_status", ["moduleId", "organizationExternalId", "status"])
+    .searchIndex("search_integration_cards", { searchField: "searchText", filterFields: ["moduleId", "status"] }),
 
   // Server-side document numbering: scopeKey = "<moduleId>:<organizationExternalId>:<yyyy>".
   documentCounters: defineTable({

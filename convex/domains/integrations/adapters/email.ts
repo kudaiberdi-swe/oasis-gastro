@@ -1,11 +1,13 @@
 import { v } from "convex/values"
 
 import { internalMutation } from "../../../_generated/server"
+import { enqueueIntegrationJob } from "../../../lib/integrationQueue"
 import { writeOfficeAudit } from "../../../lib/officeAccess"
+import { PASSWORD_RESET_OPERATION } from "./messaging"
 
-// Office e-mail (W2-ACL-08): letters leave only through the integration queue. The provider (SMTP or
-// Resend) is blocker Б-B6 — until it is chosen the «email» adapter fails honestly and the job ends in
-// dead-letter instead of pretending the letter was sent.
+// Office e-mail (W2-ACL-08): letters leave only through the integration queue. The «email» adapter is
+// Resend (W3-INT-06, messaging.ts): until RESEND_API_KEY is set the job ends in dead-letter with
+// «ключ не задан» instead of pretending the letter was sent.
 
 export const EMAIL_PROVIDER = "email"
 export const RESET_CODE_TTL_S = 15 * 60
@@ -27,24 +29,15 @@ export const enqueuePasswordReset = internalMutation({
     const email = args.email.trim().toLocaleLowerCase("en-US")
     const user = await ctx.db.query("officeUsers").withIndex("by_email", (q) => q.eq("email", email)).unique()
     if (!user?.active) return null
-    const now = Date.now()
-    const idempotencyKey = `password-reset:${email}:${args.expiresAt}`
-    if (await ctx.db.query("integrationJobs").withIndex("by_idempotency_key", (q) => q.eq("idempotencyKey", idempotencyKey)).unique()) return null
-    await ctx.db.insert("integrationJobs", {
-      externalId: `job-${crypto.randomUUID()}`,
+    const queued = await enqueueIntegrationJob(ctx, {
       provider: EMAIL_PROVIDER,
-      direction: "outbound",
-      operation: "office-user.password-reset",
+      operation: PASSWORD_RESET_OPERATION,
       sourceExternalId: user.externalId,
-      idempotencyKey,
-      status: "queued",
-      attempts: 0,
+      idempotencyKey: `password-reset:${email}:${args.expiresAt}`,
       payload: { to: email, template: "office-password-reset", resetToken: args.resetToken, expiresAt: args.expiresAt },
-      nextAttemptAt: now,
-      createdAt: now,
-      updatedAt: now,
       organizationExternalId: user.organizationScopes?.find((id) => id !== "*"),
     })
+    if (!queued.created) return null
     await writeOfficeAudit(ctx, email, { action: "office-user.password-reset", summary: "Запрошено восстановление пароля", resourceType: "office-user", resourceExternalId: user.externalId })
     return null
   },

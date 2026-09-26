@@ -32,3 +32,23 @@ export function almatyWeekdayMinute(value: number): { weekday: number; minute: n
   const day = date.getUTCDay()
   return { weekday: day === 0 ? 7 : day, minute: date.getUTCHours() * 60 + date.getUTCMinutes() }
 }
+
+const HOUR_MS = 60 * 60 * 1000
+
+/** Whether a moment falls inside the Almaty daily window [startHour, endHour) — campaign quiet hours (W3-LOY-08). */
+export function insideAlmatyWindow(value: number, startHour: number, endHour: number): boolean {
+  const { minute } = almatyWeekdayMinute(value)
+  return minute >= startHour * 60 && minute < endHour * 60
+}
+
+/**
+ * The moment itself when it is inside the Almaty window [startHour, endHour), otherwise the next opening
+ * of the window: 22:00 with a 9–20 window → 09:00 of the next Almaty day (port of B:loyalty.ts
+ * nextCampaignTime, without the offset in the caller).
+ */
+export function nextAlmatyWindowTime(value: number, startHour: number, endHour: number): number {
+  if (insideAlmatyWindow(value, startHour, endHour)) return value
+  const { minute } = almatyWeekdayMinute(value)
+  const dayStart = almatyDayStart(almatyBusinessDate(value))
+  return dayStart + (minute < startHour * 60 ? 0 : DAY_MS) + startHour * HOUR_MS
+}

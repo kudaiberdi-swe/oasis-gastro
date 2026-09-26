@@ -162,16 +162,15 @@ describe("Cloud API routes (W3-INT-03)", () => {
     expect(job).toMatchObject({ operation: "delivery-order.status", status: "queued", payload: { orderId: "site-1001", number: "DEL-000001", status: "waiting", previousStatus: "unprocessed" } })
     expect(await webhookJobs()).toHaveLength(1) // «created» is answered by the 201, only statuses are pushed
 
-    await t.mutation(internal.domains.integrations.internal.processIntegrationJobs, {})
-    await t.finishAllScheduledFunctions(vi.runAllTimers)
-    expect((await webhookJobs())[0]).toMatchObject({ status: "retrying", attempts: 1, error: expect.stringContaining("CLOUD_API_WEBHOOK_URL") })
+    await t.action(internal.domains.integrations.internal.processIntegrationJobs, {})
+    expect((await webhookJobs())[0]).toMatchObject({ status: "dead-letter", attempts: 1, error: expect.stringContaining("CLOUD_API_WEBHOOK_URL") })
 
     vi.stubEnv("CLOUD_API_WEBHOOK_URL", "https://sandyq.example/hooks/sandyq")
     const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }))
     vi.stubGlobal("fetch", fetchMock)
-    await t.run(async (ctx) => ctx.db.patch(job._id, { nextAttemptAt: 0 }))
-    await t.mutation(internal.domains.integrations.internal.processIntegrationJobs, {})
-    await t.finishAllScheduledFunctions(vi.runAllTimers)
+    // What «Повторить» in «Очередь интеграций» does once the URL is set.
+    await t.run(async (ctx) => ctx.db.patch(job._id, { status: "queued", nextAttemptAt: 0 }))
+    await t.action(internal.domains.integrations.internal.processIntegrationJobs, {})
     expect((await webhookJobs())[0]).toMatchObject({ status: "completed", attempts: 2 })
     const [target, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
     const headers = init.headers as Record<string, string>

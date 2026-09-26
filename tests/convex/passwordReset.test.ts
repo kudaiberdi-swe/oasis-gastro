@@ -32,9 +32,10 @@ describe("office password recovery (W2-ACL-08)", () => {
     const shown = await admin.query(api.domains.integrations.queries.getIntegrationJob, { externalId: job.externalId })
     expect(JSON.stringify(shown)).not.toContain("12345678")
 
-    await t.mutation(internal.domains.integrations.internal.processIntegrationJobs, {})
+    await t.action(internal.domains.integrations.internal.processIntegrationJobs, {})
     const [after] = await t.run((ctx) => ctx.db.query("integrationJobs").collect())
     expect(after.status).not.toBe("completed")
-    expect(after.error).toMatch(/Б-B6/)
+    expect(after.status).toBe("dead-letter")
+    expect(after.error).toMatch(/RESEND_API_KEY/)
   })
 })

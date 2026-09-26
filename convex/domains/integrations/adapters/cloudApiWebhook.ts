@@ -1,17 +1,15 @@
-import { v } from "convex/values"
 import type { GenericMutationCtx } from "convex/server"
 
-import { internal } from "../../../_generated/api"
-import { internalAction, internalQuery } from "../../../_generated/server"
 import type { DataModel, Doc } from "../../../_generated/dataModel"
-import { CLOUD_API_SECRET_ENV, readEnv, SIGNATURE_HEADER, signRequest, TIMESTAMP_HEADER } from "../../../lib/hmac"
+import { CLOUD_API_SECRET_ENV, SIGNATURE_HEADER, signRequest, TIMESTAMP_HEADER } from "../../../lib/hmac"
+import { httpFailure, type ProviderAdapter } from "./types"
 
 type MutationCtx = GenericMutationCtx<DataModel>
 
 // Outgoing Cloud API webhooks (W3-INT-03/04): the website learns about the status of the orders it
 // sent and about a newly published menu. Events come from the transactional outbox, go through the
-// integration queue (provider «cloud-api») and leave in an action, signed like incoming requests.
-// Without CLOUD_API_WEBHOOK_URL or CLOUD_API_SECRET the job fails honestly and ends in dead-letter.
+// integration queue (provider «cloud-api») and leave through this adapter (W3-INT-06), signed like
+// incoming requests. Without CLOUD_API_WEBHOOK_URL or CLOUD_API_SECRET the job ends in dead-letter.
 
 export const CLOUD_API_PROVIDER = "cloud-api"
 export const WEBHOOK_URL_ENV = "CLOUD_API_WEBHOOK_URL"
@@ -39,39 +37,33 @@ export async function cloudApiWebhookFor(ctx: MutationCtx, event: OutboxEvent) {
   return null
 }
 
-export const webhookJob = internalQuery({
-  args: { externalId: v.string() },
-  handler: async (ctx, args) => ctx.db.query("integrationJobs").withIndex("by_external_id", (q) => q.eq("externalId", args.externalId)).unique(),
-})
-
 /** Sends one job: POST of the payload to the website with the x-sandyq-* signature headers. */
-export const deliverWebhook = internalAction({
-  args: { externalId: v.string() },
-  handler: async (ctx, args) => {
-    const job = await ctx.runQuery(internal.domains.integrations.adapters.cloudApiWebhook.webhookJob, { externalId: args.externalId })
-    if (!job || job.status !== "processing") return null
-    const url = readEnv(WEBHOOK_URL_ENV)
-    const secret = readEnv(CLOUD_API_SECRET_ENV)
-    let outcome: { ok: true; result?: unknown } | { ok: false; error: string }
-    if (!url || !secret) {
-      outcome = { ok: false, error: `Вебхук Cloud API не настроен: задайте ${WEBHOOK_URL_ENV} и ${CLOUD_API_SECRET_ENV}` }
-    } else {
-      const body = JSON.stringify(job.payload)
-      const timestamp = String(Date.now())
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
-      try {
-        const target = new URL(url)
-        const signature = await signRequest(secret, { timestamp, method: "POST", pathAndQuery: `${target.pathname}${target.search}`, body })
-        const response = await fetch(target, { method: "POST", headers: { "content-type": "application/json", [TIMESTAMP_HEADER]: timestamp, [SIGNATURE_HEADER]: signature, "x-sandyq-event-id": job.idempotencyKey }, body, signal: controller.signal })
-        outcome = response.ok ? { ok: true, result: { httpStatus: response.status } } : { ok: false, error: `Сайт ответил ${response.status}` }
-      } catch (error) {
-        outcome = { ok: false, error: `Сайт недоступен: ${error instanceof Error ? error.message : "ошибка сети"}` }
-      } finally {
-        clearTimeout(timer)
-      }
+export const cloudApiAdapter: ProviderAdapter = {
+  provider: CLOUD_API_PROVIDER,
+  cardModuleId: null, // configured by env on its own page (/office/integration-cloud-api), not by a card
+  configured: (env) => Boolean(env(WEBHOOK_URL_ENV) && env(CLOUD_API_SECRET_ENV)),
+  async send(job, context) {
+    const url = context.env(WEBHOOK_URL_ENV)
+    const secret = context.env(CLOUD_API_SECRET_ENV)
+    if (!url || !secret) return { status: "not-configured", error: `Вебхук Cloud API не настроен: задайте ${WEBHOOK_URL_ENV} и ${CLOUD_API_SECRET_ENV}` }
+    let target: URL
+    try {
+      target = new URL(url)
+    } catch {
+      return { status: "not-configured", error: `${WEBHOOK_URL_ENV} — некорректный адрес` }
     }
-    await ctx.runMutation(internal.domains.integrations.internal.finishAsyncJob, { externalId: job.externalId, outcome })
-    return null
+    const body = JSON.stringify(job.payload)
+    const timestamp = String(Date.now())
+    const signature = await signRequest(secret, { timestamp, method: "POST", pathAndQuery: `${target.pathname}${target.search}`, body })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+    try {
+      const response = await context.fetch(target, { method: "POST", headers: { "content-type": "application/json", [TIMESTAMP_HEADER]: timestamp, [SIGNATURE_HEADER]: signature, "x-sandyq-event-id": job.idempotencyKey }, body, signal: controller.signal })
+      return response.ok ? { status: "ok", result: { httpStatus: response.status } } : httpFailure("Сайт", response.status)
+    } catch (error) {
+      return { status: "retry", error: `Сайт недоступен: ${error instanceof Error ? error.message.slice(0, 200) : "ошибка сети"}` }
+    } finally {
+      clearTimeout(timer)
+    }
   },
-})
+}
