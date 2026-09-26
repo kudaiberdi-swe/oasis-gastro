@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values"
 
 import { mutation, query } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
-import { allowsCapability, CAPABILITY_CATALOG, isValidCapability } from "../../lib/capabilities"
+import { allowsCapability, CAPABILITY_CATALOG, isValidCapability, PERSONAL_SECTIONS } from "../../lib/capabilities"
 import { effectiveScopes, getOfficeAuthEmail, hasScope, requireOfficeCapability, restaurantScopeFilter, scopedRestaurants, writeOfficeAudit } from "../../lib/officeAccess"
 
 // «Роли и права» and «Пользователи» (W1-ACL-04). An editor can never grant more than they have:
@@ -12,10 +12,10 @@ function normalizeCode(value: string) {
   return value.trim().toLocaleLowerCase("en-US").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "")
 }
 
-/** Sections with at least one right — the «N разрешений» count on the role list. */
+/** Sections with at least one right — the «N разрешений» count on the role list (personal sections are everyone's, not counted). */
 function grantedSections(capabilities: string[]) {
   if (capabilities.includes("*")) return CAPABILITY_CATALOG.length
-  return CAPABILITY_CATALOG.filter((section) => section.actions.some((action) => allowsCapability(capabilities, `office.${section.id}.${action}`))).length
+  return CAPABILITY_CATALOG.filter((section) => !PERSONAL_SECTIONS.includes(section.id) && section.actions.some((action) => allowsCapability(capabilities, `office.${section.id}.${action}`))).length
 }
 
 /** Every concrete right a capability stands for, for the "not more than the editor" rule. */

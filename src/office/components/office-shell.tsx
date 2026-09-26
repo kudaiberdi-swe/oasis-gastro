@@ -99,11 +99,13 @@ export interface OfficePageProps {
   status?: ReactNode
   /** "fill": the body owns its scrolling (existing workspaces with side panes); "scroll": the page scrolls. */
   layout?: "fill" | "scroll"
+  /** The «В избранное» star next to the title (W3-ADM-13), e.g. <FavoriteStar /> of the section. */
+  favorite?: ReactNode
   children: ReactNode
 }
 
 /** Breadcrumb 12px + PageHeader (group whisper, Cormorant title, one primary), up to 1440px wide. */
-export function OfficePage({ group, title, description, actions, status, layout = "scroll", children }: OfficePageProps) {
+export function OfficePage({ group, title, description, actions, status, layout = "scroll", favorite, children }: OfficePageProps) {
   const header = (
     <div className="flex flex-col gap-3 border-b border-border px-6 pt-5 pb-4 xl:px-8">
       <div className="flex min-h-5 items-center justify-between gap-4 text-caption">
@@ -112,7 +114,7 @@ export function OfficePage({ group, title, description, actions, status, layout 
       </div>
       <div className="flex flex-col gap-1">
         {group ? <p className="text-caption font-medium text-accent">{group.whisper}</p> : null}
-        <PageHeader title={title} description={description} actions={actions} />
+        <PageHeader title={title} description={description} actions={actions} titleAddon={favorite} />
       </div>
     </div>
   )

@@ -633,6 +633,19 @@ export default defineSchema({
     .index("by_owner_report", ["ownerKey", "reportId"])
     .index("by_owner_favorite", ["ownerKey", "favorite"]),
 
+  // «Избранное» of the office (W3-ADM-13): the user's own pinned sections and documents, in their order.
+  // A `report` row only keeps the place of a favorite reportView (targetId = its externalId) in the list.
+  officeFavorites: defineTable({
+    userExternalId: v.string(), // officeUsers.externalId
+    kind: v.union(v.literal("section"), v.literal("report"), v.literal("document")),
+    targetId: v.string(), // section id · reportViews.externalId · "<section>/<document id>"
+    label: v.string(),
+    sortOrder: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_user_sort", ["userExternalId", "sortOrder"])
+    .index("by_user_target", ["userExternalId", "kind", "targetId"]),
+
   // Idempotency of fact writes: order:<id>:checkout, order:<id>:refund:<paymentId>, order:<id>:cancel, line:<id>:void.
   reportFactEvents: defineTable({
     sourceKey: v.string(),

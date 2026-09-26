@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({ capabilities: ["*"] as string[] }))
 
 vi.mock("convex/react", () => ({ useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }) }))
 vi.mock("@convex-dev/auth/react", () => ({ useAuthActions: () => ({ signOut: vi.fn() }) }))
+vi.mock("@/office/features/favorites/ui/favorite-star", () => ({ FavoriteStar: () => null }))
 vi.mock("@/office/features/session/data/use-office-context", () => ({
   useOfficeContext: () => ({
     context: { ready: true, canBootstrap: false, email: "admin@sandyq.test", user: { name: "Админ" }, capabilities: mocks.capabilities, restaurants: [], organization: null },

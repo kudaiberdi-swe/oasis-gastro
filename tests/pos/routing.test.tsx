@@ -10,6 +10,8 @@ import { appRoutes } from "@/shared/routing/routes"
 // Routing only: auth and the heavy workspaces are stubbed.
 vi.mock("convex/react", () => ({ useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }) }))
 vi.mock("@convex-dev/auth/react", () => ({ useAuthActions: () => ({ signOut: vi.fn() }) }))
+// The «В избранное» star in the page header reads the live favorites list (W3-ADM-13).
+vi.mock("@/office/features/favorites/ui/favorite-star", () => ({ FavoriteStar: () => null }))
 vi.mock("@/office/features/session/data/use-office-context", () => ({
   useOfficeContext: () => ({
     context: { ready: true, canBootstrap: false, email: "admin@sandyq.test", user: { name: "Админ" }, capabilities: ["*"], restaurants: [], organization: null },

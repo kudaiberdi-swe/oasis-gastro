@@ -65,6 +65,16 @@ export type CapabilitySection = { id: string; groupId: string; actions: Capabili
 
 export const CAPABILITY_CATALOG: CapabilitySection[] = GROUPS.flatMap((group) => group.sections.map(([id, kind]) => ({ id, groupId: group.id, actions: KIND_ACTIONS[kind] })))
 
+/**
+ * Personal sections (W3-ADM-13): every signed-in office user holds all their rights, whatever the
+ * role — «Избранное» shows only the user's own rows. The role editor does not list them.
+ */
+export const PERSONAL_SECTIONS: readonly string[] = ["favorites"]
+
+function isPersonalRight(capability: string) {
+  return PERSONAL_SECTIONS.some((section) => capability.startsWith(`office.${section}.`))
+}
+
 /** Special rights outside the section grammar. */
 export const SPECIAL_CAPABILITIES = ["office.guests.pii", "office.employees.pii"] as const
 
@@ -109,5 +119,6 @@ function expandLegacy(candidate: string): string[] {
 
 /** The one capability rule for backend and office UI. */
 export function allowsCapability(capabilities: readonly string[], capability: string): boolean {
+  if (isPersonalRight(capability)) return true
   return capabilities.some((candidate) => grants(candidate, capability) || expandLegacy(candidate).some((expanded) => grants(expanded, capability)))
 }

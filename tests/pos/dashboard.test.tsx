@@ -13,7 +13,10 @@ import { officeNavigation } from "@/office/model/navigation"
 
 // W1-ADM-05 «Стартовая страница»: KPI, graph, «Рестораны сети» drill-down, «Быстрый доступ», period presets.
 
-const mocks = vi.hoisted(() => ({ result: undefined as unknown, calls: [] as { name: string; args: unknown }[] }))
+const mocks = vi.hoisted(() => ({ result: undefined as unknown, calls: [] as { name: string; args: unknown }[], favorites: [] as unknown[] | undefined }))
+
+// «Быстрый доступ» shows the user's «Избранное» first (W3-ADM-13).
+vi.mock("@/office/features/favorites/data/use-office-favorites", () => ({ useOfficeFavorites: () => mocks.favorites }))
 
 vi.mock("convex/react", () => ({
   useQueries: (queries: Record<string, { query: FunctionReference<"query">; args: unknown }>) =>
@@ -68,6 +71,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-09-30T06:00:00Z")) // 11:00 in Almaty
   mocks.result = DATA
   mocks.calls = []
+  mocks.favorites = []
 })
 
 afterEach(() => {
@@ -190,5 +194,17 @@ describe("start page screen (W1-ADM-05)", () => {
     const section = screen.getByRole("region", { name: "Быстрый доступ" })
     const links = within(section).getAllByRole("link")
     expect(links.map((link) => link.getAttribute("href"))).toEqual(["/office/receipts"])
+  })
+
+  it("quick access shows the pinned «Избранное» in its order, with a link to all of it (W3-ADM-13)", () => {
+    mocks.favorites = [
+      { id: "section:stock", kind: "section", targetId: "stock", label: "Остатки", sortOrder: 0 },
+      { id: "report:view-1", kind: "report", targetId: "view-1", label: "Выручка Абая", sortOrder: 1, reportId: "sales-01", reportTitle: "Выручка по дням" },
+    ]
+    renderDashboard()
+    const section = screen.getByRole("region", { name: "Быстрый доступ" })
+    expect(within(section).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/office/favorites", "/office/stock", "/office/report-favorites/view-1"])
+    expect(within(section).getByText("Остатки")).toBeTruthy()
+    expect(within(section).getByText("Отчёт · Выручка по дням")).toBeTruthy()
   })
 })

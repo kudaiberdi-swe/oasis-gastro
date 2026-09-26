@@ -58,6 +58,7 @@ import type * as domains_modifiers_mutations from "../domains/modifiers/mutation
 import type * as domains_modifiers_queries from "../domains/modifiers/queries.js";
 import type * as domains_office_access from "../domains/office/access.js";
 import type * as domains_office_adminMaintenance from "../domains/office/adminMaintenance.js";
+import type * as domains_office_favorites from "../domains/office/favorites.js";
 import type * as domains_office_internal from "../domains/office/internal.js";
 import type * as domains_office_migrations from "../domains/office/migrations.js";
 import type * as domains_office_mutations from "../domains/office/mutations.js";
@@ -229,6 +230,7 @@ declare const fullApi: ApiFromModules<{
   "domains/modifiers/queries": typeof domains_modifiers_queries;
   "domains/office/access": typeof domains_office_access;
   "domains/office/adminMaintenance": typeof domains_office_adminMaintenance;
+  "domains/office/favorites": typeof domains_office_favorites;
   "domains/office/internal": typeof domains_office_internal;
   "domains/office/migrations": typeof domains_office_migrations;
   "domains/office/mutations": typeof domains_office_mutations;

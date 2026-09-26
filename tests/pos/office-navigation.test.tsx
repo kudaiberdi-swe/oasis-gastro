@@ -34,16 +34,16 @@ describe("office navigation model (W0-UI-01)", () => {
     expect(officeItems.some((item) => item.id === "integration-egais")).toBe(true)
   })
 
-  it("hides items without the right and groups left empty", () => {
+  it("hides items without the right and groups left empty; «Избранное» is everyone's (W3-ADM-13)", () => {
     const groups = filterNavigationByCapabilities(officeNavigation, ["office.receipts.view", "office.audit-log.view"])
-    expect(groups.map((group) => group.id)).toEqual(["stock", "admin"])
-    expect(groups.flatMap((group) => group.items.map((item) => item.id))).toEqual(["receipts", "audit-log"])
+    expect(groups.map((group) => group.id)).toEqual(["home", "stock", "admin"])
+    expect(groups.flatMap((group) => group.items.map((item) => item.id))).toEqual(["favorites", "receipts", "audit-log"])
     expect(filterNavigationByCapabilities(officeNavigation, ["*"])).toHaveLength(12)
-    expect(filterNavigationByCapabilities(officeNavigation, [])).toHaveLength(0)
+    expect(filterNavigationByCapabilities(officeNavigation, []).flatMap((group) => group.items.map((item) => item.id))).toEqual(["favorites"])
   })
 
   it("shows the whole catalog block to an old office.catalog.* role (legacy alias)", () => {
-    const [stock] = filterNavigationByCapabilities(officeNavigation, ["office.catalog.*"])
+    const stock = filterNavigationByCapabilities(officeNavigation, ["office.catalog.*"]).find((group) => group.id === "stock")!
     expect(stock.items.map((item) => item.id)).toEqual(["nomenclature", "product-groups", "modifiers", "size-scales", "price-orders", "price-lists"])
   })
 

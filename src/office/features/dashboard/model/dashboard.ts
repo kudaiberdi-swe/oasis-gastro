@@ -37,8 +37,8 @@ export function plural(count: number, [one, few, many]: [string, string, string]
 export type QuickAccessTile = { item: OfficeNavigationItem; group: OfficeNavigationGroup }
 
 /**
- * Until favorites (W3-ADM-13): the first section of every group the user may open, in menu order.
- * «Главная» itself is left out — the tiles lead away from the start page.
+ * While «Избранное» is empty (W3-ADM-13 puts the pinned tiles first): the first section of every group the
+ * user may open, in menu order. «Главная» itself is left out — the tiles lead away from the start page.
  */
 export function quickAccessTiles(groups: OfficeNavigationGroup[], limit = 8): QuickAccessTile[] {
   return groups

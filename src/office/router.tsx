@@ -14,6 +14,8 @@ import { IntegrationJobsWorkspace } from "@/office/features/corporation/ui/integ
 import { OrganizationsWorkspace } from "@/office/features/corporation/ui/organizations-workspace"
 import { RestaurantsWorkspace } from "@/office/features/corporation/ui/restaurants-workspace"
 import { DashboardWorkspace } from "@/office/features/dashboard/ui/office-dashboard"
+import { FavoriteStar } from "@/office/features/favorites/ui/favorite-star"
+import { FavoritesWorkspace } from "@/office/features/favorites/ui/favorites-workspace"
 import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
 import { CouriersWorkspace } from "@/office/features/delivery/ui/couriers-workspace"
 import { CallCenterWorkspace, DeliveryOrdersWorkspace } from "@/office/features/delivery/ui/delivery-orders-workspace"
@@ -61,7 +63,7 @@ import { PositionsWorkspace } from "@/office/features/workforce/ui/positions-wor
 import { ScheduleWorkspace } from "@/office/features/workforce/ui/schedule-workspace"
 import { ShiftTypesWorkspace } from "@/office/features/workforce/ui/shift-types-workspace"
 import { WorkforceWorkspace } from "@/office/features/workforce/ui/workforce-workspace"
-import { allowsCapability } from "@/office/model/capabilities"
+import { allowsCapability, PERSONAL_SECTIONS } from "@/office/model/capabilities"
 import { filterNavigationByCapabilities } from "@/office/model/nav-filter"
 import { DEFAULT_OFFICE_DESTINATION, findOfficeGroup, findOfficeItem, LEGACY_OFFICE_SECTIONS, OFFICE_LINKS, officeNavigation } from "@/office/model/navigation"
 import { EmptyState } from "@/shared/components/ui"
@@ -70,6 +72,7 @@ import { NotFound } from "@/shared/routing/not-found"
 /** Sections with a working screen today; the rest of the 91 show a "coming" page until their W1+ task. */
 const WORKSPACES: Record<string, ComponentType> = {
   dashboard: DashboardWorkspace,
+  favorites: FavoritesWorkspace,
   orders: OrdersWorkspace,
   "cash-shifts": CashShiftsWorkspace,
   "kitchen-board": KitchenBoardWorkspace,
@@ -165,8 +168,10 @@ export function OfficeRouter() {
   const Workspace = WORKSPACES[item.id]
   const allowed = allowsCapability(context.capabilities, item.capability)
   // /office opens the start page; a role without it lands on its first allowed section, not on «Нет доступа».
-  const startFallback = !allowed && item.id === DEFAULT_OFFICE_DESTINATION ? groups.flatMap((candidate) => candidate.items).find((candidate) => !OFFICE_LINKS[candidate.id]) : undefined
+  const startFallback = !allowed && item.id === DEFAULT_OFFICE_DESTINATION ? groups.flatMap((candidate) => candidate.items).find((candidate) => !OFFICE_LINKS[candidate.id] && !PERSONAL_SECTIONS.includes(candidate.id)) : undefined
   if (startFallback) return <Navigate to={`/office/${startFallback.id}`} replace />
+  // W3-ADM-13: every section the user opens can be pinned from its header (not «Избранное» itself).
+  const favorite = allowed && !PERSONAL_SECTIONS.includes(item.id) ? <FavoriteStar sectionId={item.id} label={item.label} /> : undefined
 
   return (
     <CapabilitiesProvider capabilities={context.capabilities}>
@@ -176,11 +181,11 @@ export function OfficeRouter() {
             <OfficeStatePage state={{ kind: "denied" }} />
           </OfficePage>
         ) : Workspace ? (
-          <OfficePage group={group} title={item.label} description={item.description} layout="fill">
+          <OfficePage group={group} title={item.label} description={item.description} layout="fill" favorite={favorite}>
             <Workspace />
           </OfficePage>
         ) : (
-          <OfficePage group={group} title={item.label} description={item.description}>
+          <OfficePage group={group} title={item.label} description={item.description} favorite={favorite}>
             <EmptyState
               size="lg"
               title={item.id === "integration-egais" ? "Недоступно для Казахстана" : "Раздел в разработке"}

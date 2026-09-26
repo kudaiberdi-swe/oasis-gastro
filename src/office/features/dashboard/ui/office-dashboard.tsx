@@ -10,6 +10,8 @@ import { errorMessage } from "@/shared/lib/error-message"
 import { formatAmount, formatTenge } from "@/shared/lib/format"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
+import { useOfficeFavorites } from "../../favorites/data/use-office-favorites"
+import { favoriteTile, type FavoriteTile } from "../../favorites/model/favorites"
 import { formatDelta, formatPeriod } from "../../reports/model/format"
 import { filtersSearch } from "../../reports/model/url-state"
 import { ReportChart } from "../../reports/ui/report-chart"
@@ -21,6 +23,7 @@ import { DASHBOARD_PERIODS, isDashboardPeriod, periodRange, plural, quickAccessT
 // bahandi drops the filter) and «Быстрый доступ». The period lives in ?period= so F5 keeps it; today is the default.
 
 const DRILL_REPORT = "sales-01"
+const QUICK_ACCESS_LIMIT = 8
 const DOCUMENTS: [string, string, string] = ["документ", "документа", "документов"]
 const DRAFTS: [string, string, string] = ["черновик", "черновика", "черновиков"]
 
@@ -169,30 +172,50 @@ function DashboardContent({ data, onOpenRestaurant }: { data: DashboardData; onO
   )
 }
 
+/** «Быстрый доступ»: the user's «Избранное» in its order (W3-ADM-13); the first section per group while it is empty. */
 function QuickAccess() {
   const capabilities = useCapabilities()
-  const tiles = useMemo(() => quickAccessTiles(filterNavigationByCapabilities(officeNavigation, capabilities)), [capabilities])
+  const favorites = useOfficeFavorites()
+  const tiles = useMemo<FavoriteTile[]>(() => {
+    if (favorites === undefined) return []
+    if (favorites.length) return favorites.slice(0, QUICK_ACCESS_LIMIT).map(favoriteTile)
+    return quickAccessTiles(filterNavigationByCapabilities(officeNavigation, capabilities), QUICK_ACCESS_LIMIT).map(({ item, group }) => ({
+      id: item.id,
+      href: `/office/${item.id}`,
+      caption: group.label,
+      title: item.label,
+      description: item.description,
+      icon: group.icon,
+    }))
+  }, [favorites, capabilities])
   if (tiles.length === 0) return null
 
   return (
     <section aria-labelledby="dashboard-quick-access" className="flex flex-col gap-2">
-      <h3 id="dashboard-quick-access" className="text-body font-semibold text-foreground">
-        Быстрый доступ
-      </h3>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id="dashboard-quick-access" className="text-body font-semibold text-foreground">
+          Быстрый доступ
+        </h3>
+        {favorites?.length ? (
+          <Link to="/office/favorites" className={cn("text-body-sm text-accent underline-offset-4 hover:underline", focusRingClass)}>
+            Всё избранное
+          </Link>
+        ) : null}
+      </div>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {tiles.map(({ item, group }) => {
-          const Icon = group.icon
+        {tiles.map((tile) => {
+          const Icon = tile.icon
           return (
-            <li key={item.id}>
+            <li key={tile.id}>
               <Link
-                to={`/office/${item.id}`}
+                to={tile.href}
                 className={cn("group flex h-full items-start gap-3 rounded-card border border-border bg-card p-4 transition-colors hover:border-accent/40 hover:bg-muted", focusRingClass)}
               >
                 <Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-accent" />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-caption text-muted-foreground">{group.label}</span>
-                  <span className="text-body-sm font-semibold text-foreground">{item.label}</span>
-                  <span className="line-clamp-2 text-caption text-muted-foreground">{item.description}</span>
+                  <span className="text-caption text-muted-foreground">{tile.caption}</span>
+                  <span className="text-body-sm font-semibold text-foreground">{tile.title}</span>
+                  {tile.description ? <span className="line-clamp-2 text-caption text-muted-foreground">{tile.description}</span> : null}
                 </span>
                 <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
               </Link>

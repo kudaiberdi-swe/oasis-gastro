@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react"
 import { useId, useMemo, useState } from "react"
 
+import { PERSONAL_SECTIONS } from "@/office/model/capabilities"
 import { findOfficeItem, officeNavigation } from "@/office/model/navigation"
 import { Checkbox } from "@/shared/components/ui"
 import { cn, focusRingClass } from "@/shared/lib/utils"
@@ -118,10 +119,13 @@ function MatrixGroup({
             <tbody>
               {sections.map((section) => {
                 const sectionLabel = findOfficeItem(section.id)?.label ?? section.id
+                // «Избранное» belongs to every user (W3-ADM-13): shown as granted, not editable.
+                const personal = PERSONAL_SECTIONS.includes(section.id)
                 return (
                   <tr key={section.id} className="border-t border-border">
                     <th scope="row" className="px-4 py-2 text-left font-normal text-foreground">
                       {sectionLabel}
+                      {personal ? <span className="block text-caption text-muted-foreground">Есть у всех пользователей</span> : null}
                     </th>
                     {actions.map((action) => {
                       if (!section.actions.includes(action)) return <td key={action} className="px-2 py-2" />
@@ -130,8 +134,8 @@ function MatrixGroup({
                         <td key={action} className="px-2 py-2 text-center">
                           <Checkbox
                             aria-label={`${sectionLabel}: ${ACTION_LABELS[action]}`}
-                            checked={fullAccess || selected.has(right)}
-                            disabled={fullAccess || readOnly || !canGrant(right)}
+                            checked={fullAccess || personal || selected.has(right)}
+                            disabled={fullAccess || personal || readOnly || !canGrant(right)}
                             onCheckedChange={(checked) => onToggle(right, checked === true)}
                           />
                         </td>
