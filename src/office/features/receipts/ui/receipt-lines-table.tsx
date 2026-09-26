@@ -107,7 +107,7 @@ export function ReceiptLinesTable({ lines, readOnly, errors, priceChecks, onAdd,
                       {readOnly ? (
                         (VAT_OPTIONS.find((option) => option.value === line.vatRate)?.label ?? `${line.vatRate} %`)
                       ) : (
-                        <Select aria-label={`НДС — ${line.itemName}`} className="h-10" value={line.vatRate} onValueChange={(vatRate) => onChange(line.key, { vatRate })} options={VAT_OPTIONS} />
+                        <Select aria-label={`НДС — ${line.itemName}`} className="h-10 min-w-[7.5rem] whitespace-nowrap" value={line.vatRate} onValueChange={(vatRate) => onChange(line.key, { vatRate })} options={VAT_OPTIONS} />
                       )}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{gross === null ? "—" : formatAmount(gross)}</td>

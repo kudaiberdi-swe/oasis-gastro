@@ -85,7 +85,11 @@ function OrderForm({ order, channel, backPath, onBack }: { order: DeliveryOrder 
   const restaurantOptions = restaurantSelectOptions(scope?.restaurants ?? [])
   if (order && !restaurantOptions.some((option) => option.value === order.restaurantExternalId)) restaurantOptions.push({ value: order.restaurantExternalId, label: order.restaurantExternalId })
   const sources = references?.sources ?? []
-  const sourceOptions = sources.map((row) => ({ value: row.externalId, label: `${row.name} · ${SOURCE_KIND_LABELS[row.kind]}` }))
+  // «Телефон · Телефон» says nothing twice: the kind only when it adds to the name.
+  const sourceOptions = sources.map((row) => {
+    const kind = SOURCE_KIND_LABELS[row.kind]
+    return { value: row.externalId, label: row.name.toLocaleLowerCase("ru").includes(kind.toLocaleLowerCase("ru")) ? row.name : `${row.name} · ${kind}` }
+  })
   if (order?.source && !sourceOptions.some((option) => option.value === order.source!.externalId)) sourceOptions.push({ value: order.source.externalId, label: order.source.name })
   // Only a free courier can be newly assigned (the server refuses a busy one); the current one stays listed.
   const courierOptions = [{ value: NO_COURIER, label: "Не назначен" }, ...courierChoices(references?.couriers ?? [], order?.courier ?? null)]
