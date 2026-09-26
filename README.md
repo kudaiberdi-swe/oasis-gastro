@@ -2,7 +2,9 @@
 
 A cashier POS + back office for **Sandyq**, a Kazakhstan ethno-restaurant chain (3 branches: Алматы, Шымкент, Түркістан). Built on Convex (backend + realtime database) and React/Vite (frontend), with a read-only sync from the chain's existing iiko Server account for real branch/staff data.
 
-Two people can read this repo cold from here: this file gets you running locally and orients you to what exists; **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** is the technical reference — the POS core table by table and function by function, a map of the domains added in W1–W3, the cross-domain side effects. **[docs/BRD.md](docs/BRD.md)** has the original business framing and open questions. **[docs/iiko-connection-runbook.md](docs/iiko-connection-runbook.md)** covers the iiko side specifically. **[docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md)** is the task plan (W0–W3) with its status, **[TODO.md](TODO.md)** what people still have to do (keys, questions, prod launch), **[PRODUCT.md](PRODUCT.md)** and **[DESIGN.md](DESIGN.md)** the product record and the design system.
+**New here? Start with [docs/01-ONBOARDING.md](docs/01-ONBOARDING.md)** (in Russian) — the project map and the numbered reading order of every document in `docs/`.
+
+Two people can read this repo cold from here: this file gets you running locally and orients you to what exists; **[docs/03-ARCHITECTURE.md](docs/03-ARCHITECTURE.md)** is the technical reference — the POS core table by table and function by function, a map of the domains added in W1–W3, the cross-domain side effects. **[docs/02-BRD.md](docs/02-BRD.md)** has the original business framing and open questions. **[docs/06-IIKO-RUNBOOK.md](docs/06-IIKO-RUNBOOK.md)** covers the iiko side specifically. **[docs/08-IMPLEMENTATION-PLAN.md](docs/08-IMPLEMENTATION-PLAN.md)** is the task plan (W0–W3) with its status, **[TODO.md](TODO.md)** what people still have to do (keys, questions, prod launch), **[PRODUCT.md](PRODUCT.md)** and **[DESIGN.md](DESIGN.md)** the product record and the design system.
 
 ## What's here
 
@@ -24,7 +26,7 @@ npm run seed           # one-time: real menu + org/restaurants/terminals + 3 syn
 npm run dev             # http://localhost:5173
 ```
 
-`npm run seed` prints (and saves to gitignored `.sandyq-seed/credentials-*.json`) a cashier/manager/administrator PIN to log into `/pos` with. For `/office`, sign up with any email/password at `/office`, then set that email as `OFFICE_BOOTSTRAP_EMAIL` (`npx convex env set OFFICE_BOOTSTRAP_EMAIL you@example.com`) and click "Инициализировать офис" on first sign-in — see [Two auth models](docs/ARCHITECTURE.md#two-application-surfaces-two-auth-models) for why POS and office are separate.
+`npm run seed` prints (and saves to gitignored `.sandyq-seed/credentials-*.json`) a cashier/manager/administrator PIN to log into `/pos` with. For `/office`, sign up with any email/password at `/office`, then set that email as `OFFICE_BOOTSTRAP_EMAIL` (`npx convex env set OFFICE_BOOTSTRAP_EMAIL you@example.com`) and click "Инициализировать офис" on first sign-in — see [Two auth models](docs/03-ARCHITECTURE.md#two-application-surfaces-two-auth-models) for why POS and office are separate.
 
 Pulling real branch/staff data from iiko (optional, needs `.env` with `IIKO_BASE_URL`/`IIKO_LOGIN`/`IIKO_PASSWORD` — see the runbook):
 
@@ -45,7 +47,7 @@ npm run iiko:seed       # extract → import → reconcile, scoped to Sandyq onl
 | `npm run contrast` | WCAG contrast of the day/night theme tokens in `src/shared/styles/theme.css` |
 | `npm run guards` | Static checks for the hard rules (auth on public functions, `ConvexError`, office restaurant scope, design tokens) — ratchet against `scripts/guards/baseline.json` (now empty, so any violation fails); public functions without a session must be listed in `scripts/guards/public-allowlist.json` |
 | `npm run e2e` | Playwright e2e (`e2e/`), local only: starts its own Vite dev server on :5198 against the dev deployment, installed Chrome, 4 surfaces × day/night. The sale smoke test needs the `seed:e2e` env loaded — or use `bash scripts/e2e-pos.sh` |
-| `npm run e2e:screens` | Screenshot run → `docs/app-screenshots/W0/…`, then `scripts/compare-screens.mjs` builds the bahandi-vs-sandyq parity page `docs/app-screenshots/W0/compare.html` |
+| `npm run e2e:screens` | Screenshot run → `reference/app-screenshots/W0/…`, then `scripts/compare-screens.mjs` builds the bahandi-vs-sandyq parity page `reference/app-screenshots/W0/compare.html` |
 | `npm run seed:e2e` | Seeds the dev deployment for e2e and writes the cashier login for the sale smoke test to a gitignored local env file (never printed). Refuses any non-dev deployment |
 | `bash scripts/e2e-pos.sh` | `seed:e2e`, loads that env file and runs every e2e suite in one go (extra args go to `playwright test`) |
 | `npm run lint:convex` | `scripts/check-unbounded-queries.mjs` — no full-table scans or unbounded `take` in `convex/` |
@@ -91,7 +93,7 @@ Two independent GitHub Actions workflows on `goecho-ai/sandyq`. Each has a `veri
 
 `npm run typecheck` checks both the frontend (`tsc -b`) and the Convex functions (`tsc -p convex`); `tsc -b` alone never looked at `convex/`.
 
-Not done yet (blocker D9 in `docs/IMPLEMENTATION-PLAN.md`):
+Not done yet (blocker D9 in `docs/08-IMPLEMENTATION-PLAN.md`):
 - **Manual approval before a prod deploy:** add required reviewers to the `production` environment in GitHub repo settings. This needs repo admin rights.
 - **Preview deployments per pull request:** Convex preview deployments need a paid Convex plan. Otherwise a separate staging Convex project is needed.
 
@@ -109,11 +111,11 @@ All unit/integration tests live in `tests/` (vitest picks up only `tests/**/*.te
 
 Static checks: `npm run guards`, `npm run contrast` and `npm run lint:convex` (see [Common commands](#common-commands)); `bash scripts/verify.sh` runs them with typecheck and tests, like CI.
 
-End-to-end, local only (not in CI): `bash scripts/e2e-pos.sh` — it runs `npm run seed:e2e` against the dev deployment, loads the env file that writes (the cashier PIN is never printed) and runs `npx playwright test` (smoke sale POS → hall → kitchen, the kitchen board, every office section, axe accessibility checks, dialog regressions). By hand: `npm run seed:e2e`, then `set -a; . .sandyq-seed/e2e.env; set +a; npm run e2e`. `npm run e2e:screens` captures screenshots and builds the parity report. Details: [docs/ARCHITECTURE.md § Quality gates](docs/ARCHITECTURE.md#quality-gates).
+End-to-end, local only (not in CI): `bash scripts/e2e-pos.sh` — it runs `npm run seed:e2e` against the dev deployment, loads the env file that writes (the cashier PIN is never printed) and runs `npx playwright test` (smoke sale POS → hall → kitchen, the kitchen board, every office section, axe accessibility checks, dialog regressions). By hand: `npm run seed:e2e`, then `set -a; . .sandyq-seed/e2e.env; set +a; npm run e2e`. `npm run e2e:screens` captures screenshots and builds the parity report. Details: [docs/03-ARCHITECTURE.md § Quality gates](docs/03-ARCHITECTURE.md#quality-gates).
 
 ## Known gaps
 
-These are real, not oversights papered over — see [docs/ARCHITECTURE.md § Known gaps and deferred work](docs/ARCHITECTURE.md#known-gaps-and-deferred-work) for the full list and reasoning. The two most load-bearing:
+These are real, not oversights papered over — see [docs/03-ARCHITECTURE.md § Known gaps and deferred work](docs/03-ARCHITECTURE.md#known-gaps-and-deferred-work) for the full list and reasoning. The two most load-bearing:
 
 - **Recipes decide stock consumption** — checkout consumes stock by recipe at weighted-average cost, but only for dishes that have one. On prod recipes arrive with the iiko import (`scripts/prod-iiko-import.sh`, run by the owner — `TODO.md` §5) and the technologist's CSV (see `TODO.md`); iiko modifiers are not projected, so chart lines that use them are skipped.
 - **`useOrderDraft`'s check-switching bug is fixed, but the underlying pattern (side effects inside a `setState` updater) is still there** — don't "clean up" `addItem`/`setQuantity` in `use-order-draft.ts` without reading the comment above them first; a prior attempt silently persisted empty orders.

@@ -8,7 +8,7 @@ import { canSeeEmployeePii } from "./_scope"
 import { aggregate, ALMATY_OFFSET_MS, col } from "./_shared"
 import { newBudget, spend, type Budget } from "./stockHelpers"
 
-// Employee reports of W2 (docs/IMPLEMENTATION-PLAN.md W2-RPT-07). A report is listed here only with a
+// Employee reports of W2 (docs/08-IMPLEMENTATION-PLAN.md W2-RPT-07). A report is listed here only with a
 // test (tests/convex/reportsEmployees.test.ts). The catalog marks payroll reports with
 // `requiredCapability: "office.payroll.view"`, which queries.execute checks on top of office.reports.view.
 

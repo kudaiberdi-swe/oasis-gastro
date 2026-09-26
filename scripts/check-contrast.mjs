@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// WCAG 2.1 contrast check for the theme tokens (docs/POS-DESIGN.md §2): every text pair ≥ 4.5:1,
+// WCAG 2.1 contrast check for the theme tokens (docs/04-POS-DESIGN.md §2): every text pair ≥ 4.5:1,
 // focus ring and input borders ≥ 3:1, in both the day and the night theme.
 
 import { readFileSync } from "node:fs"

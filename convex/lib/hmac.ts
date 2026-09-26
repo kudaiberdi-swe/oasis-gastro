@@ -2,7 +2,7 @@
 // variable CLOUD_API_SECRET — never in the database, the office or a response. Without it every route
 // answers 503 «Cloud API не настроен»: the API is closed, not open.
 //
-// Timestamp: Unix milliseconds. Signature: hex HMAC-SHA256 of `${timestamp}.${METHOD}.${path and query}.${body}` (docs/cloud-api.md).
+// Timestamp: Unix milliseconds. Signature: hex HMAC-SHA256 of `${timestamp}.${METHOD}.${path and query}.${body}` (docs/07-CLOUD-API.md).
 // The method and path are signed too, so a GET signature cannot be replayed against another restaurant.
 
 declare const process: { env: Record<string, string | undefined> }

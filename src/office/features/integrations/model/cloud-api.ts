@@ -1,4 +1,4 @@
-// Cloud API contract as the office shows it (docs/cloud-api.md, convex/lib/hmac.ts). Only placeholders:
+// Cloud API contract as the office shows it (docs/07-CLOUD-API.md, convex/lib/hmac.ts). Only placeholders:
 // the real secret lives in the CLOUD_API_SECRET env variable and is never shown or copied here.
 
 export const CLOUD_API_ENDPOINTS: { method: "GET" | "POST"; path: string; description: string }[] = [

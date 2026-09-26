@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Static guards for the hard rules in docs/IMPLEMENTATION-PLAN.md («Соглашения плана»).
+// Static guards for the hard rules in docs/08-IMPLEMENTATION-PLAN.md («Соглашения плана»).
 // Ratchet: violations are counted per rule and file and compared with scripts/guards/baseline.json.
 // CI fails on any count above the baseline; `--update-baseline` rewrites it (review it in the PR).
 
@@ -147,7 +147,7 @@ function main() {
     for (const line of improvements) console.log(`  ↓ ${line}`)
   }
   if (regressions.length) {
-    console.error("New guard violations (see «Соглашения плана» in docs/IMPLEMENTATION-PLAN.md):")
+    console.error("New guard violations (see «Соглашения плана» in docs/08-IMPLEMENTATION-PLAN.md):")
     for (const line of regressions) console.error(`  ✖ ${line}`)
     process.exit(1)
   }

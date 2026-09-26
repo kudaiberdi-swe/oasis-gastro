@@ -1189,7 +1189,7 @@ export default defineSchema({
 
   // --- iiko sync (read-only mirror — Phase 3) --------------------------------
   // Master-data only: organization structure + workforce. No sales/order/document
-  // history is imported — see docs/ARCHITECTURE.md and plans/README.md in the
+  // history is imported — see docs/03-ARCHITECTURE.md and plans/README.md in the
   // reference implementation for why that stays out of scope here.
 
   iikoImportRuns: defineTable({

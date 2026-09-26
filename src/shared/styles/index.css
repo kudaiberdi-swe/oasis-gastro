@@ -61,7 +61,7 @@
   --shadow-float: var(--shadow-float);
 }
 
-/* Type scale (docs/POS-DESIGN.md §3.2): POS text ≥ 14px, office ≥ 12px. */
+/* Type scale (docs/04-POS-DESIGN.md §3.2): POS text ≥ 14px, office ≥ 12px. */
 @theme {
   --text-caption: 12px;
   --text-caption--line-height: 16px;

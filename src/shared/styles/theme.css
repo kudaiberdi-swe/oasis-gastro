@@ -2,8 +2,8 @@
  * Sandyq design tokens — the only place in the app with raw color values.
  * Components use semantic tokens only (bg-card, text-accent, …); a design change is one file.
  *
- * Palette (decision D2, docs/POS-DESIGN.md §2): colors of the live site sandyqgroup.com
- * (docs/DESIGN.md) — cream, ink, wine, gold, rust. Values marked "derived" are tuned for WCAG
+ * Palette (decision D2, docs/04-POS-DESIGN.md §2): colors of the live site sandyqgroup.com
+ * (root DESIGN.md, section «Website») — cream, ink, wine, gold, rust. Values marked "derived" are tuned for WCAG
  * contrast (text ≥ 4.5:1, control borders ≥ 3:1; checked by scripts/check-contrast.mjs).
  * The design-skill palette (walnut/felt/kilim/brass) stays available as [data-palette="skill"].
  */

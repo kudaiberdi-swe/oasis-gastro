@@ -24,3 +24,8 @@ playwright-report/
 
 # Transient secret file from scripts/rotate-cloud-api-secret.sh — handed to the website admin, then deleted
 .cloud-api-secret.txt
+
+# Local reference material (≈41 MB of screenshots and saved sources of the reference sites) — kept
+# on disk, not committed; see reference/README.md. app-screenshots/ is rewritten by `npm run e2e:screens`.
+reference/*-screenshots/
+reference/site-src/

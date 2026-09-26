@@ -8,7 +8,7 @@ import { count, factReport, facts, matcher, money, percentOf, restaurantDocs, ro
 import { aggregate, col, dayEnd, dayStart, localDate, SCAN_BUDGET } from "./_shared"
 import { localDateTime, restaurantNames } from "./_scope"
 
-// Sales reports of W2 (docs/IMPLEMENTATION-PLAN.md W2-RPT-03) and the W1-RPT-06 leftovers (sales-olap,
+// Sales reports of W2 (docs/08-IMPLEMENTATION-PLAN.md W2-RPT-03) and the W1-RPT-06 leftovers (sales-olap,
 // sales-10, sales-20). A report is listed here only with a test (tests/convex/reportsSales.test.ts).
 // Totals over the facts reconcile with sales-01.
 

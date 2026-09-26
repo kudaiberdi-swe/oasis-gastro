@@ -6,10 +6,10 @@ import { test as base, expect, type Page } from "@playwright/test"
 
 export type E2EOptions = { theme: "day" | "night"; surface: "pos" | "office" | "kitchen" }
 
-const SCREENS_DIR = path.resolve("docs/app-screenshots/W0")
+const SCREENS_DIR = path.resolve("reference/app-screenshots/W0")
 
 type Fixtures = {
-  /** docs/app-screenshots/W0/<surface>/<name>-<theme>.png */
+  /** reference/app-screenshots/W0/<surface>/<name>-<theme>.png */
   snap: (name: string) => Promise<void>
   /** Serious and critical axe violations on the current page (color contrast included). */
   axeViolations: () => Promise<{ id: string; impact: string | null | undefined; targets: string[] }[]>

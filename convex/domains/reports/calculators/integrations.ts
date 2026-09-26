@@ -8,7 +8,7 @@ import { aggregate, col, dayEnd, dayStart } from "./_shared"
 import { coversNetwork, localDateTime, restaurantNames, scopeOf, statusResult } from "./_scope"
 import { newBudget, percent, spend, type Budget } from "./stockHelpers"
 
-// Integration and control reports of W3 (docs/IMPLEMENTATION-PLAN.md W3-RPT-06). The queue is
+// Integration and control reports of W3 (docs/08-IMPLEMENTATION-PLAN.md W3-RPT-06). The queue is
 // integrationJobs (never an iiko write), bank reconciliation the bank-statement records of FIN, fiscal
 // status the non-fiscal receipts (D6), the EGAIS family «Не применяется в РК» (D4) — a status, not an
 // error. A job's payload is never shown: it can carry an address or a one-time code.

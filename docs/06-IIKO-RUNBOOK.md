@@ -1,6 +1,6 @@
 # iiko connection runbook
 
-How to pull real Sandyq data (branches, staff, and behind flags stock master data, products, charts, balances, prices, shifts and orders) from the chain's iiko Server account. For the code that implements this, see `scripts/iiko/` and `convex/domains/iiko/`; for how it fits the rest of the system, see [ARCHITECTURE.md § iiko integration](ARCHITECTURE.md#iiko-integration).
+How to pull real Sandyq data (branches, staff, and behind flags stock master data, products, charts, balances, prices, shifts and orders) from the chain's iiko Server account. For the code that implements this, see `scripts/iiko/` and `convex/domains/iiko/`; for how it fits the rest of the system, see [03-ARCHITECTURE.md § iiko integration](03-ARCHITECTURE.md#iiko-integration).
 
 ## The one rule
 
@@ -23,7 +23,7 @@ Auth itself is session-key based: `GET /resto/api/auth?login=&pass=sha1(password
 ## What actually gets pulled
 
 Every endpoint is a `GET` listed in `scripts/iiko/endpoint-registry.mjs`. By default only the org tree and
-staff; the rest behind flags (decisions Б-B4 and D7 of 2026-09-26, `docs/IMPLEMENTATION-PLAN.md` §2.5):
+staff; the rest behind flags (decisions Б-B4 and D7 of 2026-09-26, `docs/08-IMPLEMENTATION-PLAN.md` §2.5):
 
 | Flag | Endpoints | Lands in |
 |---|---|---|
@@ -73,7 +73,7 @@ npm run iiko:reconcile   # compares staged vs mirrored counts, exits non-zero on
 
 `import-convex.mjs` chunks records into batches of 50 before calling `domains/iiko/mutations:importBatch` — a single call with all ~363 employees at once hits Convex's per-mutation operation budget and times out. Don't remove the chunking if you're touching this script.
 
-Against production, use `bash scripts/prod-iiko-import.sh` (`--from <date>` for sales since a date, `--yes` to skip the question): it mints a one-off deploy key into a temp file, runs the flagged extract and import, and deletes the key on exit. By hand, prefix with a one-off deploy key (see [ARCHITECTURE.md § Environments](ARCHITECTURE.md#environments) for the mint-use-delete pattern) — none of the iiko scripts have a dev-only guard the way `seed-sandyq.mjs` does, since re-running the import is always idempotent and safe.
+Against production, use `bash scripts/prod-iiko-import.sh` (`--from <date>` for sales since a date, `--yes` to skip the question): it mints a one-off deploy key into a temp file, runs the flagged extract and import, and deletes the key on exit. By hand, prefix with a one-off deploy key (see [03-ARCHITECTURE.md § Environments](03-ARCHITECTURE.md#environments) for the mint-use-delete pattern) — none of the iiko scripts have a dev-only guard the way `seed-sandyq.mjs` does, since re-running the import is always idempotent and safe.
 
 ## Known sharp edge: XML declaration parsing
 

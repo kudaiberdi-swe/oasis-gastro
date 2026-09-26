@@ -17,7 +17,7 @@ import { RestaurantLinks } from "./restaurant-links"
 
 // «Обмен между точками / паритет iiko» (/office/data-exchange, W1-IIKO-07, OFFICE-DESIGN §3.6).
 // View and branch mapping only: there is no button that starts an import or calls iiko — the import runs
-// from scripts/iiko on a trusted machine (docs/iiko-connection-runbook.md); the screen shows the command.
+// from scripts/iiko on a trusted machine (docs/06-IIKO-RUNBOOK.md); the screen shows the command.
 
 export function DataExchangeWorkspace() {
   const [attempt, setAttempt] = useState(0)

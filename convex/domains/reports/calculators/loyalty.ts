@@ -6,7 +6,7 @@ import { aggregate, col, dayEnd, dayStart, localDate } from "./_shared"
 import { canSeeGuestPii, coversNetwork, lookup, scopeOf, statusResult } from "./_scope"
 import { newBudget, percent, spend, type Budget } from "./stockHelpers"
 
-// Guest and loyalty reports of W3 (docs/IMPLEMENTATION-PLAN.md W3-RPT-04). Visits come from the `guest`
+// Guest and loyalty reports of W3 (docs/08-IMPLEMENTATION-PLAN.md W3-RPT-04). Visits come from the `guest`
 // facts of dailySalesFacts (orders with a guest only), balances from the account transactions, consents
 // from the append-only journal, mailings from the messaging jobs. Personal data only with
 // office.guests.pii (Г-2): without it the phone is masked, as in the office guest list. Coupons and the

@@ -5,7 +5,7 @@ import { aggregate, col, dayEnd, dayStart, localDate } from "./_shared"
 import { coversNetwork, localDateTime, restaurantNames, scopeOf, statusResult } from "./_scope"
 import { balanceAt, newBudget, percent, spend, stockPairs, type Budget } from "./stockHelpers"
 
-// Chain reports of W3 (docs/IMPLEMENTATION-PLAN.md W3-RPT-05). Sales come from the POS pre-aggregate
+// Chain reports of W3 (docs/08-IMPLEMENTATION-PLAN.md W3-RPT-05). Sales come from the POS pre-aggregate
 // (dailySalesFacts) and, side by side, from the read-only iiko projection of W2-RTL-01 (`iikoOrders`) —
 // every column says its source, the two are never summed into one figure. P&L from the journal, stock
 // from the movement chain, locks, outbox, audit and the iiko mirror as they are.

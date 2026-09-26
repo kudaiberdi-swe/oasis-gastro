@@ -5,7 +5,7 @@ import type { ReportColumn, ReportResult } from "../../../lib/reportConfig"
 import type { Calculator } from "../registry"
 import { col, dayEnd, dayStart, localDate, SCAN_BUDGET } from "./_shared"
 
-// Finance reports of W2 (docs/IMPLEMENTATION-PLAN.md W2-RPT-05). A report is listed here only with a test
+// Finance reports of W2 (docs/08-IMPLEMENTATION-PLAN.md W2-RPT-05). A report is listed here only with a test
 // (tests/convex/reportsFinance*.test.ts). finance-02/03/08/18 are W1 and live in operations.ts.
 //
 // Sources: the double-entry journal (`journalEntries`, read through its restaurant / account indexes with a

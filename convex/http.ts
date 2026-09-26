@@ -11,7 +11,7 @@ const http = httpRouter()
 
 auth.addHttpRoutes(http)
 
-// --- Cloud API (W3-INT-03/04, decision Г-9; contract in docs/cloud-api.md) ---------------------------
+// --- Cloud API (W3-INT-03/04, decision Г-9; contract in docs/07-CLOUD-API.md) ---------------------------
 // Every route: body limit → HMAC signature and ±5 min window → one-time nonce → internal function.
 // Errors are JSON {error} with the ConvexError text; never a stack trace.
 

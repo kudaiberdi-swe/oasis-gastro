@@ -9,7 +9,7 @@ import type { Calculator } from "../registry"
 import { facts, matcher, percentOf, restaurantDocs, round1 } from "./_facts"
 import { aggregate, col, dayEnd, dayStart, localDate, SCAN_BUDGET } from "./_shared"
 
-// Menu reports of W2 (docs/IMPLEMENTATION-PLAN.md W2-RPT-04). A report is listed here only with a test
+// Menu reports of W2 (docs/08-IMPLEMENTATION-PLAN.md W2-RPT-04). A report is listed here only with a test
 // (tests/convex/reportsMenu.test.ts). Sales come from the daily product facts; prices from the one
 // price rule (lib/pricing.ts), costs from the recipe versions (lib/recipes.ts). Nothing is written.
 

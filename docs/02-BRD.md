@@ -1,6 +1,6 @@
 # Business Requirements Document — Sandyq
 
-Status: draft. Sections marked ⚠️ need sign-off from the lead (Haidar) before implementation starts. Updated 2026-09-26: implementation went ahead on the working assumptions below (plan: `IMPLEMENTATION-PLAN.md`, owner decisions in its §2.5); the status column of §5 says what is decided and what is still open. Open questions for people are tracked in `../TODO.md`.
+Status: draft. Sections marked ⚠️ need sign-off from the lead (Haidar) before implementation starts. Updated 2026-09-26: implementation went ahead on the working assumptions below (plan: `08-IMPLEMENTATION-PLAN.md`, owner decisions in its §2.5); the status column of §5 says what is decided and what is still open. Open questions for people are tracked in `../TODO.md`.
 
 ## 1. Background
 
@@ -40,7 +40,7 @@ The business currently runs its cashier and back-office operations entirely on a
 |---|---|---|
 | Which Sandyq branches are in scope — all, or a pilot subset? | Determines import volume and rollout risk | Working: pilot on 3 branches (Алматы, Шымкент, Түркістан). The other Sandyq departments in iiko — open (`TODO.md` §5) |
 | Is this meant to fully replace the current cashier/back-office system for staff, or run alongside it? | Changes UX requirements and change-management needs | Working: a non-fiscal pilot alongside iiko; iiko keeps printing fiscal receipts (D6, to confirm with the accountant) |
-| Does Sandyq need a public-facing customer ordering site, or is this strictly an internal staff tool? | Changes scope significantly — internal tool vs. customer product | Decided (Г-9): an internal tool; sandyq.kz reads the menu and stop list and sends delivery orders through the Cloud API (`cloud-api.md`) |
+| Does Sandyq need a public-facing customer ordering site, or is this strictly an internal staff tool? | Changes scope significantly — internal tool vs. customer product | Decided (Г-9): an internal tool; sandyq.kz reads the menu and stop list and sends delivery orders through the Cloud API (`07-CLOUD-API.md`) |
 | Design/branding source of truth — an official brand guide, or the public site assets already collected? | Confirms whether current asset set is sufficient | Working (D2): the public site palette and assets plus the Sandyq design skill — `../DESIGN.md` |
 | Any Sandyq-specific features beyond a standard cashier/back-office (e.g. delivery-platform integrations)? | Determines what to build beyond the baseline | Partly decided: phone and site delivery first, aggregators later (Г-3); no kiosk (Г-8); a Russian / Kazakh cashier interface |
 
@@ -50,14 +50,14 @@ The business currently runs its cashier and back-office operations entirely on a
 - **Back office**: menu & recipe management, weighted-average inventory costing, production tracking, purchasing, double-entry finance, Kazakhstan payroll, workforce scheduling/attendance, loyalty & guest management, delivery dispatch, reporting.
 - **Data source**: real Sandyq data pulled from iiko (menu, employees, branches, stock, historical sales) instead of manual entry.
 
-See `ARCHITECTURE.md` for how this scope maps to the technical system.
+See `03-ARCHITECTURE.md` for how this scope maps to the technical system.
 
 ## 7. Data & integration
 
 - Source: iiko Server REST API, read-only.
 - Sync is manual/on-demand, not a live real-time feed.
 - POS PIN access is provisioned inside the app itself, not sourced from iiko — imported employee records carry no login credentials.
-- See `iiko-connection-runbook.md` for the connection procedure.
+- See `06-IIKO-RUNBOOK.md` for the connection procedure.
 
 ## 8. Non-functional requirements
 

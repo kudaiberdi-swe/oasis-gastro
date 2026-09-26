@@ -145,7 +145,7 @@ This file holds two things. The first eight sections are the design system of th
 cashier (`/pos`), the kitchen screen (`/kitchen`) and the office (`/office`); its source of truth is
 `src/shared/styles/theme.css`. The last section, **Website**, is the spec of the marketing site in
 `website/`, read from the reference pages of sandyqgroup.com; the app derives its palette from it.
-Detailed screen rules live in `docs/POS-DESIGN.md` and `docs/OFFICE-DESIGN.md`.
+Detailed screen rules live in `docs/04-POS-DESIGN.md` and `docs/05-OFFICE-DESIGN.md`.
 
 ## Overview
 
@@ -338,9 +338,9 @@ Cormorant tabular figures in brass, and availability shown in text, not only in 
 
 ## Website
 
-Spec of the marketing site in `website/` (moved here from `docs/DESIGN.md` unchanged, headings one level down).
+Spec of the marketing site in `website/` (moved here from the former `docs/DESIGN.md` unchanged, headings one level down).
 
-Source of truth for the marketing site in `website/`. For the POS / office / kitchen / courier app see the sections above and `docs/POS-DESIGN.md` (it derives its palette from §1 here) and the migration plan in `docs/PLAN.md`. Everything here was read from the raw HTML/CSS of the two reference pages (saved under `docs/reference-src/`) and checked against full-page screenshots in `docs/reference-screenshots/` (1440 / 768 / 375 px).
+Source of truth for the marketing site in `website/`. For the POS / office / kitchen / courier app see the sections above and `docs/04-POS-DESIGN.md` (it derives its palette from §1 here) and the migration plan in `reference/archive/PLAN.md`. Everything here was read from the raw HTML/CSS of the two reference pages (saved under `reference/site-src/`) and checked against full-page screenshots in `reference/site-screenshots/` (1440 / 768 / 375 px).
 
 - Group landing — https://sandyqgroup.com/ → our `/`
 - Restaurant page — https://sandyqgroup.com/sandyq/ → our `/restaurant`

@@ -2,7 +2,7 @@ import { officeNavigation } from "../../src/office/model/navigation"
 import { showTerminalPicker, test } from "../fixtures"
 
 // Screenshot harness (npm run e2e:screens): W0 screens per surface and theme into
-// docs/app-screenshots/W0/<surface>/<name>-<theme>.png, for scripts/compare-screens.mjs.
+// reference/app-screenshots/W0/<surface>/<name>-<theme>.png, for scripts/compare-screens.mjs.
 test.skip(!process.env.SCREENS, "run with npm run e2e:screens")
 
 test("pos screens", async ({ page, surface, snap }) => {
