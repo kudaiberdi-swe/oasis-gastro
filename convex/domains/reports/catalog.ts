@@ -226,7 +226,7 @@ const ROWS: Row[] = [
   { id: "integrations-12", title: "Публикация внешнего меню", family: "integrations", wave: "W3" },
   { id: "integrations-13", title: "Состояние оборудования", family: "integrations", wave: "W3" },
   { id: "integrations-14", title: "Журнал системных событий", family: "integrations", wave: "W3" },
-  { id: "integrations-15", title: "Отчёты iikoFront", family: "integrations", wave: "W3" },
+  { id: "integrations-15", title: "Отчёты кассы", description: "Реестр X- и Z-отчётов и предчеков кассовых смен", family: "integrations", wave: "W3" },
 ]
 
 export const REPORT_CATALOG: ReportDefinition[] = ROWS.map((row) => ({

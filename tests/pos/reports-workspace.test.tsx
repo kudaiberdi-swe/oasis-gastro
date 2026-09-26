@@ -137,6 +137,8 @@ describe("report catalog (W1-RPT-03)", () => {
     expect(within(stations).getByText("В разработке")).toBeTruthy()
     const egais = within(catalog).getByRole("link", { name: /Документы ЕГАИС/ })
     expect(within(egais).getByText("Не применяется в РК")).toBeTruthy()
+    const coupons = within(catalog).getByRole("link", { name: /Использование купонов/ })
+    expect(within(coupons).getByText("Механика выключена")).toBeTruthy()
     expect(executeCalls()).toHaveLength(0)
   }, 20_000) // renders all 190 catalog rows: slow on a loaded machine
 
