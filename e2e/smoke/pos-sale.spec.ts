@@ -23,7 +23,8 @@ test("a cashier sells a dish for cash and the kitchen sees it", async ({ page, s
 
   await hall.click()
   await page.getByRole("dialog", { name: "Зал" }).getByRole("button", { name: /Без стола/ }).click()
-  await page.getByRole("region", { name: "Меню" }).getByRole("button").filter({ hasText: /₸/ }).first().click()
+  // The first dish in the menu may be on the stop list («нет в наличии», disabled): take the first sellable one.
+  await page.getByRole("region", { name: "Меню" }).locator("button:enabled").filter({ hasText: /₸/ }).first().click()
   await page.getByRole("button", { name: /Оплатить/ }).click()
   // With several payment methods none is preselected: the cashier picks cash explicitly.
   const payment = page.getByRole("dialog", { name: /Оплата заказа/ })
