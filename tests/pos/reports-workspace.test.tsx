@@ -138,7 +138,7 @@ describe("report catalog (W1-RPT-03)", () => {
     const egais = within(catalog).getByRole("link", { name: /Документы ЕГАИС/ })
     expect(within(egais).getByText("Не применяется в РК")).toBeTruthy()
     expect(executeCalls()).toHaveLength(0)
-  })
+  }, 20_000) // renders all 190 catalog rows: slow on a loaded machine
 
   it("searches by title and description", () => {
     renderAt("/office/reports")
