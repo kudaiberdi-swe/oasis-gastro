@@ -83,6 +83,7 @@ import type * as domains_recipes_seed from "../domains/recipes/seed.js";
 import type * as domains_reports_calculators__facts from "../domains/reports/calculators/_facts.js";
 import type * as domains_reports_calculators__scope from "../domains/reports/calculators/_scope.js";
 import type * as domains_reports_calculators__shared from "../domains/reports/calculators/_shared.js";
+import type * as domains_reports_calculators_chain from "../domains/reports/calculators/chain.js";
 import type * as domains_reports_calculators_employees from "../domains/reports/calculators/employees.js";
 import type * as domains_reports_calculators_finance from "../domains/reports/calculators/finance.js";
 import type * as domains_reports_calculators_loyalty from "../domains/reports/calculators/loyalty.js";
@@ -256,6 +257,7 @@ declare const fullApi: ApiFromModules<{
   "domains/reports/calculators/_facts": typeof domains_reports_calculators__facts;
   "domains/reports/calculators/_scope": typeof domains_reports_calculators__scope;
   "domains/reports/calculators/_shared": typeof domains_reports_calculators__shared;
+  "domains/reports/calculators/chain": typeof domains_reports_calculators_chain;
   "domains/reports/calculators/employees": typeof domains_reports_calculators_employees;
   "domains/reports/calculators/finance": typeof domains_reports_calculators_finance;
   "domains/reports/calculators/loyalty": typeof domains_reports_calculators_loyalty;
