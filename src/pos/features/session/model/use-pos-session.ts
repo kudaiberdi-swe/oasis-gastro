@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { api } from "../../../../../convex/_generated/api"
 import { IDLE_LOCK_MS_CLIENT } from "./policy"
+import { useT } from "@/pos/i18n"
 import type { PosAccessSession } from "@/shared/types/pos"
 
 const STORAGE_KEY = "sandyq-pos-session"
@@ -46,6 +47,7 @@ function readStoredAccess(): PosAccessSession | null {
 }
 
 export function usePosSession() {
+  const t = useT()
   const [access, setAccess] = useState<PosAccessSession | null>(() => readStoredAccess())
   const [locked, setLocked] = useState(false)
   const login = useAction(api.domains.auth.actions.login)
@@ -81,14 +83,14 @@ export function usePosSession() {
 
   const signIn = useCallback(
     async (employeeCode: string, pin: string) => {
-      if (!terminalExternalId) throw new Error("Не задан терминал")
+      if (!terminalExternalId) throw new Error(t("session.noTerminal"))
       const result = await login({ employeeCode, pin, terminalExternalId, purpose: "operator" })
       const session = { sessionToken: result.sessionToken, expiresAt: result.expiresAt, employee: result.employee, terminal: result.terminal, restaurant: result.restaurant } as PosAccessSession
       persist(session)
       setLocked(false)
       return session
     },
-    [login, persist, terminalExternalId],
+    [login, persist, terminalExternalId, t],
   )
 
   const signOut = useCallback(async () => {

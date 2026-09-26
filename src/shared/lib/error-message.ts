@@ -35,21 +35,28 @@ function humanText(raw: string): string | null {
   return text
 }
 
-export function errorMessage(error: unknown, fallback = DEFAULT_ERROR_MESSAGE): string {
+/**
+ * The client-side texts in another interface language (the POS in Kazakh). A server's own Russian message
+ * still passes through as it is; only the codes, the network line and the fallbacks are replaced.
+ */
+export type ErrorMessages = { network: string; codes: Partial<Record<string, string>> }
+
+export function errorMessage(error: unknown, fallback = DEFAULT_ERROR_MESSAGE, messages?: ErrorMessages): string {
+  const codeMessage = (code: string) => messages?.codes[code] ?? CODE_MESSAGES[code]
   if (error instanceof ConvexError) {
     const data: unknown = error.data
     if (typeof data === "string") return humanText(data) ?? fallback
     if (data && typeof data === "object") {
       const { code, message } = data as { code?: unknown; message?: unknown }
       if (typeof message === "string" && humanText(message)) return humanText(message)!
-      if (typeof code === "string" && CODE_MESSAGES[code]) return CODE_MESSAGES[code]
+      if (typeof code === "string" && codeMessage(code)) return codeMessage(code)!
     }
     return fallback
   }
   if (error instanceof Error) {
     const text = stripPrefixes(error.message)
-    if (NETWORK.test(text)) return NETWORK_ERROR_MESSAGE
-    if (VALIDATION.test(text)) return CODE_MESSAGES.VALIDATION
+    if (NETWORK.test(text)) return messages?.network ?? NETWORK_ERROR_MESSAGE
+    if (VALIDATION.test(text)) return codeMessage("VALIDATION")!
     return humanText(text) ?? fallback
   }
   return fallback

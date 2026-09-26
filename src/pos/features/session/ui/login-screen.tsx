@@ -1,8 +1,9 @@
 import { Lock, ShieldCheck } from "lucide-react"
 import { useState } from "react"
 
+import { posErrorMessage, useT } from "@/pos/i18n"
+import { LanguageLink } from "@/pos/i18n/language-switch"
 import { Banner, Button, OrnamentPair, PinPad } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
 
 // The server rule (convex/lib/policy.ts): employee codes up to 12 digits, PINs 4–6.
 const CODE_MAX = 12
@@ -20,6 +21,7 @@ export interface LoginScreenProps {
 
 /** Employee code, then PIN; both from the pad or the physical keyboard, Enter submits (S-14, L-15). */
 export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTerminal }: LoginScreenProps) {
+  const t = useT()
   const [code, setCode] = useState("")
   const [pin, setPin] = useState("")
   const [stage, setStage] = useState<"code" | "pin">("code")
@@ -46,7 +48,7 @@ export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTe
     try {
       await onLogin(code, pin)
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось войти"))
+      setError(posErrorMessage(t, caught, t("login.failed")))
       setPin("")
     } finally {
       setSubmitting(false)
@@ -65,13 +67,13 @@ export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTe
       <div className="flex w-full max-w-sm flex-col gap-3 rounded-panel bg-card p-8 shadow-float">
         <div className="flex flex-col items-center gap-1 text-center">
           <Icon aria-hidden className="size-6 text-accent" />
-          <h1 className="font-display text-title font-semibold">{locked ? "Касса заблокирована" : "Вход в кассу"}</h1>
+          <h1 className="font-display text-title font-semibold">{locked ? t("login.locked") : t("login.title")}</h1>
           {terminalLabel ? <p className="text-body text-muted-foreground">{terminalLabel}</p> : null}
         </div>
-        <p className="text-center text-body-sm font-medium text-muted-foreground">{stage === "code" ? "Код сотрудника" : "PIN-код"}</p>
+        <p className="text-center text-body-sm font-medium text-muted-foreground">{stage === "code" ? t("login.code") : t("login.pin")}</p>
         <PinPad
           key={stage}
-          label={stage === "code" ? "Код сотрудника" : "PIN-код"}
+          label={stage === "code" ? t("login.code") : t("login.pin")}
           value={active}
           onValueChange={handleChange}
           maxLength={stage === "code" ? CODE_MAX : PIN_MAX}
@@ -93,19 +95,20 @@ export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTe
               }}
               disabled={submitting}
             >
-              Назад
+              {t("common.back")}
             </Button>
           )}
           <Button size="lg" className="flex-1" onClick={() => void handleSubmit()} disabled={submitting || !canSubmit}>
-            {stage === "code" ? "Далее" : submitting ? "Вход…" : "Войти"}
+            {stage === "code" ? t("common.next") : submitting ? t("login.signingIn") : t("login.signIn")}
           </Button>
         </div>
-        <p className="text-center text-body-sm text-muted-foreground">Введите свой код и PIN кассы. Пароль офиса здесь не подходит.</p>
+        <p className="text-center text-body-sm text-muted-foreground">{t("login.hint")}</p>
         {onChangeTerminal && !locked ? (
           <Button variant="link" className="self-center" onClick={onChangeTerminal}>
-            Сменить рабочее место
+            {t("login.changeTerminal")}
           </Button>
         ) : null}
+        <LanguageLink label={t("common.switchLanguage")} />
       </div>
     </div>
   )

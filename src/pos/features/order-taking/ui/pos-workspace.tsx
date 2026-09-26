@@ -43,31 +43,29 @@ import { useTerminalOptions } from "@/pos/features/session/data/use-terminal-opt
 import { LoginScreen } from "@/pos/features/session/ui/login-screen"
 import { MainMenuDialog } from "@/pos/features/session/ui/main-menu-dialog"
 import { useManagerApproval } from "@/pos/features/session/ui/manager-approval-dialog"
-import { ProfileDialog, ROLE_LABEL } from "@/pos/features/session/ui/profile-dialog"
+import { ProfileDialog, roleLabel } from "@/pos/features/session/ui/profile-dialog"
 import { usePosSession } from "@/pos/features/session/model/use-pos-session"
 import { TerminalPicker } from "@/pos/features/session/ui/terminal-picker"
 import type { CashMovementInput } from "@/pos/features/shifts/model/cash-operations"
 import { OpenShiftDialog, ShiftDialog, type ShiftTab } from "@/pos/features/shifts/ui/shift-dialog"
 import { useClosePreview, useCurrentShift, useShiftMutations, useZReportLoader } from "@/pos/features/shifts/data/use-shifts"
-import { OFFLINE_MESSAGE, useServerOffline } from "@/pos/model/use-connection"
+import { useServerOffline } from "@/pos/model/use-connection"
+import { posErrorMessage, ruT, useT, type Translator } from "@/pos/i18n"
 import { Button } from "@/shared/components/ui/button"
 import { useToast } from "@/shared/components/ui/toast"
-import { errorMessage } from "@/shared/lib/error-message"
 import { formatTenge } from "@/shared/lib/format"
 import type { OrderType } from "@/shared/types/pos"
 
 // «Касса / Офис» in the header (POS-DESIGN §10): only for roles that also work in the office.
 const OFFICE_ROLES = new Set(["manager", "administrator"])
 
-const LEGACY_ORDER_TYPES: OrderTypeOption[] = [
-  { value: "dine-in", label: "В зале", mode: "dine-in" },
-  { value: "takeaway", label: "С собой", mode: "takeaway" },
-  { value: "delivery", label: "Доставка", mode: "delivery" },
-]
+const LEGACY_ORDER_TYPES: OrderType[] = ["dine-in", "takeaway", "delivery"]
 
-/** The order-type switch: published order types, or the three legacy modes while the list is empty. */
-export function orderTypeOptions(orderTypes: PosOrderType[]): OrderTypeOption[] {
-  return orderTypes.length ? orderTypes.map((type) => ({ value: type.externalId, label: type.name, mode: type.data.serviceMode })) : LEGACY_ORDER_TYPES
+/** The order-type switch: published order types (their names are data), or the three legacy modes while the list is empty. */
+export function orderTypeOptions(orderTypes: PosOrderType[], t: Translator = ruT): OrderTypeOption[] {
+  return orderTypes.length
+    ? orderTypes.map((type) => ({ value: type.externalId, label: type.name, mode: type.data.serviceMode }))
+    : LEGACY_ORDER_TYPES.map((mode) => ({ value: mode, label: t(`orderType.${mode}`), mode }))
 }
 
 export function PosWorkspace() {
@@ -118,18 +116,18 @@ export function terminalLabel(restaurantName: string, terminalName: string) {
 type PosDialog = "menu" | "profile" | "notifications" | "history" | "shift" | "floor" | Exclude<OrderAction, "void" | "precheck"> | "actions" | null
 
 /** Unavailable order actions with the reason shown on their tile (W1-POS-15). */
-export function orderActionBlocks(input: { orderId: string | null; lines: OrderDraftLine[]; transferTargets: unknown[] | undefined }): ActionBlocks {
+export function orderActionBlocks(input: { orderId: string | null; lines: OrderDraftLine[]; transferTargets: unknown[] | undefined }, t: Translator = ruT): ActionBlocks {
   const active = input.lines.filter((line) => !line.voidedAt)
   const saved = active.filter((line) => line.serverLineId)
   const portions = saved.reduce((sum, line) => sum + line.quantity, 0)
-  const notSaved = "Сначала добавьте позиции"
+  const notSaved = t("blocks.notSaved")
   return {
     ...(!input.orderId && !active.length ? { comment: notSaved } : {}),
-    ...(!input.orderId ? { split: notSaved } : portions < 2 ? { split: "Нужно минимум две порции" } : {}),
-    ...(!input.orderId ? { transfer: notSaved } : input.transferTargets && input.transferTargets.length === 0 ? { transfer: "Нет других касс с открытой сменой" } : {}),
-    ...(!active.length ? { precheck: "В заказе нет позиций" } : {}),
-    ...(!saved.length ? { void: "Нет сохранённых позиций" } : {}),
-    ...(!input.orderId ? { cancel: "Заказ ещё не сохранён" } : {}),
+    ...(!input.orderId ? { split: notSaved } : portions < 2 ? { split: t("blocks.split") } : {}),
+    ...(!input.orderId ? { transfer: notSaved } : input.transferTargets && input.transferTargets.length === 0 ? { transfer: t("blocks.transfer") } : {}),
+    ...(!active.length ? { precheck: t("blocks.precheck") } : {}),
+    ...(!saved.length ? { void: t("blocks.void") } : {}),
+    ...(!input.orderId ? { cancel: t("blocks.cancel") } : {}),
   }
 }
 
@@ -146,6 +144,7 @@ function AuthenticatedPos({
   onLogout: () => void
   terminalExternalId: string
 }) {
+  const t = useT()
   const toast = useToast()
   const shift = useCurrentShift(sessionToken)
   const { open: openShift, close: closeShift, reconcileCount, createXReport, recordCashMovement } = useShiftMutations()
@@ -198,9 +197,9 @@ function AuthenticatedPos({
   // Points planned at the POS pay part of the check (W1-POS-16); checkout takes total − planned in money.
   const loyaltyQuote = useLoyaltyQuote(sessionToken, draft.orderId, { enabled: Boolean(guest) })
   const plannedRedemption = guest ? (loyaltyQuote?.planned ?? 0) : 0
-  const redemptionStale = loyaltyQuote && plannedRedemption > loyaltyQuote.maxRedemption ? "Списание баллами больше допустимого для этого чека — измените его в «Гость»" : null
+  const redemptionStale = loyaltyQuote && plannedRedemption > loyaltyQuote.maxRedemption ? t("pos.redemptionStale") : null
   const suggestion = useSuggestion(sessionToken, draft.orderId)
-  const typeOptions = orderTypeOptions(retail.orderTypes)
+  const typeOptions = orderTypeOptions(retail.orderTypes, t)
   const place = { restaurantName: access.restaurant.name, terminalName: access.terminal.name }
 
   // W3-POS-01: F2 search, F4 payment, F8 hold, Esc close; the scanner adds a dish by its barcode. Each
@@ -220,7 +219,7 @@ function AuthenticatedPos({
       },
       hold: () => {
         if (showKitchen || !orderReady || !draft.orderId) return false
-        void handleHold().catch((caught) => toast(errorMessage(caught, "Не удалось отложить заказ"), "error"))
+        void handleHold().catch((caught) => toast(posErrorMessage(t, caught, t("pos.holdFailed")), "error"))
       },
       close: () => {
         if (!showKitchen) return false
@@ -232,7 +231,7 @@ function AuthenticatedPos({
   useBarcodeScanner((code, source) => void handleScan(code, source.fromField), Boolean(shift) && !showKitchen)
 
   if (shift === undefined) {
-    return <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">Загрузка…</div>
+    return <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">{t("common.loadingEllipsis")}</div>
   }
 
   if (!shift) {
@@ -265,11 +264,11 @@ function AuthenticatedPos({
     if (fromSearch) catalogRef.current?.removeFromSearch(code)
     try {
       const product = await findByBarcode(code)
-      if (!product) return toast(`Штрихкод ${code} не найден в меню`, "error")
-      if (product.available === false) return toast(`«${product.name}» сейчас в стоп-листе`, "error")
+      if (!product) return toast(t("pos.barcodeNotFound", { code }), "error")
+      if (product.available === false) return toast(t("pos.stopList", { name: t.locale === "kk" && product.nameKk?.trim() ? product.nameKk : product.name }), "error")
       catalogRef.current?.addProduct(product)
     } catch (caught) {
-      toast(errorMessage(caught, "Не удалось найти товар по штрихкоду"), "error")
+      toast(posErrorMessage(t, caught, t("pos.barcodeFailed")), "error")
     }
   }
 
@@ -284,7 +283,7 @@ function AuthenticatedPos({
   async function printXReport() {
     let managerApprovalToken: string | undefined
     if (access.employee.role === "cashier") {
-      const token = await requestApproval("Формирование X-отчёта требует подтверждения менеджера")
+      const token = await requestApproval(t("pos.xApproval"))
       if (!token) return
       managerApprovalToken = token
     }
@@ -294,14 +293,14 @@ function AuthenticatedPos({
 
   async function printZReport(shiftId: string) {
     const report = await loadZReport(shiftId)
-    if (!report) throw new Error("Z-отчёт этой смены не найден")
+    if (!report) throw new Error(t("pos.zNotFound"))
     printHtml(printer.zReport(report, place))
   }
 
   async function handleCashMovement(input: CashMovementInput & { idempotencyKey: string; managerApprovalToken?: string }) {
     await recordCashMovement({ sessionToken, ...input })
     const direction = input.direction ?? retail.cashOperationTypes.find((type) => type.externalId === input.cashOperationTypeExternalId)?.data.direction
-    toast(`${direction === "cash-out" ? "Изъятие" : "Внесение"} ${formatTenge(input.amount)} сохранено`, "success")
+    toast(t(direction === "cash-out" ? "pos.cashOutSaved" : "pos.cashInSaved", { amount: formatTenge(input.amount) }), "success")
   }
 
   async function handleCloseShift(countedCash: number, note: string, managerApprovalToken?: string) {
@@ -310,7 +309,7 @@ function AuthenticatedPos({
     setDialog(null)
     selectCheck(null)
     // «Закрыть смену и напечатать Z-отчёт»: the Z prints at once; the opening screen can print it again.
-    void printZReport(result.shiftId).catch((caught) => toast(errorMessage(caught, "Z-отчёт не напечатан — напечатайте его из окна открытия смены"), "error"))
+    void printZReport(result.shiftId).catch((caught) => toast(posErrorMessage(t, caught, t("pos.zPrintFailed")), "error"))
   }
 
   async function handleSendToKitchen() {
@@ -336,7 +335,7 @@ function AuthenticatedPos({
       },
       (result) => {
         setPaymentOpen(false)
-        setPaid({ ...paidCheckFrom(result), print: () => printHtml(printer.order(receiptFromOrder(result.receipt, place))) })
+        setPaid({ ...paidCheckFrom(result, t), print: () => printHtml(printer.order(receiptFromOrder(result.receipt, place))) })
         selectCheck(null)
       },
     )
@@ -350,7 +349,8 @@ function AuthenticatedPos({
   }
 
   function printPrecheck() {
-    const orderTypeName = typeOptions.find((option) => option.value === (draft.orderType.externalId ?? draft.orderType.mode))?.label
+    // Printed documents stay as they are (bilingual where required): the legacy order type in Russian.
+    const orderTypeName = orderTypeOptions(retail.orderTypes).find((option) => option.value === (draft.orderType.externalId ?? draft.orderType.mode))?.label
     printHtml(printer.order(precheckFromDraft(draft, { ...place, operatorName: access.employee.displayName, orderTypeName })))
   }
 
@@ -367,7 +367,7 @@ function AuthenticatedPos({
     if (openChecks.find((check) => check.orderId === orderId)?.status !== "held") await hold({ sessionToken, orderId })
     await transfer({ sessionToken, orderId, targetTerminalId: input.targetTerminalId as Id<"posTerminals">, reason: input.reason, managerApprovalToken: input.managerApprovalToken })
     selectCheck(null)
-    toast(`Заказ${draft.orderNumber !== undefined ? ` №${draft.orderNumber}` : ""} перенесён на другую кассу`, "success")
+    toast(draft.orderNumber !== undefined ? t("pos.transferredNumber", { number: draft.orderNumber }) : t("pos.transferred"), "success")
   }
 
   async function handleRefund(input: RefundInput) {
@@ -381,7 +381,7 @@ function AuthenticatedPos({
       reason: input.reason,
       managerApprovalToken: input.managerApprovalToken,
     })
-    toast(`Возврат ${formatTenge(input.amount)} проведён`, "success")
+    toast(t("pos.refunded", { amount: formatTenge(input.amount) }), "success")
   }
 
   async function handleContinue(order: HistoryOrder) {
@@ -390,8 +390,8 @@ function AuthenticatedPos({
   }
 
   const voidableLines = draft.lines.filter((line) => !line.voidedAt && line.serverLineId)
-  const blocks = orderActionBlocks({ orderId: draft.orderId, lines: draft.lines, transferTargets })
-  const guestLabel = guest ? `${guest.name || "Гость"} · ${loyaltyQuote?.balance ?? guest.points} б.${plannedRedemption ? ` · −${plannedRedemption}` : ""}` : undefined
+  const blocks = orderActionBlocks({ orderId: draft.orderId, lines: draft.lines, transferTargets }, t)
+  const guestLabel = guest ? [guest.name || t("common.guest"), t("guest.points", { points: loyaltyQuote?.balance ?? guest.points }), plannedRedemption ? `−${plannedRedemption}` : ""].filter(Boolean).join(" · ") : undefined
   // The header is shown over the kitchen board too; its dialogs live on the cashier screen.
   const fromHeader = (open: () => void) => {
     setShowKitchen(false)
@@ -405,7 +405,7 @@ function AuthenticatedPos({
       showOfficeSwitch={OFFICE_ROLES.has(access.employee.role)}
       syncIndicator={<LiveSyncIndicator />}
       employeeName={access.employee.displayName}
-      employeeRole={ROLE_LABEL[access.employee.role]}
+      employeeRole={roleLabel(access.employee.role, t)}
       shiftNumber={shift.number}
       shiftOpenedAt={shift.openedAt}
       shiftWarning={shift.openedOver24h}
@@ -426,7 +426,7 @@ function AuthenticatedPos({
           <KitchenBoard sessionToken={sessionToken} />
         </div>
         <Button variant="secondary" size="lg" onClick={() => setShowKitchen(false)}>
-          Назад к кассе
+          {t("pos.backToPos")}
         </Button>
       </div>
     )
@@ -439,7 +439,7 @@ function AuthenticatedPos({
       {header}
       {offline && (
         <p role="status" className="shrink-0 rounded-card border border-destructive/40 bg-destructive/10 px-4 py-2 text-body-sm font-semibold text-foreground">
-          {OFFLINE_MESSAGE}
+          {t("error.offline")}
         </p>
       )}
       <div className="flex min-h-0 flex-1 gap-2 overflow-x-clip">
@@ -471,7 +471,7 @@ function AuthenticatedPos({
           error={draft.error}
           canSendToKitchen={draft.hasUnsentLines}
           sendingToKitchen={sendingToKitchen}
-          offlineReason={offline ? OFFLINE_MESSAGE : null}
+          offlineReason={offline ? t("error.offline") : null}
           onIncrement={(id) => {
             const line = draft.lines.find((candidate) => candidate.clientLineId === id)
             if (!line) return
@@ -484,12 +484,12 @@ function AuthenticatedPos({
           onRemove={(id) => draft.setQuantity(id, 0)}
           onVoid={setVoidingLineId}
           onSendToKitchen={handleSendToKitchen}
-          onHold={() => void handleHold().catch((caught) => toast(errorMessage(caught, "Не удалось отложить заказ"), "error"))}
+          onHold={() => void handleHold().catch((caught) => toast(posErrorMessage(t, caught, t("pos.holdFailed")), "error"))}
           onCheckout={() => setPaymentOpen(true)}
           onDiscount={() => setDiscountOpen(true)}
           guestLabel={guestLabel}
           loyaltyRedemption={plannedRedemption}
-          onGuest={() => (draft.orderId ? setGuestOpen(true) : toast("Заказ ещё сохраняется — повторите через секунду"))}
+          onGuest={() => (draft.orderId ? setGuestOpen(true) : toast(t("pos.orderSaving")))}
           onMore={() => setDialog("actions")}
           comment={draft.comment}
           suggestion={suggestion}
@@ -502,7 +502,7 @@ function AuthenticatedPos({
           recentStorageKey={`sandyq-pos-recent:${terminalExternalId}:${access.employee.id}`}
           toolbarAction={
             <Button variant="ghost" className="h-12 px-3" onClick={() => setShowKitchen(true)}>
-              <ChefHat /> Экран кухни{kitchenTickets.length > 0 ? ` · ${kitchenTickets.length}` : ""}
+              <ChefHat /> {t("pos.kitchenScreen")}{kitchenTickets.length > 0 ? ` · ${kitchenTickets.length}` : ""}
             </Button>
           }
         />
@@ -513,7 +513,7 @@ function AuthenticatedPos({
         onOpenChange={handlePaymentOpenChange}
         total={draft.total}
         loyaltyRedemption={plannedRedemption}
-        blockedReason={redemptionStale ?? (offline ? OFFLINE_MESSAGE : null)}
+        blockedReason={redemptionStale ?? (offline ? t("error.offline") : null)}
         orderNumber={draft.orderNumber}
         itemCount={draft.itemCount}
         paymentTypes={retail.paymentTypes}
@@ -585,11 +585,11 @@ function AuthenticatedPos({
         attendance={attendance.current}
         onClockIn={async () => {
           const result = await attendance.clockIn({ sessionToken })
-          toast(result.alreadyOpen ? "Приход уже отмечен" : "Приход отмечен", "success")
+          toast(result.alreadyOpen ? t("profile.clockedInAlready") : t("profile.clockedIn"), "success")
         }}
         onClockOut={async () => {
           await attendance.clockOut({ sessionToken })
-          toast("Уход отмечен", "success")
+          toast(t("profile.clockedOut"), "success")
         }}
         onLock={onLock}
         onLogout={onLogout}
@@ -654,7 +654,7 @@ function AuthenticatedPos({
         lines={voidableLines}
         onSplit={async (rows) => {
           const created = await draft.split(rows)
-          toast(`Создан отложенный чек №${created.number}${created.tableLabel ? ` · ${created.tableLabel}` : ""}`, "success")
+          toast([t("pos.splitCreated", { number: created.number }), created.tableLabel].filter(Boolean).join(" · "), "success")
         }}
       />
       <TransferDialog
@@ -685,7 +685,7 @@ function AuthenticatedPos({
         onCancel={async (input) => {
           await draft.cancel(input)
           selectCheck(null)
-          toast(`Заказ${draft.orderNumber !== undefined ? ` №${draft.orderNumber}` : ""} отменён`, "success")
+          toast(draft.orderNumber !== undefined ? t("pos.cancelledNumber", { number: draft.orderNumber }) : t("pos.cancelled"), "success")
         }}
         onManagerRequired={requestApproval}
       />

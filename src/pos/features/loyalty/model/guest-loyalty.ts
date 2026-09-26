@@ -1,3 +1,4 @@
+import { ruT, type Translator } from "@/pos/i18n"
 import { formatTenge } from "@/shared/lib/format"
 
 // «Гость и лояльность» on the POS (W1-POS-16): pure rules of the dialog. The server re-checks the
@@ -55,11 +56,11 @@ export function accrualFor(quote: QuoteNumbers, redemption: number, total: numbe
  * Why this redemption cannot be planned, or null. Checkout needs at least one money payment of
  * a positive amount, so the whole check cannot go on points.
  */
-export function redemptionProblem(redemption: number | null, maxRedemption: number, total: number): string | null {
+export function redemptionProblem(redemption: number | null, maxRedemption: number, total: number, t: Translator = ruT): string | null {
   const value = redemption ?? 0
-  if (!Number.isInteger(value) || value < 0) return "Укажите целое число баллов"
-  if (value > maxRedemption) return `Можно списать не больше ${formatTenge(maxRedemption)}`
-  if (value > 0 && value >= total) return "Оставьте к оплате хотя бы 1 ₸ — чек целиком баллами не проводится"
+  if (!Number.isInteger(value) || value < 0) return t("guest.wholePoints")
+  if (value > maxRedemption) return t("guest.overMax", { amount: formatTenge(maxRedemption) })
+  if (value > 0 && value >= total) return t("guest.leaveOne")
   return null
 }
 

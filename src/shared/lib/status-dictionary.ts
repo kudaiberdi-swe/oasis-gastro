@@ -125,7 +125,7 @@ export const STATUS_DICTIONARY: Record<StatusDomain, Record<string, StatusEntry>
 }
 
 /** Normalizes iiko-style values: "PUBLISHED" → "published", "PENDING_APPROVAL" → "pending-approval". */
-function normalize(domain: StatusDomain, value: string) {
+export function normalizeStatus(domain: StatusDomain, value: string) {
   const lower = value.trim().toLowerCase()
   if (STATUS_DICTIONARY[domain][lower]) return lower
   const dashed = lower.replace(/_/g, "-")
@@ -141,7 +141,7 @@ export const UNKNOWN_STATUS_LABEL = "Другой статус"
  * the dev console warns), so a missing entry is visible to developers but never shown raw to a cashier.
  */
 export function describeStatus(domain: StatusDomain, value: string): StatusEntry & { known: boolean } {
-  const entry = STATUS_DICTIONARY[domain][normalize(domain, value)]
+  const entry = STATUS_DICTIONARY[domain][normalizeStatus(domain, value)]
   if (entry) return { ...entry, known: true }
   if (import.meta.env?.DEV) console.warn(`[status-dictionary] no label for ${domain}:${value}`)
   return { label: UNKNOWN_STATUS_LABEL, tone: "neutral", known: false }

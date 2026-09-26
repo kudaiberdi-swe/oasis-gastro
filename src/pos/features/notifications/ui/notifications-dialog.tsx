@@ -3,6 +3,7 @@ import { AlertTriangle, Bell, OctagonAlert } from "lucide-react"
 
 import type { PosNotification } from "@/pos/features/notifications/data/use-notifications"
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, EmptyState, TonePill } from "@/shared/components/ui"
+import { useT } from "@/pos/i18n"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { cn } from "@/shared/lib/utils"
 
@@ -32,6 +33,7 @@ export function NotificationsDialog({
   onRead: (notificationId: PosNotification["_id"]) => Promise<unknown>
   onOpenShift: () => void
 }) {
+  const t = useT()
   const [busyId, setBusyId] = useState<string | null>(null)
 
   async function read(item: PosNotification) {
@@ -47,13 +49,13 @@ export function NotificationsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Уведомления кассы</DialogTitle>
-          <DialogDescription>Что требует внимания на этой кассе.</DialogDescription>
+          <DialogTitle>{t("notifications.title")}</DialogTitle>
+          <DialogDescription>{t("notifications.description")}</DialogDescription>
         </DialogHeader>
         {items.length === 0 ? (
-          <EmptyState title="Новых уведомлений нет" description="Здесь появятся остатки ниже минимума, сообщения офиса и долгие смены." />
+          <EmptyState title={t("notifications.emptyTitle")} description={t("notifications.emptyHint")} />
         ) : (
-          <ul className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto" aria-label="Уведомления">
+          <ul className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto" aria-label={t("header.notifications")}>
             {items.map((item) => {
               const Icon = SEVERITY_ICON[item.severity]
               return (
@@ -62,10 +64,10 @@ export function NotificationsDialog({
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-body font-semibold">{item.title}</p>
-                      {!item.read && <TonePill tone="warning">новое</TonePill>}
+                      {!item.read && <TonePill tone="warning">{t("notifications.new")}</TonePill>}
                     </div>
                     <p className="text-body-sm text-muted-foreground">{item.message}</p>
-                    <p className="text-body-sm text-muted-foreground">{formatAlmatyDateTime(item.createdAt)}</p>
+                    <p className="text-body-sm text-muted-foreground">{formatAlmatyDateTime(item.createdAt, t.intl)}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     {opensShift(item) && (
@@ -77,12 +79,12 @@ export function NotificationsDialog({
                           onOpenShift()
                         }}
                       >
-                        Открыть
+                        {t("notifications.open")}
                       </Button>
                     )}
                     {!item.read && (
                       <Button variant="ghost" onClick={() => void read(item)} disabled={busyId === item._id}>
-                        Прочитано
+                        {t("notifications.read")}
                       </Button>
                     )}
                   </div>
@@ -94,7 +96,7 @@ export function NotificationsDialog({
         {canLoadMore && (
           <div className="flex justify-center">
             <Button variant="secondary" onClick={onLoadMore}>
-              Показать ещё
+              {t("common.showMore")}
             </Button>
           </div>
         )}

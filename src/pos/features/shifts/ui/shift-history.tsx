@@ -3,14 +3,15 @@ import { Printer } from "lucide-react"
 
 import { useShiftHistory, type ShiftHistoryRow } from "@/pos/features/shifts/data/use-shifts"
 import { Button, EmptyState, Money, SkeletonRows, StatusPill } from "@/shared/components/ui"
+import { posErrorMessage, useT } from "@/pos/i18n"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
-import { errorMessage } from "@/shared/lib/error-message"
 
 /**
  * «История кассовых смен» (W1-POS-19): shifts of this terminal with their saved Z-reports. A closed
  * shift prints its Z-report, the open one an X-report.
  */
 export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessionToken: string; onPrintX: () => Promise<unknown>; onPrintZ: (shiftId: string) => Promise<unknown> }) {
+  const t = useT()
   const history = useShiftHistory(sessionToken)
   const [printingId, setPrintingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +23,7 @@ export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessio
       if (shift.status === "open") await onPrintX()
       else await onPrintZ(shift._id)
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось напечатать отчёт"))
+      setError(posErrorMessage(t, caught, t("shiftHistory.failed")))
     } finally {
       setPrintingId(null)
     }
@@ -30,7 +31,7 @@ export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessio
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-body-sm text-muted-foreground">Смены этой кассы и их Z-отчёты.</p>
+      <p className="text-body-sm text-muted-foreground">{t("shiftHistory.description")}</p>
       {error && (
         <p role="alert" className="text-body-sm font-semibold text-destructive">
           {error}
@@ -39,16 +40,16 @@ export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessio
       {history.status === "LoadingFirstPage" ? (
         <SkeletonRows rows={4} />
       ) : history.shifts.length === 0 ? (
-        <EmptyState title="Смен ещё нет" />
+        <EmptyState title={t("shiftHistory.empty")} />
       ) : (
-        <ul className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto" aria-label="Смены">
+        <ul className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto" aria-label={t("shiftHistory.list")}>
           {history.shifts.map((shift) => {
             const closed = shift.status === "closed"
             const canPrint = !closed || Boolean(shift.zReportId)
             return (
-              <li key={shift._id} aria-label={`Смена №${shift.number}`} className="grid grid-cols-[150px_1fr_auto_auto] items-center gap-3 rounded-card border border-border bg-card p-3">
+              <li key={shift._id} aria-label={t("header.shift", { number: shift.number })} className="grid grid-cols-[150px_1fr_auto_auto] items-center gap-3 rounded-card border border-border bg-card p-3">
                 <div>
-                  <p className="text-body font-semibold">Смена №{shift.number}</p>
+                  <p className="text-body font-semibold">{t("header.shift", { number: shift.number })}</p>
                   <p className="text-body-sm text-muted-foreground">{shift.businessDate}</p>
                 </div>
                 <div className="min-w-0">
@@ -57,8 +58,8 @@ export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessio
                     <span className="truncate text-body-sm font-medium">{shift.openedByName}</span>
                   </div>
                   <p className="mt-1 truncate text-body-sm text-muted-foreground">
-                    {formatAlmatyDateTime(shift.openedAt)}
-                    {shift.closedAt ? ` — ${formatAlmatyDateTime(shift.closedAt)}` : ""}
+                    {formatAlmatyDateTime(shift.openedAt, t.intl)}
+                    {shift.closedAt ? ` — ${formatAlmatyDateTime(shift.closedAt, t.intl)}` : ""}
                     {shift.zReportNumber ? ` · ${shift.zReportNumber}` : ""}
                   </p>
                 </div>
@@ -67,12 +68,12 @@ export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessio
                   {shift.summary.netSales === null ? <span className="text-body-sm text-muted-foreground">—</span> : <Money value={shift.summary.netSales} size="sm" />}
                   {closed && (
                     <p className="text-body-sm">
-                      Расхождение <Money value={shift.variance ?? 0} size="sm" signed className="text-body-sm" />
+                      {t("close.variance")} <Money value={shift.variance ?? 0} size="sm" signed className="text-body-sm" />
                     </p>
                   )}
                 </div>
-                <Button variant="secondary" onClick={() => void print(shift)} disabled={!canPrint || printingId !== null} aria-label={closed ? `Печать Z-отчёта смены №${shift.number}` : `Печать X-отчёта смены №${shift.number}`}>
-                  <Printer /> {printingId === shift._id ? "Печать…" : closed ? "Z-отчёт" : "X-отчёт"}
+                <Button variant="secondary" onClick={() => void print(shift)} disabled={!canPrint || printingId !== null} aria-label={closed ? t("shiftHistory.printZ", { number: shift.number }) : t("shiftHistory.printX", { number: shift.number })}>
+                  <Printer /> {printingId === shift._id ? t("common.printing") : closed ? t("shift.zReport") : t("shift.xReport")}
                 </Button>
               </li>
             )
@@ -82,7 +83,7 @@ export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessio
       {history.status === "CanLoadMore" || history.status === "LoadingMore" ? (
         <div className="flex justify-center">
           <Button variant="secondary" onClick={history.loadMore} disabled={history.status === "LoadingMore"}>
-            {history.status === "LoadingMore" ? "Загрузка…" : "Показать ещё"}
+            {history.status === "LoadingMore" ? t("common.loadingEllipsis") : t("common.showMore")}
           </Button>
         </div>
       ) : null}

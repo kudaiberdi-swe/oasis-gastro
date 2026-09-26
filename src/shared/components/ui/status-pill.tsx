@@ -1,4 +1,5 @@
-import { describeStatus, type StatusDomain, type StatusTone } from "@/shared/lib/status-dictionary"
+import { describeStatus, normalizeStatus, type StatusDomain, type StatusTone } from "@/shared/lib/status-dictionary"
+import { useUiLabels } from "@/shared/lib/ui-labels"
 import { cn } from "@/shared/lib/utils"
 
 // Opaque tints (theme.css *-surface), so a pill reads the same on cream, on a card and on parchment;
@@ -18,15 +19,20 @@ export interface StatusPillProps {
   className?: string
 }
 
-/** Every status on screen goes through the dictionary: Russian label + tone, never the raw value. */
+/**
+ * Every status on screen goes through the dictionary: Russian label + tone, never the raw value. The POS
+ * in Kazakh supplies its own label for a known status (UiLabelsProvider); the tone stays the dictionary's.
+ */
 export function StatusPill({ domain, status, className }: StatusPillProps) {
+  const labels = useUiLabels()
   const entry = describeStatus(domain, status)
+  const label = (entry.known && labels.status?.(domain, normalizeStatus(domain, status))) || entry.label
   return (
     <span
       title={entry.known ? undefined : status}
       className={cn("inline-flex h-6 items-center rounded-control border px-2 text-caption font-medium whitespace-nowrap", toneClass[entry.tone], className)}
     >
-      {entry.label}
+      {label}
     </span>
   )
 }

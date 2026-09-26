@@ -2,9 +2,10 @@ import { useCallback, useSyncExternalStore } from "react"
 import { useConvex } from "convex/react"
 
 import { syncStateFrom } from "@/pos/components/app-header"
+import { ruT } from "@/pos/i18n"
 
-/** Shown under the header and next to the blocked buttons while the Convex link is down. */
-export const OFFLINE_MESSAGE = "Нет связи с сервером. Оплата и отправка на кухню недоступны."
+/** Shown under the header and next to the blocked buttons while the Convex link is down (`t("error.offline")` in the POS). */
+export const OFFLINE_MESSAGE = ruT("error.offline")
 
 /**
  * True while the terminal has lost its link to the server (the header's «Нет связи»). Subscribes to the

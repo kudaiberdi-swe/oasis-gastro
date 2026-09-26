@@ -1,18 +1,18 @@
 import { useState } from "react"
 import { Minus, Plus } from "lucide-react"
 
-import { lineDetails, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
+import { lineDetails, lineDetailsKk, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Money } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, ruT, useT, type Translator } from "@/pos/i18n"
 
 export type SplitRow = { clientLineId: string; quantity: number }
 
 /** Why the split cannot be sent, or null: something must move and something must stay. */
-export function splitProblem(lines: OrderDraftLine[], moving: Record<string, number>) {
+export function splitProblem(lines: OrderDraftLine[], moving: Record<string, number>, t: Translator = ruT) {
   const moved = lines.reduce((sum, line) => sum + (moving[line.clientLineId] ?? 0), 0)
-  if (moved === 0) return "Выберите порции для нового чека"
+  if (moved === 0) return t("split.chooseMoving")
   const total = lines.reduce((sum, line) => sum + line.quantity, 0)
-  if (moved >= total) return "В этом чеке должна остаться хотя бы одна порция"
+  if (moved >= total) return t("split.keepOne")
   return null
 }
 
@@ -40,10 +40,11 @@ export function SplitDialog({
 }
 
 function SplitForm({ lines, onBack, onSplit, onDone }: { lines: OrderDraftLine[]; onBack: () => void; onSplit: (rows: SplitRow[]) => Promise<unknown>; onDone: () => void }) {
+  const t = useT()
   const [moving, setMoving] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const problem = splitProblem(lines, moving)
+  const problem = splitProblem(lines, moving, t)
   const movedAmount = lines.reduce((sum, line) => sum + Math.round((lineTotal(line) / line.quantity) * (moving[line.clientLineId] ?? 0)), 0)
 
   function change(line: OrderDraftLine, delta: number) {
@@ -59,7 +60,7 @@ function SplitForm({ lines, onBack, onSplit, onDone }: { lines: OrderDraftLine[]
       await onSplit(Object.entries(moving).filter(([, quantity]) => quantity > 0).map(([clientLineId, quantity]) => ({ clientLineId, quantity })))
       onDone()
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось разделить чек"))
+      setError(posErrorMessage(t, caught, t("split.failed")))
     } finally {
       setSubmitting(false)
     }
@@ -68,26 +69,30 @@ function SplitForm({ lines, onBack, onSplit, onDone }: { lines: OrderDraftLine[]
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Разделить чек</DialogTitle>
-        <DialogDescription>Выберите, сколько порций перенести в новый отложенный чек. Остальное останется в этом.</DialogDescription>
+        <DialogTitle>{t("actions.split")}</DialogTitle>
+        <DialogDescription>{t("split.description")}</DialogDescription>
       </DialogHeader>
-      <ul className="flex max-h-[50vh] flex-col divide-y divide-border overflow-y-auto rounded-card border border-border" aria-label="Позиции для нового чека">
+      <ul className="flex max-h-[50vh] flex-col divide-y divide-border overflow-y-auto rounded-card border border-border" aria-label={t("split.listAria")}>
         {lines.map((line) => {
           const count = moving[line.clientLineId] ?? 0
+          const name = t.locale === "kk" && line.nameKk?.trim() ? line.nameKk : line.name
+          const details = t.locale === "kk" ? (lineDetailsKk(line) ?? lineDetails(line)) : lineDetails(line)
           return (
             <li key={line.clientLineId} className="flex items-center justify-between gap-3 px-3 py-2">
               <span className="min-w-0 flex-1">
-                <span className="block text-body font-semibold">{line.name}</span>
-                <span className="block text-body-sm text-muted-foreground">{[`в чеке ${line.quantity}`, lineDetails(line)].filter(Boolean).join(" · ")}</span>
+                <span lang={name === line.name ? "ru" : "kk"} className="block text-body font-semibold">
+                  {name}
+                </span>
+                <span className="block text-body-sm text-muted-foreground">{[t("split.inCheck", { count: line.quantity }), details].filter(Boolean).join(" · ")}</span>
               </span>
               <span className="flex items-center gap-1">
-                <Button variant="secondary" size="icon" aria-label={`Меньше в новый чек: ${line.name}`} onClick={() => change(line, -1)} disabled={count === 0}>
+                <Button variant="secondary" size="icon" aria-label={t("split.less", { name })} onClick={() => change(line, -1)} disabled={count === 0}>
                   <Minus />
                 </Button>
-                <span className="w-8 text-center text-body font-semibold tabular-nums" aria-label={`В новый чек: ${line.name}`}>
+                <span className="w-8 text-center text-body font-semibold tabular-nums" aria-label={t("split.count", { name })}>
                   {count}
                 </span>
-                <Button variant="secondary" size="icon" aria-label={`Больше в новый чек: ${line.name}`} onClick={() => change(line, 1)} disabled={count >= line.quantity}>
+                <Button variant="secondary" size="icon" aria-label={t("split.more", { name })} onClick={() => change(line, 1)} disabled={count >= line.quantity}>
                   <Plus />
                 </Button>
               </span>
@@ -96,7 +101,7 @@ function SplitForm({ lines, onBack, onSplit, onDone }: { lines: OrderDraftLine[]
         })}
       </ul>
       <div className="flex items-baseline justify-between">
-        <span className="text-body-sm text-muted-foreground">В новый чек, без скидки и сбора</span>
+        <span className="text-body-sm text-muted-foreground">{t("split.amount")}</span>
         <Money value={movedAmount} />
       </div>
       {error && (
@@ -106,10 +111,10 @@ function SplitForm({ lines, onBack, onSplit, onDone }: { lines: OrderDraftLine[]
       )}
       <DialogFooter>
         <Button variant="secondary" size="lg" onClick={onBack} disabled={submitting}>
-          Назад
+          {t("common.back")}
         </Button>
         <Button size="lg" onClick={submit} disabled={Boolean(problem) || submitting} title={problem ?? undefined}>
-          {submitting ? "Разделение…" : "Разделить"}
+          {submitting ? t("split.submitting") : t("split.submit")}
         </Button>
       </DialogFooter>
     </>

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, ruT, useT } from "@/pos/i18n"
 
 // One payment attempt of an order (POS redesign «Money & control»): the idempotency key is kept for the
 // order until the payment succeeds or the attempt is dropped (dialog cancelled, another order), so a
@@ -9,7 +9,7 @@ import { errorMessage } from "@/shared/lib/error-message"
 
 export const CHECKOUT_TIMEOUT_MS = 10_000
 
-export const CHECKOUT_TIMEOUT_MESSAGE = "Нет ответа сервера. Повторите — повторная оплата не пройдёт."
+export const CHECKOUT_TIMEOUT_MESSAGE = ruT("payment.timeout")
 
 export class CheckoutTimeoutError extends Error {
   constructor() {
@@ -32,6 +32,10 @@ type Attempt = { scope: string; key: string }
 const randomKey = () => crypto.randomUUID()
 
 export function useCheckoutAttempt<R>({ timeoutMs = CHECKOUT_TIMEOUT_MS, newKey = randomKey }: { timeoutMs?: number; newKey?: () => string } = {}) {
+  // The attempt's messages in the interface language; a ref, so switching it never rebuilds submit.
+  const translator = useT()
+  const tRef = useRef(translator)
+  tRef.current = translator
   const attempt = useRef<Attempt | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,11 +72,11 @@ export function useCheckoutAttempt<R>({ timeoutMs = CHECKOUT_TIMEOUT_MS, newKey 
         finish(await withTimeout(pending, timeoutMs))
       } catch (caught) {
         if (caught instanceof CheckoutTimeoutError) {
-          setError(CHECKOUT_TIMEOUT_MESSAGE)
+          setError(tRef.current("payment.timeout"))
           // A late answer to this very attempt still completes it (the mutation may have been queued offline).
           pending.then(finish, () => undefined)
         } else if (attempt.current?.key === key) {
-          setError(errorMessage(caught, "Не удалось провести оплату"))
+          setError(posErrorMessage(tRef.current, caught, tRef.current("payment.failed")))
         }
       } finally {
         setSubmitting(false)

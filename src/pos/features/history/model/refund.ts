@@ -1,5 +1,5 @@
 import { refundTarget } from "@/pos/features/checkout/model/payment-parts"
-import { PAYMENT_METHOD_LABEL } from "@/pos/features/checkout/model/order-receipt"
+import { ruT, type Translator } from "@/pos/i18n"
 import { formatTenge } from "@/shared/lib/format"
 import type { PaymentMethod } from "@/shared/types/pos"
 
@@ -23,12 +23,16 @@ export type RefundWay = {
 
 const wayKey = (payment: Pick<HistoryPayment, "paymentTypeExternalId" | "method">) => (payment.paymentTypeExternalId ? `type:${payment.paymentTypeExternalId}` : `method:${payment.method}`)
 
-export function refundWays(payments: HistoryPayment[]): RefundWay[] {
+/** The name of a legacy payment method (no type name stored) in the interface language. */
+const METHOD_KEY = { cash: "payment.methodCash", card: "payment.methodCard", qr: "payment.methodQr" } as const satisfies Record<PaymentMethod, string>
+const methodName = (method: PaymentMethod, t: Translator) => t(METHOD_KEY[method])
+
+export function refundWays(payments: HistoryPayment[], t: Translator = ruT): RefundWay[] {
   const ways = new Map<string, RefundWay>()
   for (const payment of payments) {
     if (payment.type !== "sale") continue
     const key = wayKey(payment)
-    const way = ways.get(key) ?? { key, label: payment.paymentTypeName || PAYMENT_METHOD_LABEL[payment.method], target: refundTarget(payment), paid: 0, available: 0 }
+    const way = ways.get(key) ?? { key, label: payment.paymentTypeName || methodName(payment.method, t), target: refundTarget(payment), paid: 0, available: 0 }
     way.paid += payment.amount
     ways.set(key, way)
   }
@@ -67,10 +71,10 @@ export function linesRefundAmount(order: { subtotal: number; total: number; line
 }
 
 /** Why the refund cannot be sent yet, or null. */
-export function refundProblem(input: { way: RefundWay | undefined; amount: number | null; reason: string }) {
-  if (!input.way) return "Выберите способ возврата"
-  if (!input.amount || input.amount <= 0 || !Number.isInteger(input.amount)) return "Укажите сумму возврата"
-  if (input.amount > input.way.available) return `По способу «${input.way.label}» можно вернуть не больше ${formatTenge(input.way.available)}`
-  if (input.reason.trim().length < 3) return "Укажите причину возврата"
+export function refundProblem(input: { way: RefundWay | undefined; amount: number | null; reason: string }, t: Translator = ruT) {
+  if (!input.way) return t("refund.chooseWay")
+  if (!input.amount || input.amount <= 0 || !Number.isInteger(input.amount)) return t("refund.enterAmount")
+  if (input.amount > input.way.available) return t("refund.overWay", { way: input.way.label, amount: formatTenge(input.way.available) })
+  if (input.reason.trim().length < 3) return t("refund.enterReason")
   return null
 }

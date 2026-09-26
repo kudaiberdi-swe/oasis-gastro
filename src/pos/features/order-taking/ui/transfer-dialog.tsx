@@ -1,7 +1,7 @@
 import { useState } from "react"
 
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Field, Input, RadioGroup } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, useT } from "@/pos/i18n"
 
 export type TransferTarget = { terminalId: string; name: string; terminalNumber: number; shiftNumber: number }
 
@@ -49,6 +49,7 @@ function TransferForm({
   onDone: () => void
   onManagerRequired: (reason: string) => Promise<string | null>
 }) {
+  const t = useT()
   const [targetId, setTargetId] = useState<string | undefined>(targets?.length === 1 ? targets[0].terminalId : undefined)
   const [reason, setReason] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -60,12 +61,12 @@ function TransferForm({
     setSubmitting(true)
     setError(null)
     try {
-      const token = await onManagerRequired(`Перенос заказа${orderNumber !== undefined ? ` №${orderNumber}` : ""} на «${target.name}» требует подтверждения менеджера`)
+      const token = await onManagerRequired(orderNumber !== undefined ? t("transfer.approvalNumber", { number: orderNumber, target: target.name }) : t("transfer.approval", { target: target.name }))
       if (!token) return
       await onTransfer({ targetTerminalId: target.terminalId, reason: reason.trim() || "Перенос на другую кассу", managerApprovalToken: token })
       onDone()
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось перенести заказ"))
+      setError(posErrorMessage(t, caught, t("transfer.failed")))
     } finally {
       setSubmitting(false)
     }
@@ -74,17 +75,17 @@ function TransferForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Перенести на кассу</DialogTitle>
-        <DialogDescription>Чек будет отложен и появится среди открытых чеков выбранной кассы.</DialogDescription>
+        <DialogTitle>{t("actions.transfer")}</DialogTitle>
+        <DialogDescription>{t("transfer.description")}</DialogDescription>
       </DialogHeader>
       {targets === undefined ? (
-        <p className="text-body-sm text-muted-foreground">Загрузка касс…</p>
+        <p className="text-body-sm text-muted-foreground">{t("transfer.loading")}</p>
       ) : targets.length === 0 ? (
-        <p className="text-body-sm text-muted-foreground">Нет других касс этого ресторана с открытой сменой.</p>
+        <p className="text-body-sm text-muted-foreground">{t("transfer.none")}</p>
       ) : (
         <div className="grid gap-1.5">
           <p id="transfer-target-label" className="text-body-sm font-medium text-muted-foreground">
-            Касса
+            {t("picker.terminal")}
           </p>
           <RadioGroup
             aria-labelledby="transfer-target-label"
@@ -93,12 +94,12 @@ function TransferForm({
               setTargetId(value)
               setError(null)
             }}
-            options={targets.map((candidate) => ({ value: candidate.terminalId, label: candidate.name, description: `Касса ${candidate.terminalNumber} · смена №${candidate.shiftNumber}` }))}
+            options={targets.map((candidate) => ({ value: candidate.terminalId, label: candidate.name, description: t("transfer.targetDescription", { terminal: candidate.terminalNumber, shift: candidate.shiftNumber }) }))}
           />
         </div>
       )}
-      <Field label="Причина">
-        {(control) => <Input {...control} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Например, гость пересел в другой зал" className="h-[var(--control-h-pos)] text-body" />}
+      <Field label={t("common.reason")}>
+        {(control) => <Input {...control} value={reason} onChange={(event) => setReason(event.target.value)} placeholder={t("transfer.placeholder")} className="h-[var(--control-h-pos)] text-body" />}
       </Field>
       {error && (
         <p role="alert" className="text-body-sm font-semibold text-destructive">
@@ -107,10 +108,10 @@ function TransferForm({
       )}
       <DialogFooter>
         <Button variant="secondary" size="lg" onClick={onBack} disabled={submitting}>
-          Назад
+          {t("common.back")}
         </Button>
         <Button size="lg" onClick={submit} disabled={!target || submitting}>
-          {submitting ? "Перенос…" : "Перенести"}
+          {submitting ? t("transfer.submitting") : t("transfer.submit")}
         </Button>
       </DialogFooter>
     </>

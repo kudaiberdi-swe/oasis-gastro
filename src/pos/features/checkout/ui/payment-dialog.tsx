@@ -3,6 +3,7 @@ import { Banknote, Check, CreditCard, QrCode, Split } from "lucide-react"
 import { useRef, useState, type FocusEvent, type ReactNode } from "react"
 
 import type { PosPaymentType } from "@/pos/features/retail/data/use-retail-settings"
+import { ruT, useT, type Translator } from "@/pos/i18n"
 import { Button, Chip, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Field, Money, MoneyInput, TonePill } from "@/shared/components/ui"
 import { useArrowSelection } from "@/shared/components/ui/use-arrow-selection"
 import { cn, focusRingClass, formatTenge } from "@/shared/lib/utils"
@@ -19,8 +20,8 @@ const MIXED = "__mixed__"
 const KIND_ICON: Record<PaymentMethod, ReactNode> = { cash: <Banknote aria-hidden />, card: <CreditCard aria-hidden />, qr: <QrCode aria-hidden /> }
 
 /** Cash presets that say what they do: exact amount, then the rounded-up banknote totals. */
-export function cashPresets(amount: number): Array<{ label: string; tendered: number }> {
-  const presets = [{ label: "Без сдачи", tendered: amount }]
+export function cashPresets(amount: number, t: Translator = ruT): Array<{ label: string; tendered: number }> {
+  const presets = [{ label: t("payment.noChange"), tendered: amount }]
   for (const step of QUICK_CASH_STEPS) {
     const tendered = roundUpTo(amount, step)
     if (tendered > amount && !presets.some((preset) => preset.tendered === tendered)) presets.push({ label: formatTenge(tendered), tendered })
@@ -61,8 +62,9 @@ export function PaymentDialog({
   error: string | null
   onSubmit: (payments: CheckoutPayment[]) => void
 }) {
+  const t = useT()
   const total = payableTotal(orderTotal, loyaltyRedemption)
-  const options = paymentOptions(paymentTypes)
+  const options = paymentOptions(paymentTypes, t)
   const [mode, setMode] = useState<"single" | "mixed">("single")
   const [selectedKey, setSelectedKey] = useState<string | undefined>(onlyOption(options))
   const [tendered, setTendered] = useState<number | null>(total)
@@ -81,7 +83,7 @@ export function PaymentDialog({
   const selected = options.find((option) => option.key === (selectedKey ?? onlyOption(options)))
   const arrows = useArrowSelection((value) => (value === MIXED ? chooseMixed() : chooseKey(value)))
   const activeParts: PaymentPart[] = mode === "mixed" ? parts : selected ? [{ id: "single", optionKey: selected.key, amount: total, tendered }] : []
-  const problem = blockedReason || paymentProblem(activeParts, options, total)
+  const problem = blockedReason || paymentProblem(activeParts, options, total, t)
   const change = changeDue(activeParts, options)
 
   function chooseKey(key: string) {
@@ -105,26 +107,26 @@ export function PaymentDialog({
         <div className="border-b border-border px-6 py-5">
           <DialogHeader>
             <div className="flex flex-wrap items-center gap-2">
-              <DialogTitle>Оплата заказа</DialogTitle>
-              {orderNumber !== undefined && <TonePill>Заказ №{orderNumber}</TonePill>}
+              <DialogTitle>{t("payment.title")}</DialogTitle>
+              {orderNumber !== undefined && <TonePill>{t("common.orderNumber", { number: orderNumber })}</TonePill>}
             </div>
-            <DialogDescription>{itemCount !== undefined ? `${itemCount} поз. · ` : ""}выберите способ оплаты для закрытия чека</DialogDescription>
+            <DialogDescription>{itemCount !== undefined ? t("payment.descriptionCount", { count: itemCount }) : t("payment.description")}</DialogDescription>
           </DialogHeader>
         </div>
         <div className="grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div className="flex flex-col gap-4 border-b border-border p-6 md:border-r md:border-b-0">
             <div>
-              <p className="text-body-sm font-medium text-muted-foreground">К оплате</p>
+              <p className="text-body-sm font-medium text-muted-foreground">{t("order.toPay")}</p>
               <Money value={total} size="xl" />
               {loyaltyRedemption > 0 && (
                 <p className="text-body-sm text-muted-foreground tabular-nums">
-                  Заказ {formatTenge(orderTotal)} · баллами <span className="font-semibold text-success">{formatTenge(-loyaltyRedemption)}</span>
+                  {t("payment.orderWithPoints", { total: formatTenge(orderTotal) })} <span className="font-semibold text-success">{formatTenge(-loyaltyRedemption)}</span>
                 </p>
               )}
             </div>
             {/* Radix radio group: roving tabindex; the arrows move the focus and select (useArrowSelection). */}
             <RadioGroupPrimitive.Root
-              aria-label="Способ оплаты"
+              aria-label={t("payment.method")}
               orientation="vertical"
               value={radioValue}
               onValueChange={(value) => (value === MIXED ? chooseMixed() : chooseKey(value))}
@@ -135,7 +137,7 @@ export function PaymentDialog({
                 <PaymentTile key={option.key} value={option.key} active={radioValue === option.key} icon={KIND_ICON[option.method]} title={option.name} hint={option.hint} onFocus={arrows.itemFocus(option.key)} />
               ))}
               {options.filter((option) => option.combinable).length > 1 && (
-                <PaymentTile value={MIXED} active={mode === "mixed"} icon={<Split aria-hidden />} title="Смешанная оплата" hint="Несколько способов в одном чеке" onFocus={arrows.itemFocus(MIXED)} />
+                <PaymentTile value={MIXED} active={mode === "mixed"} icon={<Split aria-hidden />} title={t("payment.mixed")} hint={t("payment.mixedHint")} onFocus={arrows.itemFocus(MIXED)} />
               )}
             </RadioGroupPrimitive.Root>
           </div>
@@ -145,13 +147,13 @@ export function PaymentDialog({
             ) : selected ? (
               <SingleDetails option={selected} total={total} tendered={tendered} onTendered={setTendered} change={change} />
             ) : options.length ? (
-              <p className="text-body text-muted-foreground">Выберите способ оплаты слева.</p>
+              <p className="text-body text-muted-foreground">{t("payment.chooseLeft")}</p>
             ) : (
-              <p className="text-body-sm text-muted-foreground">Типы оплаты не настроены.</p>
+              <p className="text-body-sm text-muted-foreground">{t("payment.noTypes")}</p>
             )}
             {mode === "mixed" && change > 0 && (
               <div className="flex items-baseline justify-between rounded-control bg-muted px-4 py-3">
-                <span className="text-body font-semibold">Сдача</span>
+                <span className="text-body font-semibold">{t("common.change")}</span>
                 <Money value={change} size="lg" className="text-success" />
               </div>
             )}
@@ -161,7 +163,7 @@ export function PaymentDialog({
               </p>
             )}
             <Button size="lg" className="mt-auto" disabled={Boolean(problem) || submitting} onClick={() => onSubmit(toCheckoutPayments(activeParts, options))}>
-              {submitting ? "Оплата…" : `Подтвердить · ${formatTenge(total)}`}
+              {submitting ? t("payment.paying") : t("payment.confirm", { amount: formatTenge(total) })}
             </Button>
           </div>
         </div>
@@ -197,19 +199,20 @@ function PaymentTile({ value, active, icon, title, hint, onFocus }: { value: str
 }
 
 function SingleDetails({ option, total, tendered, onTendered, change }: { option: PaymentOption; total: number; tendered: number | null; onTendered: (value: number | null) => void; change: number }) {
+  const t = useT()
   if (option.allowsChange) {
     const received = tendered ?? 0
     return (
       <>
         <div>
-          <p className="text-body font-semibold">Получено: {option.name.toLocaleLowerCase("ru")}</p>
-          <p className="text-body-sm text-muted-foreground">Выберите сумму или введите её вручную.</p>
+          <p className="text-body font-semibold">{t("payment.received", { name: option.name.toLocaleLowerCase("ru") })}</p>
+          <p className="text-body-sm text-muted-foreground">{t("payment.receivedHint")}</p>
         </div>
-        <Field label="Полученная сумма" error={tendered !== null && tendered < total ? "Полученной суммы недостаточно" : undefined}>
+        <Field label={t("payment.receivedAmount")} error={tendered !== null && tendered < total ? t("payment.notEnough") : undefined}>
           {(control) => <MoneyInput {...control} value={tendered} onValueChange={onTendered} className="h-[var(--control-h-pos)] text-body font-semibold" />}
         </Field>
         <div className="flex flex-wrap gap-2">
-          {cashPresets(total).map((preset) => (
+          {cashPresets(total, t).map((preset) => (
             <Chip key={preset.label} size="lg" active={tendered === preset.tendered} className="flex-1 justify-center tabular-nums" onClick={() => onTendered(preset.tendered)}>
               {preset.label}
             </Chip>
@@ -217,11 +220,11 @@ function SingleDetails({ option, total, tendered, onTendered, change }: { option
         </div>
         <div className="grid gap-2 rounded-control bg-muted px-4 py-3">
           <div className="flex justify-between text-body-sm text-muted-foreground">
-            <span>Получено</span>
+            <span>{t("payment.receivedShort")}</span>
             <span className="tabular-nums">{formatTenge(received)}</span>
           </div>
           <div className="flex items-baseline justify-between border-t border-gold/45 pt-2">
-            <span className="text-body font-semibold">Сдача</span>
+            <span className="text-body font-semibold">{t("common.change")}</span>
             <Money value={change} size="xl" className="text-success" />
           </div>
         </div>
@@ -232,11 +235,11 @@ function SingleDetails({ option, total, tendered, onTendered, change }: { option
   return (
     <div className="flex flex-col items-start gap-3">
       <span className="grid size-16 place-items-center rounded-control bg-muted text-rust [&_svg]:size-8">{qr ? <QrCode aria-hidden /> : <CreditCard aria-hidden />}</span>
-      <p className="text-body font-semibold">{qr ? `Учёт оплаты через ${option.name}` : `Учёт оплаты: ${option.name}`}</p>
+      <p className="text-body font-semibold">{qr ? t("payment.qrTitle", { name: option.name }) : t("payment.cardTitle", { name: option.name })}</p>
       <p className="text-body-sm text-muted-foreground">
-        {qr ? "Проверьте оплату во внешнем приложении и подтвердите её здесь." : "Проведите оплату на банковском терминале и подтвердите её здесь."}
+        {qr ? t("payment.qrHint") : t("payment.cardHint")}
       </p>
-      <TonePill tone="info">Подтверждает кассир</TonePill>
+      <TonePill tone="info">{t("payment.cashierConfirms")}</TonePill>
     </div>
   )
 }

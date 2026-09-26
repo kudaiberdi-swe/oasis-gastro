@@ -1,7 +1,8 @@
 import { useState, type ComponentType } from "react"
 import { ArrowLeft, Ban, MessageSquareText, MoveRight, Printer, Scissors, Send, Trash2 } from "lucide-react"
 
-import { lineDetails, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
+import { lineDetails, lineDetailsKk, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
+import { bilingualName, useT, type MessageKey } from "@/pos/i18n"
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Money } from "@/shared/components/ui"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
@@ -10,21 +11,24 @@ export type OrderAction = "comment" | "split" | "transfer" | "move-table" | "pre
 /** Why an action is unavailable right now; a missing entry means it is available. */
 export type ActionBlocks = Partial<Record<OrderAction, string>>
 
-type Tile = { action: OrderAction; icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>; title: string; hint: string; danger?: boolean }
+/** `key` — the tile's title in the dictionary; its hint is `<key>Hint`. */
+type Tile = { action: OrderAction; icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>; key: TileKey; danger?: boolean }
+
+type TileKey = "actions.precheck" | "actions.comment" | "actions.moveTable" | "actions.split" | "actions.void" | "actions.transfer" | "actions.cancel"
 
 // What a waiter does many times a shift: four primary tiles.
 const PRIMARY: Tile[] = [
-  { action: "precheck", icon: Printer, title: "Печать предчека", hint: "Счёт гостю до оплаты" },
-  { action: "comment", icon: MessageSquareText, title: "Комментарий", hint: "Пожелание гостя для кухни" },
-  { action: "move-table", icon: MoveRight, title: "Перенести на стол", hint: "Гости пересели" },
-  { action: "split", icon: Scissors, title: "Разделить чек", hint: "Часть позиций — в новый чек" },
+  { action: "precheck", icon: Printer, key: "actions.precheck" },
+  { action: "comment", icon: MessageSquareText, key: "actions.comment" },
+  { action: "move-table", icon: MoveRight, key: "actions.moveTable" },
+  { action: "split", icon: Scissors, key: "actions.split" },
 ]
 
 // Rarer, heavier actions: a quieter list under «Ещё».
 const MORE: Tile[] = [
-  { action: "void", icon: Trash2, title: "Удалить позицию", hint: "С причиной; с кухни — PIN менеджера" },
-  { action: "transfer", icon: Send, title: "Перенести на кассу", hint: "PIN менеджера; на кассе должна быть открыта смена" },
-  { action: "cancel", icon: Ban, title: "Отменить заказ", hint: "Нужна причина", danger: true },
+  { action: "void", icon: Trash2, key: "actions.void" },
+  { action: "transfer", icon: Send, key: "actions.transfer" },
+  { action: "cancel", icon: Ban, key: "actions.cancel", danger: true },
 ]
 
 /**
@@ -48,6 +52,7 @@ export function OrderActionsDialog({
   onAction: (action: Exclude<OrderAction, "void">) => void
   onVoidLine: (clientLineId: string) => void
 }) {
+  const t = useT()
   const [view, setView] = useState<"actions" | "void">("actions")
 
   function choose(action: OrderAction) {
@@ -72,8 +77,8 @@ export function OrderActionsDialog({
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{view === "actions" ? "Действия с заказом" : "Какую позицию удалить?"}</DialogTitle>
-          <DialogDescription>{view === "actions" ? "Все изменения сохраняются в журнале кассы." : "Удаление сохранится в журнале вместе с причиной."}</DialogDescription>
+          <DialogTitle>{view === "actions" ? t("actions.title") : t("actions.voidTitle")}</DialogTitle>
+          <DialogDescription>{view === "actions" ? t("actions.description") : t("actions.voidDescription")}</DialogDescription>
         </DialogHeader>
         {view === "actions" ? (
           <div className="flex flex-col gap-4">
@@ -84,7 +89,7 @@ export function OrderActionsDialog({
             </div>
             <section aria-labelledby="order-actions-more" className="flex flex-col gap-1">
               <h3 id="order-actions-more" className="text-body-sm font-semibold text-muted-foreground">
-                Ещё
+                {t("order.more")}
               </h3>
               <ul className="flex flex-col divide-y divide-border rounded-card border border-border">
                 {MORE.map((tile) => (
@@ -97,8 +102,11 @@ export function OrderActionsDialog({
           </div>
         ) : (
           <>
-            <ul className="flex flex-col gap-2" aria-label="Позиции заказа">
-              {lines.map((line) => (
+            <ul className="flex flex-col gap-2" aria-label={t("actions.lines")}>
+              {lines.map((line) => {
+                const title = bilingualName(t.locale, line)
+                const details = t.locale === "kk" ? (lineDetailsKk(line) ?? lineDetails(line)) : lineDetails(line)
+                return (
                 <li key={line.clientLineId}>
                   <button
                     type="button"
@@ -111,23 +119,24 @@ export function OrderActionsDialog({
                   >
                     <span className="min-w-0">
                       <span className="block text-body font-semibold">
-                        {line.quantity} × {line.name}
+                        {line.quantity} × <span lang={title.primary.lang}>{title.primary.text}</span>
                       </span>
-                      {line.nameKk?.trim() && line.nameKk.trim() !== line.name.trim() ? (
-                        <span lang="kk" className="block text-body-sm text-muted-foreground">
-                          {line.nameKk}
+                      {title.secondary ? (
+                        <span lang={title.secondary.lang} className="block text-body-sm text-muted-foreground">
+                          {title.secondary.text}
                         </span>
                       ) : null}
-                      {lineDetails(line) && <span className="block text-body-sm text-muted-foreground">{lineDetails(line)}</span>}
+                      {details && <span className="block text-body-sm text-muted-foreground">{details}</span>}
                     </span>
                     <Money value={lineTotal(line)} size="sm" />
                   </button>
                 </li>
-              ))}
+                )
+              })}
             </ul>
             <div>
               <Button variant="secondary" size="lg" onClick={() => setView("actions")}>
-                <ArrowLeft /> Назад
+                <ArrowLeft /> {t("common.back")}
               </Button>
             </div>
           </>
@@ -139,6 +148,7 @@ export function OrderActionsDialog({
 
 /** A quiet row of the «Ещё» list: 48px+, icon, title and the hint or the reason it is unavailable. */
 function ActionRow({ tile, blocked, onChoose }: { tile: Tile; blocked?: string; onChoose: () => void }) {
+  const t = useT()
   const Icon = tile.icon
   return (
     <button
@@ -152,14 +162,15 @@ function ActionRow({ tile, blocked, onChoose }: { tile: Tile; blocked?: string; 
     >
       <Icon aria-hidden className={cn("size-5 shrink-0", tile.danger ? "text-destructive" : "text-muted-foreground")} />
       <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
-        <span className={cn("text-body font-semibold", tile.danger && "text-destructive")}>{tile.title}</span>
-        <span className="text-body-sm text-muted-foreground">{blocked ?? tile.hint}</span>
+        <span className={cn("text-body font-semibold", tile.danger && "text-destructive")}>{t(tile.key)}</span>
+        <span className="text-body-sm text-muted-foreground">{blocked ?? t(`${tile.key}Hint` as MessageKey)}</span>
       </span>
     </button>
   )
 }
 
 function ActionTile({ tile, blocked, onChoose }: { tile: Tile; blocked?: string; onChoose: () => void }) {
+  const t = useT()
   const Icon = tile.icon
   return (
     <button
@@ -175,8 +186,8 @@ function ActionTile({ tile, blocked, onChoose }: { tile: Tile; blocked?: string;
         <Icon aria-hidden className={cn("size-6", tile.danger ? "text-destructive" : "text-rust")} />
       </span>
       <span className="flex min-w-0 flex-col gap-0.5">
-        <span className={cn("text-body font-semibold", tile.danger && "text-destructive")}>{tile.title}</span>
-        <span className="text-body-sm text-muted-foreground">{blocked ?? tile.hint}</span>
+        <span className={cn("text-body font-semibold", tile.danger && "text-destructive")}>{t(tile.key)}</span>
+        <span className="text-body-sm text-muted-foreground">{blocked ?? t(`${tile.key}Hint` as MessageKey)}</span>
       </span>
     </button>
   )

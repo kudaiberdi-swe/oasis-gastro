@@ -2,7 +2,7 @@ import { Search, UserPlus, UserRound } from "lucide-react"
 import { useState } from "react"
 
 import { Button, Chip, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Field, Input, MoneyInput, Skeleton } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, useT } from "@/pos/i18n"
 import { formatQuantity, formatTenge } from "@/shared/lib/format"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
@@ -32,6 +32,7 @@ export interface GuestDialogProps {
  * partial redemption, «Без гостя / Только начислить / Списать N ₸». Nothing is spent until the payment.
  */
 export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, currentGuest, onAttach, onDetach, onRedeem }: GuestDialogProps) {
+  const t = useT()
   const [query, setQuery] = useState("")
   const [candidate, setCandidate] = useState<PosGuestMatch | null>(null)
   const [confirmPhone, setConfirmPhone] = useState("")
@@ -56,7 +57,7 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
 
   const limit = quote ? redemptionLimit(quote.maxRedemption, total) : 0
   const value = redemption === undefined ? (attached ? (quote?.planned ?? 0) : 0) : redemption
-  const problem = quote ? redemptionProblem(value, quote.maxRedemption, total) : null
+  const problem = quote ? redemptionProblem(value, quote.maxRedemption, total, t) : null
   const redeemable = value !== null && value > 0 && !problem && (attached || Boolean(attachPhone)) && Boolean(quote?.program)
 
   function reset() {
@@ -80,13 +81,13 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
       await action()
       close()
     } catch (caught) {
-      setError(errorMessage(caught, fallback))
+      setError(posErrorMessage(t, caught, fallback))
     } finally {
       setSubmitting(false)
     }
   }
 
-  const withoutGuest = () => (attached ? run(onDetach, "Не удалось открепить гостя") : close())
+  const withoutGuest = () => (attached ? run(onDetach, t("guest.detachFailed")) : close())
   const onlyAccrue = () =>
     run(async () => {
       if (attached) {
@@ -95,7 +96,7 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
       }
       if (!attachTarget) return
       await onAttach(attachTarget, creating ? newName.trim() || undefined : undefined)
-    }, "Не удалось прикрепить гостя")
+    }, t("guest.attachFailed"))
   const redeem = () =>
     run(async () => {
       if (!value) return
@@ -104,7 +105,7 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
         await onAttach(attachTarget)
       }
       await onRedeem(value)
-    }, "Не удалось запланировать списание")
+    }, t("guest.redeemFailed"))
 
   const canAccrue = attached || Boolean(attachPhone)
 
@@ -112,16 +113,16 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Гость и программа лояльности</DialogTitle>
-          <DialogDescription>Поиск выполняется по имени, телефону или номеру карты. Списание и начисление фиксируются при оплате.</DialogDescription>
+          <DialogTitle>{t("guest.title")}</DialogTitle>
+          <DialogDescription>{t("guest.description")}</DialogDescription>
         </DialogHeader>
 
         {currentGuest ? (
-          <GuestCard title={currentGuest.name || "Гость"} phone={maskPhoneForPos(currentGuest.phone)} quote={quote} limit={limit} fallbackPoints={currentGuest.points} />
+          <GuestCard title={currentGuest.name || t("common.guest")} phone={maskPhoneForPos(currentGuest.phone)} quote={quote} limit={limit} fallbackPoints={currentGuest.points} />
         ) : (
           <>
             <label className="relative block">
-              <span className="sr-only">Поиск гостя</span>
+              <span className="sr-only">{t("guest.search")}</span>
               <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
@@ -134,14 +135,14 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
                   setRedemption(undefined)
                   setError(null)
                 }}
-                placeholder="Введите минимум 2 символа"
+                placeholder={t("guest.searchPlaceholder")}
                 className={cn(TOUCH, "pl-10 text-body")}
               />
             </label>
             {candidate ? (
               <>
                 <GuestCard
-                  title={candidate.name || "Гость"}
+                  title={candidate.name || t("common.guest")}
                   phone={maskPhoneForPos(candidate.phone)}
                   quote={quote}
                   limit={limit}
@@ -150,9 +151,9 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
                 />
                 {needsConfirm ? (
                   <Field
-                    label="Телефон гостя полностью"
-                    hint={confirmPhone && !attachPhone ? undefined : "В поиске телефон скрыт — для привязки к заказу введите его целиком"}
-                    error={confirmPhone && isFullPhone(confirmPhone) && !attachPhone ? "Телефон не совпадает с найденным гостем" : undefined}
+                    label={t("guest.fullPhone")}
+                    hint={confirmPhone && !attachPhone ? undefined : t("guest.fullPhoneHint")}
+                    error={confirmPhone && isFullPhone(confirmPhone) && !attachPhone ? t("guest.phoneMismatch") : undefined}
                   >
                     {(control) => (
                       <Input
@@ -176,12 +177,12 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
               <div className="flex flex-col gap-3 rounded-card border border-dashed border-gold p-3">
                 <p className="flex items-center gap-2 text-body-sm font-semibold">
                   <UserPlus aria-hidden className="size-5 text-accent" />
-                  Новый гость: {maskPhoneForPos(query)}
+                  {t("guest.new", { phone: maskPhoneForPos(query) })}
                 </p>
-                <Field label="Имя (необязательно)">
+                <Field label={t("guest.nameOptional")}>
                   {(control) => <Input {...control} value={newName} onChange={(event) => setNewName(event.target.value)} autoComplete="off" className={TOUCH} />}
                 </Field>
-                <p className="text-body-sm text-muted-foreground">Гость из кассы создаётся без записанных согласий — их оформляют в офисе.</p>
+                <p className="text-body-sm text-muted-foreground">{t("guest.noConsents")}</p>
               </div>
             ) : null}
           </>
@@ -191,16 +192,16 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
           <div className="flex flex-col gap-2">
             {quote.program ? (
               <>
-                <Field label="Списать баллами" error={value !== null && value > 0 ? (problem ?? undefined) : undefined} hint={`1 балл = 1 ₸ · можно до ${formatTenge(limit)}`}>
+                <Field label={t("guest.redeemLabel")} error={value !== null && value > 0 ? (problem ?? undefined) : undefined} hint={t("guest.redeemHint", { amount: formatTenge(limit) })}>
                   {(control) => <MoneyInput {...control} value={value} onValueChange={(next) => setRedemption(next)} className={cn(TOUCH, "text-body font-semibold")} />}
                 </Field>
                 <div className="flex flex-wrap gap-2">
                   <Chip size="lg" active={value === 0 || value === null} onClick={() => setRedemption(0)}>
-                    Не списывать
+                    {t("guest.noRedeem")}
                   </Chip>
                   {limit > 0 ? (
                     <Chip size="lg" active={value === limit} onClick={() => setRedemption(limit)} className="tabular-nums">
-                      Максимум · {formatTenge(limit)}
+                      {t("guest.max", { amount: formatTenge(limit) })}
                     </Chip>
                   ) : null}
                 </div>
@@ -218,14 +219,14 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <Button variant="secondary" size="lg" onClick={() => void withoutGuest()} disabled={submitting}>
-            Без гостя
+            {t("guest.withoutGuest")}
           </Button>
           <div className="ml-auto flex flex-wrap gap-2">
             <Button variant="secondary" size="lg" onClick={() => void onlyAccrue()} disabled={submitting || !canAccrue}>
-              Только начислить
+              {t("guest.onlyAccrue")}
             </Button>
             <Button size="lg" onClick={() => void redeem()} disabled={submitting || !redeemable}>
-              {submitting ? "Сохранение…" : `Списать ${formatTenge(value ?? 0)}`}
+              {submitting ? t("common.saving") : t("guest.redeem", { amount: formatTenge(value ?? 0) })}
             </Button>
           </div>
         </div>
@@ -235,6 +236,7 @@ export function GuestDialog({ open, onOpenChange, sessionToken, orderId, total, 
 }
 
 function SearchResults({ results, onPick }: { results: PosGuestMatch[] | undefined; onPick: (match: PosGuestMatch) => void }) {
+  const t = useT()
   if (results === undefined) {
     return (
       <div className="flex flex-col gap-2" aria-busy="true">
@@ -243,9 +245,9 @@ function SearchResults({ results, onPick }: { results: PosGuestMatch[] | undefin
       </div>
     )
   }
-  if (!results.length) return <p className="text-body-sm text-muted-foreground">Гость не найден. Для нового гостя введите телефон полностью.</p>
+  if (!results.length) return <p className="text-body-sm text-muted-foreground">{t("guest.notFound")}</p>
   return (
-    <ul aria-label="Найденные гости" className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+    <ul aria-label={t("guest.found")} className="flex max-h-64 flex-col gap-2 overflow-y-auto">
       {results.map((match) => (
         <li key={match.guestId}>
           <button
@@ -255,10 +257,10 @@ function SearchResults({ results, onPick }: { results: PosGuestMatch[] | undefin
           >
             <UserRound aria-hidden className="size-5 shrink-0 text-muted-foreground" />
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-body font-semibold">{match.name || "Гость"}</span>
+              <span className="truncate text-body font-semibold">{match.name || t("common.guest")}</span>
               <span className="text-body-sm text-muted-foreground tabular-nums">{maskPhoneForPos(match.phone)}</span>
             </span>
-            <span className="text-body-sm font-semibold text-accent tabular-nums">{formatQuantity(match.points)} б.</span>
+            <span className="text-body-sm font-semibold text-accent tabular-nums">{t("guest.points", { points: formatQuantity(match.points) })}</span>
           </button>
         </li>
       ))}
@@ -281,6 +283,7 @@ function GuestCard({
   fallbackPoints: number
   onChange?: () => void
 }) {
+  const t = useT()
   const balance = quote ? quote.balance : fallbackPoints
   return (
     <div className="flex flex-col gap-3 rounded-card border border-border bg-muted p-4">
@@ -291,27 +294,27 @@ function GuestCard({
         </div>
         {onChange ? (
           <Button variant="ghost" onClick={onChange}>
-            Другой гость
+            {t("guest.other")}
           </Button>
         ) : null}
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <p className="text-body-sm text-muted-foreground">Баланс</p>
+          <p className="text-body-sm text-muted-foreground">{t("guest.balance")}</p>
           <p className="sq-price text-display font-semibold text-accent">{formatQuantity(balance)}</p>
-          <p className="text-body-sm text-muted-foreground">баллов</p>
+          <p className="text-body-sm text-muted-foreground">{t("guest.pointsWord")}</p>
         </div>
         {quote === undefined ? (
           <Skeleton className="h-16 w-full sm:col-span-2" />
         ) : quote === null ? null : (
           <>
             <div>
-              <p className="text-body-sm text-muted-foreground">Можно списать</p>
+              <p className="text-body-sm text-muted-foreground">{t("guest.canRedeem")}</p>
               <p className="sq-price text-title font-semibold tabular-nums">{formatTenge(limit)}</p>
             </div>
             <div>
-              <p className="text-body-sm text-muted-foreground">Программа</p>
-              <p className="text-body-sm font-semibold">{quote.program ? quote.program.name : "Базовое начисление 1 %"}</p>
+              <p className="text-body-sm text-muted-foreground">{t("guest.program")}</p>
+              <p className="text-body-sm font-semibold">{quote.program ? quote.program.name : t("guest.baseAccrual")}</p>
             </div>
           </>
         )}
@@ -321,12 +324,13 @@ function GuestCard({
 }
 
 function AccrualLine({ quote, redemption, total }: { quote: LoyaltyQuote; redemption: number; total: number }) {
+  const t = useT()
   const accrual = accrualFor(quote, redemption, total)
   return (
     <div className="flex items-baseline justify-between rounded-control bg-muted px-4 py-3">
-      <span className="text-body font-semibold">Будет начислено</span>
+      <span className="text-body font-semibold">{t("guest.willAccrue")}</span>
       <span className="sq-price text-title font-semibold text-success tabular-nums">
-        {accrual.approximate ? "≈ " : ""}+{formatQuantity(accrual.points)} б.
+        {accrual.approximate ? "≈ " : ""}+{t("guest.points", { points: formatQuantity(accrual.points) })}
       </span>
     </div>
   )

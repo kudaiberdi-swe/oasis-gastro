@@ -24,7 +24,7 @@ import { EmptyState } from "@/shared/components/ui/empty-state"
 import { Input } from "@/shared/components/ui/input"
 import { Skeleton } from "@/shared/components/ui/skeleton"
 import { useToast } from "@/shared/components/ui/toast"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, useT } from "@/pos/i18n"
 
 // Category strip colour (POS-DESIGN §2.3). The office sets it on the group (categories.colorToken, a
 // cat-* token), so an iiko rename never drops the strip; a group without one falls back to a guess
@@ -85,6 +85,7 @@ export function CatalogPanel({
   /** F2 and the barcode scanner of the cashier screen (W3-POS-01). */
   controlRef?: Ref<CatalogPanelControl>
 }) {
+  const t = useT()
   const toast = useToast()
   const categories = useCategories(sessionToken)
   // A dish with sizes or modifier groups opens the dialog (W1-POS-12); any other is added at once.
@@ -114,7 +115,7 @@ export function CatalogPanel({
           ? { items: recent.items, loading: false, canLoadMore: false, loadMore: () => {} }
           : listed
   // Dishes by name (what a cashier scans for); «Последние» keeps its own order, newest first.
-  const items = listKind === "recent" ? source.items : sortProducts(source.items, "name")
+  const items = listKind === "recent" ? source.items : sortProducts(source.items, "name", t.locale)
 
   function go(next: CatalogView) {
     setSearch("")
@@ -153,26 +154,26 @@ export function CatalogPanel({
     try {
       await toggleFavorite({ sessionToken, productExternalId: product.externalId })
     } catch (caught) {
-      toast(errorMessage(caught, "Не удалось изменить избранное"), "error")
+      toast(posErrorMessage(t, caught, t("catalog.favoriteFailed")), "error")
     }
   }
 
-  const empty = emptyCopy(view, searching ? search : "")
+  const empty = emptyCopy(view, searching ? search : "", t)
   const activeCategory = !searching && view.kind === "category" ? view.categoryExternalId : undefined
 
   return (
-    <section aria-label="Меню" className="flex h-full min-w-0 flex-1 flex-col overflow-x-clip rounded-panel border border-border bg-card">
+    <section aria-label={t("catalog.aria")} className="flex h-full min-w-0 flex-1 flex-col overflow-x-clip rounded-panel border border-border bg-card">
       <div className="flex items-center gap-1 border-b border-border p-2">
-        <Button variant="ghost" size="icon" aria-label="Назад" className={toolbarButton} disabled={!navigation.back.length} onClick={() => setNavigation(goBack)}>
+        <Button variant="ghost" size="icon" aria-label={t("common.back")} className={toolbarButton} disabled={!navigation.back.length} onClick={() => setNavigation(goBack)}>
           <ArrowLeft />
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Все блюда" aria-pressed={!searching && view.kind === "all"} className={toolbarButton} onClick={() => go(ALL_VIEW)}>
+        <Button variant="ghost" size="icon" aria-label={t("catalog.all")} aria-pressed={!searching && view.kind === "all"} className={toolbarButton} onClick={() => go(ALL_VIEW)}>
           <House />
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Избранное" aria-pressed={!searching && view.kind === "favorites"} className={toolbarButton} onClick={() => go({ kind: "favorites" })}>
+        <Button variant="ghost" size="icon" aria-label={t("catalog.favorites")} aria-pressed={!searching && view.kind === "favorites"} className={toolbarButton} onClick={() => go({ kind: "favorites" })}>
           <Star />
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Последние" aria-pressed={!searching && view.kind === "recent"} className={toolbarButton} onClick={() => go({ kind: "recent" })}>
+        <Button variant="ghost" size="icon" aria-label={t("catalog.recent")} aria-pressed={!searching && view.kind === "recent"} className={toolbarButton} onClick={() => go({ kind: "recent" })}>
           <Clock3 />
         </Button>
         <div className="relative ml-1 min-w-0 flex-1">
@@ -183,8 +184,8 @@ export function CatalogPanel({
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Поиск блюда или напитка"
-            aria-label="Поиск блюда или напитка"
+            placeholder={t("catalog.search")}
+            aria-label={t("catalog.search")}
             className="h-[var(--control-h-pos)] pl-10 text-body"
           />
         </div>
@@ -192,9 +193,9 @@ export function CatalogPanel({
       </div>
 
       <div className="border-b border-border p-2">
-        <div role="group" aria-label="Категории" className="no-scrollbar flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain">
+        <div role="group" aria-label={t("catalog.categories")} className="no-scrollbar flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain">
           <Chip size="lg" className="h-12" active={!searching && view.kind === "popular"} onClick={(event) => chooseChip(POPULAR_VIEW, event.currentTarget)}>
-            Популярное
+            {t("catalog.popular")}
           </Chip>
           {categories.map((category) => (
             <Chip
@@ -213,7 +214,7 @@ export function CatalogPanel({
 
       <div className="min-h-0 flex-1 overflow-x-clip overflow-y-auto p-2">
         {source.loading ? (
-          <div role="status" aria-label="Загрузка меню" className="grid grid-cols-3 gap-2 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
+          <div role="status" aria-label={t("catalog.loading")} className="grid grid-cols-3 gap-2 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
             {Array.from({ length: 8 }, (_, index) => (
               <Skeleton key={index} className="aspect-[4/5] w-full rounded-card" />
             ))}
@@ -225,11 +226,11 @@ export function CatalogPanel({
             action={
               listKind === "popular" ? (
                 <Button variant="secondary" onClick={() => go(ALL_VIEW)}>
-                  Показать всё меню
+                  {t("catalog.showAll")}
                 </Button>
               ) : (
                 <Button variant="secondary" onClick={() => go(POPULAR_VIEW)}>
-                  Показать популярное
+                  {t("catalog.showPopular")}
                 </Button>
               )
             }
@@ -256,7 +257,7 @@ export function CatalogPanel({
         {source.canLoadMore && !source.loading && (
           <div className="py-4 text-center">
             <Button variant="secondary" onClick={source.loadMore}>
-              Показать ещё
+              {t("common.showMore")}
             </Button>
           </div>
         )}

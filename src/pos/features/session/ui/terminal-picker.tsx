@@ -2,6 +2,8 @@ import { MonitorSmartphone } from "lucide-react"
 import { useState } from "react"
 
 import type { TerminalOption } from "@/pos/features/session/data/use-terminal-options"
+import { useT } from "@/pos/i18n"
+import { LanguageLink } from "@/pos/i18n/language-switch"
 import { Banner, Button, Field, OrnamentPair, RadioGroup, Select, SkeletonRows } from "@/shared/components/ui"
 
 export interface TerminalPickerProps {
@@ -13,6 +15,7 @@ export interface TerminalPickerProps {
 
 /** «Выберите рабочее место»: branch, then one of its active terminals (POS-DESIGN §11.1). */
 export function TerminalPicker({ options, onChoose, staleTerminal }: TerminalPickerProps) {
+  const t = useT()
   const [restaurant, setRestaurant] = useState<string | undefined>(() => (options?.length === 1 ? options[0].restaurantExternalId : undefined))
   const [terminal, setTerminal] = useState<string>("")
   const current = options?.find((option) => option.restaurantExternalId === restaurant)
@@ -28,20 +31,20 @@ export function TerminalPicker({ options, onChoose, staleTerminal }: TerminalPic
         <div className="flex items-start gap-3">
           <MonitorSmartphone aria-hidden className="mt-1 size-6 shrink-0 text-accent" />
           <div className="flex flex-col gap-1">
-            <h1 className="font-display text-title font-semibold">Выберите рабочее место</h1>
-            <p className="text-body-sm text-muted-foreground">Сначала филиал, затем касса.</p>
+            <h1 className="font-display text-title font-semibold">{t("picker.title")}</h1>
+            <p className="text-body-sm text-muted-foreground">{t("picker.subtitle")}</p>
           </div>
         </div>
 
-        {staleTerminal ? <Banner tone="warning" title="Сохранённая касса недоступна">Касса «{staleTerminal}» отключена или удалена. Выберите другую.</Banner> : null}
+        {staleTerminal ? <Banner tone="warning" title={t("picker.staleTitle")}>{t("picker.stale", { name: staleTerminal })}</Banner> : null}
 
         {options === undefined ? (
           <SkeletonRows rows={3} />
         ) : options.length === 0 ? (
-          <Banner tone="danger" title="Нет активных касс">Попросите администратора включить терминал в офисе.</Banner>
+          <Banner tone="danger" title={t("picker.noneTitle")}>{t("picker.none")}</Banner>
         ) : (
           <>
-            <Field label="Подразделение">
+            <Field label={t("picker.department")}>
               {(control) => (
                 <Select
                   {...control}
@@ -50,16 +53,16 @@ export function TerminalPicker({ options, onChoose, staleTerminal }: TerminalPic
                     setRestaurant(next)
                     setTerminal("")
                   }}
-                  placeholder="Выберите подразделение"
+                  placeholder={t("picker.departmentPlaceholder")}
                   options={options.map((option) => ({ value: option.restaurantExternalId, label: option.restaurantName }))}
                 />
               )}
             </Field>
             {current ? (
               <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1.5 text-body-sm font-medium text-muted-foreground">Касса</legend>
+                <legend className="mb-1.5 text-body-sm font-medium text-muted-foreground">{t("picker.terminal")}</legend>
                 <RadioGroup
-                  aria-label="Касса"
+                  aria-label={t("picker.terminal")}
                   value={terminal}
                   onValueChange={setTerminal}
                   options={current.terminals.map((option) => ({
@@ -74,8 +77,9 @@ export function TerminalPicker({ options, onChoose, staleTerminal }: TerminalPic
         )}
 
         <Button size="lg" className="w-full" disabled={!terminal} onClick={() => onChoose(terminal)}>
-          Продолжить к входу
+          {t("picker.continue")}
         </Button>
+        <LanguageLink label={t("common.switchLanguage")} />
       </div>
     </div>
   )

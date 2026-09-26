@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 
 import { Button, Chip, Dialog, DialogContent, DialogHeader, DialogTitle, Field, Input, Money } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, useT } from "@/pos/i18n"
 
 const QUICK_PERCENTS = [5, 10, 15, 20]
 
@@ -33,6 +33,7 @@ export function DiscountDialog({
   onApply: (percent: number, reason: string, managerApprovalToken?: string) => Promise<unknown>
   onManagerRequired: (reason: string) => Promise<string | null>
 }) {
+  const t = useT()
   const [percent, setPercent] = useState(currentPercent)
   const [reason, setReason] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -50,7 +51,7 @@ export function DiscountDialog({
 
   async function submit() {
     if (percent > 0 && reason.trim().length < 3) {
-      setError("Укажите причину скидки")
+      setError(t("discount.reasonRequired"))
       return
     }
     setSubmitting(true)
@@ -58,7 +59,7 @@ export function DiscountDialog({
     try {
       let managerApprovalToken: string | undefined
       if (percent > 10) {
-        const token = await onManagerRequired(`Скидка ${percent}% требует подтверждения менеджера`)
+        const token = await onManagerRequired(t("discount.approval", { percent }))
         if (!token) {
           setSubmitting(false)
           return
@@ -68,7 +69,7 @@ export function DiscountDialog({
       await onApply(percent, reason, managerApprovalToken)
       onOpenChange(false)
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось применить скидку"))
+      setError(posErrorMessage(t, caught, t("discount.failed")))
     } finally {
       setSubmitting(false)
     }
@@ -78,7 +79,7 @@ export function DiscountDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Скидка на заказ</DialogTitle>
+          <DialogTitle>{t("discount.title")}</DialogTitle>
         </DialogHeader>
         <div className="flex gap-1.5">
           {QUICK_PERCENTS.map((value) => (
@@ -87,7 +88,7 @@ export function DiscountDialog({
             </Chip>
           ))}
         </div>
-        <Field label="Процент вручную">
+        <Field label={t("discount.manual")}>
           {(control) => (
             <Input
               {...control}
@@ -100,13 +101,13 @@ export function DiscountDialog({
           )}
         </Field>
         {percent > 0 && (
-          <Field label="Причина">
+          <Field label={t("common.reason")}>
             {(control) => <Input {...control} value={reason} onChange={(event) => setReason(event.target.value)} className="h-[var(--control-h-pos)]" />}
           </Field>
         )}
         {subtotal !== undefined && (
           <div className="flex items-baseline justify-between rounded-control bg-muted px-4 py-3" aria-live="polite">
-            <span className="text-body font-semibold">Итого после скидки</span>
+            <span className="text-body font-semibold">{t("discount.totalAfter")}</span>
             <Money value={totalAfterDiscount(subtotal, percent, serviceChargePercent)} size="lg" />
           </div>
         )}
@@ -117,10 +118,10 @@ export function DiscountDialog({
         )}
         <div className="flex gap-2">
           <Button variant="secondary" size="lg" className="flex-1" onClick={() => setPercent(0)} disabled={submitting}>
-            Убрать
+            {t("discount.remove")}
           </Button>
           <Button size="lg" className="flex-1" onClick={submit} disabled={submitting}>
-            Применить
+            {t("discount.apply")}
           </Button>
         </div>
       </DialogContent>

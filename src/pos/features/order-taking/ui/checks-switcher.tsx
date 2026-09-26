@@ -1,5 +1,6 @@
 import { LayoutGrid } from "lucide-react"
 
+import { useT } from "@/pos/i18n"
 import { Button } from "@/shared/components/ui/button"
 
 /**
@@ -7,7 +8,8 @@ import { Button } from "@/shared/components/ui/button"
  * a new check — beside the current check's table and number. Replaces the 380px open-checks popover.
  */
 export function ChecksSwitcher({ tableLabel, orderNumber, openCount, onOpenFloor }: { tableLabel: string; orderNumber?: number; openCount: number; onOpenFloor: () => void }) {
-  const title = tableLabel.trim() || "Новый заказ"
+  const t = useT()
+  const title = tableLabel.trim() || t("common.newOrder")
   return (
     <>
       <Button
@@ -15,7 +17,7 @@ export function ChecksSwitcher({ tableLabel, orderNumber, openCount, onOpenFloor
         className="h-[var(--control-h-pos)] px-3 text-body"
         onClick={onOpenFloor}
       >
-        <LayoutGrid aria-hidden /> Зал · {openCount} открыто
+        <LayoutGrid aria-hidden /> {t("switcher.floor", { count: openCount })}
       </Button>
       <p className="min-w-0 truncate font-display text-title font-semibold">
         {title}

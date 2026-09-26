@@ -1,6 +1,7 @@
 import type { PosPaymentType } from "@/pos/features/retail/data/use-retail-settings"
 import { formatTenge } from "@/shared/lib/format"
 import type { PaymentMethod } from "@/shared/types/pos"
+import { ruT, type Translator } from "@/pos/i18n"
 import { PAYMENT_METHOD_LABEL } from "./order-receipt"
 
 // Payment of an order (W1-POS-17): the tender options come from the published payment types; before
@@ -24,15 +25,17 @@ export type PaymentPart = { id: string; optionKey: string; amount: number | null
 
 export type CheckoutPayment = { paymentTypeExternalId?: string; method?: PaymentMethod; amount: number; tendered?: number }
 
-const KIND_HINT: Record<PaymentMethod, string> = { cash: "Касса", card: "Банковский терминал", qr: "QR-оплата" }
+/** The legacy methods and the hint under a tile, in the interface language (a published type's name is data). */
+const METHOD_KEY = { cash: "payment.methodCash", card: "payment.methodCard", qr: "payment.methodQr" } as const satisfies Record<PaymentMethod, string>
+const KIND_HINT_KEY = { cash: "payment.hintCash", card: "payment.hintCard", qr: "payment.hintQr" } as const satisfies Record<PaymentMethod, string>
 
-export function paymentOptions(types: PosPaymentType[]): PaymentOption[] {
+export function paymentOptions(types: PosPaymentType[], t: Translator = ruT): PaymentOption[] {
   if (types.length === 0) {
     return (Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]).map((method) => ({
       key: `method:${method}`,
       method,
-      name: PAYMENT_METHOD_LABEL[method],
-      hint: KIND_HINT[method],
+      name: t(METHOD_KEY[method]),
+      hint: t(KIND_HINT_KEY[method]),
       combinable: true,
       allowsChange: method === "cash",
     }))
@@ -42,7 +45,7 @@ export function paymentOptions(types: PosPaymentType[]): PaymentOption[] {
     paymentTypeExternalId: type.externalId,
     method: type.data.processorKind,
     name: type.name,
-    hint: type.receiptName && type.receiptName !== type.name ? type.receiptName : KIND_HINT[type.data.processorKind],
+    hint: type.receiptName && type.receiptName !== type.name ? type.receiptName : t(KIND_HINT_KEY[type.data.processorKind]),
     combinable: type.data.combinable,
     allowsChange: type.data.allowsChange,
   }))
@@ -73,18 +76,18 @@ export function changeDue(parts: PaymentPart[], options: PaymentOption[]) {
 }
 
 /** Why the payment cannot be confirmed yet, or null. */
-export function paymentProblem(parts: PaymentPart[], options: PaymentOption[], total: number): string | null {
-  if (parts.length === 0) return "Добавьте оплату"
+export function paymentProblem(parts: PaymentPart[], options: PaymentOption[], total: number, t: Translator = ruT): string | null {
+  if (parts.length === 0) return t("payment.addPayment")
   for (const part of parts) {
     const option = options.find((candidate) => candidate.key === part.optionKey)
-    if (!option) return "Выберите способ оплаты"
-    if (!part.amount || part.amount <= 0 || !Number.isInteger(part.amount)) return "Укажите сумму каждой части"
-    if (option.allowsChange && partTendered(part) < part.amount) return "Полученной суммы недостаточно"
-    if (parts.length > 1 && !option.combinable) return `«${option.name}» нельзя сочетать с другими типами оплаты`
+    if (!option) return t("payment.chooseMethod")
+    if (!part.amount || part.amount <= 0 || !Number.isInteger(part.amount)) return t("payment.partAmount")
+    if (option.allowsChange && partTendered(part) < part.amount) return t("payment.notEnough")
+    if (parts.length > 1 && !option.combinable) return t("payment.notCombinable", { name: option.name })
   }
   const rest = total - allocated(parts)
-  if (rest > 0) return `Осталось распределить ${formatTenge(rest)}`
-  if (rest < 0) return `Сумма частей больше заказа на ${formatTenge(-rest)}`
+  if (rest > 0) return t("payment.restToSplit", { amount: formatTenge(rest) })
+  if (rest < 0) return t("payment.partsOver", { amount: formatTenge(-rest) })
   return null
 }
 

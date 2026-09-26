@@ -2,6 +2,7 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
+import { useUiLabels } from "@/shared/lib/ui-labels"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
 const Dialog = DialogPrimitive.Root
@@ -29,22 +30,25 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean }
->(({ className, children, hideClose = false, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content ref={ref} className={cn(contentClass, className)} {...props}>
-      {children}
-      {!hideClose && (
-        <DialogPrimitive.Close
-          aria-label="Закрыть"
-          className={cn("absolute top-3 right-3 grid size-11 place-items-center rounded-control text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", focusRingClass)}
-        >
-          <X className="size-5" />
-        </DialogPrimitive.Close>
-      )}
-    </DialogPrimitive.Content>
-  </DialogPortal>
-))
+>(({ className, children, hideClose = false, ...props }, ref) => {
+  const labels = useUiLabels()
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content ref={ref} className={cn(contentClass, className)} {...props}>
+        {children}
+        {!hideClose && (
+          <DialogPrimitive.Close
+            aria-label={labels.close}
+            className={cn("absolute top-3 right-3 grid size-11 place-items-center rounded-control text-muted-foreground transition-colors hover:bg-muted hover:text-foreground", focusRingClass)}
+          >
+            <X className="size-5" />
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn("flex flex-col gap-1.5 pr-10", className)} {...props} />

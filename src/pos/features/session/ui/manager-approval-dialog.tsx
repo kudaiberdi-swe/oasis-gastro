@@ -2,8 +2,8 @@ import { useAction } from "convex/react"
 import { useCallback, useRef, useState } from "react"
 
 import { api } from "../../../../../convex/_generated/api"
+import { posErrorMessage, useT } from "@/pos/i18n"
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, PinPad } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
 
 /**
  * Imperative manager-PIN approval. `requestApproval(reason)` opens the dialog and resolves
@@ -12,6 +12,7 @@ import { errorMessage } from "@/shared/lib/error-message"
  * stored beyond the single call site that requested it.
  */
 export function useManagerApproval(terminalExternalId: string) {
+  const t = useT()
   const login = useAction(api.domains.auth.actions.login)
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState("")
@@ -64,7 +65,7 @@ export function useManagerApproval(terminalExternalId: string) {
       resolver.current?.(result.sessionToken)
       resolver.current = null
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось подтвердить"))
+      setError(posErrorMessage(t, caught, t("approval.failed")))
       setPin("")
       setSubmitting(false)
     }
@@ -74,13 +75,13 @@ export function useManagerApproval(terminalExternalId: string) {
     <Dialog open={open} onOpenChange={(next) => !next && cancel()}>
       <DialogContent hideClose>
         <DialogHeader>
-          <DialogTitle>Подтверждение менеджера</DialogTitle>
+          <DialogTitle>{t("approval.title")}</DialogTitle>
           <DialogDescription>{reason}</DialogDescription>
         </DialogHeader>
-        <p className="text-center text-body-sm font-medium text-muted-foreground">{stage === "code" ? "Код менеджера" : "PIN-код"}</p>
+        <p className="text-center text-body-sm font-medium text-muted-foreground">{stage === "code" ? t("approval.code") : t("login.pin")}</p>
         <PinPad
           key={stage}
-          label={stage === "code" ? "Код менеджера" : "PIN-код"}
+          label={stage === "code" ? t("approval.code") : t("login.pin")}
           value={active}
           onValueChange={(next) => {
             setError(null)
@@ -95,10 +96,10 @@ export function useManagerApproval(terminalExternalId: string) {
         {error && <p role="alert" className="text-center text-body-sm font-semibold text-destructive">{error}</p>}
         <div className="flex gap-2">
           <Button type="button" variant="secondary" size="lg" className="flex-1" onClick={cancel} disabled={submitting}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button type="button" size="lg" className="flex-1" onClick={submit} disabled={submitting || !active}>
-            {stage === "code" ? "Далее" : submitting ? "Проверка…" : "Подтвердить"}
+            {stage === "code" ? t("common.next") : submitting ? t("approval.checking") : t("common.confirm")}
           </Button>
         </div>
       </DialogContent>

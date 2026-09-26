@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { Bell, LockKeyhole, Menu, Monitor, Store, Wifi, WifiOff } from "lucide-react"
 
+import { ruT, useT, type Translator } from "@/pos/i18n"
 import { Button } from "@/shared/components/ui/button"
 import { formatAlmatyTime } from "@/shared/lib/almaty-time"
 import { cn, focusRingClass } from "@/shared/lib/utils"
@@ -19,7 +20,7 @@ const navButton = "text-nav-foreground hover:bg-nav-raised hover:text-nav-foregr
 /** Convex connection as the header shows it: «Синхронизировано», sending changes, or no link. */
 export type SyncState = "synced" | "syncing" | "offline"
 
-const SYNC_LABEL: Record<SyncState, string> = { synced: "Синхронизировано", syncing: "Синхронизация…", offline: "Нет связи" }
+const SYNC_KEY = { synced: "header.synced", syncing: "header.syncing", offline: "header.offline" } as const satisfies Record<SyncState, string>
 
 /** `slow` — a request has been in flight long enough to show; quick ones never flash «Синхронизация…». */
 export function syncStateFrom(connection: { isWebSocketConnected: boolean; hasEverConnected?: boolean }, slow = false): SyncState {
@@ -27,23 +28,24 @@ export function syncStateFrom(connection: { isWebSocketConnected: boolean; hasEv
   return slow ? "syncing" : "synced"
 }
 
-/** «24 сентября» in Almaty time — the date under the employee's role. */
-export function headerDate(value: number) {
-  return new Date(value).toLocaleDateString("ru-RU", { timeZone: "Asia/Almaty", day: "numeric", month: "long" })
+/** «24 сентября» / «24 қыркүйек» in Almaty time — the date under the employee's role. */
+export function headerDate(value: number, t: Translator = ruT) {
+  return new Date(value).toLocaleDateString(t.intl, { timeZone: "Asia/Almaty", day: "numeric", month: "long" })
 }
 
 /** «Касса / Офис» (manager and administrator only). The office has its own sign-in (L-7). */
 function SurfaceSwitch({ officeHref }: { officeHref: string }) {
+  const t = useT()
   const item = "inline-flex h-9 items-center gap-2 rounded-control px-3 text-body-sm [&_svg]:size-[18px]"
   return (
-    <nav aria-label="Раздел" className="flex items-center gap-1 rounded-control bg-nav-raised p-1">
+    <nav aria-label={t("header.section")} className="flex items-center gap-1 rounded-control bg-nav-raised p-1">
       <span aria-current="page" className={cn(item, "border border-nav-muted/40 bg-nav font-semibold text-nav-foreground")}>
         <Store aria-hidden />
-        Касса
+        {t("header.pos")}
       </span>
       <a href={officeHref} className={cn(item, "font-medium text-nav-muted hover:text-nav-foreground", focusRingClass)}>
         <Monitor aria-hidden />
-        Офис
+        {t("header.office")}
       </a>
     </nav>
   )
@@ -51,7 +53,8 @@ function SurfaceSwitch({ officeHref }: { officeHref: string }) {
 
 /** ≥1440 — icon and text; narrower — icon and a dot, the text stays for screen readers (§11.2). */
 export function SyncIndicator({ state }: { state: SyncState }) {
-  const label = SYNC_LABEL[state]
+  const t = useT()
+  const label = t(SYNC_KEY[state])
   return (
     <span title={label} className="inline-flex h-11 items-center gap-2 px-2 text-body-sm font-medium text-nav-foreground">
       {state === "offline" ? <WifiOff aria-hidden className="size-[18px] text-nav-muted" /> : <Wifi aria-hidden className={cn("size-[18px]", state === "synced" ? "text-nav-accent" : "text-nav-muted")} />}
@@ -111,13 +114,14 @@ export function AppHeader({
   onProfile?: () => void
   onLock: () => void
 }) {
+  const t = useT()
   const brand = restaurantName.startsWith("Sandyq") ? restaurantName : `Sandyq · ${restaurantName}`
   const place = [terminalName, city].filter(Boolean).join(" · ")
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-4 rounded-panel bg-nav px-2 text-nav-foreground">
       <div className="flex min-w-0 items-center gap-2">
         {onMenu && (
-          <Button variant="ghost" size="icon" aria-label="Главное меню" className={cn(navButton, "size-12")} onClick={onMenu}>
+          <Button variant="ghost" size="icon" aria-label={t("header.mainMenu")} className={cn(navButton, "size-12")} onClick={onMenu}>
             <Menu />
           </Button>
         )}
@@ -137,19 +141,19 @@ export function AppHeader({
           <button
             type="button"
             onClick={onOpenShiftInfo}
-            aria-label={`Смена №${shiftNumber}${shiftOpenedAt != null ? `, открыта в ${formatAlmatyTime(shiftOpenedAt)}` : ""}${shiftWarning ? ", открыта более 24 часов" : ""}`}
+            aria-label={[t("header.shift", { number: shiftNumber }), shiftOpenedAt != null ? t("header.shiftOpenedAt", { time: formatAlmatyTime(shiftOpenedAt, t.intl) }) : "", shiftWarning ? t("header.shiftOver24") : ""].filter(Boolean).join(", ")}
             className={cn("ml-2 inline-flex h-12 shrink-0 items-center gap-2 rounded-control bg-nav-raised px-3 text-body-sm font-semibold text-nav-foreground hover:text-nav-accent", focusRingClass)}
           >
             <span aria-hidden className={cn("size-2 rounded-round", shiftWarning ? "bg-warning" : "bg-success")} />
-            Смена №{shiftNumber}
-            {shiftOpenedAt != null && <span className="font-normal text-nav-muted">· открыта {formatAlmatyTime(shiftOpenedAt)}</span>}
+            {t("header.shift", { number: shiftNumber })}
+            {shiftOpenedAt != null && <span className="font-normal text-nav-muted">· {t("header.shiftOpened", { time: formatAlmatyTime(shiftOpenedAt, t.intl) })}</span>}
           </button>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {syncIndicator}
         {onNotifications && (
-          <Button variant="ghost" size="icon" aria-label={unreadNotifications ? `Уведомления: ${unreadNotifications} новых` : "Уведомления"} className={cn(navButton, "relative size-12")} onClick={onNotifications}>
+          <Button variant="ghost" size="icon" aria-label={unreadNotifications ? t("header.notificationsUnread", { count: unreadNotifications }) : t("header.notifications")} className={cn(navButton, "relative size-12")} onClick={onNotifications}>
             <Bell />
             {unreadNotifications > 0 && (
               <span aria-hidden className="absolute top-0 right-0 grid h-6 min-w-6 place-items-center rounded-round bg-destructive px-1 text-body-sm leading-none font-semibold text-destructive-foreground tabular-nums">
@@ -158,17 +162,17 @@ export function AppHeader({
             )}
           </Button>
         )}
-        <Button variant="ghost" size="icon" aria-label="Заблокировать кассу" className={cn(navButton, "size-12")} onClick={onLock}>
+        <Button variant="ghost" size="icon" aria-label={t("header.lock")} className={cn(navButton, "size-12")} onClick={onLock}>
           <LockKeyhole />
         </Button>
         <button
           type="button"
           onClick={onProfile ?? onOpenShiftInfo}
-          aria-label={`Профиль: ${employeeName}`}
+          aria-label={t("header.profile", { name: employeeName })}
           className={cn("ml-1 flex h-12 max-w-56 flex-col items-end justify-center rounded-control px-2 leading-tight hover:bg-nav-raised", focusRingClass)}
         >
           <span className="max-w-full truncate text-body-sm font-semibold text-nav-foreground">{employeeName}</span>
-          <span className="max-w-full truncate text-body-sm text-nav-muted">{[employeeRole, headerDate(now ?? Date.now())].filter(Boolean).join(" · ")}</span>
+          <span className="max-w-full truncate text-body-sm text-nav-muted">{[employeeRole, headerDate(now ?? Date.now(), t)].filter(Boolean).join(" · ")}</span>
         </button>
       </div>
     </header>

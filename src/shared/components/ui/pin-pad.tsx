@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Delete } from "lucide-react"
 
+import { useUiLabels } from "@/shared/lib/ui-labels"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "backspace"] as const
@@ -26,6 +27,7 @@ function isTypingInField(target: EventTarget | null) {
 
 /** 3×4 keypad, 72×64 keys, Cormorant digits, gold dots; digits, Backspace and Enter also from the keyboard (S-14). */
 export function PinPad({ value, onValueChange, maxLength, onSubmit, secret = false, label, disabled = false, captureKeyboard = true, className }: PinPadProps) {
+  const labels = useUiLabels()
   const latest = React.useRef({ value, onValueChange, onSubmit, maxLength, disabled })
   latest.current = { value, onValueChange, onSubmit, maxLength, disabled }
 
@@ -60,7 +62,7 @@ export function PinPad({ value, onValueChange, maxLength, onSubmit, secret = fal
 
   return (
     <div className={cn("flex flex-col items-center gap-4", className)}>
-      <div role="status" aria-label={`${label}: введено ${value.length} из ${maxLength}`} className="flex h-10 items-center justify-center gap-3">
+      <div role="status" aria-label={labels.entered(label, value.length, maxLength)} className="flex h-10 items-center justify-center gap-3">
         {secret ? (
           Array.from({ length: Math.max(value.length, 4) }, (_, index) => (
             <span key={index} className={cn("size-3.5 rounded-round border-2 border-gold", index < value.length && "bg-gold")} />
@@ -74,7 +76,7 @@ export function PinPad({ value, onValueChange, maxLength, onSubmit, secret = fal
           key === "" ? (
             <span key={`spacer-${index}`} />
           ) : key === "backspace" ? (
-            <button key={key} type="button" className={keyClass} disabled={disabled} onClick={() => press(key)} aria-label="Стереть">
+            <button key={key} type="button" className={keyClass} disabled={disabled} onClick={() => press(key)} aria-label={labels.erase}>
               <Delete className="size-6" />
             </button>
           ) : (

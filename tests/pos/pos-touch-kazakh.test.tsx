@@ -175,13 +175,14 @@ describe("ProfileDialog — screen settings moved out of the header", () => {
     expect(document.documentElement.dataset.density).toBe("compact")
   })
 
-  it("reserves «Язык интерфейса»: Russian active, Kazakh disabled «скоро»", () => {
+  it("«Язык интерфейса»: Russian active by default, Kazakh available (no «скоро»)", () => {
     renderProfile()
     const language = screen.getByRole("radiogroup", { name: "Язык интерфейса" })
     expect(within(language).getByRole("radio", { name: "Русский" }).getAttribute("aria-checked")).toBe("true")
-    const kazakh = within(language).getByRole("radio", { name: /Қазақша · скоро/ })
-    expect(kazakh).toHaveProperty("disabled", true)
+    const kazakh = within(language).getByRole("radio", { name: "Қазақша" })
+    expect(kazakh).toHaveProperty("disabled", false)
     expect(within(kazakh).getByText("Қазақша").getAttribute("lang")).toBe("kk")
+    expect(screen.queryByText(/скоро/)).toBeNull()
   })
 })
 

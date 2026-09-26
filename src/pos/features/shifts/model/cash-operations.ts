@@ -1,4 +1,5 @@
 import type { PosCashOperationType } from "@/pos/features/retail/data/use-retail-settings"
+import { ruT, type Translator } from "@/pos/i18n"
 import { formatTenge } from "@/shared/lib/format"
 
 // Cash in / cash out (W1-POS-08/19). With published cash operation types the direction, limit and
@@ -16,14 +17,14 @@ export function cashNeedsManager(direction: CashDirection, type: PosCashOperatio
 }
 
 /** Why the operation cannot be saved yet, or null. */
-export function cashMovementProblem(input: { legacy: boolean; type: PosCashOperationType | undefined; amount: number | null; comment: string; expectedCash?: number; direction: CashDirection }) {
-  if (!input.legacy && !input.type) return "Выберите тип операции"
-  if (!input.amount || input.amount <= 0) return "Введите сумму больше нуля"
-  if (input.type && input.amount > input.type.data.maximumAmount) return `Лимит операции — ${formatTenge(input.type.data.maximumAmount)}`
+export function cashMovementProblem(input: { legacy: boolean; type: PosCashOperationType | undefined; amount: number | null; comment: string; expectedCash?: number; direction: CashDirection }, t: Translator = ruT) {
+  if (!input.legacy && !input.type) return t("cash.chooseType")
+  if (!input.amount || input.amount <= 0) return t("cash.amountPositive")
+  if (input.type && input.amount > input.type.data.maximumAmount) return t("cash.overLimit", { amount: formatTenge(input.type.data.maximumAmount) })
   // No amount in the copy: a cashier must not learn the drawer's cash before the blind count (a manager's
   // shift passes expectedCash, a cashier's does not; the server answers with the same words).
-  if (input.direction === "cash-out" && input.expectedCash !== undefined && input.amount > input.expectedCash) return "Сумма больше, чем учтено в кассе"
-  if (input.legacy && input.comment.trim().length < 3) return "Укажите причину операции"
+  if (input.direction === "cash-out" && input.expectedCash !== undefined && input.amount > input.expectedCash) return t("cash.overExpected")
+  if (input.legacy && input.comment.trim().length < 3) return t("cash.reasonRequired")
   return null
 }
 

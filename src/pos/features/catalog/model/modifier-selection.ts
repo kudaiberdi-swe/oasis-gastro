@@ -2,6 +2,8 @@
 // (priceModifiers): a rule not touched keeps its default quantity, free portions come from the rule
 // first and then from the group's pool. The price here is only a preview — the server prices the line.
 
+import { ruT, type Translator } from "@/pos/i18n"
+
 export type ConfigurationOption = {
   externalId: string
   name: string
@@ -55,12 +57,12 @@ export function defaultQuantities(groups: ConfigurationGroup[]): ModifierQuantit
  * «· 1 бесплатно» when some portions are free. No zeros («от 0 …», «бесплатно 0») and no limit that
  * is not a real one.
  */
-export function groupHint(group: Pick<ConfigurationGroup, "minQuantity" | "maxQuantity" | "freeQuantity" | "required">) {
+export function groupHint(group: Pick<ConfigurationGroup, "minQuantity" | "maxQuantity" | "freeQuantity" | "required">, t: Translator = ruT) {
   const min = Math.max(group.minQuantity, group.required ? 1 : 0)
   const max = group.maxQuantity
   const limited = Number.isFinite(max) && max > 0 && max < 99
-  const limit = min > 0 && min === max ? `выберите ${min}` : min > 0 && limited ? `от ${min} до ${max}` : min > 0 ? `не меньше ${min}` : limited ? `не больше ${max}` : ""
-  const free = group.freeQuantity > 0 ? `${group.freeQuantity} бесплатно` : ""
+  const limit = min > 0 && min === max ? t("modifier.hintExact", { count: min }) : min > 0 && limited ? t("modifier.hintRange", { min, max }) : min > 0 ? t("modifier.hintMin", { min }) : limited ? t("modifier.hintMax", { max }) : ""
+  const free = group.freeQuantity > 0 ? t("modifier.free", { count: group.freeQuantity }) : ""
   return [limit, free].filter(Boolean).join(" · ")
 }
 
@@ -130,20 +132,20 @@ export function unitPrice(configuration: ProductConfiguration, sizeExternalId: s
 }
 
 /** What still blocks «Добавить в заказ»: one message per group, keyed by group externalId. */
-export function selectionProblems(configuration: ProductConfiguration, sizeExternalId: string | undefined, quantities: ModifierQuantities): Record<string, string> {
+export function selectionProblems(configuration: ProductConfiguration, sizeExternalId: string | undefined, quantities: ModifierQuantities, t: Translator = ruT): Record<string, string> {
   const problems: Record<string, string> = {}
-  if (configuration.sizes.length > 0 && !configuration.sizes.some((size) => size.externalId === sizeExternalId && size.available)) problems.size = "Выберите размер"
+  if (configuration.sizes.length > 0 && !configuration.sizes.some((size) => size.externalId === sizeExternalId && size.available)) problems.size = t("modifier.chooseSize")
   for (const group of configuration.groups) {
     const chosen = groupQuantity(group, quantities)
     const minimum = groupMinimum(group)
-    if (chosen < minimum) problems[group.groupExternalId] = minimum - chosen === 1 && minimum === 1 ? "Выберите вариант" : `Выберите ещё ${minimum - chosen}`
-    else if (chosen > group.maxQuantity) problems[group.groupExternalId] = `Не больше ${group.maxQuantity}`
+    if (chosen < minimum) problems[group.groupExternalId] = minimum - chosen === 1 && minimum === 1 ? t("modifier.chooseOption") : t("modifier.chooseMore", { count: minimum - chosen })
+    else if (chosen > group.maxQuantity) problems[group.groupExternalId] = t("modifier.notMore", { max: group.maxQuantity })
     else if (group.enforceItemLimits) {
       const outOfRange = group.options.find((option) => {
         const quantity = quantities[option.externalId] ?? option.defaultQuantity
         return quantity < option.minQuantity || quantity > option.maxQuantity
       })
-      if (outOfRange) problems[group.groupExternalId] = `Проверьте количество «${outOfRange.name}»`
+      if (outOfRange) problems[group.groupExternalId] = t("modifier.checkQuantity", { name: t.locale === "kk" && outOfRange.nameKk?.trim() ? outOfRange.nameKk : outOfRange.name })
     }
   }
   return problems

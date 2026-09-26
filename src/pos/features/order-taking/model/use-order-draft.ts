@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { useOrderMutations } from "../data/use-orders"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, useT } from "@/pos/i18n"
 import type { OrderType } from "@/shared/types/pos"
 import type { PosOrderType } from "@/pos/features/retail/data/use-retail-settings"
 import {
@@ -111,6 +111,10 @@ export function useOrderDraft(args: {
     moveToTable: moveToTableMutation,
     cancel: cancelMutation,
   } = useOrderMutations()
+  // The draft's own messages in the interface language; a ref, so switching it never rebuilds the callbacks.
+  const translator = useT()
+  const tRef = useRef(translator)
+  tRef.current = translator
   const [orderId, setOrderId] = useState<Id<"orders"> | null>(args.initialOrderId)
   const [orderNumber, setOrderNumber] = useState<number | undefined>(undefined)
   const [lines, setLines] = useState<OrderDraftLine[]>([])
@@ -228,13 +232,13 @@ export function useOrderDraft(args: {
             lines: toDraftLineInputs(next.lines),
           })
           if ("outcome" in result) {
-            if (check.current === context) setError("Заказ больше нельзя редактировать")
+            if (check.current === context) setError(tRef.current("draft.locked"))
             return
           }
           applyServerOrder(context, result as ServerOrder, result.version)
           return result
         } catch (caught) {
-          if (check.current === context) setError(errorMessage(caught, "Не удалось сохранить заказ"))
+          if (check.current === context) setError(posErrorMessage(tRef.current, caught, tRef.current("draft.saveFailed")))
           throw caught
         }
       })
@@ -271,7 +275,7 @@ export function useOrderDraft(args: {
       setLines((current) => {
         const next = setLineQuantity(current, clientLineId, quantity)
         if (next === current) {
-          if (current.some((line) => line.clientLineId === clientLineId)) setError("Позиция уже на кухне — изменить её можно только через «Удалить позицию»")
+          if (current.some((line) => line.clientLineId === clientLineId)) setError(tRef.current("draft.lineSent"))
           return current
         }
         void persist({ lines: next, tableLabel, discountPercent, discountReason, comment, orderType }).catch(() => undefined)
@@ -305,14 +309,14 @@ export function useOrderDraft(args: {
   const sendToKitchen = useCallback(() => {
     const context = check.current
     return enqueue(async () => {
-      if (!context.orderId) throw new Error("Сначала добавьте позиции в заказ")
+      if (!context.orderId) throw new Error(tRef.current("draft.addFirst"))
       if (check.current === context) setError(null)
       try {
         const result = await sendToKitchenMutation({ sessionToken: args.sessionToken, orderId: context.orderId, expectedVersion: context.version })
         applyServerOrder(context, result.order as ServerOrder, result.version)
         return result.ticketId
       } catch (caught) {
-        if (check.current === context) setError(errorMessage(caught, "Не удалось отправить на кухню"))
+        if (check.current === context) setError(posErrorMessage(tRef.current, caught, tRef.current("draft.sendFailed")))
         throw caught
       }
     })
@@ -324,7 +328,7 @@ export function useOrderDraft(args: {
       const context = check.current
       return enqueue(async () => {
         const line = lines.find((candidate) => candidate.clientLineId === clientLineId)
-        if (!context.orderId || !line?.serverLineId) throw new Error("Позиция ещё не сохранена")
+        if (!context.orderId || !line?.serverLineId) throw new Error(tRef.current("draft.lineNotSaved"))
         const result = await voidLineMutation({
           sessionToken: args.sessionToken,
           orderId: context.orderId,
@@ -401,12 +405,12 @@ export function useOrderDraft(args: {
     (rows: Array<{ clientLineId: string; quantity: number }>) => {
       const context = check.current
       return enqueue(async () => {
-        if (!context.orderId) throw new Error("Сначала добавьте позиции в заказ")
+        if (!context.orderId) throw new Error(tRef.current("draft.addFirst"))
         const lines = rows
           .filter((row) => row.quantity > 0)
           .map((row) => {
             const line = context.serverLines.find((candidate) => candidate.clientLineId === row.clientLineId && !candidate.voidedAt)
-            if (!line?._id) throw new Error("Позиция ещё не сохранена — повторите через секунду")
+            if (!line?._id) throw new Error(tRef.current("draft.lineNotSavedRetry"))
             return { orderLineId: line._id as Id<"orderLines">, quantity: row.quantity }
           })
         const result = await splitMutation({ sessionToken: args.sessionToken, orderId: context.orderId, expectedVersion: context.version, lines })
@@ -425,7 +429,7 @@ export function useOrderDraft(args: {
     (input: { deletionReasonExternalId?: string; comment?: string; reason?: string; managerApprovalToken: string }) => {
       const context = check.current
       return enqueue(async () => {
-        if (!context.orderId) throw new Error("Заказ ещё не сохранён")
+        if (!context.orderId) throw new Error(tRef.current("blocks.cancel"))
         await cancelMutation({ sessionToken: args.sessionToken, orderId: context.orderId, expectedVersion: context.version, ...input })
       })
     },

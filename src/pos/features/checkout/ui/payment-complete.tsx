@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Printer } from "lucide-react"
 
-import { PAYMENT_METHOD_LABEL } from "@/pos/features/checkout/model/order-receipt"
+import { ruT, useT, type Translator } from "@/pos/i18n"
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Money } from "@/shared/components/ui"
 import type { PaymentMethod } from "@/shared/types/pos"
 
@@ -18,13 +18,15 @@ type CheckoutReceipt = {
   receipt: { tableLabel?: string; payments: Array<{ type: "sale" | "refund"; method: PaymentMethod; amount: number; change?: number; paymentTypeName?: string }> }
 }
 
-/** From the orders.checkout answer: the sale payments by their type name, the change handed back. */
-export function paidCheckFrom(result: CheckoutReceipt): PaidCheck {
+const METHOD_KEY = { cash: "payment.methodCash", card: "payment.methodCard", qr: "payment.methodQr" } as const satisfies Record<PaymentMethod, string>
+
+/** From the orders.checkout answer: the sale payments by their type name (else the method, in the interface language), the change handed back. */
+export function paidCheckFrom(result: CheckoutReceipt, t: Translator = ruT): PaidCheck {
   const sales = result.receipt.payments.filter((payment) => payment.type === "sale")
   return {
     orderNumber: result.number,
     tableLabel: result.receipt.tableLabel || undefined,
-    payments: sales.map((payment) => ({ name: payment.paymentTypeName || PAYMENT_METHOD_LABEL[payment.method], amount: payment.amount })),
+    payments: sales.map((payment) => ({ name: payment.paymentTypeName || t(METHOD_KEY[payment.method]), amount: payment.amount })),
     change: sales.reduce((sum, payment) => sum + (payment.change ?? 0), 0),
   }
 }
@@ -45,6 +47,7 @@ export function PaymentComplete({
   onPrint: () => boolean
   onNewTable: () => void
 }) {
+  const t = useT()
   const [printFailed, setPrintFailed] = useState(false)
   const [shown, setShown] = useState<PaidCheck | null>(paid)
   // Keep the last check on screen while the dialog fades out; a new check clears the print error.
@@ -58,8 +61,8 @@ export function PaymentComplete({
     <Dialog open={paid !== null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Оплачено</DialogTitle>
-          <DialogDescription>{check ? [`Заказ №${check.orderNumber}`, check.tableLabel].filter(Boolean).join(" · ") : null}</DialogDescription>
+          <DialogTitle>{t("paid.title")}</DialogTitle>
+          <DialogDescription>{check ? [t("common.orderNumber", { number: check.orderNumber }), check.tableLabel].filter(Boolean).join(" · ") : null}</DialogDescription>
         </DialogHeader>
         {check && (
           <dl className="flex flex-col gap-2 rounded-card border border-border p-4">
@@ -73,7 +76,7 @@ export function PaymentComplete({
             ))}
             {check.change > 0 && (
               <div className="flex items-baseline justify-between gap-3 border-t border-gold/45 pt-2">
-                <dt className="text-body font-semibold">Сдача</dt>
+                <dt className="text-body font-semibold">{t("common.change")}</dt>
                 <dd>
                   <Money value={check.change} size="lg" className="text-success" />
                 </dd>
@@ -83,15 +86,15 @@ export function PaymentComplete({
         )}
         {printFailed && (
           <p role="alert" className="text-body-sm font-semibold text-destructive">
-            Печать недоступна на этом устройстве. Чек можно напечатать из истории заказов.
+            {t("paid.printFailed")}
           </p>
         )}
         <div className="flex gap-2">
           <Button variant="secondary" size="lg" className="flex-1" onClick={onNewTable}>
-            Новый стол
+            {t("paid.newTable")}
           </Button>
           <Button size="lg" className="flex-1" onClick={() => setPrintFailed(!onPrint())}>
-            <Printer /> Печать чека
+            <Printer /> {t("paid.print")}
           </Button>
         </div>
       </DialogContent>

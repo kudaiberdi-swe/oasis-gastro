@@ -1,5 +1,7 @@
 // Catalog view model (W1-POS-11): what the toolbar shows, the ← history, sorting and «Последние».
 
+import { ruT, type Locale, type Translator } from "@/pos/i18n"
+
 /** A dish as the catalog grid shows it — listProducts, favoriteProducts and «Последние» share it. */
 export type CatalogProduct = {
   _id: string
@@ -54,9 +56,13 @@ export function goBack(state: CatalogNavigation): CatalogNavigation {
 
 const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true })
 
-/** Sorts the loaded page; the server already returns «По названию». Ties fall back to the name. */
-export function sortProducts<T extends CatalogProduct>(items: T[], sort: CatalogSort): T[] {
-  const byName = (a: T, b: T) => collator.compare(a.name, b.name)
+/**
+ * Sorts the loaded page; the server already returns «По названию». Ties fall back to the name. In Kazakh
+ * the cards lead with the Kazakh name, so they are ordered by it (the Russian one where there is none).
+ */
+export function sortProducts<T extends CatalogProduct>(items: T[], sort: CatalogSort, locale: Locale = "ru"): T[] {
+  const shown = (item: T) => (locale === "kk" && item.nameKk?.trim() ? item.nameKk : item.name)
+  const byName = (a: T, b: T) => collator.compare(shown(a), shown(b))
   if (sort === "name") return [...items].sort(byName)
   if (sort === "price") return [...items].sort((a, b) => a.price - b.price || byName(a, b))
   return [...items].sort((a, b) => Number(Boolean(b.popular)) - Number(Boolean(a.popular)) || byName(a, b))
@@ -89,9 +95,8 @@ export function parseRecent(raw: string | null): CatalogProduct[] {
 }
 
 /** Title and hint of the empty grid (pos/24, pos/27). */
-export function emptyCopy(view: CatalogView, search: string): { title: string; description: string } {
-  if (search) return { title: "Ничего не найдено", description: "Проверьте запрос или выберите другую категорию." }
-  if (view.kind === "favorites") return { title: "В избранном пусто", description: "Нажмите ☆ на карточке блюда, чтобы добавить его сюда." }
-  if (view.kind === "recent") return { title: "Последних блюд нет", description: "Здесь появятся блюда, которые вы добавляли в заказы." }
-  return { title: "Ничего не найдено", description: "Проверьте запрос или выберите другую категорию." }
+export function emptyCopy(view: CatalogView, search: string, t: Translator = ruT): { title: string; description: string } {
+  if (view.kind === "favorites" && !search) return { title: t("catalog.favoritesEmpty"), description: t("catalog.favoritesHint") }
+  if (view.kind === "recent" && !search) return { title: t("catalog.recentEmpty"), description: t("catalog.recentHint") }
+  return { title: t("catalog.notFound"), description: t("catalog.notFoundHint") }
 }

@@ -2,7 +2,7 @@ import { useState } from "react"
 
 import type { PosDeletionReason } from "@/pos/features/retail/data/use-retail-settings"
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Field, Select, Textarea } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, ruT, useT, type Translator } from "@/pos/i18n"
 
 export type CancelInput = { deletionReasonExternalId?: string; comment?: string; reason?: string; managerApprovalToken: string }
 
@@ -10,10 +10,10 @@ export type CancelInput = { deletionReasonExternalId?: string; comment?: string;
 const MIN_COMMENT = 3
 
 /** Why «Отменить заказ» cannot be sent yet, or null. With no published reasons the free reason is required. */
-export function cancelProblem(reasons: PosDeletionReason[], reason: PosDeletionReason | undefined, comment: string) {
-  if (reasons.length === 0) return comment.trim().length < MIN_COMMENT ? "Укажите причину отмены" : null
-  if (!reason) return "Выберите основание"
-  if (reason.data.requireComment && comment.trim().length < MIN_COMMENT) return "Для этой причины нужен комментарий"
+export function cancelProblem(reasons: PosDeletionReason[], reason: PosDeletionReason | undefined, comment: string, t: Translator = ruT) {
+  if (reasons.length === 0) return comment.trim().length < MIN_COMMENT ? t("cancel.reasonRequired") : null
+  if (!reason) return t("cancel.chooseBasis")
+  if (reason.data.requireComment && comment.trim().length < MIN_COMMENT) return t("cancel.commentRequired")
   return null
 }
 
@@ -75,12 +75,13 @@ function CancelForm({
   onDone: () => void
   onManagerRequired: (reason: string) => Promise<string | null>
 }) {
+  const t = useT()
   const [reasonId, setReasonId] = useState<string | undefined>(reasons.length === 1 ? reasons[0].externalId : undefined)
   const [comment, setComment] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const reason = reasons.find((candidate) => candidate.externalId === reasonId)
-  const problem = cancelProblem(reasons, reason, comment)
+  const problem = cancelProblem(reasons, reason, comment, t)
   const legacy = reasons.length === 0
 
   async function submit() {
@@ -88,13 +89,13 @@ function CancelForm({
     setSubmitting(true)
     setError(null)
     try {
-      const what = orderNumber !== undefined ? `заказа №${orderNumber}` : "заказа"
-      const token = await onManagerRequired(`Отмена ${what}${reason ? ` (${reason.name})` : ""} требует подтверждения менеджера`)
+      const because = reason ? ` (${reason.name})` : ""
+      const token = await onManagerRequired(orderNumber !== undefined ? t("cancel.approvalNumber", { number: orderNumber, reason: because }) : t("cancel.approval", { reason: because }))
       if (!token) return
       await onCancel(legacy ? { reason: comment.trim(), managerApprovalToken: token } : { deletionReasonExternalId: reason!.externalId, comment: comment.trim() || undefined, managerApprovalToken: token })
       onDone()
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось отменить заказ"))
+      setError(posErrorMessage(t, caught, t("cancel.failed")))
     } finally {
       setSubmitting(false)
     }
@@ -103,13 +104,14 @@ function CancelForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Отменить заказ{orderNumber !== undefined ? ` №${orderNumber}` : ""}</DialogTitle>
+        <DialogTitle>{orderNumber !== undefined ? t("cancel.titleNumber", { number: orderNumber }) : t("cancel.title")}</DialogTitle>
         <DialogDescription>
-          Заказ закроется без оплаты, запись с причиной останется в журнале кассы.{sentToKitchen ? " Кухня получит отмену." : ""}
+          {t("cancel.description")}
+          {sentToKitchen ? ` ${t("cancel.kitchen")}` : ""}
         </DialogDescription>
       </DialogHeader>
       {!legacy && (
-        <Field label="Основание" hint={reason?.data.writeOff && sentToKitchen ? "Отправленные на кухню блюда спишутся по техкарте" : undefined}>
+        <Field label={t("cancel.basis")} hint={reason?.data.writeOff && sentToKitchen ? t("cancel.writeOffHint") : undefined}>
           {(control) => (
             <Select
               {...control}
@@ -118,15 +120,15 @@ function CancelForm({
                 setReasonId(value)
                 setError(null)
               }}
-              placeholder="Выберите основание"
-              options={reasons.map((candidate) => ({ value: candidate.externalId, label: candidate.data.writeOff ? `${candidate.name} · со списанием` : candidate.name }))}
+              placeholder={t("cancel.chooseBasis")}
+              options={reasons.map((candidate) => ({ value: candidate.externalId, label: candidate.data.writeOff ? t("cancel.withWriteOff", { name: candidate.name }) : candidate.name }))}
               className="h-[var(--control-h-pos)] text-body"
             />
           )}
         </Field>
       )}
-      <Field label={legacy || reason?.data.requireComment ? "Причина (обязательно)" : "Комментарий"}>
-        {(control) => <Textarea {...control} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Например, гость ушёл до подачи" className="text-body" />}
+      <Field label={legacy || reason?.data.requireComment ? t("cancel.reasonRequiredLabel") : t("common.comment")}>
+        {(control) => <Textarea {...control} value={comment} onChange={(event) => setComment(event.target.value)} placeholder={t("cancel.placeholder")} className="text-body" />}
       </Field>
       {error && (
         <p role="alert" className="text-body-sm font-semibold text-destructive">
@@ -135,10 +137,10 @@ function CancelForm({
       )}
       <DialogFooter>
         <Button variant="secondary" size="lg" onClick={onBack} disabled={submitting}>
-          Назад
+          {t("common.back")}
         </Button>
         <Button variant="danger" size="lg" onClick={submit} disabled={Boolean(problem) || submitting}>
-          {submitting ? "Отмена…" : "Отменить заказ"}
+          {submitting ? t("cancel.submitting") : t("cancel.title")}
         </Button>
       </DialogFooter>
     </>

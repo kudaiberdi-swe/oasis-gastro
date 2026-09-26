@@ -1,17 +1,17 @@
 import { useRef, useState } from "react"
 
 import type { PosDeletionReason } from "@/pos/features/retail/data/use-retail-settings"
-import { lineDetails, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
+import { lineDetails, lineDetailsKk, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Field, Money, RadioGroup, Textarea } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, ruT, useT, type Translator } from "@/pos/i18n"
 
 /** A manager confirms when the reason says so or the kitchen already has the line (voidLine on the server). */
 export function voidNeedsManager(reason: PosDeletionReason | undefined, line: Pick<OrderDraftLine, "sentToKitchenAt">) {
   return Boolean(reason?.data.requireManager || line.sentToKitchenAt)
 }
 
-function reasonHint(reason: PosDeletionReason) {
-  return [reason.data.requireComment && "нужен комментарий", reason.data.requireManager && "подтверждает менеджер", reason.data.writeOff && "списание по техкарте"].filter(Boolean).join(" · ") || undefined
+function reasonHint(reason: PosDeletionReason, t: Translator = ruT) {
+  return [reason.data.requireComment && t("void.hintComment"), reason.data.requireManager && t("void.hintManager"), reason.data.writeOff && t("void.hintWriteOff")].filter(Boolean).join(" · ") || undefined
 }
 
 /**
@@ -32,6 +32,7 @@ export function VoidLineDialog({
   onVoid: (input: { deletionReasonExternalId: string; comment?: string; managerApprovalToken?: string }) => Promise<unknown>
   onManagerRequired: (reason: string) => Promise<string | null>
 }) {
+  const t = useT()
   const [reasonId, setReasonId] = useState<string | undefined>(undefined)
   const [comment, setComment] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -55,7 +56,7 @@ export function VoidLineDialog({
   async function submit() {
     if (!line || !reason || submitting) return
     if (commentMissing) {
-      setError("Для этой причины нужен комментарий")
+      setError(t("cancel.commentRequired"))
       return
     }
     setSubmitting(true)
@@ -63,7 +64,7 @@ export function VoidLineDialog({
     try {
       let managerApprovalToken: string | undefined
       if (voidNeedsManager(reason, line)) {
-        const token = await onManagerRequired(`Удаление «${line.name}» (${reason.name}) требует подтверждения менеджера`)
+        const token = await onManagerRequired(t("void.approval", { name: t.locale === "kk" && line.nameKk?.trim() ? line.nameKk : line.name, reason: reason.name }))
         if (!token) {
           setSubmitting(false)
           return
@@ -73,7 +74,7 @@ export function VoidLineDialog({
       await onVoid({ deletionReasonExternalId: reason.externalId, comment: comment.trim() || undefined, managerApprovalToken })
       onOpenChange(false)
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось удалить позицию"))
+      setError(posErrorMessage(t, caught, t("void.failed")))
     } finally {
       setSubmitting(false)
     }
@@ -83,28 +84,28 @@ export function VoidLineDialog({
     <Dialog open={line !== null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Удалить позицию</DialogTitle>
+          <DialogTitle>{t("actions.void")}</DialogTitle>
           <DialogDescription>
-            {line?.sentToKitchenAt ? "Позиция уже на кухне: кухня получит отмену, нужен PIN менеджера." : "Удаление сохранится в журнале кассы вместе с причиной."}
+            {line?.sentToKitchenAt ? t("void.kitchenDescription") : t("void.description")}
           </DialogDescription>
         </DialogHeader>
         {line && (
           <div className="flex items-start justify-between gap-3 rounded-control border border-border bg-muted/40 px-3 py-2">
             <div className="min-w-0">
               <p className="text-body font-semibold">
-                {line.quantity} × {line.name}
+                {line.quantity} × <span lang={t.locale === "kk" && line.nameKk?.trim() ? "kk" : "ru"}>{t.locale === "kk" && line.nameKk?.trim() ? line.nameKk : line.name}</span>
               </p>
-              {lineDetails(line) && <p className="text-body-sm text-muted-foreground">{lineDetails(line)}</p>}
+              {lineDetails(line) && <p className="text-body-sm text-muted-foreground">{t.locale === "kk" ? (lineDetailsKk(line) ?? lineDetails(line)) : lineDetails(line)}</p>}
             </div>
             <Money value={lineTotal(line)} size="sm" />
           </div>
         )}
         {reasons.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">Причины удаления не настроены. Опубликуйте их в Office → «Причины удалений».</p>
+          <p className="text-body-sm text-muted-foreground">{t("void.noReasons")}</p>
         ) : (
           <div className="grid gap-1.5">
             <p id="void-reason-label" className="text-body-sm font-medium text-muted-foreground">
-              Основание
+              {t("cancel.basis")}
             </p>
             <RadioGroup
               aria-labelledby="void-reason-label"
@@ -113,12 +114,12 @@ export function VoidLineDialog({
                 setReasonId(value)
                 setError(null)
               }}
-              options={reasons.map((candidate) => ({ value: candidate.externalId, label: candidate.name, description: reasonHint(candidate) }))}
+              options={reasons.map((candidate) => ({ value: candidate.externalId, label: candidate.name, description: reasonHint(candidate, t) }))}
             />
           </div>
         )}
-        <Field label={commentRequired ? "Комментарий (обязательно)" : "Комментарий"}>
-          {(control) => <Textarea {...control} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Например, гость передумал" />}
+        <Field label={commentRequired ? t("void.commentRequiredLabel") : t("common.comment")}>
+          {(control) => <Textarea {...control} value={comment} onChange={(event) => setComment(event.target.value)} placeholder={t("void.placeholder")} />}
         </Field>
         {error && (
           <p role="alert" className="text-body-sm font-semibold text-destructive">
@@ -127,10 +128,10 @@ export function VoidLineDialog({
         )}
         <DialogFooter>
           <Button variant="secondary" size="lg" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Назад
+            {t("common.back")}
           </Button>
           <Button variant="danger" size="lg" onClick={submit} disabled={!reason || commentMissing || submitting}>
-            {submitting ? "Удаление…" : "Удалить позицию"}
+            {submitting ? t("void.submitting") : t("actions.void")}
           </Button>
         </DialogFooter>
       </DialogContent>

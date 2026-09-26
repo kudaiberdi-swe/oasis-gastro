@@ -2,18 +2,22 @@ import { useState, type ReactNode } from "react"
 import { Clock3, LockKeyhole, LogOut, Moon, Rows3, Rows4, Sun, UserRound } from "lucide-react"
 
 import { HotkeyHints } from "@/pos/features/hotkeys/ui/hotkey-hints"
+import { posErrorMessage, ruT, useT, type Translator } from "@/pos/i18n"
+import { LanguageSwitch } from "@/pos/i18n/language-switch"
 import { useTheme, type ThemeDensity, type ThemeMode } from "@/shared/components/theme-provider"
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, SegmentedControl } from "@/shared/components/ui"
 import { formatAlmatyTime } from "@/shared/lib/almaty-time"
-import { errorMessage } from "@/shared/lib/error-message"
 import type { EmployeeRole, PosAccessSession } from "@/shared/types/pos"
 
-export const ROLE_LABEL: Record<EmployeeRole, string> = { cashier: "Кассир", manager: "Менеджер", administrator: "Администратор", kitchen: "Кухня" }
+/** «Кассир», «Менеджер» … in the interface language. */
+export function roleLabel(role: EmployeeRole, t: Translator = ruT) {
+  return t(`role.${role}` as const)
+}
 
 /**
  * «Профиль сотрудника» (W1-POS-14): who is signed in on this terminal, clock in / clock out
  * (attendance, W1-HR-05), the screen settings (theme, density — moved out of the header — and the
- * reserved RU/KK interface switch), the hotkey hints (W3-POS-01), lock and sign out (danger).
+ * RU/KK interface language), the hotkey hints (W3-POS-01), lock and sign out (danger).
  */
 export function ProfileDialog({
   open,
@@ -35,6 +39,7 @@ export function ProfileDialog({
   onLock: () => void
   onLogout: () => void
 }) {
+  const t = useT()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const clockedIn = Boolean(attendance)
@@ -45,7 +50,7 @@ export function ProfileDialog({
     try {
       await (clockedIn ? onClockOut() : onClockIn())
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось отметить явку"))
+      setError(posErrorMessage(t, caught, t("profile.attendanceFailed")))
     } finally {
       setBusy(false)
     }
@@ -55,8 +60,8 @@ export function ProfileDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Профиль сотрудника</DialogTitle>
-          <DialogDescription>Кто работает на этой кассе.</DialogDescription>
+          <DialogTitle>{t("profile.title")}</DialogTitle>
+          <DialogDescription>{t("profile.description")}</DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-4 rounded-card border border-border p-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-round bg-muted text-rust">
@@ -65,7 +70,7 @@ export function ProfileDialog({
           <div className="min-w-0">
             <p className="text-title-sm font-semibold">{access.employee.displayName}</p>
             <p className="text-body-sm text-muted-foreground">
-              {ROLE_LABEL[access.employee.role]} · код {access.employee.code}
+              {roleLabel(access.employee.role, t)} · {t("profile.code", { code: access.employee.code })}
             </p>
             <p className="text-body-sm text-muted-foreground">
               {access.restaurant.name} · {access.terminal.name}
@@ -76,14 +81,14 @@ export function ProfileDialog({
           <div className="flex items-center gap-3">
             <Clock3 aria-hidden className="size-5 text-muted-foreground" />
             <div>
-              <p className="text-body font-semibold">Явка</p>
+              <p className="text-body font-semibold">{t("profile.attendance")}</p>
               <p className="text-body-sm text-muted-foreground" aria-live="polite">
-                {attendance === undefined ? "Загрузка…" : attendance ? `На работе с ${formatAlmatyTime(attendance.clockIn)}` : "Приход не отмечен"}
+                {attendance === undefined ? t("common.loadingEllipsis") : attendance ? t("profile.atWorkSince", { time: formatAlmatyTime(attendance.clockIn, t.intl) }) : t("profile.notClockedIn")}
               </p>
             </div>
           </div>
           <Button variant="secondary" size="lg" onClick={toggleAttendance} disabled={busy || attendance === undefined}>
-            {busy ? "Сохранение…" : clockedIn ? "Отметить уход" : "Отметить приход"}
+            {busy ? t("common.saving") : clockedIn ? t("profile.clockOut") : t("profile.clockIn")}
           </Button>
         </div>
         {error && (
@@ -102,7 +107,7 @@ export function ProfileDialog({
               onLock()
             }}
           >
-            <LockKeyhole /> Заблокировать
+            <LockKeyhole /> {t("profile.lock")}
           </Button>
           <Button
             variant="danger"
@@ -112,7 +117,7 @@ export function ProfileDialog({
               onLogout()
             }}
           >
-            <LogOut /> Выйти
+            <LogOut /> {t("profile.logout")}
           </Button>
         </div>
       </DialogContent>
@@ -121,59 +126,43 @@ export function ProfileDialog({
 }
 
 /**
- * «Экран» — this terminal's own look, kept in the browser (theme-provider). The interface language
- * row reserves the RU/KK switch: Russian works now, Kazakh is shown as «скоро» until the i18n layer.
+ * «Экран» — this terminal's own look, kept in the browser (theme-provider), and the interface language
+ * (src/pos/i18n): Russian or Kazakh, switched at once and remembered on this terminal.
  */
 function ScreenSettings() {
+  const t = useT()
   const { mode, setMode, density, setDensity } = useTheme()
   return (
     <section aria-labelledby="pos-screen-settings" className="flex flex-col gap-3 rounded-card border border-border p-4">
       <h3 id="pos-screen-settings" className="text-body font-semibold">
-        Экран
+        {t("profile.screen")}
       </h3>
-      <SettingRow label="Тема">
+      <SettingRow label={t("profile.theme")}>
         <SegmentedControl<ThemeMode>
-          aria-label="Тема"
+          aria-label={t("profile.theme")}
           size="pos"
           value={mode}
           onValueChange={setMode}
           options={[
-            { value: "day", label: "Дневная", icon: <Sun aria-hidden /> },
-            { value: "night", label: "Ночная", icon: <Moon aria-hidden /> },
+            { value: "day", label: t("profile.themeDay"), icon: <Sun aria-hidden /> },
+            { value: "night", label: t("profile.themeNight"), icon: <Moon aria-hidden /> },
           ]}
         />
       </SettingRow>
-      <SettingRow label="Плотность">
+      <SettingRow label={t("profile.density")}>
         <SegmentedControl<ThemeDensity>
-          aria-label="Плотность"
+          aria-label={t("profile.density")}
           size="pos"
           value={density}
           onValueChange={setDensity}
           options={[
-            { value: "comfortable", label: "Обычная", icon: <Rows3 aria-hidden /> },
-            { value: "compact", label: "Плотная", icon: <Rows4 aria-hidden /> },
+            { value: "comfortable", label: t("profile.densityComfortable"), icon: <Rows3 aria-hidden /> },
+            { value: "compact", label: t("profile.densityCompact"), icon: <Rows4 aria-hidden /> },
           ]}
         />
       </SettingRow>
-      <SettingRow label="Язык интерфейса">
-        <SegmentedControl<"ru" | "kk">
-          aria-label="Язык интерфейса"
-          size="pos"
-          value="ru"
-          onValueChange={() => {}}
-          options={[
-            { value: "ru", label: "Русский" },
-            {
-              value: "kk",
-              disabled: true,
-              label: (
-                <span>
-                  <span lang="kk">Қазақша</span> · скоро
-                </span>
-              ),
-            },
-          ]}
-        />
+      <SettingRow label={t("profile.language")}>
+        <LanguageSwitch label={t("profile.language")} />
       </SettingRow>
     </section>
   )

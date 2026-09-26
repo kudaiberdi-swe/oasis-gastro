@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react"
 import { Bike, ChefHat, Ellipsis, MessageSquareText, Minus, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
 
 import { isLocked, lineDetails, lineDetailsKk, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
+import { bilingualName, useT } from "@/pos/i18n"
 import { Button } from "@/shared/components/ui/button"
 import { Money } from "@/shared/components/ui/money"
 import { SegmentedControl } from "@/shared/components/ui/segmented-control"
@@ -18,13 +19,6 @@ const MODE_ICON: Record<OrderType, ReactNode> = {
   "dine-in": <UtensilsCrossed aria-hidden />,
   takeaway: <ShoppingBag aria-hidden />,
   delivery: <Bike aria-hidden />,
-}
-
-function positions(count: number) {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  const word = mod10 === 1 && mod100 !== 11 ? "позиция" : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "позиции" : "позиций"
-  return `${count} ${word}`
 }
 
 /**
@@ -124,26 +118,27 @@ export function OrderPanel({
   /** No link to the server: «Оплатить» and «На кухню» are blocked and the reason is shown beside them. */
   offlineReason?: string | null
 }) {
+  const t = useT()
   const hasActive = lines.some((line) => !line.voidedAt)
   const payable = Math.max(0, total - loyaltyRedemption)
   const mode = orderTypeOptions.find((option) => option.value === orderTypeValue)?.mode
   const serviceChargeShown = showServiceCharge({ mode, percent: serviceChargePercent, amount: serviceChargeAmount })
   return (
     <section
-      aria-label="Заказ"
+      aria-label={t("order.aria")}
       className="flex h-full w-[420px] shrink-0 flex-col overflow-hidden rounded-panel border border-border bg-card min-[1440px]:w-[440px] min-[1920px]:w-[470px]"
     >
       <div className="flex flex-col gap-3 border-b border-border px-4 py-3">
         <div className="flex min-h-12 min-w-0 items-center gap-2">
           {titleSlot ?? (
             <p className="truncate font-display text-title font-semibold">
-              {tableLabel || "Новый заказ"}
-              {orderNumber !== undefined && <span className="text-body-sm font-normal text-muted-foreground"> · Заказ №{orderNumber}</span>}
+              {tableLabel || t("common.newOrder")}
+              {orderNumber !== undefined && <span className="text-body-sm font-normal text-muted-foreground"> · {t("common.orderNumber", { number: orderNumber })}</span>}
             </p>
           )}
           <StatusPill domain="order" status={orderStatus} className="shrink-0" />
           <span aria-live="polite" className="ml-auto shrink-0 text-body-sm text-muted-foreground">
-            {saving ? "Сохранение…" : null}
+            {saving ? t("common.saving") : null}
           </span>
         </div>
         {(guestSlot || comment?.trim()) && (
@@ -158,7 +153,7 @@ export function OrderPanel({
           </div>
         )}
         <SegmentedControl
-          aria-label="Тип заказа"
+          aria-label={t("order.type")}
           size="pos"
           className="flex w-full"
           value={orderTypeValue}
@@ -172,15 +167,15 @@ export function OrderPanel({
             <span aria-hidden className="grid size-16 place-items-center rounded-card bg-muted text-muted-foreground">
               <ReceiptText className="size-7" />
             </span>
-            <p className="font-display text-title font-semibold">Заказ пока пуст</p>
-            <p className="text-body-sm text-muted-foreground">Выберите товар в меню справа.</p>
+            <p className="font-display text-title font-semibold">{t("order.empty")}</p>
+            <p className="text-body-sm text-muted-foreground">{t("order.emptyHint")}</p>
           </div>
         ) : (
           <>
           <div aria-hidden className={cn(LINE_GRID, "border-b border-border pb-2 text-body-sm font-semibold text-muted-foreground")}>
-            <span>Наименование</span>
-            <span className="text-center">Кол-во</span>
-            <span className="text-right">Сумма</span>
+            <span>{t("order.colName")}</span>
+            <span className="text-center">{t("order.colQty")}</span>
+            <span className="text-right">{t("order.colSum")}</span>
           </div>
           <ul className="flex flex-col divide-y divide-border">
             {lines.map((line) => (
@@ -201,7 +196,7 @@ export function OrderPanel({
             <span className="flex min-w-0 items-center gap-2">
               <Plus aria-hidden className="size-4 shrink-0 text-accent" />
               <span className="min-w-0">
-                <span className="block text-body-sm text-muted-foreground">Добавить к заказу</span>
+                <span className="block text-body-sm text-muted-foreground">{t("order.addSuggestion")}</span>
                 <span className="block truncate text-body font-semibold">{suggestion.name}</span>
               </span>
             </span>
@@ -212,54 +207,56 @@ export function OrderPanel({
       <div className="flex gap-1 border-t border-border bg-muted p-1">
         <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onDiscount} disabled={disabled || !hasActive}>
           <Percent />
-          Скидка
+          {t("order.discount")}
         </Button>
         {onGuest && (
           <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onGuest} disabled={disabled || !hasActive} title={guestLabel}>
             <UserRound />
-            <span className="truncate">{guestLabel || "Гость"}</span>
+            <span className="truncate">{guestLabel || t("common.guest")}</span>
           </Button>
         )}
         <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen || Boolean(offlineReason)} title={offlineReason ?? undefined}>
           <ChefHat />
-          {sendingToKitchen ? "Отправка…" : "На кухню"}
+          {sendingToKitchen ? t("order.sending") : t("order.toKitchen")}
         </Button>
         {onMore && (
           <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" aria-haspopup="dialog" onClick={onMore} disabled={disabled}>
             <Ellipsis />
-            Ещё
+            {t("order.more")}
           </Button>
         )}
       </div>
       <div className="space-y-1.5 border-t border-border px-4 py-3 text-body-sm">
         <div className="flex justify-between text-muted-foreground">
-          <span>Сумма заказа</span>
+          <span>{t("order.subtotal")}</span>
           <span className="tabular-nums">{formatTenge(subtotal)}</span>
         </div>
         {discountAmount !== 0 && (
           <div className="flex justify-between text-success">
-            <span>Скидка{discountPercent > 0 ? ` ${discountPercent}%` : ""}</span>
+            <span>{discountPercent > 0 ? t("order.discountPercent", { percent: discountPercent }) : t("order.discount")}</span>
             <span className="tabular-nums">{formatTenge(-discountAmount)}</span>
           </div>
         )}
         {serviceChargeShown && (
           <div className="flex justify-between text-muted-foreground">
+            {/* The Kazakh name of the line is printed on the receipt too; in Russian it is followed by the Russian one. */}
             <span>
-              <span lang="kk">Қызмет ақысы</span> · сервисный сбор {serviceChargePercent}%
+              <span lang="kk">Қызмет ақысы</span>
+              {t.locale === "kk" ? ` ${serviceChargePercent}%` : ` · ${t("order.serviceCharge", { percent: serviceChargePercent })}`}
             </span>
             <span className="tabular-nums">{formatTenge(serviceChargeAmount)}</span>
           </div>
         )}
         {loyaltyRedemption > 0 && (
           <div className="flex justify-between text-success">
-            <span>Баллами</span>
+            <span>{t("order.points")}</span>
             <span className="tabular-nums">{formatTenge(-loyaltyRedemption)}</span>
           </div>
         )}
         <div className="flex items-baseline justify-between border-t border-gold/45 pt-2">
           <span className="flex flex-col">
-            <span className="text-body font-semibold">К оплате</span>
-            <span className="text-body-sm text-muted-foreground">{positions(itemCount)}</span>
+            <span className="text-body font-semibold">{t("order.toPay")}</span>
+            <span className="text-body-sm text-muted-foreground">{t("order.positions", { count: itemCount })}</span>
           </span>
           <Money value={payable} size="xl" />
         </div>
@@ -276,7 +273,7 @@ export function OrderPanel({
       )}
       <div className="flex gap-2 p-4 pt-0">
         <Button variant="secondary" size="lg" className="flex-1" onClick={onHold} disabled={disabled || !hasActive || saving}>
-          Отложить
+          {t("order.hold")}
         </Button>
         <Button
           size="lg"
@@ -286,7 +283,7 @@ export function OrderPanel({
           title={offlineReason ?? undefined}
           aria-describedby={offlineReason ? "order-offline-reason" : undefined}
         >
-          Оплатить · {formatTenge(payable)}
+          {t("order.pay", { amount: formatTenge(payable) })}
         </Button>
       </div>
     </section>
@@ -306,9 +303,12 @@ function OrderLineRow({
   onRemove: (clientLineId: string) => void
   onVoid: (clientLineId: string) => void
 }) {
-  const details = lineDetails(line)
+  const t = useT()
+  const title = bilingualName(t.locale, line)
+  const detailsRu = lineDetails(line)
   const detailsKk = lineDetailsKk(line)
-  const showKk = Boolean(line.nameKk?.trim()) && line.nameKk.trim() !== line.name.trim()
+  // Modifier details follow the name: the interface language first, the other one under it.
+  const details = t.locale === "kk" && detailsKk ? [{ text: detailsKk, lang: "kk" }, { text: detailsRu, lang: "ru" }] : [{ text: detailsRu, lang: "ru" }, { text: detailsKk, lang: "kk" }]
   const voided = Boolean(line.voidedAt)
   const sent = Boolean(line.sentToKitchenAt) && !voided
   // A sent line is fixed: «−» and the bin open «Удалить позицию»; «+» adds a new portion as its own line.
@@ -320,29 +320,32 @@ function OrderLineRow({
   const remove = () => (sent ? onVoid(line.clientLineId) : onRemove(line.clientLineId))
 
   return (
-    <li className={cn(LINE_GRID, "items-start py-3", voided && "text-muted-foreground")} aria-label={voided ? `${line.name} — удалено` : undefined}>
+    <li className={cn(LINE_GRID, "items-start py-3", voided && "text-muted-foreground")} aria-label={voided ? t("line.voided", { name: title.primary.text }) : undefined}>
       <div className="min-w-0 pt-3">
-        <p className={cn("text-body font-semibold", voided && "line-through")}>{line.name}</p>
-        {showKk && (
-          <p lang="kk" className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>
-            {line.nameKk}
+        <p lang={title.primary.lang} className={cn("text-body font-semibold", voided && "line-through")}>
+          {title.primary.text}
+        </p>
+        {title.secondary && (
+          <p lang={title.secondary.lang} className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>
+            {title.secondary.text}
           </p>
         )}
-        {details && <p className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>{details}</p>}
-        {detailsKk && (
-          <p lang="kk" className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>
-            {detailsKk}
-          </p>
+        {details.map((detail) =>
+          detail.text ? (
+            <p key={detail.lang} lang={detail.lang} className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>
+              {detail.text}
+            </p>
+          ) : null,
         )}
         {sent && (
           <TonePill tone="info" className="mt-1 gap-1">
             <ChefHat aria-hidden className="size-3.5" />
-            на кухне
+            {t("line.onKitchen")}
           </TonePill>
         )}
         {voided && (
           <TonePill tone="neutral" className="mt-1">
-            удалено
+            {t("line.removed")}
           </TonePill>
         )}
       </div>
@@ -350,11 +353,11 @@ function OrderLineRow({
         <span className="pt-3 text-center text-body font-semibold tabular-nums line-through">{line.quantity}</span>
       ) : (
         <div className="flex items-center">
-          <Button variant="secondary" size="icon" className="size-12" aria-label={sent ? `Удалить позицию: ${line.name}` : `Убрать одну порцию: ${line.name}`} onClick={decrement}>
+          <Button variant="secondary" size="icon" className="size-12" aria-label={sent ? t("line.voidAria", { name: title.primary.text }) : t("line.decrementAria", { name: title.primary.text })} onClick={decrement}>
             <Minus />
           </Button>
           <span className="w-8 text-center text-body font-semibold tabular-nums">{line.quantity}</span>
-          <Button variant="secondary" size="icon" className="size-12" aria-label={`Добавить порцию: ${line.name}`} onClick={() => onIncrement(line.clientLineId)}>
+          <Button variant="secondary" size="icon" className="size-12" aria-label={t("line.incrementAria", { name: title.primary.text })} onClick={() => onIncrement(line.clientLineId)}>
             <Plus />
           </Button>
         </div>
@@ -362,17 +365,17 @@ function OrderLineRow({
       <div className="flex min-w-0 flex-col items-end gap-2">
         <Money value={lineTotal(line)} size="sm" className={cn("pt-3 text-right", voided && "text-muted-foreground line-through")} />
         {!voided && (
-          <Button variant="ghost" size="icon" aria-label={sent ? `Удалить позицию с кухни: ${line.name}` : `Удалить: ${line.name}`} onClick={remove} disabled={isLocked(line) && !sent} className="-mr-3 size-12 text-muted-foreground hover:text-destructive">
+          <Button variant="ghost" size="icon" aria-label={sent ? t("line.voidKitchenAria", { name: title.primary.text }) : t("line.removeAria", { name: title.primary.text })} onClick={remove} disabled={isLocked(line) && !sent} className="-mr-3 size-12 text-muted-foreground hover:text-destructive">
             <Trash2 />
           </Button>
         )}
       </div>
       {confirmRemove && (
-        <div role="group" aria-label={`Убрать позицию: ${line.name}`} className="col-span-3 mt-2 flex items-center justify-between gap-2 rounded-control bg-muted px-3 py-2">
-          <span className="text-body font-semibold">Убрать позицию?</span>
+        <div role="group" aria-label={t("line.confirmRemoveAria", { name: title.primary.text })} className="col-span-3 mt-2 flex items-center justify-between gap-2 rounded-control bg-muted px-3 py-2">
+          <span className="text-body font-semibold">{t("line.confirmRemove")}</span>
           <span className="flex gap-2">
             <Button variant="secondary" className="h-[var(--control-h-pos)]" onClick={() => setConfirmRemove(false)}>
-              Отмена
+              {t("common.cancel")}
             </Button>
             <Button
               variant="danger"
@@ -382,7 +385,7 @@ function OrderLineRow({
                 onRemove(line.clientLineId)
               }}
             >
-              Убрать
+              {t("line.remove")}
             </Button>
           </span>
         </div>

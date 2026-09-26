@@ -1,15 +1,17 @@
 const ALMATY_OFFSET_MS = 5 * 60 * 60 * 1000
 
-export function formatAlmatyDateTime(value: number) {
-  return new Date(value).toLocaleString("ru-RU", { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+// `locale` — the Intl locale of the interface: the office is always "ru-RU", the POS passes "kk-KZ" in Kazakh.
+
+export function formatAlmatyDateTime(value: number, locale = "ru-RU") {
+  return new Date(value).toLocaleString(locale, { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
 }
 
-export function formatAlmatyDate(value: number) {
-  return new Date(value).toLocaleDateString("ru-RU", { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", year: "numeric" })
+export function formatAlmatyDate(value: number, locale = "ru-RU") {
+  return new Date(value).toLocaleDateString(locale, { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
-export function formatAlmatyTime(value: number) {
-  return new Date(value).toLocaleString("ru-RU", { timeZone: "Asia/Almaty", hour: "2-digit", minute: "2-digit" })
+export function formatAlmatyTime(value: number, locale = "ru-RU") {
+  return new Date(value).toLocaleString(locale, { timeZone: "Asia/Almaty", hour: "2-digit", minute: "2-digit" })
 }
 
 export function almatyBusinessDate(value: number): string {

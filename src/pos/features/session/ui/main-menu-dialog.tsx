@@ -1,6 +1,7 @@
 import type { ComponentType } from "react"
 import { History, LockKeyhole, LogOut, ReceiptText, WalletCards } from "lucide-react"
 
+import { useT } from "@/pos/i18n"
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
@@ -27,18 +28,19 @@ export function MainMenuDialog({
   onLock: () => void
   onLogout: () => void
 }) {
+  const t = useT()
   const items: Item[] = [
-    { icon: ReceiptText, title: "Новый заказ", hint: "Создать чистый чек", onChoose: onNewOrder },
-    { icon: History, title: "История заказов", hint: "Продолжение, печать и возвраты", onChoose: onHistory },
-    { icon: WalletCards, title: "Текущая смена", hint: "Сверка, внесения и X/Z-отчёты", onChoose: onShift },
-    { icon: LockKeyhole, title: "Заблокировать", hint: "Потребуется повторный PIN", onChoose: onLock },
+    { icon: ReceiptText, title: t("menu.newOrder"), hint: t("menu.newOrderHint"), onChoose: onNewOrder },
+    { icon: History, title: t("menu.history"), hint: t("menu.historyHint"), onChoose: onHistory },
+    { icon: WalletCards, title: t("menu.shift"), hint: t("menu.shiftHint"), onChoose: onShift },
+    { icon: LockKeyhole, title: t("menu.lock"), hint: t("menu.lockHint"), onChoose: onLock },
   ]
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Главное меню кассы</DialogTitle>
-          <DialogDescription>Заказы, смена и выход.</DialogDescription>
+          <DialogTitle>{t("menu.title")}</DialogTitle>
+          <DialogDescription>{t("menu.description")}</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           {items.map(({ icon: Icon, title, hint, onChoose }) => (
@@ -67,7 +69,7 @@ export function MainMenuDialog({
             onLogout()
           }}
         >
-          <LogOut /> Завершить вход сотрудника
+          <LogOut /> {t("menu.logout")}
         </Button>
       </DialogContent>
     </Dialog>

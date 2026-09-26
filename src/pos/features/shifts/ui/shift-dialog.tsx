@@ -25,7 +25,7 @@ import {
   TabsTrigger,
 } from "@/shared/components/ui"
 import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, useT } from "@/pos/i18n"
 import { formatTenge } from "@/shared/lib/utils"
 
 /** Mirrors convex/lib/policy.ts VARIANCE_APPROVAL_KZT until closePreview answers. */
@@ -43,6 +43,7 @@ export function OpenShiftDialog({
   lastClosed?: { shiftId: string; shiftNumber: number; zReportNumber: string } | null
   onPrintZ?: (shiftId: string) => Promise<unknown>
 }) {
+  const t = useT()
   const [openingCash, setOpeningCash] = useState<number | null>(0)
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -55,7 +56,7 @@ export function OpenShiftDialog({
     try {
       await onOpenShift(Math.max(0, Math.round(openingCash ?? 0)), note)
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось открыть смену"))
+      setError(posErrorMessage(t, caught, t("shift.openFailed")))
     } finally {
       setSubmitting(false)
     }
@@ -68,7 +69,7 @@ export function OpenShiftDialog({
     try {
       await onPrintZ(lastClosed.shiftId)
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось напечатать Z-отчёт"))
+      setError(posErrorMessage(t, caught, t("shift.zPrintFailed")))
     } finally {
       setPrinting(false)
     }
@@ -78,17 +79,17 @@ export function OpenShiftDialog({
     <Dialog open={open}>
       <DialogContent hideClose className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Открытие смены</DialogTitle>
-          <DialogDescription>Пересчитайте наличность в денежном ящике до первой продажи.</DialogDescription>
+          <DialogTitle>{t("shift.openTitle")}</DialogTitle>
+          <DialogDescription>{t("shift.openDescription")}</DialogDescription>
         </DialogHeader>
         {lastClosed && (
           <Banner
             tone="info"
-            title={`Смена №${lastClosed.shiftNumber} закрыта`}
+            title={t("shift.closedBanner", { number: lastClosed.shiftNumber })}
             action={
               onPrintZ ? (
                 <Button variant="secondary" size="sm" onClick={printZ} disabled={printing}>
-                  <Printer /> {printing ? "Печать…" : "Z-отчёт"}
+                  <Printer /> {printing ? t("common.printing") : t("shift.zReport")}
                 </Button>
               ) : undefined
             }
@@ -96,11 +97,11 @@ export function OpenShiftDialog({
             {lastClosed.zReportNumber}
           </Banner>
         )}
-        <Field label="Наличность в кассе на начало смены">
+        <Field label={t("shift.openingCash")}>
           {(control) => <MoneyInput {...control} value={openingCash} onValueChange={setOpeningCash} className="h-[var(--control-h-pos)] text-body font-semibold" />}
         </Field>
-        <Field label="Комментарий">
-          {(control) => <Input {...control} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Например, пересчитано кассиром" className="h-[var(--control-h-pos)]" />}
+        <Field label={t("common.comment")}>
+          {(control) => <Input {...control} value={note} onChange={(event) => setNote(event.target.value)} placeholder={t("shift.openNotePlaceholder")} className="h-[var(--control-h-pos)]" />}
         </Field>
         {error && (
           <p role="alert" className="text-body-sm font-semibold text-destructive">
@@ -108,7 +109,7 @@ export function OpenShiftDialog({
           </p>
         )}
         <Button size="lg" onClick={submit} disabled={submitting}>
-          {submitting ? "Открытие…" : "Открыть смену"}
+          {submitting ? t("shift.opening") : t("shift.open")}
         </Button>
       </DialogContent>
     </Dialog>
@@ -162,21 +163,22 @@ export function ShiftDialog({
   onOpenOrderHistory: () => void
   onManagerRequired: (reason: string) => Promise<string | null>
 }) {
+  const t = useT()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl gap-4">
         <DialogHeader>
-          <DialogTitle>Кассовая смена №{shift.number}</DialogTitle>
+          <DialogTitle>{t("shift.title", { number: shift.number })}</DialogTitle>
           <DialogDescription>
-            Открыта {formatAlmatyDateTime(shift.openedAt)} · {shift.openedByName} · {restaurantName}
+            {t("shift.openedInfo", { time: formatAlmatyDateTime(shift.openedAt, t.intl), name: shift.openedByName, restaurant: restaurantName })}
           </DialogDescription>
         </DialogHeader>
         <Tabs value={tab} onValueChange={(value) => onTabChange(value as ShiftTab)}>
-          <TabsList aria-label="Разделы смены">
-            <TabsTrigger value="summary">Текущая смена</TabsTrigger>
-            <TabsTrigger value="cash">Внести / изъять</TabsTrigger>
-            <TabsTrigger value="close">Закрыть смену</TabsTrigger>
-            <TabsTrigger value="history">История смен</TabsTrigger>
+          <TabsList aria-label={t("shift.tabs")}>
+            <TabsTrigger value="summary">{t("menu.shift")}</TabsTrigger>
+            <TabsTrigger value="cash">{t("shift.tabCash")}</TabsTrigger>
+            <TabsTrigger value="close">{t("shift.tabClose")}</TabsTrigger>
+            <TabsTrigger value="history">{t("shift.tabHistory")}</TabsTrigger>
           </TabsList>
           <TabsContent value="summary">
             <ShiftSummary shift={shift} onPrintX={onPrintX} onHistory={() => onTabChange("history")} />
@@ -222,6 +224,7 @@ function SummaryLine({ label, value }: { label: string; value: number }) {
 }
 
 function ShiftSummary({ shift, onPrintX, onHistory }: { shift: CurrentShift; onPrintX: () => Promise<unknown>; onHistory: () => void }) {
+  const t = useT()
   const [printing, setPrinting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const summary = shift.summary
@@ -232,7 +235,7 @@ function ShiftSummary({ shift, onPrintX, onHistory }: { shift: CurrentShift; onP
     try {
       await onPrintX()
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось сформировать X-отчёт"))
+      setError(posErrorMessage(t, caught, t("shift.xFailed")))
     } finally {
       setPrinting(false)
     }
@@ -240,28 +243,28 @@ function ShiftSummary({ shift, onPrintX, onHistory }: { shift: CurrentShift; onP
 
   return (
     <div className="flex flex-col gap-4">
-      {shift.openedOver24h && <Banner tone="warning" title="Смена открыта более 24 часов">Завершите расчёты, закройте смену и снимите Z-отчёт.</Banner>}
+      {shift.openedOver24h && <Banner tone="warning" title={t("shift.over24Title")}>{t("shift.over24")}</Banner>}
       {/* Blind count (POS-DESIGN §6.2): a cashier's shift has no cash figures — shifts.current leaves them out. */}
       {summary.expectedCash !== null && summary.netSales !== null && summary.cashSales !== null && summary.cashRefunds !== null ? (
         <div className="grid grid-cols-3 gap-3">
-          <Metric label="Выручка" value={summary.netSales} />
-          <Metric label="Наличные" value={summary.cashSales - summary.cashRefunds} />
-          <Metric label="Ожидается в кассе" value={summary.expectedCash} />
+          <Metric label={t("shift.revenue")} value={summary.netSales} />
+          <Metric label={t("shift.cash")} value={summary.cashSales - summary.cashRefunds} />
+          <Metric label={t("shift.expected")} value={summary.expectedCash} />
         </div>
       ) : (
         <p className="rounded-card border border-border bg-card p-4 text-body-sm text-muted-foreground">
-          Выручку и наличные в кассе видит менеджер. Ожидаемую сумму вы увидите при закрытии смены, после пересчёта.
+          {t("shift.blind")}
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
-        <SummaryLine label="Карта" value={summary.card} />
-        <SummaryLine label="QR" value={summary.qr} />
-        <SummaryLine label="Внесения" value={summary.cashIn} />
-        <SummaryLine label="Изъятия" value={summary.cashOut} />
+        <SummaryLine label={t("payment.methodCard")} value={summary.card} />
+        <SummaryLine label={t("payment.methodQr")} value={summary.qr} />
+        <SummaryLine label={t("shift.cashIn")} value={summary.cashIn} />
+        <SummaryLine label={t("shift.cashOut")} value={summary.cashOut} />
       </div>
       <div className="rounded-card border border-border bg-muted/40 p-3 text-body-sm">
-        <p className="font-semibold">X-отчёт не закрывает смену и не обнуляет итоги.</p>
-        <p className="text-muted-foreground">Кассиру печать X-отчёта подтверждает менеджер разовым PIN.</p>
+        <p className="font-semibold">{t("shift.xNote")}</p>
+        <p className="text-muted-foreground">{t("shift.xManager")}</p>
       </div>
       {error && (
         <p role="alert" className="text-body-sm font-semibold text-destructive">
@@ -270,10 +273,10 @@ function ShiftSummary({ shift, onPrintX, onHistory }: { shift: CurrentShift; onP
       )}
       <div className="flex gap-2">
         <Button variant="secondary" size="lg" onClick={printX} disabled={printing}>
-          <Printer /> {printing ? "Формирование…" : "Печать X-отчёта"}
+          <Printer /> {printing ? t("shift.generating") : t("shift.printX")}
         </Button>
         <Button variant="secondary" size="lg" onClick={onHistory}>
-          <Clock3 /> История смен
+          <Clock3 /> {t("shift.tabHistory")}
         </Button>
       </div>
     </div>
@@ -293,6 +296,7 @@ export function CashMovementForm({
   onManagerRequired: (reason: string) => Promise<string | null>
   onDone: () => void
 }) {
+  const t = useT()
   const legacy = types.length === 0
   const [direction, setDirection] = useState<CashDirection>("cash-in")
   const available = typesFor(types, direction)
@@ -303,7 +307,7 @@ export function CashMovementForm({
   const [submitting, setSubmitting] = useState(false)
   const idempotencyKey = useRef(crypto.randomUUID())
   const type = available.find((candidate) => candidate.externalId === typeId)
-  const problem = cashMovementProblem({ legacy, type, amount, comment, expectedCash, direction })
+  const problem = cashMovementProblem({ legacy, type, amount, comment, expectedCash, direction }, t)
   const needsManager = cashNeedsManager(direction, type)
 
   function chooseDirection(next: CashDirection) {
@@ -320,8 +324,7 @@ export function CashMovementForm({
     try {
       let managerApprovalToken: string | undefined
       if (needsManager) {
-        const what = direction === "cash-out" ? "Изъятие" : "Внесение"
-        const token = await onManagerRequired(`${what} ${formatTenge(amount)}${type ? ` (${type.name})` : ""} требует подтверждения менеджера`)
+        const token = await onManagerRequired(t(direction === "cash-out" ? "cash.approvalOut" : "cash.approvalIn", { amount: formatTenge(amount), type: type ? ` (${type.name})` : "" }))
         if (!token) return
         managerApprovalToken = token
       }
@@ -331,7 +334,7 @@ export function CashMovementForm({
       setComment("")
       onDone()
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось сохранить операцию"))
+      setError(posErrorMessage(t, caught, t("cash.failed")))
     } finally {
       setSubmitting(false)
     }
@@ -340,23 +343,23 @@ export function CashMovementForm({
   return (
     <div className="flex flex-col gap-4">
       <SegmentedControl
-        aria-label="Направление"
+        aria-label={t("cash.direction")}
         size="pos"
         className="grid w-full grid-cols-2"
         value={direction}
         onValueChange={chooseDirection}
         options={[
-          { value: "cash-in", label: "Внести наличные", icon: <ArrowDownToLine aria-hidden /> },
-          { value: "cash-out", label: "Изъять наличные", icon: <ArrowUpFromLine aria-hidden /> },
+          { value: "cash-in", label: t("cash.in"), icon: <ArrowDownToLine aria-hidden /> },
+          { value: "cash-out", label: t("cash.out"), icon: <ArrowUpFromLine aria-hidden /> },
         ]}
       />
       {!legacy &&
         (available.length === 0 ? (
           <p className="text-body-sm text-muted-foreground">
-            Для {direction === "cash-in" ? "внесения" : "изъятия"} не опубликованы типы операций. Добавьте их в Office → «Кассовые операции».
+            {direction === "cash-in" ? t("cash.noTypesIn") : t("cash.noTypesOut")}
           </p>
         ) : (
-          <Field label="Тип операции" hint={type ? [`лимит ${formatTenge(type.data.maximumAmount)}`, needsManager && "подтверждает менеджер"].filter(Boolean).join(" · ") : undefined}>
+          <Field label={t("cash.type")} hint={type ? [t("cash.limit", { amount: formatTenge(type.data.maximumAmount) }), needsManager && t("void.hintManager")].filter(Boolean).join(" · ") : undefined}>
             {(control) => (
               <Select
                 {...control}
@@ -365,7 +368,7 @@ export function CashMovementForm({
                   setTypeId(value)
                   setError(null)
                 }}
-                placeholder="Выберите тип"
+                placeholder={t("cash.choosePlaceholder")}
                 options={available.map((candidate) => ({ value: candidate.externalId, label: candidate.name }))}
                 className="h-[var(--control-h-pos)] text-body"
               />
@@ -373,16 +376,16 @@ export function CashMovementForm({
           </Field>
         ))}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Сумма">
+        <Field label={t("common.amount")}>
           {(control) => <MoneyInput {...control} value={amount} onValueChange={(value) => { setAmount(value); setError(null) }} className="h-[var(--control-h-pos)] text-body font-semibold" />}
         </Field>
-        <Field label={legacy ? "Причина" : "Комментарий"}>
-          {(control) => <Input {...control} value={comment} onChange={(event) => setComment(event.target.value)} placeholder={direction === "cash-in" ? "Например, размен" : "Например, инкассация"} className="h-[var(--control-h-pos)] text-body" />}
+        <Field label={legacy ? t("common.reason") : t("common.comment")}>
+          {(control) => <Input {...control} value={comment} onChange={(event) => setComment(event.target.value)} placeholder={direction === "cash-in" ? t("cash.placeholderIn") : t("cash.placeholderOut")} className="h-[var(--control-h-pos)] text-body" />}
         </Field>
       </div>
       {needsManager && (
         <p className="text-body-sm text-muted-foreground">
-          {direction === "cash-out" ? "Каждое изъятие" : "Это внесение"} подтверждает менеджер: после «Сохранить операцию» он вводит свой PIN.
+          {direction === "cash-out" ? t("cash.managerNoteOut") : t("cash.managerNoteIn")}
         </p>
       )}
       {error ? (
@@ -393,7 +396,7 @@ export function CashMovementForm({
         <p className="text-body-sm text-muted-foreground">{problem}</p>
       ) : null}
       <Button size="lg" onClick={submit} disabled={Boolean(problem) || submitting}>
-        {submitting ? "Сохранение…" : "Сохранить операцию"}
+        {submitting ? t("common.saving") : t("cash.save")}
       </Button>
     </div>
   )
@@ -419,6 +422,7 @@ export function CloseShiftPanel({
   // the panel does not even have them. «Сверить» sends the count to shifts.reconcileCount, which logs it
   // and answers with the expected cash («review»); «Пересчитать» is the only way back and clears it. The
   // irreversible close asks once more («confirm»).
+  const t = useT()
   const [step, setStep] = useState<"count" | "review" | "confirm">("count")
   const [counted, setCounted] = useState<number | null>(null)
   const [reconciled, setReconciled] = useState<Reconciliation | null>(null)
@@ -435,7 +439,7 @@ export function CloseShiftPanel({
 
   async function reconcile() {
     if (counted === null) {
-      setError("Введите фактическую наличность")
+      setError(t("close.enterCounted"))
       return
     }
     setReconciling(true)
@@ -444,7 +448,7 @@ export function CloseShiftPanel({
       setReconciled(await onReconcile(counted))
       setStep("review")
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось сверить наличность"))
+      setError(posErrorMessage(t, caught, t("close.reconcileFailed")))
     } finally {
       setReconciling(false)
     }
@@ -460,11 +464,11 @@ export function CloseShiftPanel({
 
   function askConfirm() {
     if (blockers.length) {
-      setError("Закройте или отложите все открытые заказы")
+      setError(t("close.openOrders"))
       return
     }
     if (noteRequired && note.trim().length < 3) {
-      setError("При расхождении укажите комментарий")
+      setError(t("close.noteRequired"))
       return
     }
     setError(null)
@@ -478,13 +482,13 @@ export function CloseShiftPanel({
     try {
       let managerApprovalToken: string | undefined
       if (needsManager) {
-        const token = await onManagerRequired(`Подтвердите расхождение ${formatTenge(variance, { explicitPlus: true })}`)
+        const token = await onManagerRequired(t("close.approval", { amount: formatTenge(variance, { explicitPlus: true }) }))
         if (!token) return
         managerApprovalToken = token
       }
       await onClose(counted, note, managerApprovalToken)
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось закрыть смену"))
+      setError(posErrorMessage(t, caught, t("close.failed")))
       setStep("review")
     } finally {
       setSubmitting(false)
@@ -494,11 +498,11 @@ export function CloseShiftPanel({
   const blockersBanner = blockers.length > 0 && (
     <Banner
       tone="danger"
-      title={`Открытых заказов: ${blockers.length}`}
+      title={t("close.openOrdersCount", { count: blockers.length })}
       action={
         onOpenOrderHistory ? (
           <Button variant="link" onClick={onOpenOrderHistory}>
-            Открыть историю
+            {t("close.openHistory")}
           </Button>
         ) : undefined
       }
@@ -515,16 +519,16 @@ export function CloseShiftPanel({
   if (step === "count") {
     return (
       <div className="flex flex-col gap-4">
-        <Banner tone="info" title="Пересчитайте наличные в ящике">
-          Введите сумму, которую насчитали. Ожидаемая сумма появится после сверки. Открытые и отложенные заказы блокируют закрытие.
+        <Banner tone="info" title={t("close.countTitle")}>
+          {t("close.countHint")}
         </Banner>
-        <Field id="close-shift-counted" label="Фактическая наличность">
+        <Field id="close-shift-counted" label={t("close.counted")}>
           {(control) => <MoneyInput {...control} value={counted} onValueChange={setCounted} className="h-[var(--control-h-pos)] text-body font-semibold" />}
         </Field>
         {blockersBanner}
         {errorLine}
         <Button size="lg" onClick={() => void reconcile()} disabled={counted === null || reconciling}>
-          {reconciling ? "Сверка…" : "Сверить"}
+          {reconciling ? t("close.reconciling") : t("close.reconcile")}
         </Button>
       </div>
     )
@@ -534,19 +538,19 @@ export function CloseShiftPanel({
     <div className="flex flex-col gap-4">
       <dl className="grid grid-cols-3 gap-3">
         <div className="flex flex-col gap-1 rounded-card border border-border bg-card p-4">
-          <dt className="text-body-sm text-muted-foreground">Насчитано</dt>
+          <dt className="text-body-sm text-muted-foreground">{t("close.countedShort")}</dt>
           <dd>
             <Money value={counted ?? 0} size="lg" className="text-foreground" />
           </dd>
         </div>
         <div className="flex flex-col gap-1 rounded-card border border-border bg-card p-4">
-          <dt className="text-body-sm text-muted-foreground">Ожидается в кассе</dt>
+          <dt className="text-body-sm text-muted-foreground">{t("shift.expected")}</dt>
           <dd>
             <Money value={expectedCash} size="lg" className="text-foreground" />
           </dd>
         </div>
         <div className="flex flex-col gap-1 rounded-card border border-border bg-card p-4">
-          <dt className="text-body-sm text-muted-foreground">Расхождение</dt>
+          <dt className="text-body-sm text-muted-foreground">{t("close.variance")}</dt>
           <dd>
             <Money value={variance} size="lg" signed />
           </dd>
@@ -554,33 +558,33 @@ export function CloseShiftPanel({
       </dl>
       {needsManager && (
         <p className="text-body-sm font-semibold text-warning">
-          Расхождение {formatTenge(managerThreshold)} и больше: закрытие подтверждает менеджер своим PIN.
+          {t("close.managerThreshold", { amount: formatTenge(managerThreshold) })}
         </p>
       )}
       {blockersBanner}
-      <Field id="close-shift-note" label={noteRequired ? "Комментарий (обязательно при расхождении)" : "Комментарий"}>
+      <Field id="close-shift-note" label={noteRequired ? t("close.noteRequiredLabel") : t("common.comment")}>
         {(control) => <Input {...control} value={note} onChange={(event) => setNote(event.target.value)} disabled={step === "confirm"} className="h-[var(--control-h-pos)]" />}
       </Field>
       {errorLine}
       {step === "confirm" ? (
-        <div role="group" aria-label="Подтверждение закрытия" className="flex flex-col gap-3 rounded-card border border-input bg-muted p-4">
-          <p className="text-body font-semibold">Закрыть смену и напечатать Z-отчёт? Действие необратимо.</p>
+        <div role="group" aria-label={t("close.confirmAria")} className="flex flex-col gap-3 rounded-card border border-input bg-muted p-4">
+          <p className="text-body font-semibold">{t("close.confirmText")}</p>
           <div className="flex gap-2">
             <Button variant="secondary" size="lg" className="flex-1" onClick={() => setStep("review")} disabled={submitting}>
-              Отмена
+              {t("common.cancel")}
             </Button>
             <Button size="lg" className="flex-1" onClick={submit} disabled={submitting}>
-              <FileText /> {submitting ? "Закрытие…" : "Закрыть смену"}
+              <FileText /> {submitting ? t("close.closing") : t("shift.tabClose")}
             </Button>
           </div>
         </div>
       ) : (
         <div className="flex gap-2">
           <Button variant="secondary" size="lg" className="flex-1" onClick={recount}>
-            <RotateCcw /> Пересчитать
+            <RotateCcw /> {t("close.recount")}
           </Button>
           <Button size="lg" className="flex-[1.6]" onClick={askConfirm} disabled={blockers.length > 0}>
-            <FileText /> Закрыть смену и Z-отчёт
+            <FileText /> {t("close.closeAndZ")}
           </Button>
         </div>
       )}

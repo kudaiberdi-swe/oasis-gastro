@@ -1,7 +1,7 @@
 import { useState } from "react"
 
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Field, Textarea } from "@/shared/components/ui"
-import { errorMessage } from "@/shared/lib/error-message"
+import { posErrorMessage, useT } from "@/pos/i18n"
 
 /** «Комментарий к заказу» (W1-POS-15): saved with the check (saveDraft comment), visible in the history. */
 export function CommentDialog({
@@ -23,6 +23,7 @@ export function CommentDialog({
 }
 
 function CommentForm({ comment, onCancel, onSave, onSaved }: { comment: string; onCancel: () => void; onSave: (comment: string) => Promise<unknown>; onSaved: () => void }) {
+  const t = useT()
   const [text, setText] = useState(comment)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -34,7 +35,7 @@ function CommentForm({ comment, onCancel, onSave, onSaved }: { comment: string; 
       await onSave(text.trim())
       onSaved()
     } catch (caught) {
-      setError(errorMessage(caught, "Не удалось сохранить комментарий"))
+      setError(posErrorMessage(t, caught, t("comment.failed")))
     } finally {
       setSaving(false)
     }
@@ -43,11 +44,11 @@ function CommentForm({ comment, onCancel, onSave, onSaved }: { comment: string; 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Комментарий к заказу</DialogTitle>
-        <DialogDescription>Комментарий сохранится вместе с заказом и будет виден в истории.</DialogDescription>
+        <DialogTitle>{t("comment.title")}</DialogTitle>
+        <DialogDescription>{t("comment.description")}</DialogDescription>
       </DialogHeader>
-      <Field label="Комментарий">
-        {(control) => <Textarea {...control} rows={4} value={text} maxLength={500} onChange={(event) => setText(event.target.value)} placeholder="Например, без лука, позвонить гостю…" className="text-body" />}
+      <Field label={t("common.comment")}>
+        {(control) => <Textarea {...control} rows={4} value={text} maxLength={500} onChange={(event) => setText(event.target.value)} placeholder={t("comment.placeholder")} className="text-body" />}
       </Field>
       {error && (
         <p role="alert" className="text-body-sm font-semibold text-destructive">
@@ -56,10 +57,10 @@ function CommentForm({ comment, onCancel, onSave, onSaved }: { comment: string; 
       )}
       <DialogFooter>
         <Button variant="secondary" size="lg" onClick={onCancel} disabled={saving}>
-          Отмена
+          {t("common.cancel")}
         </Button>
         <Button size="lg" onClick={save} disabled={saving || text.trim() === comment.trim()}>
-          {saving ? "Сохранение…" : "Сохранить"}
+          {saving ? t("common.saving") : t("common.save")}
         </Button>
       </DialogFooter>
     </>
