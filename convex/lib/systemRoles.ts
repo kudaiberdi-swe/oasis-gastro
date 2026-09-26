@@ -51,8 +51,33 @@ export const SYSTEM_ROLES: { externalId: string; name: string; capabilities: str
 ]
 
 /**
+ * Actions a section gained after the system roles were seeded (W3: motivation and the external menu are
+ * published, medical records go through approval). A system role that already holds a right of the section
+ * gets the new ones its defaults have; a section the office took away stays away.
+ */
+export const ADDED_SECTION_ACTIONS: Record<string, string[]> = {
+  motivation: ["approve"],
+  "medical-records": ["approve", "post", "reverse", "cancel"],
+  "external-menu": ["approve"],
+}
+
+function addedRights(role: { externalId: string; capabilities: string[] }, existing: string[]) {
+  const defaults = SYSTEM_ROLES.find((candidate) => candidate.externalId === role.externalId)?.capabilities ?? []
+  const rights: string[] = []
+  for (const [section, actions] of Object.entries(ADDED_SECTION_ACTIONS)) {
+    if (!existing.some((right) => right.startsWith(`office.${section}.`))) continue
+    for (const action of actions) {
+      const right = `office.${section}.${action}`
+      if (defaults.includes(right) && !existing.includes(right)) rights.push(right)
+    }
+  }
+  return rights
+}
+
+/**
  * Idempotent upsert of the system roles. The administrator is always "*"; other system roles are
- * created with their default rights and then left alone, so an office edit of a system role survives.
+ * created with their default rights and then left alone, so an office edit of a system role survives —
+ * except for the actions added to sections the role already has (ADDED_SECTION_ACTIONS).
  */
 export async function upsertSystemRoles(ctx: MutationCtx, dryRun = false) {
   let created = 0
@@ -65,6 +90,12 @@ export async function upsertSystemRoles(ctx: MutationCtx, dryRun = false) {
     } else if (!existing.system || (role.externalId === "administrator" && !(existing.capabilities.length === 1 && existing.capabilities[0] === "*"))) {
       updated += 1
       if (!dryRun) await ctx.db.patch(existing._id, { system: true, ...(role.externalId === "administrator" ? { capabilities: ["*"] } : {}) })
+    } else if (role.externalId !== "administrator") {
+      const added = addedRights(role, existing.capabilities)
+      if (added.length) {
+        updated += 1
+        if (!dryRun) await ctx.db.patch(existing._id, { capabilities: [...existing.capabilities, ...added] })
+      }
     }
   }
   return { created, updated, total: SYSTEM_ROLES.length, dryRun }

@@ -49,6 +49,25 @@ describe("system roles (W1-ACL-03)", () => {
     expect(roles.find((role) => role.externalId === "report-viewer")?.capabilities.every((capability) => capability.endsWith(".view"))).toBe(true)
   })
 
+  it("a seeded role gets the actions its sections gained later (W3), never a section the office took away", async () => {
+    const { t } = await setup()
+    await t.run(async (ctx) => {
+      const hr = (await ctx.db.query("officeRoles").withIndex("by_external_id", (q) => q.eq("externalId", "hr-payroll")).unique())!
+      const manager = (await ctx.db.query("officeRoles").withIndex("by_external_id", (q) => q.eq("externalId", "restaurant-manager")).unique())!
+      // As seeded before W3: motivation without approve, medical records without the approval actions.
+      await ctx.db.patch(hr._id, { capabilities: hr.capabilities.filter((right) => !["office.motivation.approve", "office.medical-records.approve", "office.medical-records.cancel"].includes(right)) })
+      // The office took medical records away from the restaurant manager.
+      await ctx.db.patch(manager._id, { capabilities: manager.capabilities.filter((right) => !right.startsWith("office.medical-records.")) })
+    })
+    const result = await t.mutation(internal.domains.office.internal.seedSystemRoles, {})
+    expect(result.updated).toBeGreaterThanOrEqual(1)
+    const roles = await t.run((ctx) => ctx.db.query("officeRoles").collect())
+    const hr = roles.find((role) => role.externalId === "hr-payroll")!.capabilities
+    expect(hr).toEqual(expect.arrayContaining(["office.motivation.approve", "office.medical-records.approve", "office.medical-records.cancel"]))
+    expect(roles.find((role) => role.externalId === "restaurant-manager")!.capabilities.some((right) => right.startsWith("office.medical-records."))).toBe(false)
+    expect((await t.mutation(internal.domains.office.internal.seedSystemRoles, {})).updated).toBe(0)
+  })
+
   it("lists roles with the number of sections they cover", async () => {
     const { admin } = await setup()
     const data = await admin.query(access.listAccessControl, {})
