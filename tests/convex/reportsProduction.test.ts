@@ -121,25 +121,26 @@ describe("production reports (W3-RPT-02)", () => {
 
   it("11 sheet, 12 kitchen plan and 13 needs come from one forecast (L-14)", async () => {
     const { t, run, act } = await setup()
-    // Same weekday (Wednesday) over six weeks before 30.09: 12 + 12 + 6 + 6 + 0 + 0 = 36 → 6 a day.
+    // Same weekday (Wednesday) over six weeks before 30.09: 12 + 12 + 6 + 6 on the 4 days with sales = 36 → 9 a day
+    // (the one kitchen forecast of convex/lib/forecast.ts: average over the days with sales, rounded up).
     await t.run(async (ctx) => {
       for (const [date, quantity] of [["2026-09-23", 12], ["2026-09-16", 12], ["2026-09-09", 6], ["2026-09-02", 6], ["2026-09-29", 40], ["2026-09-30", 5]] as const) {
         await ctx.db.insert("dailySalesFacts", { restaurantExternalId: "almaty", businessDate: date, factType: "product", dimensionKey: "beshbarmak", dimensionLabel: "Бешбармак", orderCount: quantity, guestCount: 0, quantity, grossAmount: 0, discountAmount: 0, serviceChargeAmount: 0, netAmount: 0, costAmount: 0, refundAmount: 0, refundCount: 0, serviceMinutesTotal: 0, zeroRevenueCount: 0, updatedAt: 0 })
       }
     })
     const forecast = await t.run((ctx) => forecastFromFacts(ctx, { restaurantExternalId: "almaty", targetDate: "2026-09-30" }))
-    expect(forecast).toEqual([{ productExternalId: "beshbarmak", name: "Бешбармак", recommended: 6 }])
+    expect(forecast).toEqual([{ productExternalId: "beshbarmak", name: "Бешбармак", recommended: 9 }])
 
     const plan = await run("production-12")
-    expect(plan.rows.map((row) => [row.cells.group, row.cells.recommended, row.cells.sold, row.cells.deviation])).toEqual([["Бешбармак", 6, 5, -1]])
+    expect(plan.rows.map((row) => [row.cells.group, row.cells.recommended, row.cells.sold, row.cells.deviation])).toEqual([["Бешбармак", 9, 5, -4]])
 
     const sheet = cellsOf(await run("production-11"))
-    expect(sheet["Бульон"]).toMatchObject({ need: forecast[0].recommended * 0.5, onHand: 0, plan: 3, fact: 0 })
-    // 13: the dish's own meat (6 × 0.2) plus the broth still to make (3 kg × 0.4).
-    expect(cellsOf(await run("production-13"))["Говядина"]).toMatchObject({ need: 2.4, onHand: 20, shortage: 0 })
+    expect(sheet["Бульон"]).toMatchObject({ need: forecast[0].recommended * 0.5, onHand: 0, plan: 4.5, fact: 0 })
+    // 13: the dish's own meat (9 × 0.2) plus the broth still to make (4.5 kg × 0.4).
+    expect(cellsOf(await run("production-13"))["Говядина"]).toMatchObject({ need: 3.6, onHand: 20, shortage: 0 })
 
     await act("production", "2026-09-30T08:00:00", [{ productExternalId: "broth", quantity: 2 }])
-    expect(cellsOf(await run("production-11"))["Бульон"]).toMatchObject({ need: 3, onHand: 2, plan: 1, fact: 2 })
-    expect((await run("production-12", ["almaty"], { ...SEPTEMBER, extra: { targetDate: "2026-10-07" } })).rows.map((row) => [row.cells.recommended, row.cells.sold])).toEqual([[7, 0]]) // (5 + 12 + 12 + 6 + 6 + 0) / 6
+    expect(cellsOf(await run("production-11"))["Бульон"]).toMatchObject({ need: 4.5, onHand: 2, plan: 2.5, fact: 2 })
+    expect((await run("production-12", ["almaty"], { ...SEPTEMBER, extra: { targetDate: "2026-10-07" } })).rows.map((row) => [row.cells.recommended, row.cells.sold])).toEqual([[9, 0]]) // (5 + 12 + 12 + 6 + 6) / 5 days with sales = 8.2 → 9
   })
 })
