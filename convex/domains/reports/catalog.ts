@@ -17,6 +17,8 @@ export type ReportDefinition = {
   /** Owner decision Г-11: the report depends only on a mechanic the business does not use (certificates, coupons, referrals, corporate clients). */
   mechanicDisabled: boolean
   requiredCapability?: string
+  /** Decision Г-11: the business does not run this mechanic (coupons, referrals…) — «Недоступно: механика выключена». */
+  mechanicDisabled?: boolean
 }
 
 export const FAMILY_LABELS: Record<ReportFamily, string> = {
@@ -192,8 +194,8 @@ const ROWS: Row[] = [
   { id: "loyalty-08", title: "Депозитные операции", family: "loyalty", wave: "W2" },
   { id: "loyalty-09", title: "Эффективность программ", family: "loyalty", wave: "W2" },
   { id: "loyalty-10", title: "Эффективность акций", family: "loyalty", wave: "W2" },
-  { id: "loyalty-11", title: "Использование купонов", family: "loyalty", wave: "W2" },
-  { id: "loyalty-12", title: "Реферальная программа", family: "loyalty", wave: "W2" },
+  { id: "loyalty-11", title: "Использование купонов", family: "loyalty", wave: "W2", mechanicDisabled: true },
+  { id: "loyalty-12", title: "Реферальная программа", family: "loyalty", wave: "W2", mechanicDisabled: true },
   { id: "loyalty-13", title: "Категории гостей", family: "loyalty", wave: "W2" },
   { id: "loyalty-14", title: "Согласия на коммуникации", family: "loyalty", wave: "W2" },
   { id: "loyalty-15", title: "Отчёт по отправке SMS", family: "loyalty", wave: "W2" },

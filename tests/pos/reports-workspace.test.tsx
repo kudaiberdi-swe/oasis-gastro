@@ -157,6 +157,20 @@ describe("report catalog (W1-RPT-03)", () => {
     expect(executeCalls()).toHaveLength(0)
   })
 
+  it("shows the status of an unavailable report (Г-11 mechanic off, not applicable in KZ) even when it has a calculator", () => {
+    mocks.queries["domains/reports/queries:coverage"] = { ...COVERAGE, implementedIds: [...COVERAGE.implementedIds, "loyalty-11", "integrations-10"] }
+    renderAt(`/office/reports/loyalty-11${PERIOD}`)
+    const header = screen.getByRole("heading", { name: "Использование купонов" }).closest("header")!
+    expect(within(header).getByText("Механика выключена")).toBeTruthy()
+    expect(within(header).queryByText("Готов")).toBeNull()
+    expect(screen.getByText("Недоступно: механика выключена")).toBeTruthy()
+
+    cleanup()
+    renderAt(`/office/reports/integrations-10${PERIOD}`)
+    expect(screen.getByText("Не применяется в Казахстане")).toBeTruthy()
+    expect(executeCalls()).toHaveLength(0)
+  })
+
   it("shows «Отчёт не найден» for an unknown id", () => {
     renderAt("/office/reports/no-such-report")
     expect(screen.getByText("Отчёт не найден")).toBeTruthy()

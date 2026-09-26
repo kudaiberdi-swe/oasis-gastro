@@ -79,7 +79,7 @@ function CatalogCard({ report, active, ready, search }: { report: ReportDefiniti
         <span className="text-body-sm font-semibold text-foreground">{report.title}</span>
         <span className="line-clamp-2 text-caption text-muted-foreground">{report.description}</span>
         <span className="mt-1 flex flex-wrap gap-1.5">
-          {ready === undefined ? null : ready ? <TonePill tone="success">Готов</TonePill> : <TonePill>В разработке</TonePill>}
+          {ready === undefined || isNotApplicableKz(report) || isMechanicDisabled(report) ? null : ready ? <TonePill tone="success">Готов</TonePill> : <TonePill>В разработке</TonePill>}
           <TonePill>{report.familyLabel}</TonePill>
           {report.configurable ? <TonePill tone="info">OLAP</TonePill> : null}
           {isNotApplicableKz(report) ? <TonePill tone="warning">Не применяется в РК</TonePill> : null}

@@ -549,6 +549,7 @@ export default defineSchema({
       v.literal("payment-type"), v.literal("order-type"), v.literal("employee"), v.literal("cashier"), v.literal("terminal"), v.literal("table"),
       v.literal("deletion-reason"), v.literal("discount-type"), v.literal("service-charge"),
       v.literal("station"), v.literal("terminal-product"), v.literal("channel"), // W2-RPT-03
+      v.literal("guest"), // W3-RPT-04: dimensionKey = guests._id, label without personal data; only orders with a guest
     ),
     dimensionKey: v.string(),
     dimensionLabel: v.string(),
@@ -1520,7 +1521,9 @@ export default defineSchema({
   })
     .index("by_external_id", ["externalId"])
     .index("by_idempotency_key", ["idempotencyKey"])
-    .index("by_status_attempt", ["status", "nextAttemptAt"]),
+    .index("by_status_attempt", ["status", "nextAttemptAt"])
+    .index("by_created", ["createdAt"]) // W3-RPT-06: integration reports by period
+    .index("by_provider_created", ["provider", "createdAt"]),
 
   // Server-side document numbering: scopeKey = "<moduleId>:<organizationExternalId>:<yyyy>".
   documentCounters: defineTable({

@@ -96,6 +96,8 @@ export async function applyCheckoutFacts(ctx: MutationCtx, order: Doc<"orders">,
     deltas.push({ factType: "employee", key: employee?.code ?? String(order.createdBy), label: employee?.displayName ?? "Сотрудник", measures: orderMeasures })
   }
   if (order.tableLabel) deltas.push({ factType: "table", key: order.tableLabel, label: order.tableLabel, measures: orderMeasures })
+  // W3-RPT-04: guest visits for the loyalty reports — the key is the guest id, the label never carries personal data.
+  if (order.guestId) deltas.push({ factType: "guest", key: String(order.guestId), label: "Гость", measures: orderMeasures })
   if (discount !== 0) deltas.push({ factType: "discount-type", key: order.discountTypeExternalId ?? `percent-${order.discountPercent}`, label: order.discountTypeName ?? `Скидка ${order.discountPercent}%`, measures: { orderCount: 1, discountAmount: discount, grossAmount: order.subtotal } })
   if (order.serviceChargeAmount) deltas.push({ factType: "service-charge", key: String(order.serviceChargePercent), label: `Сервисный сбор ${order.serviceChargePercent}%`, measures: { orderCount: 1, serviceChargeAmount: order.serviceChargeAmount, netAmount: net } })
 
@@ -151,6 +153,7 @@ export async function applyRefundFacts(ctx: MutationCtx, order: Doc<"orders">, p
     { factType: "branch", key: where.restaurantExternalId, label: where.restaurantName, measures },
     { factType: "payment-type", key: payment.paymentTypeExternalId ?? payment.method, label: payment.paymentTypeName ?? payment.method, measures: { refundAmount: payment.amount, refundCount: 1 } },
     { factType: "channel", key: channel.key, label: channel.label, measures },
+    ...(order.guestId ? [{ factType: "guest" as const, key: String(order.guestId), label: "Гость", measures }] : []),
   ])
 }
 

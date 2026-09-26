@@ -61,11 +61,15 @@ export function ReportViewer({ reportId, coverage, filters, onFiltersChange, res
   }
 
   const implemented = coverage ? coverage.implementedIds.includes(report.id) : undefined
+  // A report of a mechanic that does not apply (KZ) or is off (Г-11) shows its status, never an empty table.
+  const unavailable = isNotApplicableKz(report) || isMechanicDisabled(report)
   return (
     <div className="flex flex-col gap-4 px-6 py-5 xl:px-8">
       {back}
       <ViewerHeader report={report} implemented={implemented} viewName={viewName} />
-      {implemented === undefined ? (
+      {unavailable ? (
+        <NotImplemented report={report} />
+      ) : implemented === undefined ? (
         <div role="status" aria-label="Загрузка" className="flex flex-col gap-3">
           <Skeleton className="h-11 w-full max-w-xl" />
           <SkeletonRows rows={6} />
@@ -86,7 +90,7 @@ function ViewerHeader({ report, implemented, viewName }: { report: ReportDefinit
       <h2 className="font-display text-title font-semibold text-foreground">{report.title}</h2>
       <p className="text-body-sm text-muted-foreground">{report.description}</p>
       <div className="flex flex-wrap gap-1.5">
-        {implemented === undefined ? null : implemented ? <TonePill tone="success">Готов</TonePill> : <TonePill>В разработке</TonePill>}
+        {implemented === undefined || isNotApplicableKz(report) || isMechanicDisabled(report) ? null : implemented ? <TonePill tone="success">Готов</TonePill> : <TonePill>В разработке</TonePill>}
         <TonePill>{report.familyLabel}</TonePill>
         {report.configurable ? <TonePill tone="info">OLAP</TonePill> : null}
         {isNotApplicableKz(report) ? <TonePill tone="warning">Не применяется в РК</TonePill> : null}

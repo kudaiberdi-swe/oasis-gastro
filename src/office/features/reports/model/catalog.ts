@@ -16,9 +16,9 @@ export function isNotApplicableKz(report: ReportDefinition) {
   return report.kzApplicability === "not-applicable-kz"
 }
 
-/** Owner decision Г-11: the mechanic behind the report is switched off, so it is never computed. */
+/** Decision Г-11: coupons, referrals… are not run by the business — «Недоступно: механика выключена». */
 export function isMechanicDisabled(report: ReportDefinition) {
-  return report.mechanicDisabled
+  return report.mechanicDisabled === true
 }
 
 export function filterReports(
