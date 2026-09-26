@@ -55,6 +55,7 @@ import type * as domains_integrations_adapters_messaging from "../domains/integr
 import type * as domains_integrations_adapters_oneC from "../domains/integrations/adapters/oneC.js";
 import type * as domains_integrations_adapters_telephony from "../domains/integrations/adapters/telephony.js";
 import type * as domains_integrations_adapters_types from "../domains/integrations/adapters/types.js";
+import type * as domains_integrations_cards from "../domains/integrations/cards.js";
 import type * as domains_integrations_cloudApi from "../domains/integrations/cloudApi.js";
 import type * as domains_integrations_externalMenu from "../domains/integrations/externalMenu.js";
 import type * as domains_integrations_internal from "../domains/integrations/internal.js";
@@ -273,6 +274,7 @@ declare const fullApi: ApiFromModules<{
   "domains/integrations/adapters/oneC": typeof domains_integrations_adapters_oneC;
   "domains/integrations/adapters/telephony": typeof domains_integrations_adapters_telephony;
   "domains/integrations/adapters/types": typeof domains_integrations_adapters_types;
+  "domains/integrations/cards": typeof domains_integrations_cards;
   "domains/integrations/cloudApi": typeof domains_integrations_cloudApi;
   "domains/integrations/externalMenu": typeof domains_integrations_externalMenu;
   "domains/integrations/internal": typeof domains_integrations_internal;

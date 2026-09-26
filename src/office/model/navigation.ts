@@ -198,7 +198,7 @@ export const officeNavigation: OfficeNavigationGroup[] = [
       item("integration-edi", "EDI", "Заказы и накладные поставщиков", undefined, "integration"),
       item("integration-bank", "Банк-клиент", "Выписки и платёжные поручения", undefined, "integration"),
       item("integration-fiscal", "Фискальные сервисы", "ККМ, ОФД и локальные требования", undefined, "integration"),
-      item("integration-egais", "ЕГАИС", "Алкогольный учёт через УТМ", undefined, "integration"),
+      item("integration-egais", "ЕГАИС", "Модуль применяется только в российской юрисдикции", undefined, "integration"),
       item("integration-loyalty", "Лояльность", "Бонусные провайдеры и iikoCard", undefined, "integration"),
       item("integration-messaging", "SMS и email", "Провайдеры уведомлений и рассылок", undefined, "integration"),
       item("integration-maps", "Карты и курьеры", "Геокодирование, маршруты и трекинг", undefined, "integration"),

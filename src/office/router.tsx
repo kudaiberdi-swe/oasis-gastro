@@ -35,6 +35,9 @@ import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace
 import { LoyaltyProgramsWorkspace } from "@/office/features/loyalty/ui/programs-workspace"
 import { ReservationsWorkspace } from "@/office/features/loyalty/ui/reservations-workspace"
 import { CloudApiWorkspace } from "@/office/features/integrations/ui/cloud-api-workspace"
+import { EgaisUnavailable } from "@/office/features/integrations/ui/egais-unavailable"
+import { IntegrationCardsWorkspace } from "@/office/features/integrations/ui/integration-register"
+import type { CardModuleId } from "@/office/features/integrations/model/cards"
 import { ExternalMenuWorkspace } from "@/office/features/integrations/ui/external-menu-workspace"
 import { CampaignsWorkspace } from "@/office/features/loyalty/ui/campaigns-register"
 import { ModifiersWorkspace } from "@/office/features/modifiers/ui/modifiers-workspace"
@@ -83,7 +86,21 @@ import { EmptyState } from "@/shared/components/ui"
 import { NotFound } from "@/shared/routing/not-found"
 
 /** Sections with a working screen today; the rest of the 91 show a "coming" page until their W1+ task. */
+/** One Register per «Обмен и интеграции» section with a provider card (W3-INT-01). */
+const cardsWorkspace = (moduleId: CardModuleId): ComponentType => () => <IntegrationCardsWorkspace moduleId={moduleId} />
+const CARD_WORKSPACES: Record<CardModuleId, ComponentType> = {
+  "integration-1c": cardsWorkspace("integration-1c"),
+  "integration-edi": cardsWorkspace("integration-edi"),
+  "integration-bank": cardsWorkspace("integration-bank"),
+  "integration-fiscal": cardsWorkspace("integration-fiscal"),
+  "integration-loyalty": cardsWorkspace("integration-loyalty"),
+  "integration-messaging": cardsWorkspace("integration-messaging"),
+  "integration-maps": cardsWorkspace("integration-maps"),
+}
+
 const WORKSPACES: Record<string, ComponentType> = {
+  ...CARD_WORKSPACES,
+  "integration-egais": EgaisUnavailable,
   dashboard: DashboardWorkspace,
   favorites: FavoritesWorkspace,
   orders: OrdersWorkspace,
@@ -215,8 +232,8 @@ export function OfficeRouter() {
           <OfficePage group={group} title={item.label} description={item.description} favorite={favorite}>
             <EmptyState
               size="lg"
-              title={item.id === "integration-egais" ? "Недоступно для Казахстана" : "Раздел в разработке"}
-              description={item.id === "integration-egais" ? "ЕГАИС — российская система учёта алкоголя; в Казахстане она не применяется." : "Раздел появится в одной из следующих поставок плана."}
+              title="Раздел в разработке"
+              description="Раздел появится в одной из следующих поставок плана."
             />
           </OfficePage>
         )}

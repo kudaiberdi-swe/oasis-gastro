@@ -53,8 +53,9 @@ const GROUPS: { id: string; sections: [id: string, kind: SectionKind][] }[] = [
   {
     id: "exchange",
     sections: [
-      ["integration-1c", "reference"], ["integration-edi", "reference"], ["integration-bank", "reference"], ["integration-fiscal", "reference"], ["integration-egais", "view"],
-      ["integration-loyalty", "reference"], ["integration-messaging", "reference"], ["integration-maps", "reference"], ["integration-cloud-api", "reference"], ["external-menu", "published"],
+      // Integration cards are published by approval (W3-INT-01): office.<section>.approve.
+      ["integration-1c", "published"], ["integration-edi", "published"], ["integration-bank", "published"], ["integration-fiscal", "published"], ["integration-egais", "view"],
+      ["integration-loyalty", "published"], ["integration-messaging", "published"], ["integration-maps", "published"], ["integration-cloud-api", "reference"], ["external-menu", "published"],
     ],
   },
   { id: "admin", sections: [["users", "reference"], ["roles", "reference"], ["terminals", "reference"], ["equipment", "reference"], ["print-templates", "reference"], ["audit-log", "view"], ["system-settings", "reference"], ["integration-jobs", "reference"]] },
