@@ -1,0 +1,673 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-26T15:57:53.860260+00:00",
+  "title": "Design System: Sandyq",
+  "extensions": {
+    "colorMeta": {
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream Tablecloth",
+        "canonical": "#fff7ec",
+        "oklch": "oklch(97.9% 0.017 76.1)",
+        "tonalRamp": [
+          "#0e0a06",
+          "#28231d",
+          "#443f37",
+          "#635d54",
+          "#837c73",
+          "#a49d94",
+          "#cdc6bd",
+          "#f4ede5"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Night Ink",
+        "canonical": "#121316",
+        "oklch": "oklch(18.7% 0.006 271.1)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232427",
+          "#3e4043",
+          "#5c5d61",
+          "#7c7d81",
+          "#9d9ea2",
+          "#c6c7cb",
+          "#edeef2"
+        ]
+      },
+      "card-white": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#7d7d7d",
+          "#9e9e9e",
+          "#c7c7c7",
+          "#eeeeee"
+        ]
+      },
+      "muted-parchment": {
+        "role": "neutral",
+        "displayName": "Parchment",
+        "canonical": "#f5ecdf",
+        "oklch": "oklch(94.7% 0.020 77.3)",
+        "tonalRamp": [
+          "#0f0a05",
+          "#29231b",
+          "#453f35",
+          "#645c52",
+          "#847c71",
+          "#a59d92",
+          "#cdc6bc",
+          "#f4ede4"
+        ]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#6b6159",
+        "oklch": "oklch(50.0% 0.018 61.1)",
+        "tonalRamp": [
+          "#0f0a06",
+          "#29221d",
+          "#463e37",
+          "#655c54",
+          "#857b73",
+          "#a69c94",
+          "#cfc5be",
+          "#f6ede6"
+        ]
+      },
+      "hairline-sand": {
+        "role": "neutral",
+        "displayName": "Sand Hairline",
+        "canonical": "#e8e3dc",
+        "oklch": "oklch(91.8% 0.011 76.6)",
+        "tonalRamp": [
+          "#0d0b07",
+          "#27231f",
+          "#433f3a",
+          "#615d57",
+          "#817d76",
+          "#a29e98",
+          "#cbc7c1",
+          "#f2eee8"
+        ]
+      },
+      "input-clay": {
+        "role": "neutral",
+        "displayName": "Input Clay",
+        "canonical": "#8c8173",
+        "oklch": "oklch(60.9% 0.025 73.9)",
+        "tonalRamp": [
+          "#100a04",
+          "#2a2319",
+          "#473e33",
+          "#665c4f",
+          "#867b6e",
+          "#a79d90",
+          "#d0c6b9",
+          "#f6ede1"
+        ]
+      },
+      "wine": {
+        "role": "primary",
+        "displayName": "Kilim Wine",
+        "canonical": "#8c2323",
+        "oklch": "oklch(42.7% 0.141 25.5)",
+        "tonalRamp": [
+          "#2a0000",
+          "#4e0001",
+          "#74191a",
+          "#9b3734",
+          "#c15851",
+          "#e37d75",
+          "#ffa9a0",
+          "#ffd3ca"
+        ]
+      },
+      "wine-deep": {
+        "role": "primary",
+        "displayName": "Wine Deep",
+        "canonical": "#6e1b1b",
+        "oklch": "oklch(36.1% 0.117 25.2)",
+        "tonalRamp": [
+          "#260000",
+          "#480609",
+          "#6c2422",
+          "#92403c",
+          "#b7605a",
+          "#d9847d",
+          "#ffafa7",
+          "#ffd8d0"
+        ]
+      },
+      "brass-text": {
+        "role": "secondary",
+        "displayName": "Brass Text",
+        "canonical": "#8a6526",
+        "oklch": "oklch(53.3% 0.092 77.5)",
+        "tonalRamp": [
+          "#1a0500",
+          "#381d00",
+          "#573900",
+          "#795619",
+          "#9b763a",
+          "#bc9861",
+          "#e3c28f",
+          "#ffe9ba"
+        ]
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Carving Gold",
+        "canonical": "#b28f6f",
+        "oklch": "oklch(67.5% 0.062 63.9)",
+        "tonalRamp": [
+          "#180600",
+          "#351e06",
+          "#54391f",
+          "#75563a",
+          "#977657",
+          "#b8987a",
+          "#e0c1a5",
+          "#ffe9cf"
+        ]
+      },
+      "rust": {
+        "role": "secondary",
+        "displayName": "Rust Cut",
+        "canonical": "#a33009",
+        "oklch": "oklch(48.0% 0.157 36.4)",
+        "tonalRamp": [
+          "#2d0000",
+          "#520000",
+          "#781300",
+          "#a03311",
+          "#c75535",
+          "#e97b5c",
+          "#ffa88b",
+          "#ffd2b6"
+        ]
+      },
+      "clay-ring": {
+        "role": "neutral",
+        "displayName": "Clay Ring",
+        "canonical": "#7f5c43",
+        "oklch": "oklch(50.5% 0.059 56.5)",
+        "tonalRamp": [
+          "#190500",
+          "#361d0a",
+          "#553823",
+          "#76553e",
+          "#98755c",
+          "#b9967e",
+          "#e1c0a9",
+          "#ffe8d2"
+        ]
+      },
+      "steppe-green": {
+        "role": "tertiary",
+        "displayName": "Steppe Green",
+        "canonical": "#4d5a36",
+        "oklch": "oklch(44.6% 0.058 124.8)",
+        "tonalRamp": [
+          "#070e00",
+          "#1f280c",
+          "#3a4526",
+          "#566340",
+          "#76835f",
+          "#97a581",
+          "#c0cdac",
+          "#e8f4d5"
+        ]
+      },
+      "amber-warning": {
+        "role": "tertiary",
+        "displayName": "Amber Ember",
+        "canonical": "#9a4408",
+        "oklch": "oklch(49.2% 0.131 47.5)",
+        "tonalRamp": [
+          "#270000",
+          "#4a0600",
+          "#6e2500",
+          "#94420c",
+          "#b96232",
+          "#da865a",
+          "#ffb189",
+          "#ffdbb5"
+        ]
+      },
+      "ember-red": {
+        "role": "tertiary",
+        "displayName": "Ember Red",
+        "canonical": "#b42318",
+        "oklch": "oklch(50.0% 0.182 29.5)",
+        "tonalRamp": [
+          "#320000",
+          "#580000",
+          "#800000",
+          "#aa2116",
+          "#d24738",
+          "#f4705f",
+          "#ff9f8c",
+          "#ffcab8"
+        ]
+      },
+      "night-ink": {
+        "role": "neutral",
+        "displayName": "Night Frame",
+        "canonical": "#121316",
+        "oklch": "oklch(18.7% 0.006 271.1)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232427",
+          "#3e4043",
+          "#5c5d61",
+          "#7c7d81",
+          "#9d9ea2",
+          "#c6c7cb",
+          "#edeef2"
+        ]
+      },
+      "night-raised": {
+        "role": "neutral",
+        "displayName": "Night Raised",
+        "canonical": "#1e1e1e",
+        "oklch": "oklch(23.5% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#7d7d7d",
+          "#9e9e9e",
+          "#c7c7c7",
+          "#eeeeee"
+        ]
+      },
+      "nav-muted": {
+        "role": "neutral",
+        "displayName": "Felt Grey",
+        "canonical": "#bfb5a8",
+        "oklch": "oklch(77.8% 0.021 74.6)",
+        "tonalRamp": [
+          "#0f0a05",
+          "#29231b",
+          "#463e35",
+          "#655c51",
+          "#857c70",
+          "#a69d91",
+          "#cec6bb",
+          "#f5ede3"
+        ]
+      },
+      "cat-meat": {
+        "role": "tertiary",
+        "displayName": "Meat Mark",
+        "canonical": "#8c2323",
+        "oklch": "oklch(42.7% 0.141 25.5)",
+        "tonalRamp": [
+          "#2a0000",
+          "#4e0001",
+          "#74191a",
+          "#9b3734",
+          "#c15851",
+          "#e37d75",
+          "#ffa9a0",
+          "#ffd3ca"
+        ]
+      },
+      "cat-dairy": {
+        "role": "tertiary",
+        "displayName": "Dairy Mark",
+        "canonical": "#b28f6f",
+        "oklch": "oklch(67.5% 0.062 63.9)",
+        "tonalRamp": [
+          "#180600",
+          "#351e06",
+          "#54391f",
+          "#75563a",
+          "#977657",
+          "#b8987a",
+          "#e0c1a5",
+          "#ffe9cf"
+        ]
+      },
+      "cat-bread": {
+        "role": "tertiary",
+        "displayName": "Bread Mark",
+        "canonical": "#9a4408",
+        "oklch": "oklch(49.2% 0.131 47.5)",
+        "tonalRamp": [
+          "#270000",
+          "#4a0600",
+          "#6e2500",
+          "#94420c",
+          "#b96232",
+          "#da865a",
+          "#ffb189",
+          "#ffdbb5"
+        ]
+      },
+      "cat-green": {
+        "role": "tertiary",
+        "displayName": "Greens Mark",
+        "canonical": "#4d5a36",
+        "oklch": "oklch(44.6% 0.058 124.8)",
+        "tonalRamp": [
+          "#070e00",
+          "#1f280c",
+          "#3a4526",
+          "#566340",
+          "#76835f",
+          "#97a581",
+          "#c0cdac",
+          "#e8f4d5"
+        ]
+      },
+      "cat-tea": {
+        "role": "tertiary",
+        "displayName": "Tea Mark",
+        "canonical": "#6b4a2e",
+        "oklch": "oklch(43.9% 0.061 60.5)",
+        "tonalRamp": [
+          "#180500",
+          "#351d07",
+          "#553920",
+          "#76563b",
+          "#987559",
+          "#b9977c",
+          "#e1c0a7",
+          "#ffe8d0"
+        ]
+      },
+      "cat-turkistan": {
+        "role": "tertiary",
+        "displayName": "Turkistan Teal",
+        "canonical": "#2e6a6e",
+        "oklch": "oklch(48.7% 0.062 201.2)",
+        "tonalRamp": [
+          "#001013",
+          "#002b2e",
+          "#11484c",
+          "#2f686b",
+          "#4f888c",
+          "#74a9ad",
+          "#a0d2d5",
+          "#cbf9fc"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "hero": {
+        "displayName": "Hero",
+        "purpose": "Sign-in and large totals only."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Office page titles beside the rust accent."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel and card headings."
+      },
+      "title-sm": {
+        "displayName": "Title small",
+        "purpose": "Section headings in cards and dialogs."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "POS text, dialog body, POS buttons."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Office text, tables, inputs, buttons."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Captions, pills, hints, breadcrumbs."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "Every amount of money, tabular lining figures."
+      }
+    },
+    "themes": {
+      "night": {
+        "background": "#121316",
+        "foreground": "#fff7ec",
+        "card": "#1e1e1e",
+        "popover": "#23282d",
+        "muted": "#2a2724",
+        "muted-foreground": "#bfb5a8",
+        "border": "#3a3631",
+        "input": "#857a6f",
+        "primary": "#a83a2c",
+        "primary-hover": "#8c2323",
+        "accent": "#b28f6f",
+        "accent-foreground": "#121316",
+        "gold": "#b28f6f",
+        "rust": "#e0685c",
+        "ring": "#c9a27e",
+        "success": "#9fb07a",
+        "warning": "#f09a4c",
+        "destructive": "#e87468",
+        "destructive-foreground": "#121316",
+        "nav": "#0b0c0e",
+        "nav-raised": "#1e1e1e",
+        "cat-meat": "#c0463a",
+        "cat-dairy": "#c9a27e",
+        "cat-bread": "#f09a4c",
+        "cat-green": "#9fb07a",
+        "cat-tea": "#c9a27e",
+        "cat-turkistan": "#6fa8ac"
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel",
+        "value": "0 1px 2px rgb(18 19 22 / 0.06), 0 8px 24px rgb(18 19 22 / 0.06)",
+        "purpose": "KPI cards and raised panels."
+      },
+      {
+        "name": "float",
+        "value": "0 10px 25px rgb(0 0 0 / 0.1)",
+        "purpose": "Toasts, sheets and dialogs above the page."
+      },
+      {
+        "name": "panel-night",
+        "value": "0 1px 2px rgb(0 0 0 / 0.3), 0 16px 34px rgb(0 0 0 / 0.2)",
+        "purpose": "Panel shadow in the night theme."
+      },
+      {
+        "name": "float-night",
+        "value": "0 10px 25px rgb(0 0 0 / 0.4)",
+        "purpose": "Float shadow in the night theme."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "150ms ease (transition-colors)",
+        "purpose": "Hover and state color changes of controls."
+      },
+      {
+        "name": "reduced",
+        "value": "prefers-reduced-motion: transitions and animations collapse to 0.01ms",
+        "purpose": "Motion-sensitive users; the kitchen board checks it separately."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      },
+      {
+        "name": "desktop",
+        "value": "1440px"
+      }
+    ],
+    "density": {
+      "comfortable": {
+        "control": "44px",
+        "control-pos": "48px",
+        "table-row": "48px"
+      },
+      "compact": {
+        "control": "36px",
+        "control-pos": "44px",
+        "table-row": "40px"
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one wine main action of a screen.",
+      "html": "<button class=\"ds-btn-primary\">Оплатить</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border:0;border-radius:var(--radius-control,2px);background:var(--primary,#8c2323);color:var(--primary-foreground,#fff);font:600 14px/20px 'Golos Text',Arial,sans-serif;cursor:pointer;transition:background-color .15s}.ds-btn-primary:hover{background:var(--primary-hover,#6e1b1b)}.ds-btn-primary:focus-visible{outline:2px solid var(--ring,#7f5c43);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Every other action: white with a clay border.",
+      "html": "<button class=\"ds-btn-secondary\">Сохранить черновик</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;height:44px;padding:0 16px;border:1px solid var(--input,#8c8173);border-radius:var(--radius-control,2px);background:var(--card,#fff);color:var(--foreground,#121316);font:600 14px/20px 'Golos Text',Arial,sans-serif;cursor:pointer;transition:background-color .15s}.ds-btn-secondary:hover{background:var(--muted,#f5ecdf)}.ds-btn-secondary:focus-visible{outline:2px solid var(--ring,#7f5c43);outline-offset:2px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action, confirmed in a dialog.",
+      "html": "<button class=\"ds-btn-danger\">Отменить заказ</button>",
+      "css": ".ds-btn-danger{display:inline-flex;align-items:center;height:44px;padding:0 16px;border:1px solid var(--destructive,#b42318);border-radius:var(--radius-control,2px);background:var(--card,#fff);color:var(--destructive,#b42318);font:600 14px/20px 'Golos Text',Arial,sans-serif;cursor:pointer}.ds-btn-danger:hover{background:var(--muted,#f5ecdf)}.ds-btn-danger:focus-visible{outline:2px solid var(--ring,#7f5c43);outline-offset:2px}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text field: white, clay border, carved corners.",
+      "html": "<input class=\"ds-input\" placeholder=\"Название, описание или артикул\">",
+      "css": ".ds-input{height:44px;width:280px;padding:0 12px;border:1px solid var(--input,#8c8173);border-radius:var(--radius-control,2px);background:var(--card,#fff);color:var(--foreground,#121316);font:400 14px/20px 'Golos Text',Arial,sans-serif}.ds-input::placeholder{color:var(--muted-foreground,#6b6159)}.ds-input:focus-visible{outline:2px solid var(--ring,#7f5c43);outline-offset:2px}.ds-input[aria-invalid=true]{border-color:var(--destructive,#b42318)}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "A status as a 10% tint with a 30% border.",
+      "html": "<span class=\"ds-pill ds-pill-success\">Оплачен</span> <span class=\"ds-pill\">Черновик</span>",
+      "css": ".ds-pill{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid var(--border,#e8e3dc);border-radius:var(--radius-control,2px);background:var(--muted,#f5ecdf);color:var(--muted-foreground,#6b6159);font:500 12px/16px 'Golos Text',Arial,sans-serif}.ds-pill-success{border-color:color-mix(in srgb,var(--success,#4d5a36) 30%,transparent);background:color-mix(in srgb,var(--success,#4d5a36) 10%,transparent);color:var(--success,#4d5a36)}"
+    },
+    {
+      "name": "Office Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Dark sidebar; the active item is raised, gold, with a 2px gold bar.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\">Остатки</a><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\" aria-current=\"page\">Номенклатура</a></nav>",
+      "css": ".ds-nav{display:flex;flex-direction:column;gap:2px;width:240px;padding:8px;background:var(--nav,#121316)}.ds-nav-item{position:relative;display:flex;align-items:center;min-height:36px;padding:6px 8px 6px 36px;border-radius:var(--radius-control,2px);color:var(--nav-muted,#bfb5a8);font:400 14px/20px 'Golos Text',Arial,sans-serif;text-decoration:none;transition:background-color .15s,color .15s}.ds-nav-item:hover{background:var(--nav-raised,#1e1e1e);color:var(--nav-foreground,#fff7ec)}.ds-nav-item-active{background:var(--nav-raised,#1e1e1e);color:var(--nav-accent,#b28f6f);font-weight:600}.ds-nav-item-active::before{content:'';position:absolute;top:4px;bottom:4px;left:0;width:2px;background:var(--gold,#b28f6f)}.ds-nav-item:focus-visible{outline:2px solid var(--nav-accent,#b28f6f);outline-offset:2px}"
+    },
+    {
+      "name": "Page Header",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Signature: Cormorant title against the 4px rust bar.",
+      "html": "<header class=\"ds-page-header\"><p class=\"ds-crumb\">Товары и склады › Номенклатура</p><div class=\"ds-title\"><h1>Номенклатура</h1><p>Блюда, товары, рецептуры и правила продажи</p></div></header>",
+      "css": ".ds-page-header{display:flex;flex-direction:column;gap:8px;padding:20px 24px;background:var(--background,#fff7ec)}.ds-crumb{margin:0;color:var(--muted-foreground,#6b6159);font:400 12px/16px 'Golos Text',Arial,sans-serif}.ds-title{border-left:4px solid var(--rust,#a33009);padding-left:12px}.ds-title h1{margin:0;color:var(--foreground,#121316);font:600 32px/36px Cormorant,Georgia,serif}.ds-title p{margin:4px 0 0;color:var(--muted-foreground,#6b6159);font:400 14px/20px 'Golos Text',Arial,sans-serif}"
+    },
+    {
+      "name": "Dish Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Signature: 3px category strip, ru + kk names, brass price.",
+      "html": "<button class=\"ds-dish\"><span class=\"ds-dish-strip\"></span><span class=\"ds-dish-name\">Қазақ ет</span><span class=\"ds-dish-kk\">Қазақша ет</span><span class=\"ds-dish-price\">7 990 ₸</span></button>",
+      "css": ".ds-dish{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:200px;min-height:112px;padding:12px 12px 12px 16px;overflow:hidden;border:1px solid var(--border,#e8e3dc);border-radius:var(--radius-card,6px);background:var(--card,#fff);text-align:left;cursor:pointer;transition:background-color .15s}.ds-dish:hover{background:var(--muted,#f5ecdf)}.ds-dish:focus-visible{outline:2px solid var(--ring,#7f5c43);outline-offset:2px}.ds-dish-strip{position:absolute;top:0;bottom:0;left:0;width:3px;background:var(--cat-meat,#8c2323)}.ds-dish-name{color:var(--foreground,#121316);font:600 16px/22px 'Golos Text',Arial,sans-serif}.ds-dish-kk{color:var(--muted-foreground,#6b6159);font:400 14px/20px 'Golos Text',Arial,sans-serif}.ds-dish-price{margin-top:auto;color:var(--accent,#8a6526);font:600 18px/24px Cormorant,Georgia,serif;font-variant-numeric:lining-nums tabular-nums}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Carved Chest",
+    "overview": "Sandyq means chest — the carved wooden sandyq where a Kazakh family keeps what is valuable, each thing in its place. The system borrows that object's discipline rather than its ornament: almost square, carved corners (2px on every control), flat surfaces laid out in order, thin gold lines where a craftsman would cut an edge, and one wine-red mark for the thing that matters most on the screen. It is a working tool first. Cashiers take orders at a table in a full hall; the chest keeps everything findable, calm and within reach, and lets the brand show in precise details instead of decoration.\n\nThe world is warm but restrained: cream working areas, white cards, ink text, a dark ink frame (the POS header, the office sidebar, the sign-in screen) that holds the working area like a chest's lid and body. Cormorant, the brand's display serif, is kept for titles and prices; everything operational is set in Golos Text so Kazakh and Russian read equally well at a glance. Density is honest to the surface: the POS and kitchen are touch-first with 48–56px targets, the office is a desktop tool with a compact mode.",
+    "keyCharacteristics": [
+      "Carved, almost-square forms: 2px controls, 6px cards, 8px panels; never pill buttons.",
+      "Flat by default: tonal layers (cream → white card) and hairline borders; shadows only where a surface floats.",
+      "One wine primary per screen; gold is line and ornament, brass is the readable accent.",
+      "Cormorant for titles and prices with tabular figures, Golos Text for everything else.",
+      "Day and night themes over the same semantic tokens; contrast is checked in CI.",
+      "The brand lives in details: the 4px rust heading accent, gold active markers, category strips."
+    ],
+    "rules": [
+      {
+        "name": "The One Wine Rule",
+        "body": "A screen has one wine primary action; everything else is secondary, ghost or link.",
+        "section": "colors"
+      },
+      {
+        "name": "The Gold Is Line Rule",
+        "body": "Carving gold draws lines and marks; readable gold text on light is always brass.",
+        "section": "colors"
+      },
+      {
+        "name": "The Strip Not Fill Rule",
+        "body": "Category colors appear as a 3px strip on a card or chip, never as a fill.",
+        "section": "colors"
+      },
+      {
+        "name": "The One File Rule",
+        "body": "Raw color values exist only in src/shared/styles/theme.css; components use semantic tokens (bg-card, text-accent, border-input…).",
+        "section": "colors"
+      },
+      {
+        "name": "The Fourteen Floor Rule",
+        "body": "POS and kitchen text is never below 14px; the office never below 12px.",
+        "section": "typography"
+      },
+      {
+        "name": "The Serif For Voice Rule",
+        "body": "Cormorant sets titles and prices only; labels, buttons, tables and forms stay in Golos Text.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Chest Rule",
+        "body": "Surfaces rest flat on the cream; only something that floats above the page gets the float shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use semantic tokens only; add a color by adding a token to theme.css, in both themes.",
+      "Do keep one wine primary per screen and make the other actions secondary, ghost or link.",
+      "Do set every amount of money in the price style (Cormorant, tabular figures) so columns align.",
+      "Do keep POS and kitchen targets at 48px or more and text at 14px or more.",
+      "Do show Kazakh and Russian side by side where the menu has both, Russian first.",
+      "Do run npm run contrast after touching colors; text 4.5:1, borders 3:1, in day and night."
+    ],
+    "donts": [
+      "Don't round buttons into pills or soften cards past 8px; the chest is carved, not molded.",
+      "Don't set gold as text on a light surface — use brass.",
+      "Don't fill a surface with a category color; it is a 3px strip.",
+      "Don't add shadows to resting cards; depth is tonal.",
+      "Don't set labels, buttons or tables in Cormorant.",
+      "Don't hard-code a hex value, a Tailwind palette class or an inline color in a component."
+    ]
+  }
+}
