@@ -21,3 +21,6 @@ iiko-credentials.md
 # Playwright
 test-results/
 playwright-report/
+
+# Transient secret file from scripts/rotate-cloud-api-secret.sh — handed to the website admin, then deleted
+.cloud-api-secret.txt

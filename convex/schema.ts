@@ -1985,6 +1985,7 @@ export default defineSchema({
     comment: v.string(),
     problemComment: v.optional(v.string()),
     cancelReason: v.optional(v.string()),
+    sourceOrderId: v.optional(v.string()), // the channel's own order id (Cloud API, W3-INT-03): idempotency
     version: v.number(),
     searchText: v.string(),
     createdAt: v.number(),
@@ -1992,6 +1993,7 @@ export default defineSchema({
   })
     .index("by_external_id", ["externalId"])
     .index("by_order", ["orderId"])
+    .index("by_source_order", ["sourceExternalId", "sourceOrderId"])
     .index("by_restaurant_status_time", ["restaurantExternalId", "status", "expectedAt"])
     .index("by_restaurant_created", ["restaurantExternalId", "createdAt"])
     .index("by_status_time", ["status", "expectedAt"])
@@ -2272,4 +2274,44 @@ export default defineSchema({
     .index("by_kind_status_start", ["kind", "status", "effectiveFrom"])
     .index("by_kind_code_version", ["kind", "code", "version"])
     .searchIndex("search_retail_settings", { searchField: "searchText", filterFields: ["kind", "status"] }),
+
+  // --- Cloud API and external menu (W3-INT-03/04) ---------------------------
+  // Replay protection: one row per accepted signature until it can no longer pass the ±5 min window.
+  apiNonces: defineTable({
+    key: v.string(),
+    expiresAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_expires", ["expiresAt"]),
+  // A publication channel of the menu (sandyq.kz first, decision Г-9).
+  externalMenus: defineTable({
+    externalId: v.string(),
+    number: v.string(), // EXM-000001
+    name: v.string(),
+    channel: v.union(v.literal("website"), v.literal("mobile-app"), v.literal("aggregators"), v.literal("all")),
+    mode: v.union(v.literal("published"), v.literal("live")), // live: the API serves the current catalog, not a snapshot
+    restaurantExternalIds: v.array(v.string()), // "*" — every restaurant the channel's source serves
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("inactive")),
+    organizationExternalId: v.optional(v.string()),
+    publishedAt: v.optional(v.number()),
+    publishedBy: v.optional(v.string()),
+    version: v.number(), // optimistic concurrency of the record itself
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_status_updated", ["status", "updatedAt"])
+    .index("by_channel_status", ["channel", "status"]),
+  // Immutable menu snapshots per restaurant; `version` is the content hash, so an unchanged catalog keeps it.
+  externalMenuVersions: defineTable({
+    recordExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    version: v.string(),
+    snapshot: v.any(),
+    itemCount: v.number(),
+    publishedAt: v.number(),
+    publishedBy: v.string(),
+  })
+    .index("by_record_published", ["recordExternalId", "publishedAt"])
+    .index("by_record_restaurant_published", ["recordExternalId", "restaurantExternalId", "publishedAt"]),
 })

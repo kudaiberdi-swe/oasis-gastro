@@ -30,6 +30,8 @@ import { GuestCategoriesWorkspace } from "@/office/features/loyalty/ui/categorie
 import { LoyaltyWorkspace } from "@/office/features/loyalty/ui/loyalty-workspace"
 import { LoyaltyProgramsWorkspace } from "@/office/features/loyalty/ui/programs-workspace"
 import { ReservationsWorkspace } from "@/office/features/loyalty/ui/reservations-workspace"
+import { CloudApiWorkspace } from "@/office/features/integrations/ui/cloud-api-workspace"
+import { ExternalMenuWorkspace } from "@/office/features/integrations/ui/external-menu-workspace"
 import { ModifiersWorkspace } from "@/office/features/modifiers/ui/modifiers-workspace"
 import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomenclature-workspace"
 import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
@@ -145,6 +147,8 @@ const WORKSPACES: Record<string, ComponentType> = {
   restaurants: RestaurantsWorkspace,
   departments: DepartmentsWorkspace,
   "integration-jobs": IntegrationJobsWorkspace,
+  "integration-cloud-api": CloudApiWorkspace,
+  "external-menu": ExternalMenuWorkspace,
 }
 
 export function OfficeRouter() {

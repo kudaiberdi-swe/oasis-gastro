@@ -55,7 +55,7 @@ export function pickPriceLine(lines: PriceLine[], args: { productExternalId: str
 /** Orders read per status for one price resolution; a restaurant has a handful in force at once. */
 const ORDERS_PER_STATUS = 100
 
-type OrderInForce = { order: Doc<"priceOrders">; number: number; schedule: PriceScheduleWindow[] }
+export type OrderInForce = { order: Doc<"priceOrders">; number: number; schedule: PriceScheduleWindow[] }
 
 /**
  * Price orders in force for a restaurant at a moment (W1-CAT-10). Uses the effective window, not the
@@ -121,7 +121,7 @@ async function overlayPrice(ctx: QueryCtx, product: Doc<"products">) {
   return overlay?.localSettings?.price
 }
 
-async function resolveWith(
+export async function resolveWith(
   ctx: QueryCtx,
   orders: OrderInForce[],
   args: { product: Doc<"products">; restaurantExternalId: string; at: number; sizeOptionId?: string; sizeCoefficient?: number },

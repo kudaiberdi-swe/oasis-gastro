@@ -54,7 +54,7 @@ const GROUPS: { id: string; sections: [id: string, kind: SectionKind][] }[] = [
     id: "exchange",
     sections: [
       ["integration-1c", "reference"], ["integration-edi", "reference"], ["integration-bank", "reference"], ["integration-fiscal", "reference"], ["integration-egais", "view"],
-      ["integration-loyalty", "reference"], ["integration-messaging", "reference"], ["integration-maps", "reference"], ["integration-cloud-api", "reference"], ["external-menu", "reference"],
+      ["integration-loyalty", "reference"], ["integration-messaging", "reference"], ["integration-maps", "reference"], ["integration-cloud-api", "reference"], ["external-menu", "published"],
     ],
   },
   { id: "admin", sections: [["users", "reference"], ["roles", "reference"], ["terminals", "reference"], ["equipment", "reference"], ["print-templates", "reference"], ["audit-log", "view"], ["system-settings", "reference"], ["integration-jobs", "reference"]] },

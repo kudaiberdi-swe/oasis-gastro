@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values"
+import { ConvexError, v, type ObjectType } from "convex/values"
 
 import { mutation, type MutationCtx } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
@@ -29,29 +29,47 @@ async function requireCourier(ctx: MutationCtx, externalId: string) {
 
 const searchTextOf = (number: string, name: string, phone: string, address: string) => `${number} ${name} ${phone} ${address}`.toLocaleLowerCase("ru")
 
+const saveOrderArgs = {
+  externalId: v.optional(v.string()),
+  channel: v.optional(v.union(v.literal("delivery"), v.literal("call-center"))),
+  restaurantExternalId: v.string(),
+  customerName: v.string(),
+  phone: v.string(),
+  email: v.optional(v.string()),
+  address: v.string(),
+  latitude: v.optional(v.number()),
+  longitude: v.optional(v.number()),
+  sourceExternalId: v.string(),
+  expectedAt: v.number(),
+  courierExternalId: v.optional(v.union(v.string(), v.null())), // null unassigns; absent keeps the current one
+  comment: v.string(),
+  lines: v.array(v.object({ productExternalId: v.string(), quantity: v.number(), sizeExternalId: v.optional(v.string()), modifierSelections: v.optional(v.array(v.object({ modifierExternalId: v.string(), quantity: v.number() }))) })),
+  expectedVersion: v.optional(v.number()),
+}
+
+export type SaveDeliveryOrderInput = ObjectType<typeof saveOrderArgs>
+
 export const saveOrder = mutation({
-  args: {
-    externalId: v.optional(v.string()),
-    channel: v.optional(v.union(v.literal("delivery"), v.literal("call-center"))),
-    restaurantExternalId: v.string(),
-    customerName: v.string(),
-    phone: v.string(),
-    email: v.optional(v.string()),
-    address: v.string(),
-    latitude: v.optional(v.number()),
-    longitude: v.optional(v.number()),
-    sourceExternalId: v.string(),
-    expectedAt: v.number(),
-    courierExternalId: v.optional(v.union(v.string(), v.null())), // null unassigns; absent keeps the current one
-    comment: v.string(),
-    lines: v.array(v.object({ productExternalId: v.string(), quantity: v.number(), sizeExternalId: v.optional(v.string()), modifierSelections: v.optional(v.array(v.object({ modifierExternalId: v.string(), quantity: v.number() }))) })),
-    expectedVersion: v.optional(v.number()),
-  },
+  args: saveOrderArgs,
   handler: async (ctx, args) => {
     const capability = args.channel === "call-center" ? "office.call-center.edit" : "office.delivery-orders.edit"
     const { user } = await requireOfficeCapability(ctx, capability)
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     const email = (await getOfficeAuthEmail(ctx))!
+    return writeDeliveryOrder(ctx, args, { actorKey: email, capability, operatorKey: args.channel === "call-center" ? email : undefined })
+  },
+})
+
+/**
+ * The one way a delivery order is created or edited — the office form and the Cloud API
+ * (ingestDeliveryOrder, W3-INT-03) both come here; the caller has already checked who it is.
+ * sourceOrderId is the channel's own id of a new order (the API's idempotency key).
+ */
+export async function writeDeliveryOrder(ctx: MutationCtx, args: SaveDeliveryOrderInput, actor: { actorKey: string; capability?: string; operatorKey?: string; sourceOrderId?: string }) {
+  // (the block keeps the body at the former handler's indentation)
+  {
+    const email = actor.actorKey
+    const capability = actor.capability
     const restaurant = await requireRestaurant(ctx, args.restaurantExternalId)
     if (!restaurant.active) throw new ConvexError("Ресторан отключён")
     const now = Date.now()
@@ -176,13 +194,13 @@ export const saveOrder = mutation({
       await ctx.db.patch(existing._id, { ...value, version: existing.version + 1 })
     } else {
       externalId = `delivery-${crypto.randomUUID()}`
-      await ctx.db.insert("deliveryOrders", { ...value, externalId, number, organizationExternalId: restaurant.organizationExternalId, restaurantExternalId: restaurant.externalId, status: "unprocessed", paymentStatus: "unpaid", operatorKey: args.channel === "call-center" ? email : undefined, version: 1, createdAt: now })
+      await ctx.db.insert("deliveryOrders", { ...value, externalId, number, organizationExternalId: restaurant.organizationExternalId, restaurantExternalId: restaurant.externalId, status: "unprocessed", paymentStatus: "unpaid", operatorKey: actor.operatorKey, ...(actor.sourceOrderId ? { sourceOrderId: actor.sourceOrderId } : {}), version: 1, createdAt: now })
     }
-    await writeOfficeAudit(ctx, email, { action: "delivery-order.save", summary: `Доставка ${number}: ${priced.length} позиций, ${total} ₸`, resourceType: "delivery-orders", resourceExternalId: externalId, restaurantExternalId: restaurant.externalId, capability })
+    await writeOfficeAudit(ctx, email, { action: "delivery-order.save", summary: `Доставка ${number}: ${priced.length} позиций, ${total} ₸`, resourceType: "delivery-orders", resourceExternalId: externalId, restaurantExternalId: restaurant.externalId, ...(capability ? { capability } : {}) })
     await appendOutboxEvent(ctx, { aggregateType: "delivery-order", aggregateExternalId: externalId, eventType: existing ? "delivery-order.updated" : "delivery-order.created", restaurantExternalId: restaurant.externalId, payload: { number, total } })
-    return { externalId, number, total }
-  },
-})
+    return { externalId, number, total, status: existing?.status ?? ("unprocessed" as DeliveryStatus) }
+  }
+}
 
 /** Pays the commercial order through checkoutCore on the delivery till's open shift (B-8), once. */
 async function settleDelivery(ctx: MutationCtx, delivery: Doc<"deliveryOrders">, source: Doc<"deliverySources">, payment: { paymentTypeExternalId?: string; amount?: number } | undefined, now: number) {

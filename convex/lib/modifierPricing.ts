@@ -17,7 +17,7 @@ export type GroupAssignment = {
   /** When false only the group limits apply, not each rule's min/max. */
   enforceItemLimits: boolean
   rules: {
-    modifier: { externalId: string; name: string; price: number; available: boolean }
+    modifier: { externalId: string; name: string; nameKk?: string; price: number; available: boolean }
     minQuantity: number
     maxQuantity: number
     defaultQuantity: number
@@ -94,7 +94,7 @@ export async function loadModifierAssignments(ctx: QueryCtx, product: Doc<"produ
         rules: loaded
           .filter((row): row is typeof row & { modifier: Doc<"modifiers"> } => row.modifier !== null)
           .map(({ rule, modifier }) => ({
-            modifier: { externalId: modifier.externalId, name: modifier.name, price: modifier.price, available: modifier.available },
+            modifier: { externalId: modifier.externalId, name: modifier.name, nameKk: modifier.nameKk, price: modifier.price, available: modifier.available },
             minQuantity: rule.minQuantity,
             maxQuantity: rule.maxQuantity,
             defaultQuantity: rule.defaultQuantity,

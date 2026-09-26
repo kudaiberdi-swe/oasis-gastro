@@ -167,6 +167,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "period-lock.reopen": "Повторное открытие периода",
   "integration-job.retry": "Повтор задания обмена",
   "integration-job.cancel": "Отмена задания обмена",
+  "external-menu.save": "Сохранение внешнего меню",
+  "external-menu.publish": "Публикация внешнего меню",
+  "external-menu.deactivate": "Снятие внешнего меню с публикации",
 }
 
 /**
