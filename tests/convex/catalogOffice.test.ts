@@ -112,6 +112,23 @@ describe("product card (W1-CAT-05)", () => {
     expect(overlay).toMatchObject({ label: "Сорпа (Sandyq)", localSettings: { price: 2450 } })
     expect((await admin.query(office.getProductCard, { externalId: "p-1" }))?.name).toBe("Сорпа (Sandyq)")
   })
+
+  it("keeps one product per barcode, for Sandyq and iiko products alike (W3-POS-01)", async () => {
+    const { t, admin } = await setup()
+    const edit = { externalId: "p-0", name: "Бешбармак", nameKk: "Бешбармақ", description: "", categoryExternalId: "hot", itemType: "dish" as const, prepArea: "hot", writeOffMethod: "ingredients" as const, sku: "B-1", basePrice: 1000, baseUnit: "порц." as const, enabled: true }
+    await admin.mutation(office.saveProductCard, { ...edit, barcode: " 4870 2000 1234 5 " })
+    expect((await admin.query(office.getProductCard, { externalId: "p-0" }))?.barcode).toBe("4870200012345")
+    await t.run((ctx) => ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", "p-1")).unique().then((row) => ctx.db.patch(row!._id, { sourceSystem: "iiko-server" })))
+    await expect(admin.mutation(office.saveProductCard, { ...edit, externalId: "p-1", name: "Сорпа", barcode: "4870200012345" })).rejects.toThrow(/уже у «Бешбармак»/)
+    await expect(admin.mutation(office.saveProductCard, { ...edit, externalId: "p-1", name: "Сорпа", barcode: "код!" })).rejects.toThrow(/цифры и латинские/)
+    await admin.mutation(office.saveProductCard, { ...edit, externalId: "p-1", name: "Сорпа", barcode: "SQ-0001" })
+    expect((await admin.query(office.getProductCard, { externalId: "p-1" }))?.barcode).toBe("SQ-0001")
+    // Omitted: left as is; "": removed.
+    await admin.mutation(office.saveProductCard, { ...edit, basePrice: 1100 })
+    expect((await admin.query(office.getProductCard, { externalId: "p-0" }))?.barcode).toBe("4870200012345")
+    await admin.mutation(office.saveProductCard, { ...edit, barcode: "" })
+    expect((await admin.query(office.getProductCard, { externalId: "p-0" }))?.barcode).toBe("")
+  })
 })
 
 describe("images (W1-CAT-06)", () => {

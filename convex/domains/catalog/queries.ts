@@ -65,6 +65,28 @@ export const listProducts = query({
   },
 })
 
+/** Scanner input → one code: spaces dropped, at most 64 characters (EAN-13, UPC, Code 128 in-house codes). */
+export function normalizeBarcode(raw: string): string {
+  return raw.replace(/\s+/g, "").slice(0, 64)
+}
+
+/**
+ * The dish or good behind a scanned barcode (W3-POS-01), priced for the session's restaurant; null when
+ * no product carries the code or it is not on sale. A stop-listed one comes back with `available: false`.
+ */
+export const findByBarcode = query({
+  args: { sessionToken: v.string(), barcode: v.string() },
+  handler: async (ctx, args) => {
+    const access = await requireOperator(ctx, args.sessionToken)
+    const barcode = normalizeBarcode(args.barcode)
+    if (!barcode) return null
+    // A code is unique per product when saved in the office; `first` tolerates a duplicate from an import.
+    const product = await ctx.db.query("products").withIndex("by_barcode", (q) => q.eq("barcode", barcode)).first()
+    if (!product?.enabled) return null
+    return withResolvedPrice(ctx, product, access.restaurant.externalId)
+  },
+})
+
 export const getProduct = query({
   args: { sessionToken: v.string(), productId: v.id("products") },
   handler: async (ctx, args) => {

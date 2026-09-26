@@ -7,6 +7,7 @@ import { getOfficeAuthEmail, requireOfficeCapability, restaurantScopeFilter, sco
 import { stopListActive, stopListRow } from "../../lib/availability"
 import { resolvePrice } from "../../lib/pricing"
 import { unit } from "../../lib/validators"
+import { normalizeBarcode } from "./queries"
 
 // Office catalog (W1-CAT-03…06): product groups, nomenclature register, product card, images.
 
@@ -198,6 +199,7 @@ export const getProductCard = query({
       prepArea: overlay?.prepArea ?? product.prepArea ?? "hot",
       writeOffMethod: overlay?.localSettings?.writeOffMethod ?? product.writeOffMethod ?? "ingredients",
       sku: product.sku,
+      barcode: product.barcode ?? "",
       basePrice: overlay?.localSettings?.price ?? product.basePrice,
       baseUnit: product.baseUnit,
       unitWeightKg: overlay?.localSettings?.unitWeightKg ?? product.unitWeightKg ?? null,
@@ -211,6 +213,16 @@ export const getProductCard = query({
     }
   },
 })
+
+/** A barcode for the POS scanner: digits, Latin letters and «-», up to 64; one product per code. "" clears it. */
+async function checkedBarcode(ctx: QueryCtx, product: Doc<"products">, raw: string): Promise<string | undefined> {
+  const barcode = normalizeBarcode(raw)
+  if (!barcode) return undefined
+  if (raw.replace(/\s+/g, "").length > 64 || !/^[0-9A-Za-z-]+$/.test(barcode)) throw new ConvexError("Штрихкод — цифры и латинские буквы, не длиннее 64 символов")
+  const taken = await ctx.db.query("products").withIndex("by_barcode", (q) => q.eq("barcode", barcode)).first()
+  if (taken && taken._id !== product._id) throw new ConvexError(`Штрихкод уже у «${taken.name}»`)
+  return barcode
+}
 
 function productSearchText(name: string, nameKk: string, sku: string) {
   return `${name} ${nameKk} ${sku}`.toLocaleLowerCase("ru")
@@ -232,12 +244,15 @@ export const saveProductCard = mutation({
     unitWeightKg: v.optional(v.number()),
     technology: v.optional(v.string()),
     enabled: v.boolean(),
+    // W3-POS-01: omitted — left as is; "" — removed.
+    barcode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireOfficeCapability(ctx, "office.nomenclature.edit")
     const email = (await getOfficeAuthEmail(ctx))!
     const product = await ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", args.externalId)).unique()
     if (!product) throw new ConvexError("Блюдо не найдено")
+    const barcode = args.barcode === undefined ? product.barcode : await checkedBarcode(ctx, product, args.barcode)
     const name = args.name.trim()
     if (!name) throw new ConvexError("Укажите название")
     if (!Number.isInteger(args.basePrice) || args.basePrice < 0 || args.basePrice > 100_000_000) throw new ConvexError("Цена — целое число от 0 до 100 000 000 ₸")
@@ -262,8 +277,9 @@ export const saveProductCard = mutation({
       else await ctx.db.insert("iikoEntityOverlays", { overlayKey: `product:${product.externalId}`, entityType: "product", sourceExternalId: product.externalId, ...value })
       // The product row is what the POS reads: mirror the overlay onto it now (the next import keeps it — W1-IIKO-04).
       const nameKk = args.nameKk.trim()
-      await ctx.db.patch(product._id, { name, nameKk, nameSort: name.toLocaleLowerCase("ru"), searchText: productSearchText(name, nameKk, product.sku), prepArea: args.prepArea, enabled: args.enabled && !product.sourceDeleted, writeOffMethod: args.writeOffMethod, unitWeightKg: args.unitWeightKg })
+      await ctx.db.patch(product._id, { name, nameKk, nameSort: name.toLocaleLowerCase("ru"), searchText: productSearchText(name, nameKk, product.sku), prepArea: args.prepArea, enabled: args.enabled && !product.sourceDeleted, writeOffMethod: args.writeOffMethod, unitWeightKg: args.unitWeightKg, barcode })
       changed.push("overlay")
+      if (barcode !== product.barcode) changed.push("barcode")
     } else {
       const next = {
         name,
@@ -281,6 +297,7 @@ export const saveProductCard = mutation({
         unitWeightKg: args.unitWeightKg,
         technology: args.technology?.trim() || undefined,
         enabled: args.enabled,
+        barcode,
       }
       for (const [key, value] of Object.entries(next)) if ((product as Record<string, unknown>)[key] !== value) changed.push(key)
       await ctx.db.patch(product._id, next)

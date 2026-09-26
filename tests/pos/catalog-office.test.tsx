@@ -74,6 +74,7 @@ function card(overrides: Record<string, unknown> = {}) {
     prepArea: "hot",
     writeOffMethod: "ingredients" as const,
     sku: "B-01",
+    barcode: "",
     basePrice: 3200,
     baseUnit: "порц." as const,
     unitWeightKg: null,

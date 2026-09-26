@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react"
 import { ArrowLeft, Clock3, House, Search, Star } from "lucide-react"
 
 import { useCategories, useFavoriteIds, useFavoriteProducts, useProducts, useRecentProducts, useToggleFavorite } from "@/pos/features/catalog/data/use-catalog"
@@ -17,6 +17,7 @@ import {
 } from "@/pos/features/catalog/model/catalog-view"
 import { needsConfiguration } from "@/pos/features/catalog/model/modifier-selection"
 import { ModifierDialog, type ConfigurableProduct } from "@/pos/features/catalog/ui/modifier-dialog"
+import { BARCODE_FIELD_ATTRIBUTE } from "@/pos/features/hotkeys/ui/use-pos-hotkeys"
 import type { CatalogItem } from "@/pos/features/order-taking/model/draft-lines"
 import { ProductCard } from "@/pos/components/product-card"
 import { Button } from "@/shared/components/ui/button"
@@ -43,6 +44,14 @@ export function categoryTone(label: string): CategoryTone | undefined {
   return CATEGORY_TONES.find(([pattern]) => pattern.test(label))?.[1]
 }
 
+/** What the cashier screen drives from outside: F2 focuses the search, a scan adds through the same path as a tap. */
+export interface CatalogPanelControl {
+  focusSearch: () => void
+  /** Sizes/modifiers open the dialog; anything else goes straight into the order. */
+  addProduct: (product: CatalogProduct) => void
+  removeFromSearch: (code: string) => void
+}
+
 // «Популярное» has no server filter yet: it is the popular flag over a larger first page.
 const POPULAR_PAGE = 100
 
@@ -59,6 +68,7 @@ export function CatalogPanel({
   recentStorageKey,
   footerAction,
   menuLabel = "Sandyq",
+  controlRef,
 }: {
   sessionToken: string
   onAddProduct: (item: CatalogItem) => void
@@ -67,6 +77,8 @@ export function CatalogPanel({
   /** Extra control on the right of the footer (the kitchen screen button). */
   footerAction?: ReactNode
   menuLabel?: string
+  /** F2 and the barcode scanner of the cashier screen (W3-POS-01). */
+  controlRef?: Ref<CatalogPanelControl>
 }) {
   const toast = useToast()
   const categories = useCategories(sessionToken)
@@ -118,6 +130,17 @@ export function CatalogPanel({
     onAddProduct({ productId: product._id, name: product.name, nameKk: product.nameKk, price: product.price })
   }
 
+  const searchRef = useRef<HTMLInputElement>(null)
+  useImperativeHandle(controlRef, () => ({
+    focusSearch() {
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    },
+    addProduct: add,
+    // The scanner typed the code into the search field before its Enter: take it back out.
+    removeFromSearch: (code) => setSearch((current) => (current.endsWith(code) ? current.slice(0, -code.length) : current)),
+  }))
+
   const configurable: ConfigurableProduct | null = configuring
     ? { productId: configuring._id, externalId: configuring.externalId, name: configuring.name, nameKk: configuring.nameKk, price: configuring.price, description: configuring.description, imageUrl: configuring.imageUrl ?? configuring.imagePath }
     : null
@@ -151,6 +174,8 @@ export function CatalogPanel({
         <div className="relative ml-1 min-w-0 flex-1">
           <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-[18px] -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={searchRef}
+            {...BARCODE_FIELD_ATTRIBUTE}
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

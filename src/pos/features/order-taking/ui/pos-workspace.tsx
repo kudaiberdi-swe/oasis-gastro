@@ -1,10 +1,12 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { ChefHat } from "lucide-react"
 
 import type { Id } from "../../../../../convex/_generated/dataModel"
 import { AppHeader } from "@/pos/components/app-header"
 import { LiveSyncIndicator } from "@/pos/components/live-sync-indicator"
-import { CatalogPanel } from "@/pos/features/catalog/ui/catalog-panel"
+import { CatalogPanel, type CatalogPanelControl } from "@/pos/features/catalog/ui/catalog-panel"
+import { useBarcodeLookup } from "@/pos/features/hotkeys/data/use-barcode-lookup"
+import { useBarcodeScanner, usePosHotkeys } from "@/pos/features/hotkeys/ui/use-pos-hotkeys"
 import { buildOrderReceiptHtml, precheckFromDraft } from "@/pos/features/checkout/model/order-receipt"
 import { PaymentDialog, type CheckoutPayment } from "@/pos/features/checkout/ui/payment-dialog"
 import { useKitchenBoard } from "@/kitchen/features/board/data/use-kitchen-board"
@@ -192,6 +194,34 @@ function AuthenticatedPos({
   const typeOptions = orderTypeOptions(retail.orderTypes)
   const place = { restaurantName: access.restaurant.name, terminalName: access.terminal.name }
 
+  // W3-POS-01: F2 search, F4 payment, F8 hold, Esc close; the scanner adds a dish by its barcode. Each
+  // key does what its button does and only when the button is enabled (OrderPanel: active lines, not saving).
+  const catalogRef = useRef<CatalogPanelControl>(null)
+  const findByBarcode = useBarcodeLookup(sessionToken)
+  const orderReady = draft.lines.some((line) => !line.voidedAt) && !draft.saving
+  usePosHotkeys(
+    {
+      search: () => {
+        if (showKitchen) return false
+        catalogRef.current?.focusSearch()
+      },
+      pay: () => {
+        if (showKitchen || !orderReady) return false
+        setPaymentOpen(true)
+      },
+      hold: () => {
+        if (showKitchen || !orderReady || !draft.orderId) return false
+        void handleHold().catch((caught) => toast(errorMessage(caught, "Не удалось отложить заказ"), "error"))
+      },
+      close: () => {
+        if (!showKitchen) return false
+        setShowKitchen(false)
+      },
+    },
+    Boolean(shift),
+  )
+  useBarcodeScanner((code, source) => void handleScan(code, source.fromField), Boolean(shift) && !showKitchen)
+
   if (shift === undefined) {
     return <div className="flex h-full items-center justify-center text-body-sm text-muted-foreground">Загрузка…</div>
   }
@@ -220,6 +250,18 @@ function AuthenticatedPos({
   function openShiftDialog(tab: ShiftTab = "summary") {
     setShiftTab(tab)
     setDialog("shift")
+  }
+
+  async function handleScan(code: string, fromSearch: boolean) {
+    if (fromSearch) catalogRef.current?.removeFromSearch(code)
+    try {
+      const product = await findByBarcode(code)
+      if (!product) return toast(`Штрихкод ${code} не найден в меню`, "error")
+      if (product.available === false) return toast(`«${product.name}» сейчас в стоп-листе`, "error")
+      catalogRef.current?.addProduct(product)
+    } catch (caught) {
+      toast(errorMessage(caught, "Не удалось найти товар по штрихкоду"), "error")
+    }
   }
 
   async function handleHold() {
@@ -432,6 +474,7 @@ function AuthenticatedPos({
           onAddSuggestion={suggestion ? () => draft.addItem({ productId: suggestion.productId, name: suggestion.name, nameKk: suggestion.nameKk, price: suggestion.price }) : undefined}
         />
         <CatalogPanel
+          controlRef={catalogRef}
           sessionToken={sessionToken}
           onAddProduct={draft.addItem}
           recentStorageKey={`sandyq-pos-recent:${terminalExternalId}:${access.employee.id}`}

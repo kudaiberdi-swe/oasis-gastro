@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Clock3, LockKeyhole, LogOut, UserRound } from "lucide-react"
 
+import { HotkeyHints } from "@/pos/features/hotkeys/ui/hotkey-hints"
 import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui"
 import { formatAlmatyTime } from "@/shared/lib/almaty-time"
 import { errorMessage } from "@/shared/lib/error-message"
@@ -10,7 +11,7 @@ export const ROLE_LABEL: Record<EmployeeRole, string> = { cashier: "Кассир
 
 /**
  * «Профиль сотрудника» (W1-POS-14): who is signed in on this terminal, clock in / clock out
- * (attendance, W1-HR-05), lock and sign out (danger).
+ * (attendance, W1-HR-05), the hotkey hints (W3-POS-01), lock and sign out (danger).
  */
 export function ProfileDialog({
   open,
@@ -88,6 +89,7 @@ export function ProfileDialog({
             {error}
           </p>
         )}
+        <HotkeyHints />
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="secondary"

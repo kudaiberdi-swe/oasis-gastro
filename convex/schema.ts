@@ -282,9 +282,11 @@ export default defineSchema({
     sourceDeleted: v.optional(v.boolean()),
     sourceReadOnly: v.optional(v.boolean()),
     iikoProductExternalId: v.optional(v.string()), // W1-IIKO-04: the iiko product this row projects (also a matched seed product)
+    barcode: v.optional(v.string()), // W3-POS-01: EAN/UPC or an in-house code for the POS scanner; iiko barcodes may fill it later
   })
     .index("by_external_id", ["externalId"])
     .index("by_iiko_product", ["iikoProductExternalId"])
+    .index("by_barcode", ["barcode"])
     .index("by_enabled_and_category_and_name", ["enabled", "category", "nameSort"])
     .index("by_enabled_and_name", ["enabled", "nameSort"])
     .index("by_enabled_and_popular_and_name", ["enabled", "popular", "nameSort"])

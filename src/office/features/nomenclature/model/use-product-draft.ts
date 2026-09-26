@@ -13,6 +13,8 @@ export interface ProductDraft {
   prepArea: string
   writeOffMethod: WriteOffMethod
   sku: string
+  /** For the POS scanner (W3-POS-01); "" — none. */
+  barcode: string
   basePrice: number | null
   baseUnit: ProductUnit
   /** Text as typed («0,25»), parsed on save. */
@@ -48,6 +50,7 @@ export function draftFromCard(card: ProductCard): ProductDraft {
     prepArea: card.prepArea,
     writeOffMethod: card.writeOffMethod,
     sku: card.sku,
+    barcode: card.barcode ?? "",
     basePrice: card.basePrice,
     baseUnit: card.baseUnit,
     unitWeightKg: card.unitWeightKg === null ? "" : String(card.unitWeightKg).replace(".", ","),
@@ -128,6 +131,7 @@ export function saveArgs(externalId: string, draft: ProductDraft): SaveProductCa
     prepArea: draft.prepArea,
     writeOffMethod: draft.writeOffMethod,
     sku: draft.sku.trim(),
+    barcode: draft.barcode.replace(/\s+/g, ""),
     basePrice: draft.basePrice ?? 0,
     baseUnit: draft.baseUnit,
     unitWeightKg: weight === undefined || Number.isNaN(weight) ? undefined : weight,
@@ -172,6 +176,7 @@ const EMPTY_DRAFT: ProductDraft = {
   prepArea: "hot",
   writeOffMethod: "ingredients",
   sku: "",
+  barcode: "",
   basePrice: 0,
   baseUnit: "порц.",
   unitWeightKg: "",

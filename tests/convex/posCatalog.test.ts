@@ -64,6 +64,23 @@ describe("product configuration (W1-CAT-12)", () => {
   })
 })
 
+describe("barcode lookup (W3-POS-01)", () => {
+  it("finds a product by its barcode at the session's branch price; unknown, hidden or no session", async () => {
+    const { t, shubatId, mishuzhykId } = await setup()
+    await t.run(async (ctx) => {
+      await ctx.db.patch(shubatId, { barcode: "4870200012345" })
+      await ctx.db.patch(mishuzhykId, { barcode: "SQ-0002", enabled: false })
+    })
+    const found = await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "almaty-cashier", barcode: " 4870200012345\n" })
+    expect(found).toMatchObject({ externalId: "shubat", price: 850, available: true })
+    expect((await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "shymkent-cashier", barcode: "4870200012345" }))?.price).toBe(1000)
+    expect(await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "almaty-cashier", barcode: "0000000000000" })).toBeNull()
+    expect(await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "almaty-cashier", barcode: "SQ-0002" })).toBeNull()
+    expect(await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "almaty-cashier", barcode: "   " })).toBeNull()
+    await expect(t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "stranger", barcode: "4870200012345" })).rejects.toThrow()
+  })
+})
+
 describe("favorites (W1-CAT-13)", () => {
   it("toggles per cashier and skips deleted or stop-listed dishes", async () => {
     const { t, shubatId } = await setup()

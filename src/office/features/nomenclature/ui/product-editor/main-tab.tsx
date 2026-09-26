@@ -77,6 +77,9 @@ export function MainTab({ card, draft, errors, set, groupOptions, readOnly, pric
           <Field label="Артикул" hint={iiko ? IIKO_HINT : undefined}>
             {(control) => <Input {...control} value={draft.sku} onChange={(event) => set({ sku: event.target.value })} disabled={readOnly || iiko} autoComplete="off" />}
           </Field>
+          <Field label="Штрихкод" hint="Для сканера на кассе: EAN-13 или свой код">
+            {(control) => <Input {...control} value={draft.barcode} onChange={(event) => set({ barcode: event.target.value })} disabled={readOnly} inputMode="numeric" autoComplete="off" />}
+          </Field>
           <Field label="Базовая цена" error={errors.basePrice} hint="Действует в филиалах без своей цены">
             {(control) => <MoneyInput {...control} value={draft.basePrice} onValueChange={(value) => set({ basePrice: value })} disabled={readOnly} />}
           </Field>
