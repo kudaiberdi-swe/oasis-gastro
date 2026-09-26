@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react"
 import { Bike, ChefHat, Ellipsis, MessageSquareText, Minus, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
 
-import { isLocked, lineDetails, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
+import { isLocked, lineDetails, lineDetailsKk, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
 import { Button } from "@/shared/components/ui/button"
 import { Money } from "@/shared/components/ui/money"
 import { SegmentedControl } from "@/shared/components/ui/segmented-control"
@@ -44,6 +44,7 @@ export function OrderPanel({
   orderNumber,
   orderStatus = "draft",
   titleSlot,
+  guestSlot,
   lines,
   itemCount,
   orderTypeOptions,
@@ -83,6 +84,8 @@ export function OrderPanel({
   orderStatus?: string
   /** Replaces the plain title — the checks switcher «Стол 7 ▾ · Заказ №…» (W1-POS-10). */
   titleSlot?: ReactNode
+  /** «Гостей: —» (guest-count-control.tsx) beside the check's comment; left out for takeaway and delivery. */
+  guestSlot?: ReactNode
   lines: OrderDraftLine[]
   itemCount: number
   orderTypeOptions: OrderTypeOption[]
@@ -143,11 +146,16 @@ export function OrderPanel({
             {saving ? "Сохранение…" : null}
           </span>
         </div>
-        {comment?.trim() && (
-          <p className="flex items-start gap-1.5 text-body-sm text-muted-foreground">
-            <MessageSquareText aria-hidden className="mt-0.5 size-4 shrink-0" />
-            <span className="line-clamp-2">{comment}</span>
-          </p>
+        {(guestSlot || comment?.trim()) && (
+          <div className="flex min-w-0 items-center gap-3">
+            {guestSlot}
+            {comment?.trim() && (
+              <p className="flex min-w-0 items-start gap-1.5 text-body-sm text-muted-foreground">
+                <MessageSquareText aria-hidden className="mt-0.5 size-4 shrink-0" />
+                <span className="line-clamp-2">{comment}</span>
+              </p>
+            )}
+          </div>
         )}
         <SegmentedControl
           aria-label="Тип заказа"
@@ -299,6 +307,7 @@ function OrderLineRow({
   onVoid: (clientLineId: string) => void
 }) {
   const details = lineDetails(line)
+  const detailsKk = lineDetailsKk(line)
   const showKk = Boolean(line.nameKk?.trim()) && line.nameKk.trim() !== line.name.trim()
   const voided = Boolean(line.voidedAt)
   const sent = Boolean(line.sentToKitchenAt) && !voided
@@ -320,6 +329,11 @@ function OrderLineRow({
           </p>
         )}
         {details && <p className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>{details}</p>}
+        {detailsKk && (
+          <p lang="kk" className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>
+            {detailsKk}
+          </p>
+        )}
         {sent && (
           <TonePill tone="info" className="mt-1 gap-1">
             <ChefHat aria-hidden className="size-3.5" />

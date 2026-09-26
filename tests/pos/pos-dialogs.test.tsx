@@ -14,9 +14,10 @@ vi.mock("@/pos/features/loyalty/data/use-loyalty", () => ({ useGuestSearch: () =
 afterEach(cleanup)
 
 describe("shift close is a blind count (S-12)", () => {
-  it("starts empty and reveals the expected cash and variance only after «Сверить»", () => {
+  it("starts empty and reveals the expected cash and variance only after «Сверить»", async () => {
     const onClose = vi.fn()
-    render(<CloseShiftPanel expectedCash={22_300} blockers={[]} onClose={onClose} onManagerRequired={async () => null} />)
+    const onReconcile = async (countedCash: number) => ({ expectedCash: 22_300, variance: countedCash - 22_300, managerThreshold: 1000 })
+    render(<CloseShiftPanel blockers={[]} onReconcile={onReconcile} onClose={onClose} onManagerRequired={async () => null} />)
 
     const counted = screen.getByLabelText("Фактическая наличность") as HTMLInputElement
     expect(counted.value).toBe("")
@@ -29,7 +30,7 @@ describe("shift close is a blind count (S-12)", () => {
     expect(screen.queryByText(/22\s300/)).toBeNull()
 
     fireEvent.click(screen.getByRole("button", { name: "Сверить" }))
-    expect(screen.getByText("Ожидается в кассе")).toBeTruthy()
+    expect(await screen.findByText("Ожидается в кассе")).toBeTruthy()
     expect(screen.getByText("Расхождение")).toBeTruthy()
     expect(screen.getByText(formatTenge(-300), { normalizer: (text) => text.trim() })).toBeTruthy()
     expect(formatTenge(-300)).toBe("\u2212300\u00a0₸")

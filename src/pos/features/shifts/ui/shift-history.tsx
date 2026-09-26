@@ -63,7 +63,8 @@ export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessio
                   </p>
                 </div>
                 <div className="text-right">
-                  <Money value={shift.summary.netSales} size="sm" />
+                  {/* A cashier's open shift has no revenue until it is closed (blind count, shifts.history). */}
+                  {shift.summary.netSales === null ? <span className="text-body-sm text-muted-foreground">—</span> : <Money value={shift.summary.netSales} size="sm" />}
                   {closed && (
                     <p className="text-body-sm">
                       Расхождение <Money value={shift.variance ?? 0} size="sm" signed className="text-body-sm" />

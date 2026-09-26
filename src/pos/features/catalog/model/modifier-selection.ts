@@ -185,6 +185,45 @@ export function modifierLabels(groups: ConfigurationGroup[], quantities: Modifie
   return labels
 }
 
+// Back vowels take «-сыз», front ones «-сіз» (Kazakh vowel harmony by the word's last vowel).
+const BACK_VOWELS = "аоұыуяёю"
+const FRONT_VOWELS = "әөүіеэи"
+
+/** «пиязсыз», «ірімшіксіз»: the Kazakh «без …» is the privative suffix on the last word. */
+export function withoutKk(name: string) {
+  const lower = name.trim().toLocaleLowerCase("kk")
+  for (let index = lower.length - 1; index >= 0; index -= 1) {
+    if (FRONT_VOWELS.includes(lower[index])) return `${lower}сіз`
+    if (BACK_VOWELS.includes(lower[index])) return `${lower}сыз`
+  }
+  return `${lower}сыз`
+}
+
+/** The Kazakh twin of modifierLabel: «пиязсыз», «+ірімшік ×2», «тұздық ×1». */
+export function modifierLabelKk(nameKk: string, quantity: number, defaultQuantity: number) {
+  if (quantity === 0) return withoutKk(nameKk)
+  const extra = quantity - defaultQuantity
+  if (extra > 0) return defaultQuantity > 0 ? `+${nameKk.trim().toLocaleLowerCase("kk")}${extra > 1 ? ` ×${extra}` : ""}` : `${nameKk.trim()}${quantity > 1 ? ` ×${quantity}` : ""}`
+  return `${nameKk.trim()} ×${quantity}`
+}
+
+/**
+ * Kazakh labels for the same changes as modifierLabels, or undefined when any changed option has no
+ * Kazakh name — a line never mixes the two languages.
+ */
+export function modifierLabelsKk(changes: Array<{ nameKk?: string | null; quantity: number; defaultQuantity: number }>) {
+  if (!changes.length || changes.some((change) => !change.nameKk?.trim())) return undefined
+  return changes.map((change) => modifierLabelKk(change.nameKk!, change.quantity, change.defaultQuantity))
+}
+
+/** modifierLabelsKk for the dialog's choice: the options that differ from their defaults, in group order. */
+export function configurationLabelsKk(groups: ConfigurationGroup[], quantities: ModifierQuantities) {
+  const changes = groups.flatMap((group) =>
+    group.options.map((option) => ({ nameKk: option.nameKk, quantity: quantities[option.externalId] ?? option.defaultQuantity, defaultQuantity: option.defaultQuantity })).filter((change) => change.quantity !== change.defaultQuantity),
+  )
+  return modifierLabelsKk(changes)
+}
+
 /** A dish opens the dialog only when it has sizes or modifier groups; otherwise it is added at once. */
 export function needsConfiguration(product: { customizable?: boolean; sizeScaleId?: unknown }) {
   return Boolean(product.customizable || product.sizeScaleId)

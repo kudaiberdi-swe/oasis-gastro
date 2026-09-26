@@ -83,7 +83,7 @@ export const recordCashMovement = mutation({
     const manager = direction === "cash-out" || type?.requireManager ? await requireManagerApproval(ctx, args.managerApprovalToken, access.restaurant._id) : null
     if (direction === "cash-out") {
       const summary = await calculateSummary(ctx, shift)
-      if (amount > summary.expectedCash) throw new ConvexError("В кассе недостаточно учтённой наличности")
+      if (amount > summary.expectedCash) throw new ConvexError("Сумма больше, чем учтено в кассе")
     }
     await assertPeriodOpen(ctx, { organizationExternalId: access.restaurant.organizationExternalId, restaurantExternalId: access.restaurant.externalId, businessDate: shift.businessDate, moduleId: "cash-operations" })
     const eventId = await ctx.db.insert("shiftEvents", {
@@ -120,6 +120,27 @@ export const recordCashMovement = mutation({
       ...(manager ? { managerId: manager._id } : {}),
     })
     return eventId
+  },
+})
+
+/**
+ * «Сверить» of the blind close (POS-DESIGN §6.2): the counted amount goes to the audit journal first, then
+ * the expected cash and the variance are revealed. A cashier sees the expected amount only this way, so
+ * every reveal — and a recount after it — stays on record for the manager.
+ */
+export const reconcileCount = mutation({
+  args: { sessionToken: v.string(), countedCash: v.number() },
+  handler: async (ctx, args) => {
+    const access = await requireOperator(ctx, args.sessionToken)
+    const shift = await getOpenShift(ctx, access.terminal._id)
+    if (!shift) throw new ConvexError("Смена уже закрыта")
+    if (!Number.isFinite(args.countedCash) || args.countedCash < 0) throw new ConvexError("Фактическая наличность не может быть отрицательной")
+    const countedCash = roundKzt(args.countedCash)
+    const { expectedCash } = await calculateSummary(ctx, shift)
+    const variance = countedCash - expectedCash
+    await touchSession(ctx, access.session._id)
+    await writeAudit(ctx, access, { action: "shift.count", summary: `Сверка смены №${shift.number}: насчитано ${countedCash} ₸, расхождение ${variance} ₸`, shiftId: shift._id, details: { countedCash, expectedCash, variance } })
+    return { countedCash, expectedCash, variance, managerThreshold: VARIANCE_APPROVAL_KZT }
   },
 })
 

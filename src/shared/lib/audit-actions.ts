@@ -19,6 +19,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "shift.open": "Открытие смены",
   "shift.close": "Закрытие смены",
   "shift.x-report": "X-отчёт",
+  "shift.count": "Сверка наличных при закрытии",
   "shift.cash-in": "Внесение наличных",
   "shift.cash-out": "Изъятие наличных",
   "kitchen.bump-back": "Кухня: возврат статуса",

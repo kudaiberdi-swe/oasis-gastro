@@ -7,6 +7,7 @@ import {
   canIncrement,
   changeQuantity,
   chooseSingle,
+  configurationLabelsKk,
   defaultQuantities,
   defaultSize,
   groupHint,
@@ -110,6 +111,7 @@ function ConfigurationForm({ product, configuration, onAdd }: { product: Configu
       sizeLabel: size?.label,
       modifierSelections: toModifierSelections(configuration.groups, quantities),
       modifierLabels: modifierLabels(configuration.groups, quantities),
+      modifierLabelsKk: configurationLabelsKk(configuration.groups, quantities),
     })
   }
 

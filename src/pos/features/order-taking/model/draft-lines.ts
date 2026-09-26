@@ -1,5 +1,5 @@
 import type { Id } from "../../../../../convex/_generated/dataModel"
-import { modifierLabel, type ModifierSelectionInput } from "@/pos/features/catalog/model/modifier-selection"
+import { modifierLabel, modifierLabelsKk, type ModifierSelectionInput } from "@/pos/features/catalog/model/modifier-selection"
 
 // Lines of a POS draft (W1-POS-12/13/15). Local-first: the cashier sees the line at once, the server
 // prices it on the next saveDraft and its answer is merged back by clientLineId. A line the kitchen
@@ -23,6 +23,8 @@ export type OrderDraftLine = {
   modifierSelections?: ModifierSelectionInput[]
   /** «без лука», «+сыр ×2» — what differs from the dish's defaults. */
   modifierLabels: string[]
+  /** «пиязсыз», «+ірімшік ×2» — only when every changed modifier has a Kazakh name. */
+  modifierLabelsKk?: string[]
   /** orderLines _id from the last server answer (needed for voidLine). */
   serverLineId?: string
   sentToKitchenAt?: number
@@ -41,6 +43,7 @@ export type CatalogItem = {
   sizeLabel?: string
   modifierSelections?: ModifierSelectionInput[]
   modifierLabels?: string[]
+  modifierLabelsKk?: string[]
 }
 
 /** A line as getCheck / saveDraft / sendToKitchen / voidLine return it (hydrateOrder). */
@@ -56,6 +59,8 @@ export type ServerOrderLine = {
   sizeLabel?: string
   modifierSelections?: Array<{ externalId: string; name: string; quantity: number; unitPrice: number }>
   kitchenModifiers?: Array<{ externalId: string; label: string; quantity: number; defaultQuantity: number }>
+  /** Kazakh names of the line's changed modifiers (hydrateOrder resolves them; the line stores none). */
+  modifierNamesKk?: Array<{ externalId: string; nameKk: string }>
   lineTotal?: number
   sentToKitchenAt?: number
   voidedAt?: number
@@ -107,6 +112,7 @@ export function addCatalogItem(lines: OrderDraftLine[], item: CatalogItem, newId
       sizeLabel: item.sizeLabel,
       modifierSelections: item.modifierSelections,
       modifierLabels: item.modifierLabels ?? [],
+      modifierLabelsKk: item.modifierLabelsKk,
     },
   ]
 }
@@ -143,6 +149,11 @@ function serverModifierLabels(line: ServerOrderLine) {
   })
 }
 
+function serverModifierLabelsKk(line: ServerOrderLine) {
+  const names = new Map((line.modifierNamesKk ?? []).map((row) => [row.externalId, row.nameKk]))
+  return modifierLabelsKk((line.kitchenModifiers ?? []).map((change) => ({ nameKk: names.get(change.externalId), quantity: change.quantity, defaultQuantity: change.defaultQuantity })))
+}
+
 export function fromServerLine(line: ServerOrderLine, newId: () => string = () => crypto.randomUUID()): OrderDraftLine {
   const selections = line.modifierSelections?.map((selection) => ({ modifierExternalId: selection.externalId, quantity: selection.quantity }))
   // A removed default («без лука») is kept by the server only in kitchenModifiers; resend it as quantity 0.
@@ -159,6 +170,7 @@ export function fromServerLine(line: ServerOrderLine, newId: () => string = () =
     sizeLabel: line.sizeLabel,
     modifierSelections: selections ? [...selections, ...removed] : undefined,
     modifierLabels: serverModifierLabels(line),
+    modifierLabelsKk: serverModifierLabelsKk(line),
     serverLineId: line._id,
     sentToKitchenAt: line.sentToKitchenAt,
     voidedAt: line.voidedAt,
@@ -191,4 +203,11 @@ export function mergeServerLines(local: OrderDraftLine[], server: ServerOrderLin
 /** «Большой · +сыр · без лука» under the dish name. */
 export function lineDetails(line: Pick<OrderDraftLine, "sizeLabel" | "modifierLabels" | "modifiers">) {
   return [line.sizeLabel, ...line.modifierLabels, ...line.modifiers].filter(Boolean).join(" · ")
+}
+
+/** «пиязсыз · +ірімшік» under the Russian details, when the line's modifiers have Kazakh names. */
+export function lineDetailsKk(line: Pick<OrderDraftLine, "modifierLabels" | "modifierLabelsKk">) {
+  const labels = line.modifierLabelsKk
+  if (!labels?.length || labels.join("|") === line.modifierLabels.join("|")) return null
+  return labels.join(" · ")
 }

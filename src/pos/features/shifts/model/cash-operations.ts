@@ -20,7 +20,9 @@ export function cashMovementProblem(input: { legacy: boolean; type: PosCashOpera
   if (!input.legacy && !input.type) return "Выберите тип операции"
   if (!input.amount || input.amount <= 0) return "Введите сумму больше нуля"
   if (input.type && input.amount > input.type.data.maximumAmount) return `Лимит операции — ${formatTenge(input.type.data.maximumAmount)}`
-  if (input.direction === "cash-out" && input.expectedCash !== undefined && input.amount > input.expectedCash) return `В кассе учтено ${formatTenge(input.expectedCash)}`
+  // No amount in the copy: a cashier must not learn the drawer's cash before the blind count (a manager's
+  // shift passes expectedCash, a cashier's does not; the server answers with the same words).
+  if (input.direction === "cash-out" && input.expectedCash !== undefined && input.amount > input.expectedCash) return "Сумма больше, чем учтено в кассе"
   if (input.legacy && input.comment.trim().length < 3) return "Укажите причину операции"
   return null
 }

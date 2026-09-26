@@ -48,19 +48,23 @@ describe("blind shift count", () => {
   function renderClose(props: Partial<Parameters<typeof CloseShiftPanel>[0]> = {}) {
     const onClose = vi.fn(async () => undefined)
     const onManagerRequired = vi.fn(async () => "approval-token")
-    render(<CloseShiftPanel expectedCash={22_300} blockers={[]} managerThreshold={1000} onClose={onClose} onManagerRequired={onManagerRequired} {...props} />)
-    return { onClose, onManagerRequired }
+    // shifts.reconcileCount: the expected cash exists on the client only after «Сверить».
+    const onReconcile = vi.fn(async (countedCash: number) => ({ expectedCash: 22_300, variance: countedCash - 22_300, managerThreshold: 1000 }))
+    render(<CloseShiftPanel blockers={[]} managerThreshold={1000} onReconcile={onReconcile} onClose={onClose} onManagerRequired={onManagerRequired} {...props} />)
+    return { onClose, onManagerRequired, onReconcile }
   }
   const counted = () => screen.getByLabelText("Фактическая наличность") as HTMLInputElement
 
-  it("hides the expected cash until «Сверить»; «Пересчитать» clears the count and hides it again", () => {
-    renderClose()
+  it("hides the expected cash until «Сверить»; «Пересчитать» clears the count and hides it again", async () => {
+    const { onReconcile } = renderClose()
     fireEvent.change(counted(), { target: { value: "22300" } })
     expect(screen.queryByText("Ожидается в кассе")).toBeNull()
     expect(screen.queryByText(formatTenge(22_300), exact)).toBeNull()
+    expect(onReconcile).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole("button", { name: "Сверить" }))
-    expect(screen.getByText("Ожидается в кассе")).toBeTruthy()
+    expect(await screen.findByText("Ожидается в кассе")).toBeTruthy()
+    expect(onReconcile).toHaveBeenCalledWith(22_300)
     expect(screen.getAllByText(formatTenge(22_300), exact)).toHaveLength(2) // counted and expected
     expect(screen.queryByLabelText("Фактическая наличность")).toBeNull() // the count is fixed on this step
 
@@ -69,11 +73,20 @@ describe("blind shift count", () => {
     expect(screen.queryByText("Ожидается в кассе")).toBeNull()
   })
 
+  it("stays on the count with the error when «Сверить» fails", async () => {
+    renderClose({ onReconcile: vi.fn(async () => Promise.reject(new Error("Нет связи. Повторите."))) })
+    fireEvent.change(counted(), { target: { value: "22300" } })
+    fireEvent.click(screen.getByRole("button", { name: "Сверить" }))
+    expect((await screen.findByRole("alert")).textContent).toBe("Нет связи. Повторите.")
+    expect(screen.queryByText("Ожидается в кассе")).toBeNull()
+    expect(counted().value).not.toBe("")
+  })
+
   it("closes only after the explicit confirm, and «Отмена» goes back without closing", async () => {
     const { onClose, onManagerRequired } = renderClose()
     fireEvent.change(counted(), { target: { value: "22300" } })
     fireEvent.click(screen.getByRole("button", { name: "Сверить" }))
-    fireEvent.click(screen.getByRole("button", { name: /Закрыть смену и Z-отчёт/ }))
+    fireEvent.click(await screen.findByRole("button", { name: /Закрыть смену и Z-отчёт/ }))
     expect(onClose).not.toHaveBeenCalled()
     const confirm = screen.getByRole("group", { name: "Подтверждение закрытия" })
     expect(within(confirm).getByText("Закрыть смену и напечатать Z-отчёт? Действие необратимо.")).toBeTruthy()
@@ -92,7 +105,7 @@ describe("blind shift count", () => {
     const { onClose, onManagerRequired } = renderClose()
     fireEvent.change(counted(), { target: { value: "21300" } })
     fireEvent.click(screen.getByRole("button", { name: "Сверить" }))
-    expect(screen.getByText(/закрытие подтверждает менеджер своим PIN/)).toBeTruthy()
+    expect(await screen.findByText(/закрытие подтверждает менеджер своим PIN/)).toBeTruthy()
     fireEvent.click(screen.getByRole("button", { name: /Закрыть смену и Z-отчёт/ }))
     expect(screen.getByRole("alert").textContent).toBe("При расхождении укажите комментарий")
 

@@ -6,7 +6,7 @@ import type { QueryCtx } from "../../_generated/server"
 import type { Doc } from "../../_generated/dataModel"
 import { getOpenShift, requireOperator } from "../../lib/auth"
 import { calculateCashReconciliation, orderDiscountAmount } from "../../lib/money"
-import { VARIANCE_APPROVAL_KZT } from "../../lib/policy"
+import { VARIANCE_APPROVAL_KZT, seesExpectedCash } from "../../lib/policy"
 
 export async function calculateSummary(ctx: QueryCtx, shift: Doc<"shifts">) {
   const [payments, events] = await Promise.all([
@@ -37,6 +37,17 @@ export async function calculateSummary(ctx: QueryCtx, shift: Doc<"shifts">) {
     netSales: totals.grossSales - totals.refunds,
     paymentCount: payments.filter((p) => p.type === "sale").length,
   }
+}
+
+/**
+ * The open shift as a cashier sees it (blind count, POS-DESIGN §6.2): the expected cash and every figure
+ * it follows from are left out — cash sales and refunds, and the revenue that with card and QR gives the
+ * cash. Card, QR, cash in / out and the payment count stay. Managers and administrators get it all.
+ */
+const BLIND = { cashSales: null, cashRefunds: null, grossSales: null, refunds: null, netSales: null, expectedCash: null }
+
+export function blindSummary<T extends Awaited<ReturnType<typeof calculateSummary>>>(summary: T): Omit<T, keyof typeof BLIND> & typeof BLIND {
+  return { ...summary, ...BLIND }
 }
 
 export async function buildClosePreview(ctx: QueryCtx, shift: Doc<"shifts">) {
@@ -139,9 +150,11 @@ export const current = query({
     const access = await requireOperator(ctx, args.sessionToken)
     const shift = await getOpenShift(ctx, access.terminal._id)
     if (!shift) return null
-    const [summary, openedBy] = await Promise.all([calculateSummary(ctx, shift), ctx.db.get(shift.openedBy)])
+    const [full, openedBy] = await Promise.all([calculateSummary(ctx, shift), ctx.db.get(shift.openedBy)])
+    const cashVisible = seesExpectedCash(access.employee.role)
+    const summary = cashVisible ? full : blindSummary(full)
     const ageHours = (Date.now() - shift.openedAt) / 3_600_000
-    return { ...shift, openedByName: openedBy?.displayName ?? "Сотрудник", summary, ageHours, requiresAttention: ageHours >= 24, openedOver24h: ageHours >= 24 }
+    return { ...shift, openedByName: openedBy?.displayName ?? "Сотрудник", summary, cashVisible, ageHours, requiresAttention: ageHours >= 24, openedOver24h: ageHours >= 24 }
   },
 })
 
@@ -151,7 +164,9 @@ export const closePreview = query({
     const access = await requireOperator(ctx, args.sessionToken)
     const shift = await getOpenShift(ctx, access.terminal._id)
     if (!shift) return null
-    return buildClosePreview(ctx, shift)
+    const preview = await buildClosePreview(ctx, shift)
+    // A cashier learns the expected cash only by «Сверить» with a counted amount (mutations.reconcileCount).
+    return seesExpectedCash(access.employee.role) ? { ...preview, cashVisible: true } : { ...blindSummary(preview), cashVisible: false }
   },
 })
 
@@ -159,6 +174,7 @@ export const history = query({
   args: { sessionToken: v.string(), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
     const access = await requireOperator(ctx, args.sessionToken)
+    const cashVisible = seesExpectedCash(access.employee.role)
     const result = await ctx.db
       .query("shifts")
       .withIndex("by_terminal_opened", (q) => q.eq("terminalId", access.terminal._id))
@@ -170,7 +186,8 @@ export const history = query({
         result.page.map(async (shift) => ({
           ...shift,
           openedByName: (await ctx.db.get(shift.openedBy))?.displayName ?? "Сотрудник",
-          summary: await calculateSummary(ctx, shift),
+          // The open shift is still being counted blind; a closed one shows its totals to everyone.
+          summary: cashVisible || shift.status !== "open" ? await calculateSummary(ctx, shift) : blindSummary(await calculateSummary(ctx, shift)),
           zReportId: (await ctx.db.query("zReports").withIndex("by_shift", (q) => q.eq("shiftId", shift._id)).first())?._id ?? null,
         })),
       ),

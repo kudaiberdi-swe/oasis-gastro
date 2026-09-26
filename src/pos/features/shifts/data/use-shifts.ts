@@ -34,6 +34,7 @@ export function useShiftMutations() {
   return {
     open: useMutation(api.domains.shifts.mutations.open),
     close: useMutation(api.domains.shifts.mutations.close),
+    reconcileCount: useMutation(api.domains.shifts.mutations.reconcileCount),
     recordCashMovement: useMutation(api.domains.shifts.mutations.recordCashMovement),
     createXReport: useMutation(api.domains.shifts.mutations.createXReport),
   }

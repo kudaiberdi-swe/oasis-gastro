@@ -86,8 +86,11 @@ describe("POS core flow", () => {
     expect(revenue.filter((entry) => entry.kind === "revenue")).toHaveLength(2)
     expect(revenue.reduce((sum, entry) => sum + entry.amount, 0)).toBe(3450)
 
+    // Blind count: a cashier's preview has no expected cash; «Сверить» (reconcileCount) reveals it.
     const preview = await t.query(api.domains.shifts.queries.closePreview, { sessionToken: fixture.cashierToken })
-    expect(preview).toMatchObject({ expectedCash: 22_300, blockers: [] }) // only the cash sale hits the drawer
+    expect(preview).toMatchObject({ expectedCash: null, blockers: [] })
+    const reconciled = await t.mutation(api.domains.shifts.mutations.reconcileCount, { sessionToken: fixture.cashierToken, countedCash: 22_300 })
+    expect(reconciled).toMatchObject({ expectedCash: 22_300, variance: 0 }) // only the cash sale hits the drawer
 
     const closed = await t.mutation(api.domains.shifts.mutations.close, {
       sessionToken: fixture.cashierToken,

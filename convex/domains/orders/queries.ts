@@ -13,14 +13,25 @@ export async function hydrateOrder(ctx: QueryCtx | MutationCtx, order: Doc<"orde
     ctx.db.query("payments").withIndex("by_order_created", (q) => q.eq("orderId", order._id)).take(100),
     order.createdBy ? ctx.db.get(order.createdBy) : null,
   ])
+  // Kazakh names of the changed modifiers for the POS line («пиязсыз»): the line stores only the Russian
+  // label, so each distinct modifier is read once by its externalId. Derived here, never written back.
+  const modifierKk = new Map<string, Promise<string | null>>()
+  const nameKkOf = (externalId: string) => {
+    if (!modifierKk.has(externalId)) modifierKk.set(externalId, ctx.db.query("modifiers").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).first().then((modifier) => modifier?.nameKk?.trim() || null))
+    return modifierKk.get(externalId)!
+  }
   const lines = await Promise.all(
     rawLines.map(async (line) => {
-      const product = await ctx.db.get(line.productId)
+      const [product, namesKk] = await Promise.all([
+        ctx.db.get(line.productId),
+        Promise.all((line.kitchenModifiers ?? []).map(async (change) => ({ externalId: change.externalId, nameKk: await nameKkOf(change.externalId) }))),
+      ])
       return {
         ...line,
         product: product
           ? { externalId: product.externalId, name: product.name, nameKk: product.nameKk, description: product.description, category: product.category }
           : null,
+        modifierNamesKk: namesKk.filter((row): row is { externalId: string; nameKk: string } => row.nameKk !== null),
       }
     }),
   )

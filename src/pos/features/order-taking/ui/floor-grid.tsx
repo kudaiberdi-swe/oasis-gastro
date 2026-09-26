@@ -50,6 +50,16 @@ const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
 const PLACES: [string, string, string] = ["место", "места", "мест"]
 const CHECKS: [string, string, string] = ["чек", "чека", "чеков"]
 
+/**
+ * The draft's own table in «move»: hall + label (the draft carries its hallLabel). A check saved without
+ * a hall matches by label only, as orders.floor places it.
+ */
+export function isCurrentTable(current: FloorSeat | undefined, label: string, hall: string) {
+  if (!current?.tableLabel?.trim() || current.tableLabel.trim() !== label) return false
+  const currentHall = current.hallLabel?.trim()
+  return !currentHall || currentHall === hall
+}
+
 /** «только что», «42 мин», «1 ч 05 мин» — how long a check has been open. */
 export function checkAge(openedAt: number, now: number) {
   const minutes = Math.max(0, Math.floor((now - openedAt) / 60_000))
@@ -211,8 +221,8 @@ function FloorBody({
 
   const halls = useMemo(() => floor?.halls ?? [], [floor])
   const allTables = useMemo<PlacedTable[]>(() => halls.flatMap((hall) => hall.tables.map((table) => ({ table, hall: hall.name }))), [halls])
-  // Open on the hall of the current check, else the first one.
-  const activeHall = allTables.find(({ table }) => table.checks.some((check) => check.orderId === activeOrderId))?.hall
+  // Open on the hall of the current check (for «move» also the hall the draft sits in), else the first one.
+  const activeHall = allTables.find(({ table }) => table.checks.some((check) => check.orderId === activeOrderId))?.hall ?? (mode === "move" ? allTables.find(({ table, hall }) => isCurrentTable(currentTable, table.label, hall))?.hall : undefined)
   const hall = halls.find((row) => row.name === hallChoice)?.name ?? activeHall ?? halls[0]?.name
   const searchable = (floor?.tableCount ?? 0) >= SEARCH_FROM_TABLES
   const needle = searchable ? search.trim().toLocaleLowerCase("ru") : ""
@@ -497,7 +507,7 @@ function TableTile({
 }) {
   const mine = table.checks.filter((check) => check.mine)
   const taken = table.checks.length > 0
-  const active = table.checks.some((check) => check.orderId === activeOrderId) || (mode === "move" && currentTable?.tableLabel?.trim() === table.label && (!currentTable.hallLabel || currentTable.hallLabel === hall))
+  const active = table.checks.some((check) => check.orderId === activeOrderId) || (mode === "move" && isCurrentTable(currentTable, table.label, hall))
   const elsewhere = taken && mine.length === 0 ? (table.checks[0].terminalName ?? "Другая касса") : null
   const disabled = busy || (mode === "move" ? taken || active : Boolean(elsewhere))
   const oldest = taken ? Math.min(...table.checks.map((check) => check.createdAt)) : 0

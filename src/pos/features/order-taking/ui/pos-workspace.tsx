@@ -25,6 +25,7 @@ import { CommentDialog } from "@/pos/features/order-taking/ui/comment-dialog"
 import { DiscountDialog } from "@/pos/features/order-taking/ui/discount-dialog"
 import { ChecksSwitcher } from "@/pos/features/order-taking/ui/checks-switcher"
 import { FloorGrid } from "@/pos/features/order-taking/ui/floor-grid"
+import { GuestCountControl } from "@/pos/features/order-taking/ui/guest-count-control"
 import { OrderActionsDialog, type ActionBlocks, type OrderAction } from "@/pos/features/order-taking/ui/order-actions-dialog"
 import { SplitDialog } from "@/pos/features/order-taking/ui/split-dialog"
 import { TransferDialog } from "@/pos/features/order-taking/ui/transfer-dialog"
@@ -147,7 +148,7 @@ function AuthenticatedPos({
 }) {
   const toast = useToast()
   const shift = useCurrentShift(sessionToken)
-  const { open: openShift, close: closeShift, createXReport, recordCashMovement } = useShiftMutations()
+  const { open: openShift, close: closeShift, reconcileCount, createXReport, recordCashMovement } = useShiftMutations()
   const { hold, checkout, resume, refund, transfer } = useOrderMutations()
   const retail = useRetailSettings(sessionToken)
   const { requestApproval, dialog: managerDialog } = useManagerApproval(terminalExternalId)
@@ -449,6 +450,9 @@ function AuthenticatedPos({
           titleSlot={
             <ChecksSwitcher tableLabel={draft.tableLabel} orderNumber={draft.orderNumber} openCount={openChecks.length} onOpenFloor={() => setDialog("floor")} />
           }
+          guestSlot={
+            draft.orderType.mode === "dine-in" ? <GuestCountControl value={draft.guestCount} onChange={(count) => void draft.setGuestCount(count).catch(() => undefined)} /> : undefined
+          }
           lines={draft.lines}
           itemCount={draft.itemCount}
           orderTypeOptions={typeOptions}
@@ -473,7 +477,7 @@ function AuthenticatedPos({
             if (!line) return
             // A sent line is fixed; another portion of it goes to a new line.
             if (line.sentToKitchenAt)
-              draft.addItem({ productId: line.productId, name: line.name, nameKk: line.nameKk, price: line.unitPrice, sizeExternalId: line.sizeExternalId, sizeLabel: line.sizeLabel, modifierSelections: line.modifierSelections, modifierLabels: line.modifierLabels })
+              draft.addItem({ productId: line.productId, name: line.name, nameKk: line.nameKk, price: line.unitPrice, sizeExternalId: line.sizeExternalId, sizeLabel: line.sizeLabel, modifierSelections: line.modifierSelections, modifierLabels: line.modifierLabels, modifierLabelsKk: line.modifierLabelsKk })
             else draft.setQuantity(id, line.quantity + 1)
           }}
           onDecrement={(id) => draft.setQuantity(id, (draft.lines.find((l) => l.clientLineId === id)?.quantity ?? 0) - 1)}
@@ -619,6 +623,7 @@ function AuthenticatedPos({
         closePreview={closePreview}
         cashOperationTypes={retail.cashOperationTypes}
         onCashMovement={handleCashMovement}
+        onReconcile={(countedCash) => reconcileCount({ sessionToken, countedCash })}
         onCloseShift={handleCloseShift}
         onPrintX={printXReport}
         onPrintZ={printZReport}
@@ -666,7 +671,7 @@ function AuthenticatedPos({
         mode="move"
         floor={floor}
         activeOrderId={draft.orderId}
-        currentTable={{ tableLabel: draft.tableLabel }}
+        currentTable={{ tableLabel: draft.tableLabel, hallLabel: draft.hallLabel }}
         onOpenTable={() => {}}
         onSelectCheck={() => {}}
         onMove={(seat) => draft.moveToTable(seat)}

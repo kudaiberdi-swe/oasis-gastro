@@ -119,6 +119,9 @@ export type ShiftTab = "summary" | "cash" | "close" | "history"
 
 export type CloseResult = { shiftId: string; zReportId: string; zReportNumber: string }
 
+/** shifts.reconcileCount: the expected cash revealed for a counted amount («Сверить»). */
+export type Reconciliation = { expectedCash: number; variance: number; managerThreshold: number }
+
 /**
  * «Кассовая смена №N» (W1-POS-19): current summary with the X-report, cash in / out by operation
  * type, the blind close with a Z-report, and the terminal's shift history with Z printing.
@@ -134,6 +137,7 @@ export function ShiftDialog({
   closePreview,
   cashOperationTypes,
   onCashMovement,
+  onReconcile,
   onCloseShift,
   onPrintX,
   onPrintZ,
@@ -147,9 +151,11 @@ export function ShiftDialog({
   sessionToken: string
   shift: CurrentShift
   restaurantName: string
-  closePreview: { expectedCash: number; blockers: Array<{ number: number; tableLabel?: string }>; managerThreshold: number } | null | undefined
+  /** Blockers and the threshold; the expected cash comes only from «Сверить» (onReconcile). */
+  closePreview: { blockers: Array<{ number: number; tableLabel?: string }>; managerThreshold: number } | null | undefined
   cashOperationTypes: PosCashOperationType[]
   onCashMovement: (input: CashMovementInput & { idempotencyKey: string; managerApprovalToken?: string }) => Promise<unknown>
+  onReconcile: (countedCash: number) => Promise<Reconciliation>
   onCloseShift: (countedCash: number, note: string, managerApprovalToken?: string) => Promise<unknown>
   onPrintX: () => Promise<unknown>
   onPrintZ: (shiftId: string) => Promise<unknown>
@@ -176,13 +182,13 @@ export function ShiftDialog({
             <ShiftSummary shift={shift} onPrintX={onPrintX} onHistory={() => onTabChange("history")} />
           </TabsContent>
           <TabsContent value="cash">
-            <CashMovementForm types={cashOperationTypes} expectedCash={shift.summary.expectedCash} onSubmit={onCashMovement} onManagerRequired={onManagerRequired} onDone={() => onTabChange("summary")} />
+            <CashMovementForm types={cashOperationTypes} expectedCash={shift.summary.expectedCash ?? undefined} onSubmit={onCashMovement} onManagerRequired={onManagerRequired} onDone={() => onTabChange("summary")} />
           </TabsContent>
           <TabsContent value="close">
             <CloseShiftPanel
-              expectedCash={closePreview?.expectedCash ?? shift.summary.expectedCash}
               blockers={closePreview?.blockers ?? []}
               managerThreshold={closePreview?.managerThreshold ?? DEFAULT_VARIANCE_THRESHOLD}
+              onReconcile={onReconcile}
               onClose={onCloseShift}
               onManagerRequired={onManagerRequired}
               onOpenOrderHistory={onOpenOrderHistory}
@@ -235,11 +241,18 @@ function ShiftSummary({ shift, onPrintX, onHistory }: { shift: CurrentShift; onP
   return (
     <div className="flex flex-col gap-4">
       {shift.openedOver24h && <Banner tone="warning" title="Смена открыта более 24 часов">Завершите расчёты, закройте смену и снимите Z-отчёт.</Banner>}
-      <div className="grid grid-cols-3 gap-3">
-        <Metric label="Выручка" value={summary.netSales} />
-        <Metric label="Наличные" value={summary.cashSales - summary.cashRefunds} />
-        <Metric label="Ожидается в кассе" value={summary.expectedCash} />
-      </div>
+      {/* Blind count (POS-DESIGN §6.2): a cashier's shift has no cash figures — shifts.current leaves them out. */}
+      {summary.expectedCash !== null && summary.netSales !== null && summary.cashSales !== null && summary.cashRefunds !== null ? (
+        <div className="grid grid-cols-3 gap-3">
+          <Metric label="Выручка" value={summary.netSales} />
+          <Metric label="Наличные" value={summary.cashSales - summary.cashRefunds} />
+          <Metric label="Ожидается в кассе" value={summary.expectedCash} />
+        </div>
+      ) : (
+        <p className="rounded-card border border-border bg-card p-4 text-body-sm text-muted-foreground">
+          Выручку и наличные в кассе видит менеджер. Ожидаемую сумму вы увидите при закрытии смены, после пересчёта.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <SummaryLine label="Карта" value={summary.card} />
         <SummaryLine label="QR" value={summary.qr} />
@@ -387,44 +400,59 @@ export function CashMovementForm({
 }
 
 export function CloseShiftPanel({
-  expectedCash,
   blockers,
-  managerThreshold = DEFAULT_VARIANCE_THRESHOLD,
+  managerThreshold: previewThreshold = DEFAULT_VARIANCE_THRESHOLD,
+  onReconcile,
   onClose,
   onManagerRequired,
   onOpenOrderHistory,
 }: {
-  expectedCash: number
   blockers: Array<{ number: number; tableLabel?: string }>
   managerThreshold?: number
+  /** «Сверить»: the server logs the count and only then answers with the expected cash. */
+  onReconcile: (countedCash: number) => Promise<Reconciliation>
   onClose: (countedCash: number, note: string, managerApprovalToken?: string) => Promise<unknown>
   onManagerRequired: (reason: string) => Promise<string | null>
   onOpenOrderHistory?: () => void
 }) {
-  // Blind count (POS-DESIGN §6.2, S-12): step «count» shows neither the expected cash nor the variance;
-  // «Сверить» fixes the count and reveals them («review»); «Пересчитать» is the only way back and clears
-  // it. The irreversible close asks once more («confirm»).
+  // Blind count (POS-DESIGN §6.2, S-12): step «count» shows neither the expected cash nor the variance —
+  // the panel does not even have them. «Сверить» sends the count to shifts.reconcileCount, which logs it
+  // and answers with the expected cash («review»); «Пересчитать» is the only way back and clears it. The
+  // irreversible close asks once more («confirm»).
   const [step, setStep] = useState<"count" | "review" | "confirm">("count")
   const [counted, setCounted] = useState<number | null>(null)
+  const [reconciled, setReconciled] = useState<Reconciliation | null>(null)
+  const [reconciling, setReconciling] = useState(false)
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const variance = counted === null ? 0 : counted - expectedCash
+  const expectedCash = reconciled?.expectedCash ?? 0
+  const managerThreshold = reconciled?.managerThreshold ?? previewThreshold
+  const variance = counted === null || !reconciled ? 0 : counted - expectedCash
   const needsManager = counted !== null && Math.abs(variance) >= managerThreshold
   const noteRequired = counted !== null && variance !== 0
 
-  function reconcile() {
+  async function reconcile() {
     if (counted === null) {
       setError("Введите фактическую наличность")
       return
     }
+    setReconciling(true)
     setError(null)
-    setStep("review")
+    try {
+      setReconciled(await onReconcile(counted))
+      setStep("review")
+    } catch (caught) {
+      setError(errorMessage(caught, "Не удалось сверить наличность"))
+    } finally {
+      setReconciling(false)
+    }
   }
 
   function recount() {
     setCounted(null)
+    setReconciled(null)
     setNote("")
     setError(null)
     setStep("count")
@@ -444,7 +472,7 @@ export function CloseShiftPanel({
   }
 
   async function submit() {
-    if (counted === null || blockers.length) return
+    if (counted === null || !reconciled || blockers.length) return
     setSubmitting(true)
     setError(null)
     try {
@@ -495,8 +523,8 @@ export function CloseShiftPanel({
         </Field>
         {blockersBanner}
         {errorLine}
-        <Button size="lg" onClick={reconcile} disabled={counted === null}>
-          Сверить
+        <Button size="lg" onClick={() => void reconcile()} disabled={counted === null || reconciling}>
+          {reconciling ? "Сверка…" : "Сверить"}
         </Button>
       </div>
     )

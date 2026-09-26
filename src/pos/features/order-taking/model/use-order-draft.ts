@@ -115,6 +115,9 @@ export function useOrderDraft(args: {
   const [orderNumber, setOrderNumber] = useState<number | undefined>(undefined)
   const [lines, setLines] = useState<OrderDraftLine[]>([])
   const [tableLabel, setTableLabel] = useState(args.initialTableLabel ?? "")
+  // Mirrors of check.current.extras for the screen: the hall (the floor grid matches hall + label) and guests.
+  const [hallLabel, setHallLabel] = useState<string | undefined>(args.initialSeat?.hallLabel?.trim() || undefined)
+  const [guestCount, setGuestCountState] = useState<number | undefined>(args.initialSeat?.guestCount)
   const [discountPercent, setDiscountPercent] = useState(0)
   const [discountReason, setDiscountReason] = useState("")
   const [comment, setComment] = useState("")
@@ -158,6 +161,8 @@ export function useOrderDraft(args: {
       setOrderId(null)
       setOrderNumber(undefined)
       setTableLabel(args.initialTableLabel ?? "")
+      setHallLabel(check.current.extras.hallLabel)
+      setGuestCountState(check.current.extras.guestCount)
       setDiscountPercent(0)
       setDiscountReason("")
       setComment("")
@@ -181,6 +186,8 @@ export function useOrderDraft(args: {
     setSelectedOrderType(hydrated.orderType ? { externalId: hydrated.orderTypeExternalId, mode: hydrated.orderType } : null)
     setServerTotals(null)
     setTableLabel(hydrated.tableLabel ?? "")
+    setHallLabel(hydrated.hallLabel)
+    setGuestCountState(hydrated.guestCount)
     setDiscountPercent(hydrated.discountPercent)
     setDiscountReason(hydrated.discountReason ?? "")
     setComment(hydrated.comment ?? "")
@@ -343,6 +350,20 @@ export function useOrderDraft(args: {
   )
 
   /**
+   * «Гостей» in the order panel: kept in the check's extras and saved with the next saveDraft — at once
+   * when the check is already saved or has lines, else with its first line.
+   */
+  const setGuestCount = useCallback(
+    (count: number) => {
+      check.current.extras = { ...check.current.extras, guestCount: count }
+      setGuestCountState(count)
+      if (lines.length > 0 || check.current.orderId) return persist(snapshot({}))
+      return Promise.resolve(undefined)
+    },
+    [lines.length, persist, snapshot],
+  )
+
+  /**
    * «Перенести на стол»: the server refuses a table that already has an open check. A check that is
    * not saved yet just takes the new table with its first save.
    */
@@ -354,12 +375,18 @@ export function useOrderDraft(args: {
       return enqueue(async () => {
         if (!context.orderId) {
           context.extras = { ...context.extras, tableLabel, hallLabel }
-          if (check.current === context) setTableLabel(tableLabel)
+          if (check.current === context) {
+            setTableLabel(tableLabel)
+            setHallLabel(hallLabel)
+          }
           return
         }
         const result = await moveToTableMutation({ sessionToken: args.sessionToken, orderId: context.orderId, expectedVersion: context.version, tableLabel, hallLabel })
         context.extras = { ...context.extras, tableLabel: result.tableLabel ?? tableLabel, hallLabel: result.hallLabel }
-        if (check.current === context) setTableLabel(result.tableLabel ?? tableLabel)
+        if (check.current === context) {
+          setTableLabel(result.tableLabel ?? tableLabel)
+          setHallLabel(result.hallLabel)
+        }
         applyServerOrder(context, result as ServerOrder, result.version)
       })
     },
@@ -427,6 +454,9 @@ export function useOrderDraft(args: {
     lines,
     tableLabel,
     setTableLabel,
+    hallLabel,
+    guestCount,
+    setGuestCount,
     discountPercent,
     discountReason,
     comment,

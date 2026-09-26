@@ -32,3 +32,11 @@ export const PIN_MAX = 6
 export function isValidPin(pin: string) {
   return pin.length >= PIN_MIN && pin.length <= PIN_MAX && /^\d+$/.test(pin)
 }
+
+/**
+ * Roles that see the drawer's expected cash while the shift is open (POS-DESIGN §6.2, blind count): a
+ * cashier counts first and learns the expected amount only at «Сверить» (shifts.reconcileCount).
+ */
+export function seesExpectedCash(role: string) {
+  return role === "manager" || role === "administrator"
+}
