@@ -18,6 +18,7 @@ const TONE_TEXT: Record<StatusTone, string> = {
   success: "text-success",
   warning: "text-warning",
   danger: "text-destructive",
+  "danger-muted": "text-destructive-muted",
   info: "text-accent",
 }
 

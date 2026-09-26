@@ -119,17 +119,24 @@ export function RefundPanel({
             {lines.map((line) => (
               <li key={line._id} className="flex items-center justify-between gap-2 px-3 py-2">
                 <span className="min-w-0 flex-1 text-body-sm">
-                  <span className="font-semibold">{line.productName}</span>
-                  <span className="text-muted-foreground"> · из {line.quantity}</span>
+                  <span className="block">
+                    <span className="font-semibold">{line.productName}</span>
+                    <span className="text-muted-foreground"> · из {line.quantity}</span>
+                  </span>
+                  {line.productNameKk?.trim() && line.productNameKk.trim() !== line.productName.trim() ? (
+                    <span lang="kk" className="block text-muted-foreground">
+                      {line.productNameKk}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Button variant="secondary" size="icon" aria-label={`Меньше: ${line.productName}`} onClick={() => changeQuantity(line, -1)} disabled={!quantities[line._id]}>
+                  <Button variant="secondary" size="icon" className="size-12" aria-label={`Меньше: ${line.productName}`} onClick={() => changeQuantity(line, -1)} disabled={!quantities[line._id]}>
                     <Minus />
                   </Button>
                   <span className="w-7 text-center text-body font-semibold tabular-nums" aria-label={`К возврату: ${line.productName}`}>
                     {quantities[line._id] ?? 0}
                   </span>
-                  <Button variant="secondary" size="icon" aria-label={`Больше: ${line.productName}`} onClick={() => changeQuantity(line, 1)} disabled={(quantities[line._id] ?? 0) >= line.quantity}>
+                  <Button variant="secondary" size="icon" className="size-12" aria-label={`Больше: ${line.productName}`} onClick={() => changeQuantity(line, 1)} disabled={(quantities[line._id] ?? 0) >= line.quantity}>
                     <Plus />
                   </Button>
                 </span>

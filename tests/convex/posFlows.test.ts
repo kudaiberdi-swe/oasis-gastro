@@ -430,6 +430,12 @@ describe("public function access (W0-BUG-01)", () => {
 
     const categories = await t.query(api.domains.catalog.queries.listCategories, { sessionToken: fixture.cashierToken })
     expect(categories.map((category) => category.externalId)).toEqual(["hot"])
+    // The office's strip color reaches the POS with the category.
+    await t.run(async (ctx) => {
+      const hot = await ctx.db.query("categories").withIndex("by_external_id", (q) => q.eq("externalId", "hot")).unique()
+      await ctx.db.patch(hot!._id, { colorToken: "cat-meat" })
+    })
+    expect((await t.query(api.domains.catalog.queries.listCategories, { sessionToken: fixture.cashierToken }))[0].colorToken).toBe("cat-meat")
     const page = await t.query(api.domains.catalog.queries.listProducts, { sessionToken: fixture.cashierToken, paginationOpts: { numItems: 10, cursor: null } })
     expect(page.page.map((product) => product.price)).toEqual([1500])
     const product = await t.query(api.domains.catalog.queries.getProduct, { sessionToken: fixture.cashierToken, productId: fixture.productId })

@@ -48,7 +48,7 @@ export function NotificationsDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Уведомления кассы</DialogTitle>
-          <DialogDescription>Системные события текущего терминала.</DialogDescription>
+          <DialogDescription>Что требует внимания на этой кассе.</DialogDescription>
         </DialogHeader>
         {items.length === 0 ? (
           <EmptyState title="Новых уведомлений нет" description="Здесь появятся остатки ниже минимума, сообщения офиса и долгие смены." />

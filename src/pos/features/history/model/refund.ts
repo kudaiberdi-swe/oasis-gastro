@@ -9,7 +9,8 @@ import type { PaymentMethod } from "@/shared/types/pos"
 
 export type HistoryPayment = { type: "sale" | "refund"; method: PaymentMethod; amount: number; paymentTypeExternalId?: string; paymentTypeName?: string }
 
-export type HistoryLine = { _id: string; productName: string; quantity: number; unitPrice: number; lineTotal?: number; voidedAt?: number }
+/** productNameKk — the dish's Kazakh name, shown second in the refund list (orders.list). */
+export type HistoryLine = { _id: string; productName: string; productNameKk?: string | null; quantity: number; unitPrice: number; lineTotal?: number; voidedAt?: number }
 
 /** One way the check was paid and how much of it can still be returned. */
 export type RefundWay = {

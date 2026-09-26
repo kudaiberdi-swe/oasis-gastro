@@ -4,10 +4,11 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
-// POS-DESIGN §5 Button: one primary per screen; radius is always --radius-control.
+// POS-DESIGN §5 Button: one primary per screen; radius is always --radius-control. A press sinks the
+// button by 1px (150ms, touch feedback); under prefers-reduced-motion it stays put.
 const buttonVariants = cva(
   cn(
-    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-control font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:size-[18px] [&_svg]:shrink-0",
+    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-control font-semibold transition-[color,background-color,border-color,opacity,translate] duration-150 ease-out active:translate-y-px motion-reduce:transition-colors motion-reduce:active:translate-y-0 disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:size-[18px] [&_svg]:shrink-0",
     focusRingClass,
   ),
   {

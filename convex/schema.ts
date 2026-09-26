@@ -3,7 +3,7 @@ import { v } from "convex/values"
 import { authTables } from "@convex-dev/auth/server"
 import { financeModuleId, financeRecordData } from "./domains/finance/validators"
 import { platformModuleId, platformRecordData, printRoutingRule } from "./domains/platform/validators"
-import { officeDomainStatus } from "./lib/validators"
+import { categoryColorToken, officeDomainStatus } from "./lib/validators"
 import { retailKind, retailSettingData } from "./domains/retail/validators"
 import { integrationCardModule, integrationCardSettings, integrationCardStatus, integrationDirection, integrationMode } from "./domains/integrations/validators"
 import { reportConfig } from "./lib/reportConfig"
@@ -242,6 +242,7 @@ export default defineSchema({
     sortOrder: v.number(),
     active: v.optional(v.boolean()),
     parentExternalId: v.optional(v.string()), // W1-CAT-03 product-group hierarchy
+    colorToken: v.optional(categoryColorToken), // the POS category strip, set in the office; unset — guessed from the label
     sourceSystem: v.optional(v.string()),
     sourceHash: v.optional(v.string()),
     importedAt: v.optional(v.number()),

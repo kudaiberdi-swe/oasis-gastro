@@ -3,7 +3,7 @@ import { v } from "convex/values"
 
 import { query } from "../../_generated/server"
 import type { MutationCtx, QueryCtx } from "../../_generated/server"
-import type { Doc } from "../../_generated/dataModel"
+import type { Doc, Id } from "../../_generated/dataModel"
 import { getOpenShift, requireOperator } from "../../lib/auth"
 import { orderStatus as orderStatusValidator } from "../../lib/validators"
 
@@ -108,15 +108,23 @@ export const list = query({
             .order(args.direction)
             .paginate(args.paginationOpts)
 
+    // The Kazakh dish name for the refund list; one read per distinct dish on the page, not per line.
+    const nameKkByProduct = new Map<string, Promise<string | null>>()
+    const productNameKk = (productId: Id<"products">) => {
+      if (!nameKkByProduct.has(productId)) nameKkByProduct.set(productId, ctx.db.get(productId).then((product) => product?.nameKk ?? null))
+      return nameKkByProduct.get(productId)!
+    }
+
     return {
       ...result,
       page: await Promise.all(
         result.page.map(async (order) => {
-          const [lines, payments, creator] = await Promise.all([
+          const [rawLines, payments, creator] = await Promise.all([
             ctx.db.query("orderLines").withIndex("by_order", (q) => q.eq("orderId", order._id)).take(100),
             ctx.db.query("payments").withIndex("by_order_created", (q) => q.eq("orderId", order._id)).take(100),
             order.createdBy ? ctx.db.get(order.createdBy) : null,
           ])
+          const lines = await Promise.all(rawLines.map(async (line) => ({ ...line, productNameKk: await productNameKk(line.productId) })))
           const refundableByMethod = { cash: 0, card: 0, qr: 0 }
           const refundableByPaymentType: Record<string, number> = {}
           for (const payment of payments) {

@@ -34,10 +34,10 @@ vi.mock("convex/react", () => ({
 }))
 
 const GROUPS = [
-  { externalId: "hot", label: "Горячие блюда", shortLabel: "Горячее", sortOrder: 10, parentExternalId: null, active: true },
-  { externalId: "soups", label: "Супы", shortLabel: "Супы", sortOrder: 20, parentExternalId: "hot", active: true },
-  { externalId: "drinks", label: "Напитки", shortLabel: "Напитки", sortOrder: 5, parentExternalId: null, active: false },
-  { externalId: "broths", label: "Сорпа", shortLabel: "Сорпа", sortOrder: 1, parentExternalId: "soups", active: true },
+  { externalId: "hot", label: "Горячие блюда", shortLabel: "Горячее", sortOrder: 10, parentExternalId: null, active: true, colorToken: null },
+  { externalId: "soups", label: "Супы", shortLabel: "Супы", sortOrder: 20, parentExternalId: "hot", active: true, colorToken: null },
+  { externalId: "drinks", label: "Напитки", shortLabel: "Напитки", sortOrder: 5, parentExternalId: null, active: false, colorToken: null },
+  { externalId: "broths", label: "Сорпа", shortLabel: "Сорпа", sortOrder: 1, parentExternalId: "soups", active: true, colorToken: null },
 ]
 
 function row(overrides: Record<string, unknown> = {}) {

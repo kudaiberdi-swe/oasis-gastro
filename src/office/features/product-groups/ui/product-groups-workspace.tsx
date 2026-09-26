@@ -13,7 +13,21 @@ import { cn, focusRingClass } from "@/shared/lib/utils"
 import { descendantsOf, flattenGroupTree, groupOptions, useProductGroups, useSaveProductGroup, type ProductGroup, type ProductGroupNode } from "../data/use-product-groups"
 
 const ROOT = "__root"
+const AUTO_COLOR = "__auto"
 const DEFAULT_SORT_ORDER = 100
+
+/** The POS strip color of a group (categories.colorToken, POS-DESIGN §2.3); «Автоматически» guesses it from the name. */
+export const GROUP_COLOR_OPTIONS = [
+  { value: AUTO_COLOR, label: "Автоматически, по названию" },
+  { value: "cat-meat", label: "Винный — мясо, основные блюда" },
+  { value: "cat-dairy", label: "Золотой — молочное, напитки" },
+  { value: "cat-bread", label: "Янтарный — выпечка, баурсаки" },
+  { value: "cat-green", label: "Зелёный — салаты" },
+  { value: "cat-tea", label: "Коричневый — чай, десерты" },
+] as const
+
+type GroupColor = Exclude<(typeof GROUP_COLOR_OPTIONS)[number]["value"], typeof AUTO_COLOR>
+
 /** Indent per tree level in the list, px. */
 const LEVEL_INDENT = 20
 
@@ -154,6 +168,7 @@ function GroupForm({
   const [parent, setParent] = useState(group?.parentExternalId ?? ROOT)
   const [sortOrder, setSortOrder] = useState(String(group?.sortOrder ?? DEFAULT_SORT_ORDER))
   const [active, setActive] = useState(group?.active ?? true)
+  const [color, setColor] = useState<string>(group?.colorToken ?? AUTO_COLOR)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -184,6 +199,7 @@ function GroupForm({
         parentExternalId: parent === ROOT ? undefined : parent,
         sortOrder: order,
         active,
+        colorToken: color === AUTO_COLOR ? null : (color as GroupColor),
       })
       toast("Группа сохранена", "success")
       onSaved(externalId)
@@ -215,6 +231,9 @@ function GroupForm({
         <Field label="Родительская группа">{(control) => <Select {...control} value={parent} onValueChange={setParent} options={parentOptions} disabled={readOnly} />}</Field>
         <Field label="Порядок" error={errors.sortOrder}>
           {(control) => <Input {...control} inputMode="numeric" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} disabled={readOnly} />}
+        </Field>
+        <Field label="Цвет в кассе" hint="Полоска на карточках блюд и чипе группы">
+          {(control) => <Select {...control} value={color} onValueChange={setColor} options={[...GROUP_COLOR_OPTIONS]} disabled={readOnly} />}
         </Field>
       </div>
       <label className="flex items-center gap-2 text-body-sm font-medium text-foreground">

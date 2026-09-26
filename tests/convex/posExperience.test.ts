@@ -40,6 +40,8 @@ describe("POS notifications and upsell (W1-POS-09)", () => {
     await t.mutation(api.domains.orders.mutations.checkout, { sessionToken: cashier, orderId: check._id, idempotencyKey: "p", payments: [{ method: "cash", amount: 1300 }, { method: "card", amount: 1000 }] })
     const page = await t.query(api.domains.orders.queries.list, { sessionToken: cashier, paginationOpts: { numItems: 10, cursor: null }, direction: "desc", currentShiftOnly: true })
     expect(page.page[0].refundableByPaymentType).toEqual({ "payment-type-cash": 1300, "payment-type-card": 1000 })
+    // The refund list shows the Kazakh dish name second.
+    expect(page.page[0].lines.map((line) => [line.productName, line.productNameKk])).toEqual([["Бешбармак", "Бешбармақ"]])
     await t.mutation(api.domains.shifts.mutations.close, { sessionToken: cashier, countedCash: 1300, note: "" })
     expect((await t.query(api.domains.orders.queries.list, { sessionToken: cashier, paginationOpts: { numItems: 10, cursor: null }, direction: "desc", currentShiftOnly: true })).page).toEqual([])
   })

@@ -35,7 +35,7 @@ describe("status dictionary (L-9)", () => {
     for (const [domain, entries] of Object.entries(STATUS_DICTIONARY)) {
       for (const [value, entry] of Object.entries(entries)) {
         expect(entry.label, `${domain}:${value}`).toMatch(/[А-Яа-яЁё]/)
-        expect(["neutral", "success", "warning", "danger", "info"]).toContain(entry.tone)
+        expect(["neutral", "success", "warning", "danger", "danger-muted", "info"]).toContain(entry.tone)
       }
     }
   })
@@ -45,9 +45,18 @@ describe("status dictionary (L-9)", () => {
     for (const status of ["queued", "preparing", "ready", "completed"]) expect(describeStatus("kitchen", status).known).toBe(true)
   })
 
-  it("maps iiko-style upper-case values and keeps unknown ones visible", () => {
+  it("maps iiko-style upper-case values and never shows an unknown raw value", () => {
     expect(describeStatus("document", "PUBLISHED").label).toBe("Опубликовано")
     expect(describeStatus("document", "PENDING_APPROVAL").label).toBe("На согласовании")
-    expect(describeStatus("document", "WEIRD")).toEqual({ label: "WEIRD", tone: "neutral", known: false })
+    expect(describeStatus("document", "WEIRD")).toEqual({ label: "Другой статус", tone: "neutral", known: false })
+    expect(describeStatus("order", "unknown_value").label).toBe("Другой статус")
+  })
+
+  it("tells held, refunded and paid checks apart by tone (day theme critique)", () => {
+    expect(describeStatus("order", "held").tone).toBe("warning")
+    expect(describeStatus("order", "refunded").tone).toBe("danger-muted")
+    expect(describeStatus("order", "partially_refunded").tone).toBe("danger-muted")
+    expect(describeStatus("order", "paid").tone).toBe("success")
+    expect(describeStatus("kitchen", "cancelled")).toMatchObject({ label: "Отменён", known: true })
   })
 })

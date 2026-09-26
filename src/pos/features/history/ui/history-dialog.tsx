@@ -78,7 +78,7 @@ export function HistoryDialog({
         <div className="border-b border-border px-6 py-5">
           <DialogHeader>
             <DialogTitle>История заказов</DialogTitle>
-            <DialogDescription>Заказы этой кассы: поиск, фильтр и загрузка страниц выполняются на сервере.</DialogDescription>
+            <DialogDescription>Заказы этой кассы. Найдите по номеру, столу или блюду.</DialogDescription>
           </DialogHeader>
         </div>
         <div className="flex min-h-0 flex-1">

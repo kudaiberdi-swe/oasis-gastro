@@ -6,7 +6,7 @@ import { AppHeader, headerDate, SyncIndicator, syncStateFrom } from "@/pos/compo
 import { OrderPanel } from "@/pos/components/order-panel"
 import { ProductCard } from "@/pos/components/product-card"
 import { goBack, openView, parseRecent, pushRecent, RECENT_LIMIT, sortProducts, type CatalogNavigation, type CatalogProduct } from "@/pos/features/catalog/model/catalog-view"
-import { CatalogPanel } from "@/pos/features/catalog/ui/catalog-panel"
+import { CatalogPanel, categoryToneOf } from "@/pos/features/catalog/ui/catalog-panel"
 import { ChecksSwitcher } from "@/pos/features/order-taking/ui/checks-switcher"
 import { ThemeProvider } from "@/shared/components/theme-provider"
 import { ToastProvider } from "@/shared/components/ui"
@@ -16,7 +16,7 @@ import { ToastProvider } from "@/shared/components/ui"
 type ProductsArgs = { category?: string; search?: string; enabled?: boolean; pageSize?: number }
 
 const catalog = vi.hoisted(() => ({
-  categories: [] as Array<{ externalId: string; label: string; shortLabel: string }>,
+  categories: [] as Array<{ externalId: string; label: string; shortLabel: string; colorToken?: string }>,
   products: [] as CatalogProduct[],
   favorites: [] as CatalogProduct[],
   favoriteIds: [] as string[],
@@ -126,14 +126,43 @@ describe("catalog view model (W1-POS-11)", () => {
 })
 
 describe("CatalogPanel (W1-POS-11)", () => {
-  it("has the toolbar ← ⌂ ☆ 🕘, a 48px search and the loaded counter", () => {
+  it("has the toolbar ← ⌂ ☆ 🕘 and a 48px search — no counter, sort or hint row", () => {
     renderCatalog()
-    for (const name of ["Назад", "Все блюда", "Избранное", "Последние"]) expect(screen.getByRole("button", { name })).toBeTruthy()
+    for (const name of ["Назад", "Все блюда", "Избранное", "Последние"]) expect(screen.getByRole("button", { name }).className).toContain("size-12")
     expect((screen.getByRole("button", { name: "Назад" }) as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByRole("searchbox", { name: "Поиск блюда или напитка" }).className).toContain("h-[var(--control-h-pos)]")
-    expect(screen.getByText(/загружено/).textContent).toContain("3")
-    expect(screen.getByText("Нажмите на карточку, чтобы добавить позицию")).toBeTruthy()
-    expect(screen.getByText("Меню: Sandyq")).toBeTruthy()
+    expect(screen.queryByText(/загружено/)).toBeNull()
+    expect(screen.queryByText("Нажмите на карточку, чтобы добавить позицию")).toBeNull()
+    expect(screen.queryByRole("combobox", { name: "Сортировка" })).toBeNull()
+    // Sorted by name by default.
+    expect(cardNames().map((name) => name.split(/\d/)[0])).toEqual(["Айран", "БаурсакиБауырсақ", "БешбармакБешбармақ"])
+  })
+
+  it("puts the toolbar action (the kitchen screen) at the right end of the toolbar", () => {
+    render(
+      <ToastProvider>
+        <CatalogPanel sessionToken="s" onAddProduct={() => {}} toolbarAction={<button type="button">Экран кухни</button>} />
+      </ToastProvider>,
+    )
+    const search = screen.getByRole("searchbox")
+    const kitchen = screen.getByRole("button", { name: "Экран кухни" })
+    expect(search.compareDocumentPosition(kitchen) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("colors a category by its stored colorToken first and the label guess only as a fallback", () => {
+    expect(categoryToneOf({ label: "Салаты", colorToken: "cat-tea" })).toBe("tea")
+    expect(categoryToneOf({ label: "Салаты" })).toBe("green")
+    expect(categoryToneOf({ label: "Салаты", colorToken: null })).toBe("green")
+    expect(categoryToneOf({ label: "Соусы" })).toBeUndefined()
+    // A renamed iiko group keeps the office's color.
+    expect(categoryToneOf({ label: "Жаңа мәзір", colorToken: "cat-meat" })).toBe("meat")
+    catalog.categories = [
+      { externalId: "c-main", label: "Новое меню", shortLabel: "Новое", colorToken: "cat-bread" },
+      { externalId: "c-drinks", label: "Напитки", shortLabel: "Напитки" },
+    ]
+    renderCatalog()
+    expect(screen.getByRole("button", { name: "Новое" }).className).toContain("before:bg-cat-bread")
+    expect(screen.getByRole("button", { name: "Напитки" }).className).toContain("before:bg-cat-dairy")
   })
 
   it("filters by the category's externalId, not its label (L-1), and ← returns to all", () => {
@@ -317,14 +346,18 @@ describe("OrderPanel header and empty state (W1-POS-10)", () => {
     return { onMore }
   }
 
-  it("says the order is empty, shows the status and «Текущий чек», and «…» opens the actions", () => {
+  it("says the order is empty, shows the status, counts positions once and has one entry to the actions («Ещё»)", () => {
     const { onMore } = renderPanel({ orderStatus: "held", titleSlot: <span>Стол 7 ▾</span> })
     expect(screen.getByText("Заказ пока пуст")).toBeTruthy()
     expect(screen.getByText("Выберите товар в меню справа.")).toBeTruthy()
     expect(screen.getByText("Стол 7 ▾")).toBeTruthy()
     expect(screen.getByText("Отложен")).toBeTruthy()
-    expect(screen.getByText("Текущий чек · 0 поз.")).toBeTruthy()
-    fireEvent.click(screen.getByRole("button", { name: "Действия с заказом" }))
+    expect(screen.queryByText(/Текущий чек/)).toBeNull()
+    expect(screen.getAllByText(/0 позиций/)).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: "Действия с заказом" })).toBeNull()
+    const more = screen.getByRole("button", { name: "Ещё" })
+    expect(more.className).toContain("h-12")
+    fireEvent.click(more)
     expect(onMore).toHaveBeenCalled()
     // One primary on the screen: «Оплатить».
     expect(screen.getByRole("region", { name: "Заказ" }).querySelectorAll(".bg-primary")).toHaveLength(1)

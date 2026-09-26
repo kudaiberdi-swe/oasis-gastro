@@ -32,11 +32,18 @@
   --gold: #b28f6f; /* site gold — ornament and lines only, never text on light */
   --rust: #a33009; /* site rust — 4px heading accent, ornament markers */
   --ring: #7f5c43; /* site clay-strong — focus ring */
-  --success: #4d5a36; /* derived: paid, posted, ready */
-  --warning: #9a4408; /* derived: held, below minimum, 24h shift */
-  --warning-foreground: #9a4408;
+  --success: #44632f; /* derived: paid, posted, ready — steppe green, a step greener so «Оплачен» never reads grey */
+  --success-surface: #e6eed8; /* opaque tint behind success pills */
+  --warning: #8a5a00; /* derived: held, below minimum, 24h shift — amber, apart from rust and danger red */
+  --warning-foreground: #8a5a00;
+  --warning-surface: #fbf0d6; /* opaque amber tint behind warning banners and pills */
   --destructive: #b42318; /* derived: errors, negative amounts, dangerous actions */
   --destructive-foreground: #ffffff;
+  --destructive-surface: #fbe9e6; /* opaque red tint behind danger banners and pills */
+  --destructive-muted: #8a3b32; /* refunded checks: the danger family without the alarm, on parchment */
+  --chip-active: #121316; /* active filter/category chip: a dark fill on the light surface */
+  --chip-active-foreground: #fff7ec;
+  --chip-active-muted: #bfb5a8;
   --nav: #121316; /* sidebar, POS header, sign-in */
   --nav-raised: #1e1e1e;
   --nav-foreground: #fff7ec;
@@ -106,10 +113,17 @@
   --rust: #e0685c;
   --ring: #c9a27e;
   --success: #9fb07a;
-  --warning: #f09a4c;
-  --warning-foreground: #f09a4c;
+  --success-surface: #232a1a;
+  --warning: #e2a546; /* amber, apart from the coral danger */
+  --warning-foreground: #e2a546;
+  --warning-surface: #2c2515;
   --destructive: #e87468; /* 4.9 on a 10% destructive tint over card (status pills) */
   --destructive-foreground: #121316; /* ink on coral: white would be 3.3 */
+  --destructive-surface: #36201d;
+  --destructive-muted: #d49a8f;
+  --chip-active: #fff7ec; /* at night the active chip is a light fill — a dark one would vanish into the card */
+  --chip-active-foreground: #121316;
+  --chip-active-muted: #6b6159;
   --nav: #0b0c0e;
   --nav-raised: #1e1e1e;
   --nav-foreground: #fff7ec;

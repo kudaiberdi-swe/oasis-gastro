@@ -358,11 +358,19 @@ describe("main menu, profile, notifications (W1-POS-14)", () => {
     const onClockIn = vi.fn(async () => undefined)
     const access = { employee: { id: "e", code: "101", displayName: "Айгерим", role: "cashier" as const }, restaurant: { id: "r", externalId: "almaty", name: "Sandyq Алматы", city: "Алматы" }, terminal: { id: "t", externalId: "t1", name: "Главная касса", terminalNumber: 1 } }
     const props = { open: true, onOpenChange: () => {}, access, onClockIn, onClockOut: vi.fn(async () => undefined), onLock: () => {}, onLogout: () => {} }
-    const { rerender } = render(<ProfileDialog {...props} attendance={null} />)
+    const { rerender } = render(
+      <ThemeProvider>
+        <ProfileDialog {...props} attendance={null} />
+      </ThemeProvider>,
+    )
     expect(screen.getByText("Кассир · код 101")).toBeTruthy()
     fireEvent.click(screen.getByRole("button", { name: "Отметить приход" }))
     await waitFor(() => expect(onClockIn).toHaveBeenCalled())
-    rerender(<ProfileDialog {...props} attendance={{ clockIn: Date.UTC(2026, 8, 24, 4, 0) }} />)
+    rerender(
+      <ThemeProvider>
+        <ProfileDialog {...props} attendance={{ clockIn: Date.UTC(2026, 8, 24, 4, 0) }} />
+      </ThemeProvider>,
+    )
     expect(screen.getByRole("button", { name: "Отметить уход" })).toBeTruthy()
     expect(screen.getByText("На работе с 09:00")).toBeTruthy()
   })

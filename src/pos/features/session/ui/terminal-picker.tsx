@@ -29,7 +29,7 @@ export function TerminalPicker({ options, onChoose, staleTerminal }: TerminalPic
           <MonitorSmartphone aria-hidden className="mt-1 size-6 shrink-0 text-accent" />
           <div className="flex flex-col gap-1">
             <h1 className="font-display text-title font-semibold">Выберите рабочее место</h1>
-            <p className="text-body-sm text-muted-foreground">Сначала подразделение, затем разрешённый POS-терминал.</p>
+            <p className="text-body-sm text-muted-foreground">Сначала филиал, затем касса.</p>
           </div>
         </div>
 

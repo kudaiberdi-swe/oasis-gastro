@@ -79,6 +79,7 @@ export async function productConfigurationFor(ctx: QueryCtx, restaurantExternalI
       options: group.rules.map((rule) => ({
         externalId: rule.modifier.externalId,
         name: rule.modifier.name,
+        nameKk: rule.modifier.nameKk ?? null,
         price: rule.modifier.price,
         imageUrl: null,
         minQuantity: rule.minQuantity,

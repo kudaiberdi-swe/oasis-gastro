@@ -1,18 +1,16 @@
 import type { ReactNode } from "react"
-import { Bell, LockKeyhole, Menu, Monitor, Moon, Rows3, Store, Sun, Wifi, WifiOff } from "lucide-react"
+import { Bell, LockKeyhole, Menu, Monitor, Store, Wifi, WifiOff } from "lucide-react"
 
-import { useTheme } from "@/shared/components/theme-provider"
 import { Button } from "@/shared/components/ui/button"
 import { formatAlmatyTime } from "@/shared/lib/almaty-time"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
-function Mark() {
-  return (
-    <svg viewBox="0 0 40 40" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M20 6 L26 20 L20 34 L14 20 Z" />
-      <circle cx="20" cy="20" r="1.6" fill="currentColor" stroke="none" />
-    </svg>
-  )
+/**
+ * The Sandyq mark (public/branding/sandyq-group-logo.svg, 31×40): carving gold on the dark header,
+ * which is --nav in both themes, so the one variant reads by day and at night.
+ */
+function Logo() {
+  return <img src="/branding/sandyq-group-logo.svg" alt="Sandyq" width={25} height={32} className="h-8 w-auto shrink-0" />
 }
 
 // Icon buttons on the dark header: --nav-raised on hover, never white overlays (POS-DESIGN §6.2).
@@ -64,9 +62,10 @@ export function SyncIndicator({ state }: { state: SyncState }) {
 }
 
 /**
- * POS header 64px (W1-POS-10/14, POS-DESIGN §11.2): ☰ main menu, brand and «<касса> · <город>»,
- * «Касса / Офис», the shift pill (opens the shift dialog), «Синхронизировано», notifications with the
- * unread count, lock, theme, density and the profile (name, role · date).
+ * POS header 64px (W1-POS-10/14, POS-DESIGN §11.2): ☰ main menu, the Sandyq logo, brand and «<касса> ·
+ * <город>», «Касса / Офис», the shift pill (opens the shift dialog), «Синхронизировано», notifications
+ * with the unread count, lock and the profile (name, role · date). Theme and density live in the
+ * profile dialog, not here.
  */
 export function AppHeader({
   restaurantName,
@@ -112,23 +111,22 @@ export function AppHeader({
   onProfile?: () => void
   onLock: () => void
 }) {
-  const { mode, setMode, density, setDensity } = useTheme()
   const brand = restaurantName.startsWith("Sandyq") ? restaurantName : `Sandyq · ${restaurantName}`
   const place = [terminalName, city].filter(Boolean).join(" · ")
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-3 rounded-panel bg-nav px-2 text-nav-foreground">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-4 rounded-panel bg-nav px-2 text-nav-foreground">
       <div className="flex min-w-0 items-center gap-2">
         {onMenu && (
-          <Button variant="ghost" size="icon" aria-label="Главное меню" className={navButton} onClick={onMenu}>
+          <Button variant="ghost" size="icon" aria-label="Главное меню" className={cn(navButton, "size-12")} onClick={onMenu}>
             <Menu />
           </Button>
         )}
-        <span className="text-nav-accent">
-          <Mark />
-        </span>
-        <span className="flex min-w-0 flex-col leading-tight">
-          <span className="truncate font-display text-body font-semibold">{brand}</span>
-          {place && <span className="truncate text-body-sm text-nav-muted">{place}</span>}
+        <span className={cn("flex min-w-0 items-center gap-3", !onMenu && "pl-2")}>
+          <Logo />
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate font-display text-body font-semibold">{brand}</span>
+            {place && <span className="truncate text-body-sm text-nav-muted">{place}</span>}
+          </span>
         </span>
         {showOfficeSwitch && (
           <span className="ml-2 shrink-0">
@@ -139,42 +137,29 @@ export function AppHeader({
           <button
             type="button"
             onClick={onOpenShiftInfo}
-            aria-label={`Смена №${shiftNumber}${shiftWarning ? ", открыта более 24 часов" : ""}`}
-            className={cn("ml-2 inline-flex h-11 shrink-0 items-center gap-2 rounded-control bg-nav-raised px-3 text-body-sm font-semibold text-nav-foreground hover:text-nav-accent", focusRingClass)}
+            aria-label={`Смена №${shiftNumber}${shiftOpenedAt != null ? `, открыта в ${formatAlmatyTime(shiftOpenedAt)}` : ""}${shiftWarning ? ", открыта более 24 часов" : ""}`}
+            className={cn("ml-2 inline-flex h-12 shrink-0 items-center gap-2 rounded-control bg-nav-raised px-3 text-body-sm font-semibold text-nav-foreground hover:text-nav-accent", focusRingClass)}
           >
             <span aria-hidden className={cn("size-2 rounded-round", shiftWarning ? "bg-warning" : "bg-success")} />
             Смена №{shiftNumber}
-            {shiftOpenedAt != null && <span className="font-normal text-nav-muted">· {formatAlmatyTime(shiftOpenedAt)}</span>}
+            {shiftOpenedAt != null && <span className="font-normal text-nav-muted">· открыта {formatAlmatyTime(shiftOpenedAt)}</span>}
           </button>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {syncIndicator}
         {onNotifications && (
-          <Button variant="ghost" size="icon" aria-label={unreadNotifications ? `Уведомления: ${unreadNotifications} новых` : "Уведомления"} className={cn(navButton, "relative")} onClick={onNotifications}>
+          <Button variant="ghost" size="icon" aria-label={unreadNotifications ? `Уведомления: ${unreadNotifications} новых` : "Уведомления"} className={cn(navButton, "relative size-12")} onClick={onNotifications}>
             <Bell />
             {unreadNotifications > 0 && (
-              <span aria-hidden className="absolute top-1 right-1 grid h-5 min-w-5 place-items-center rounded-round bg-destructive px-1 text-caption font-semibold text-destructive-foreground">
+              <span aria-hidden className="absolute top-0 right-0 grid h-6 min-w-6 place-items-center rounded-round bg-destructive px-1 text-body-sm leading-none font-semibold text-destructive-foreground tabular-nums">
                 {unreadNotifications > 9 ? "9+" : unreadNotifications}
               </span>
             )}
           </Button>
         )}
-        <Button variant="ghost" size="icon" aria-label="Заблокировать кассу" className={navButton} onClick={onLock}>
+        <Button variant="ghost" size="icon" aria-label="Заблокировать кассу" className={cn(navButton, "size-12")} onClick={onLock}>
           <LockKeyhole />
-        </Button>
-        <Button variant="ghost" size="icon" aria-label={mode === "day" ? "Ночная тема" : "Дневная тема"} className={navButton} onClick={() => setMode(mode === "day" ? "night" : "day")}>
-          {mode === "day" ? <Moon /> : <Sun />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={density === "compact" ? "Обычная плотность" : "Плотная раскладка"}
-          aria-pressed={density === "compact"}
-          className={cn(navButton, "aria-pressed:text-nav-accent")}
-          onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
-        >
-          <Rows3 />
         </Button>
         <button
           type="button"

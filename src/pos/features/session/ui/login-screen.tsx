@@ -66,7 +66,7 @@ export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTe
         <div className="flex flex-col items-center gap-1 text-center">
           <Icon aria-hidden className="size-6 text-accent" />
           <h1 className="font-display text-title font-semibold">{locked ? "Касса заблокирована" : "Вход в кассу"}</h1>
-          {terminalLabel ? <p className="text-body-sm text-muted-foreground">{terminalLabel}</p> : null}
+          {terminalLabel ? <p className="text-body text-muted-foreground">{terminalLabel}</p> : null}
         </div>
         <p className="text-center text-body-sm font-medium text-muted-foreground">{stage === "code" ? "Код сотрудника" : "PIN-код"}</p>
         <PinPad
@@ -100,7 +100,7 @@ export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTe
             {stage === "code" ? "Далее" : submitting ? "Вход…" : "Войти"}
           </Button>
         </div>
-        <p className="text-center text-caption text-muted-foreground">Используйте свой код и PIN кассы. Он не совпадает с паролем офиса.</p>
+        <p className="text-center text-body-sm text-muted-foreground">Введите свой код и PIN кассы. Пароль офиса здесь не подходит.</p>
         {onChangeTerminal && !locked ? (
           <Button variant="link" className="self-center" onClick={onChangeTerminal}>
             Сменить рабочее место

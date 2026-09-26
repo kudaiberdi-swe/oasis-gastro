@@ -6,6 +6,7 @@ import { createScanDetector, SCAN_MAX_GAP_MS } from "@/pos/features/hotkeys/mode
 import { hotkeyAction, isEditableTarget } from "@/pos/features/hotkeys/model/hotkeys"
 import { BARCODE_FIELD_ATTRIBUTE, useBarcodeScanner, usePosHotkeys, type PosHotkeyHandlers, type ScanSource } from "@/pos/features/hotkeys/ui/use-pos-hotkeys"
 import { ProfileDialog } from "@/pos/features/session/ui/profile-dialog"
+import { ThemeProvider } from "@/shared/components/theme-provider"
 import { Dialog, DialogContent, DialogTitle } from "@/shared/components/ui"
 
 // W3-POS-01: F2 search, F4 payment, F8 hold, Esc close — never inside a field or a dialog; the barcode
@@ -127,16 +128,18 @@ describe("cashier screen keyboard", () => {
 describe("hints in «Профиль сотрудника»", () => {
   it("lists the keys and the scanner", () => {
     render(
-      <ProfileDialog
-        open
-        onOpenChange={() => {}}
-        access={{ employee: { id: "e1", code: "101", displayName: "Айгерим", role: "cashier" }, restaurant: { externalId: "r", name: "Sandyq Абая" }, terminal: { externalId: "t", name: "Касса 1" } } as never}
-        attendance={null}
-        onClockIn={async () => {}}
-        onClockOut={async () => {}}
-        onLock={() => {}}
-        onLogout={() => {}}
-      />,
+      <ThemeProvider>
+        <ProfileDialog
+          open
+          onOpenChange={() => {}}
+          access={{ employee: { id: "e1", code: "101", displayName: "Айгерим", role: "cashier" }, restaurant: { externalId: "r", name: "Sandyq Абая" }, terminal: { externalId: "t", name: "Касса 1" } } as never}
+          attendance={null}
+          onClockIn={async () => {}}
+          onClockOut={async () => {}}
+          onLock={() => {}}
+          onLogout={() => {}}
+        />
+      </ThemeProvider>,
     )
     const hints = screen.getByRole("region", { name: "Горячие клавиши" })
     expect([...hints.querySelectorAll("kbd")].map((node) => node.textContent)).toEqual(["F2", "F4", "F8", "Esc"])

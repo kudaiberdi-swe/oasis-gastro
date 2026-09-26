@@ -215,8 +215,8 @@
       "steppe-green": {
         "role": "tertiary",
         "displayName": "Steppe Green",
-        "canonical": "#4d5a36",
-        "oklch": "oklch(44.6% 0.058 124.8)",
+        "canonical": "#44632f",
+        "oklch": "oklch(46.2% 0.086 134.0)",
         "tonalRamp": [
           "#070e00",
           "#1f280c",
@@ -231,8 +231,8 @@
       "amber-warning": {
         "role": "tertiary",
         "displayName": "Amber Ember",
-        "canonical": "#9a4408",
-        "oklch": "oklch(49.2% 0.131 47.5)",
+        "canonical": "#8a5a00",
+        "oklch": "oklch(50.8% 0.108 73.3)",
         "tonalRamp": [
           "#270000",
           "#4a0600",
@@ -457,7 +457,7 @@
         "rust": "#e0685c",
         "ring": "#c9a27e",
         "success": "#9fb07a",
-        "warning": "#f09a4c",
+        "warning": "#e2a546",
         "destructive": "#e87468",
         "destructive-foreground": "#121316",
         "nav": "#0b0c0e",

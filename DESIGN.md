@@ -15,8 +15,8 @@ colors:
   gold: "#b28f6f"
   rust: "#a33009"
   clay-ring: "#7f5c43"
-  steppe-green: "#4d5a36"
-  amber-warning: "#9a4408"
+  steppe-green: "#44632f"
+  amber-warning: "#8a5a00"
   ember-red: "#b42318"
   night-ink: "#121316"
   night-raised: "#1e1e1e"
@@ -190,8 +190,12 @@ tuned so text reaches 4.5:1 and control borders 3:1 in both themes (`npm run con
 
 ### Tertiary
 - **Steppe Green** (steppe-green): paid, posted, ready.
-- **Amber Ember** (amber-warning): held, below minimum, overdue, long shifts.
-- **Ember Red** (ember-red): errors, negative amounts, dangerous actions.
+- **Amber Ember** (amber-warning): held, below minimum, overdue, long shifts — amber, kept apart from
+  rust and from the danger red so a warning never reads as an error.
+- **Ember Red** (ember-red): errors, negative amounts, dangerous actions; a muted wine
+  (`--destructive-muted`) marks refunded checks — the danger family without the alarm.
+- **Status surfaces** (`--success-surface`, `--warning-surface`, `--destructive-surface`): opaque tints
+  behind pills and banners, contrast-checked for the tone text and the banner body in both themes.
 - **Category marks** (cat-meat, cat-dairy, cat-bread, cat-green, cat-tea, cat-turkistan): menu families on
   dish cards and category chips; Turkistan teal only marks dishes of the Turkistan menu.
 
@@ -281,10 +285,13 @@ is linear, not rounded: the 4px rust bar beside a title, the 2px gold bar markin
 - **Ghost / Link:** ink label on transparent, hover parchment; links in brass with an underline on hover.
 - **Danger:** white with an ember-red border and label; «danger-solid» fills ember red for the confirm step.
 - **Focus:** a 2px clay ring offset by 2px, on every interactive element; disabled at 45% opacity.
+- **Press:** the button sinks 1px (150ms ease-out) for touch feedback; it stays still under reduced motion.
 
 ### Chips
-- **Status pills:** 24px tall, 2px corners, 12px medium label; tones are a 10% tint of the status color with a
-  30% border (steppe green, amber, ember red, brass info) or parchment for neutral.
+- **Status pills:** 24px tall, 2px corners, 12px medium label; success, warning and danger sit on their opaque
+  status surface with a 35% border, refunded on parchment in muted wine, info is a 10% brass tint, neutral
+  parchment. «Отложен» (amber), «Возвращён» (muted wine) and «Оплачен» (green) never share a tone.
+- **Filter / category chips:** the active chip is a fill (`--chip-active`): ink by day, cream at night.
 
 ### Cards / Containers
 - **Corner Style:** 6px.
@@ -300,7 +307,8 @@ is linear, not rounded: the 4px rust bar beside a title, the 2px gold bar markin
 ### Navigation
 - **Office sidebar:** night-ink frame, felt-grey 14px items, raised hover; the active item is raised, gold,
   semibold, with a 2px gold bar on its left edge; groups collapse, search filters sections.
-- **POS header:** the same dark frame with the Sandyq logo, terminal and shift state.
+- **POS header:** the same dark frame with the Sandyq mark (`sandyq-group-logo.svg`, gold, 32px), terminal and
+  shift state («Смена №12 · открыта 09:41»); theme, density and the reserved RU/KK switch live in the profile.
 
 ### Page Header (signature)
 Breadcrumb in 12px, then the Cormorant display title set against a 4px rust bar, an optional description,

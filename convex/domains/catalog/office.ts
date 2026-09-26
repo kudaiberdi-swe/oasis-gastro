@@ -6,7 +6,7 @@ import type { Doc, Id } from "../../_generated/dataModel"
 import { getOfficeAuthEmail, requireOfficeCapability, restaurantScopeFilter, scopedRestaurants, writeOfficeAudit } from "../../lib/officeAccess"
 import { stopListActive, stopListRow } from "../../lib/availability"
 import { resolvePrice } from "../../lib/pricing"
-import { unit } from "../../lib/validators"
+import { categoryColorToken, unit } from "../../lib/validators"
 import { normalizeBarcode } from "./queries"
 
 // Office catalog (W1-CAT-03…06): product groups, nomenclature register, product card, images.
@@ -41,12 +41,29 @@ export const listProductGroups = query({
     const groups = await ctx.db.query("categories").withIndex("by_sort_order").take(200)
     return groups
       .filter((group) => args.includeInactive || group.active !== false)
-      .map((group) => ({ externalId: group.externalId, label: group.label, shortLabel: group.shortLabel, sortOrder: group.sortOrder, parentExternalId: group.parentExternalId ?? null, active: group.active !== false }))
+      .map((group) => ({
+        externalId: group.externalId,
+        label: group.label,
+        shortLabel: group.shortLabel,
+        sortOrder: group.sortOrder,
+        parentExternalId: group.parentExternalId ?? null,
+        active: group.active !== false,
+        colorToken: group.colorToken ?? null,
+      }))
   },
 })
 
 export const saveProductGroup = mutation({
-  args: { externalId: v.optional(v.string()), label: v.string(), shortLabel: v.string(), parentExternalId: v.optional(v.string()), sortOrder: v.number(), active: v.boolean() },
+  args: {
+    externalId: v.optional(v.string()),
+    label: v.string(),
+    shortLabel: v.string(),
+    parentExternalId: v.optional(v.string()),
+    sortOrder: v.number(),
+    active: v.boolean(),
+    // The POS strip color: a cat-* token; null — back to the guess from the label; omitted — unchanged.
+    colorToken: v.optional(v.union(categoryColorToken, v.null())),
+  },
   handler: async (ctx, args) => {
     await requireOfficeCapability(ctx, "office.product-groups.edit")
     const email = (await getOfficeAuthEmail(ctx))!
@@ -61,7 +78,14 @@ export const saveProductGroup = mutation({
       const activeProduct = await ctx.db.query("products").withIndex("by_enabled_and_category_and_name", (q) => q.eq("enabled", true).eq("category", existing.externalId)).first()
       if (activeProduct) throw new ConvexError("В группе есть активные блюда")
     }
-    const value = { label, shortLabel: args.shortLabel.trim() || label, parentExternalId, sortOrder: args.sortOrder, active: args.active }
+    const value = {
+      label,
+      shortLabel: args.shortLabel.trim() || label,
+      parentExternalId,
+      sortOrder: args.sortOrder,
+      active: args.active,
+      ...(args.colorToken !== undefined ? { colorToken: args.colorToken ?? undefined } : {}),
+    }
     let externalId: string
     if (existing) {
       await ctx.db.patch(existing._id, value)

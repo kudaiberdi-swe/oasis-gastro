@@ -5,8 +5,9 @@ import { cn, focusRingClass } from "@/shared/lib/utils"
 
 const toneStyles = {
   info: { className: "border-accent/40 bg-accent/10 text-foreground [&_svg]:text-accent", icon: Info },
-  warning: { className: "border-warning/40 bg-warning/10 text-foreground [&_svg]:text-warning", icon: AlertTriangle },
-  danger: { className: "border-destructive/40 bg-destructive/10 text-foreground [&_svg]:text-destructive", icon: OctagonAlert },
+  // Warning is the amber family, danger the red one — two opaque tints that never read as the same pink.
+  warning: { className: "border-warning/45 bg-warning-surface text-foreground [&_svg]:text-warning", icon: AlertTriangle },
+  danger: { className: "border-destructive/45 bg-destructive-surface text-foreground [&_svg]:text-destructive", icon: OctagonAlert },
 } as const
 
 export interface BannerProps {

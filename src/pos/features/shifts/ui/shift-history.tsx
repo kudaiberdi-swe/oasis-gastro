@@ -30,7 +30,7 @@ export function ShiftHistoryPanel({ sessionToken, onPrintX, onPrintZ }: { sessio
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-body-sm text-muted-foreground">Смены этого терминала и сохранённые Z-отчёты.</p>
+      <p className="text-body-sm text-muted-foreground">Смены этой кассы и их Z-отчёты.</p>
       {error && (
         <p role="alert" className="text-body-sm font-semibold text-destructive">
           {error}

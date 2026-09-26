@@ -5,6 +5,8 @@
 export type ConfigurationOption = {
   externalId: string
   name: string
+  /** Kazakh name, when the modifier has one (shown second, lang="kk"). */
+  nameKk?: string | null
   price: number
   minQuantity: number
   maxQuantity: number
@@ -46,6 +48,20 @@ export function defaultQuantities(groups: ConfigurationGroup[]): ModifierQuantit
   const quantities: ModifierQuantities = {}
   for (const group of groups) for (const option of group.options) quantities[option.externalId] = option.defaultQuantity
   return quantities
+}
+
+/**
+ * The rule of a group in the cashier's words: «выберите 1», «от 1 до 3», «не больше 2», plus
+ * «· 1 бесплатно» when some portions are free. No zeros («от 0 …», «бесплатно 0») and no limit that
+ * is not a real one.
+ */
+export function groupHint(group: Pick<ConfigurationGroup, "minQuantity" | "maxQuantity" | "freeQuantity" | "required">) {
+  const min = Math.max(group.minQuantity, group.required ? 1 : 0)
+  const max = group.maxQuantity
+  const limited = Number.isFinite(max) && max > 0 && max < 99
+  const limit = min > 0 && min === max ? `выберите ${min}` : min > 0 && limited ? `от ${min} до ${max}` : min > 0 ? `не меньше ${min}` : limited ? `не больше ${max}` : ""
+  const free = group.freeQuantity > 0 ? `${group.freeQuantity} бесплатно` : ""
+  return [limit, free].filter(Boolean).join(" · ")
 }
 
 /** A group with at most one portion in total is chosen like a radio button. */

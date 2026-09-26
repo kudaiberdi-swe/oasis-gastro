@@ -9,6 +9,7 @@ import {
   chooseSingle,
   defaultQuantities,
   defaultSize,
+  groupHint,
   groupMinimum,
   isSingleChoice,
   modifierLabels,
@@ -201,7 +202,7 @@ function GroupSection({
 }) {
   const single = isSingleChoice(group)
   const required = groupMinimum(group) > 0
-  const helper = `от ${group.minQuantity} до ${group.maxQuantity} · бесплатно ${group.freeQuantity}`
+  const helper = groupHint(group)
   return (
     <section className="grid gap-2" ref={anchorRef}>
       <SectionTitle title={group.name} required={required} helper={helper} error={error} />
@@ -225,6 +226,11 @@ function GroupSection({
                 )}
               >
                 <span className="pr-6 text-body font-semibold">{option.name}</span>
+                {kazakh(option) && (
+                  <span lang="kk" className="pr-6 text-body-sm text-muted-foreground">
+                    {kazakh(option)}
+                  </span>
+                )}
                 <span className="text-body-sm text-muted-foreground tabular-nums">{option.price > 0 ? `+${formatTenge(option.price)}` : "без доплаты"}</span>
                 {chosen ? <Check aria-hidden className="absolute top-2 right-2 size-5 text-success" /> : null}
               </button>
@@ -239,6 +245,11 @@ function GroupSection({
               <div key={option.externalId} className={cn("flex min-h-16 items-center gap-3 rounded-control border bg-card px-3 py-2", value > 0 ? "border-foreground" : "border-input", !option.available && "opacity-60")}>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-semibold">{option.name}</p>
+                  {kazakh(option) && (
+                    <p lang="kk" className="truncate text-body-sm text-muted-foreground">
+                      {kazakh(option)}
+                    </p>
+                  )}
                   <p className="text-body-sm text-muted-foreground tabular-nums">
                     {option.available ? (option.price > 0 ? `+${formatTenge(option.price)}` : "без доплаты") : "нет в наличии"}
                     {option.freeQuantity > 0 ? ` · ${option.freeQuantity} бесплатно` : ""}
@@ -260,7 +271,13 @@ function GroupSection({
   )
 }
 
-/** −/+ stepper with 44px targets (POS-DESIGN §9). */
+/** The option's Kazakh name when it differs from the Russian one. */
+function kazakh(option: { name: string; nameKk?: string | null }) {
+  const value = option.nameKk?.trim()
+  return value && value !== option.name.trim() ? value : null
+}
+
+/** −/+ stepper with 48px targets (POS-DESIGN §9). */
 function Stepper({
   label,
   value,
@@ -282,13 +299,13 @@ function Stepper({
   const up = allowUp ?? value < max
   return (
     <div className="flex shrink-0 items-center gap-1 rounded-control border border-input bg-card p-0.5">
-      <Button variant="ghost" size="icon" aria-label={`Меньше: ${label}`} disabled={!down} onClick={() => onChange(value - 1)}>
+      <Button variant="ghost" size="icon" className="size-12" aria-label={`Меньше: ${label}`} disabled={!down} onClick={() => onChange(value - 1)}>
         <Minus />
       </Button>
       <span className="w-7 text-center text-body font-semibold tabular-nums" aria-label={`${label}: ${value}`}>
         {value}
       </span>
-      <Button variant="ghost" size="icon" aria-label={`Больше: ${label}`} disabled={!up} onClick={() => onChange(value + 1)}>
+      <Button variant="ghost" size="icon" className="size-12" aria-label={`Больше: ${label}`} disabled={!up} onClick={() => onChange(value + 1)}>
         <Plus />
       </Button>
     </div>

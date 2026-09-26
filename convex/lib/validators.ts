@@ -13,6 +13,12 @@ export const orderStatus = v.union(
   v.literal("refunded"),
 )
 
+/**
+ * A menu group's color on the POS (POS-DESIGN §2.3): one of the cat-* design tokens, never a hex.
+ * cat-turkistan is left out on purpose — it marks dishes of the Turkistan menu, not a group.
+ */
+export const categoryColorToken = v.union(v.literal("cat-meat"), v.literal("cat-dairy"), v.literal("cat-bread"), v.literal("cat-green"), v.literal("cat-tea"))
+
 export const orderType = v.union(v.literal("dine-in"), v.literal("takeaway"), v.literal("delivery"))
 
 export const paymentMethod = v.union(v.literal("card"), v.literal("cash"), v.literal("qr"))

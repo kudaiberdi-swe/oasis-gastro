@@ -1,7 +1,8 @@
 // One status dictionary for the whole app (OFFICE-DESIGN §6, closes L-9): raw values from the backend
 // never reach the screen; every status is shown through StatusPill with a Russian label and a tone.
 
-export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info"
+/** «danger-muted»: the refund family — related to danger, but a finished state, not an alarm. */
+export type StatusTone = "neutral" | "success" | "warning" | "danger" | "danger-muted" | "info"
 
 export type StatusEntry = { label: string; tone: StatusTone }
 
@@ -29,8 +30,8 @@ const ORDER: Record<string, StatusEntry> = {
   open: { label: "Открыт", tone: "info" },
   held: { label: "Отложен", tone: "warning" },
   paid: { label: "Оплачен", tone: "success" },
-  partially_refunded: { label: "Частичный возврат", tone: "warning" },
-  refunded: { label: "Возвращён", tone: "danger" },
+  partially_refunded: { label: "Частичный возврат", tone: "danger-muted" },
+  refunded: { label: "Возвращён", tone: "danger-muted" },
   cancelled: { label: "Отменён", tone: "neutral" },
 }
 
@@ -40,6 +41,7 @@ const KITCHEN: Record<string, StatusEntry> = {
   preparing: { label: "Готовится", tone: "warning" },
   ready: { label: "Готов", tone: "success" },
   completed: { label: "Выдан", tone: "neutral" },
+  cancelled: { label: "Отменён", tone: "neutral" },
 }
 
 const SHIFT: Record<string, StatusEntry> = {
@@ -131,10 +133,16 @@ function normalize(domain: StatusDomain, value: string) {
   return lower.replace(/-/g, "_")
 }
 
-/** Unknown values fall back to neutral with the raw value, so a missing entry is visible but not broken. */
+/** Shown for a value the dictionary does not know yet — never the raw «unknown_value» itself. */
+export const UNKNOWN_STATUS_LABEL = "Другой статус"
+
+/**
+ * Unknown values fall back to a neutral «Другой статус» (StatusPill keeps the raw value in its title and
+ * the dev console warns), so a missing entry is visible to developers but never shown raw to a cashier.
+ */
 export function describeStatus(domain: StatusDomain, value: string): StatusEntry & { known: boolean } {
   const entry = STATUS_DICTIONARY[domain][normalize(domain, value)]
   if (entry) return { ...entry, known: true }
   if (import.meta.env?.DEV) console.warn(`[status-dictionary] no label for ${domain}:${value}`)
-  return { label: value, tone: "neutral", known: false }
+  return { label: UNKNOWN_STATUS_LABEL, tone: "neutral", known: false }
 }

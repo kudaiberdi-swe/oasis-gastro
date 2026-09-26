@@ -1,11 +1,14 @@
 import { describeStatus, type StatusDomain, type StatusTone } from "@/shared/lib/status-dictionary"
 import { cn } from "@/shared/lib/utils"
 
+// Opaque tints (theme.css *-surface), so a pill reads the same on cream, on a card and on parchment;
+// «Отложен» is amber, «Возвращён» the muted danger family, «Оплачен» a clear green (contrast-checked).
 export const toneClass: Record<StatusTone, string> = {
   neutral: "border-border bg-muted text-muted-foreground",
-  success: "border-success/30 bg-success/10 text-success",
-  warning: "border-warning/30 bg-warning/10 text-warning-foreground",
-  danger: "border-destructive/30 bg-destructive/10 text-destructive",
+  success: "border-success/35 bg-success-surface text-success",
+  warning: "border-warning/35 bg-warning-surface text-warning-foreground",
+  danger: "border-destructive/35 bg-destructive-surface text-destructive",
+  "danger-muted": "border-destructive-muted/35 bg-muted text-destructive-muted",
   info: "border-accent/30 bg-accent/10 text-accent",
 }
 

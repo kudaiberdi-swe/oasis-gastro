@@ -20,27 +20,29 @@ export interface ProductCardProps {
   nameKk: string
   price: number
   onClick: () => void
-  /** Category color strip (POS-DESIGN §2.3) — also the fallback when there is no photo. */
+  /** Category color strip (POS-DESIGN §2.3). */
   tone?: CategoryTone
-  /** Dish photo, 4:3 on --muted with object-fit: cover in both themes (L-3). */
+  /** Dish photo, 4:3 on --muted with object-fit: cover in both themes (L-3); a broken one falls back to the placeholder. */
   imageUrl?: string
   /** «Комбо», «Хит» — an info pill over the photo, sentence case. */
   badge?: string
   /** false: stop list — 50 % and «нет в наличии», the card does not add. */
   available?: boolean
-  /** ☆ in a 44px zone; omitted — no star. */
+  /** ☆ in a 48px zone; omitted — no star. */
   favorite?: boolean
   onToggleFavorite?: () => void
 }
 
 /**
  * Dish card (W1-POS-11, POS-DESIGN §6.2): the whole card is the add button (no «+»); the ☆ is a
- * separate button over it so the two never nest.
+ * separate button over it so the two never nest. Every card has the same 4:3 media area — the photo, or
+ * a quiet placeholder with the dish's initial when there is none or it fails to load — so cards in a row
+ * line up. The Kazakh name is the second line (lang="kk", up to two lines).
  */
 export function ProductCard({ name, nameKk, price, onClick, tone, imageUrl, badge, available = true, favorite, onToggleFavorite }: ProductCardProps) {
-  const [imageFailed, setImageFailed] = useState(false)
-  const showImage = Boolean(imageUrl) && !imageFailed
-  const showKk = Boolean(nameKk) && nameKk !== name
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const showImage = Boolean(imageUrl) && failedUrl !== imageUrl
+  const showKk = Boolean(nameKk?.trim()) && nameKk.trim() !== name.trim()
 
   return (
     <div className={cn("relative flex min-w-0", !available && "opacity-50")}>
@@ -50,25 +52,37 @@ export function ProductCard({ name, nameKk, price, onClick, tone, imageUrl, badg
         disabled={!available}
         aria-label={available ? undefined : `${name} — нет в наличии`}
         className={cn(
-          "relative flex w-full min-w-0 flex-col overflow-hidden rounded-card border border-border bg-card text-left transition-colors hover:bg-muted active:bg-muted disabled:cursor-not-allowed disabled:hover:bg-card",
+          "relative flex w-full min-w-0 flex-col overflow-hidden rounded-card border border-border bg-card text-left transition-colors duration-150 hover:bg-muted active:bg-muted disabled:cursor-not-allowed disabled:hover:bg-card",
           focusRingClass,
         )}
       >
-        {showImage ? (
-          <div className="aspect-[4/3] w-full shrink-0 bg-muted">
-            <img src={imageUrl} alt="" loading="lazy" onError={() => setImageFailed(true)} className="h-full w-full object-cover" />
-          </div>
-        ) : null}
+        <div data-testid="product-media" className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-muted">
+          {showImage ? (
+            <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedUrl(imageUrl ?? null)} className="h-full w-full object-cover" />
+          ) : (
+            // The initial is drawn by CSS (attr()), so it never joins the card's text or accessible name.
+            <span
+              aria-hidden
+              data-testid="product-placeholder"
+              data-initial={initial(name)}
+              className="grid h-full w-full place-items-center font-display text-display font-semibold text-muted-foreground select-none before:content-[attr(data-initial)]"
+            />
+          )}
+        </div>
         {tone ? <span aria-hidden className={cn("absolute inset-y-0 left-0 w-[3px]", toneStrip[tone])} /> : null}
         {badge ? (
-          <TonePill tone="info" className={cn("absolute left-2 bg-card", showImage ? "top-2" : "top-2.5 left-3")}>
+          <TonePill tone="info" className="absolute top-2 left-3 bg-card">
             {badge}
           </TonePill>
         ) : null}
-        <div className={cn("flex flex-1 flex-col justify-between gap-2 p-3", !showImage && "min-h-32 pl-4", !showImage && badge && "pt-10", onToggleFavorite && !showImage && "pr-12")}>
+        <div className="flex flex-1 flex-col justify-between gap-2 py-3 pr-3 pl-4">
           <div className="min-w-0">
             <p className="line-clamp-2 text-body leading-snug font-semibold text-foreground">{name}</p>
-            {showKk && <p className="mt-0.5 line-clamp-1 text-body-sm text-muted-foreground">{nameKk}</p>}
+            {showKk && (
+              <p lang="kk" className="mt-1 line-clamp-2 text-body-sm text-muted-foreground">
+                {nameKk}
+              </p>
+            )}
           </div>
           <div className="flex items-baseline justify-between gap-2">
             <Money value={price} size="md" />
@@ -82,7 +96,7 @@ export function ProductCard({ name, nameKk, price, onClick, tone, imageUrl, badg
           onClick={onToggleFavorite}
           aria-pressed={Boolean(favorite)}
           aria-label={favorite ? `Убрать из избранного: ${name}` : `В избранное: ${name}`}
-          className={cn("absolute top-1 right-1 grid size-11 place-items-center rounded-control", focusRingClass)}
+          className={cn("absolute top-0 right-0 grid size-12 place-items-center rounded-control", focusRingClass)}
         >
           <span className={cn("grid size-8 place-items-center rounded-control border border-border bg-card", favorite ? "text-accent" : "text-muted-foreground")}>
             <Star aria-hidden className={cn("size-[18px]", favorite && "fill-current")} />
@@ -91,4 +105,9 @@ export function ProductCard({ name, nameKk, price, onClick, tone, imageUrl, badg
       ) : null}
     </div>
   )
+}
+
+/** The first letter of the dish name, for the photo-less placeholder. */
+function initial(name: string) {
+  return (name.trim().match(/\p{L}/u)?.[0] ?? "·").toLocaleUpperCase("ru")
 }

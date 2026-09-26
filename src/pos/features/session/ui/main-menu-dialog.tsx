@@ -38,7 +38,7 @@ export function MainMenuDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Главное меню кассы</DialogTitle>
-          <DialogDescription>Операции текущего терминала.</DialogDescription>
+          <DialogDescription>Заказы, смена и выход.</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           {items.map(({ icon: Icon, title, hint, onChoose }) => (

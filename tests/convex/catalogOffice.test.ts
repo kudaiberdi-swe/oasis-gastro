@@ -57,6 +57,25 @@ describe("product groups (W1-CAT-03)", () => {
     const groups = await admin.query(office.listProductGroups, {})
     expect(groups.find((group) => group.externalId === warm)?.parentExternalId).toBe("salads")
   })
+
+  it("stores the POS strip color: a cat-* token, kept when omitted, cleared by null", async () => {
+    const { t, admin } = await setup()
+    const base = { externalId: "salads", label: "Салаты", shortLabel: "Салаты", sortOrder: 2, active: true }
+    const colorOf = async () => (await admin.query(office.listProductGroups, {})).find((group) => group.externalId === "salads")?.colorToken
+    expect(await colorOf()).toBeNull()
+    await admin.mutation(office.saveProductGroup, { ...base, colorToken: "cat-green" })
+    expect(await colorOf()).toBe("cat-green")
+    // A save that does not send the field (an older client) leaves the color alone.
+    await admin.mutation(office.saveProductGroup, { ...base, label: "Салаты и закуски" })
+    expect(await colorOf()).toBe("cat-green")
+    const stored = await t.run(async (ctx) => ctx.db.query("categories").withIndex("by_external_id", (q) => q.eq("externalId", "salads")).unique())
+    expect(stored?.colorToken).toBe("cat-green")
+    await admin.mutation(office.saveProductGroup, { ...base, colorToken: null })
+    expect(await colorOf()).toBeNull()
+    // Only design tokens, never a hex or cat-turkistan (reserved for dishes).
+    await expect(admin.mutation(office.saveProductGroup, { ...base, colorToken: "#ff0000" as never })).rejects.toThrow()
+    await expect(admin.mutation(office.saveProductGroup, { ...base, colorToken: "cat-turkistan" as never })).rejects.toThrow()
+  })
 })
 
 describe("nomenclature register (W1-CAT-04)", () => {

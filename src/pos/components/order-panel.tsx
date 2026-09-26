@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react"
-import { Bike, ChefHat, Clock3, Ellipsis, MessageSquareText, Minus, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
+import { Bike, ChefHat, Ellipsis, MessageSquareText, Minus, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
 
 import { isLocked, lineDetails, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
 import { Button } from "@/shared/components/ui/button"
@@ -26,6 +26,18 @@ function positions(count: number) {
   const word = mod10 === 1 && mod100 !== 11 ? "позиция" : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "позиции" : "позиций"
   return `${count} ${word}`
 }
+
+/**
+ * «Қызмет ақысы» only where it applies: not for takeaway and not at 0 %. An amount the server did
+ * charge is always shown, so the lines above «К оплате» still add up.
+ */
+export function showServiceCharge(input: { mode: OrderType | undefined; percent: number; amount: number }) {
+  if (input.amount !== 0) return true
+  return input.mode !== "takeaway" && input.percent > 0
+}
+
+// Order lines: name · quantity stepper (48 + 32 + 48) · total; the bin sits under the total, apart from it.
+const LINE_GRID = "grid grid-cols-[minmax(0,1fr)_128px_96px] gap-x-2"
 
 export function OrderPanel({
   tableLabel,
@@ -100,7 +112,7 @@ export function OrderPanel({
   /** Points planned on the check (W1-POS-16): shown as a line and taken off «К оплате». */
   loyaltyRedemption?: number
   onGuest?: () => void
-  /** «Ещё» — the order actions dialog. */
+  /** «Ещё» in the action bar — the one entry to «Действия с заказом». */
   onMore?: () => void
   comment?: string
   suggestion?: UpsellSuggestion | null
@@ -111,33 +123,25 @@ export function OrderPanel({
 }) {
   const hasActive = lines.some((line) => !line.voidedAt)
   const payable = Math.max(0, total - loyaltyRedemption)
+  const mode = orderTypeOptions.find((option) => option.value === orderTypeValue)?.mode
+  const serviceChargeShown = showServiceCharge({ mode, percent: serviceChargePercent, amount: serviceChargeAmount })
   return (
     <section
       aria-label="Заказ"
       className="flex h-full w-[420px] shrink-0 flex-col overflow-hidden rounded-panel border border-border bg-card min-[1440px]:w-[440px] min-[1920px]:w-[470px]"
     >
       <div className="flex flex-col gap-3 border-b border-border px-4 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex min-w-0 items-center gap-2">
-              {titleSlot ?? (
-                <p className="truncate font-display text-title font-semibold">
-                  {tableLabel || "Новый заказ"}
-                  {orderNumber !== undefined && <span className="text-body-sm font-normal text-muted-foreground"> · Заказ №{orderNumber}</span>}
-                </p>
-              )}
-              <StatusPill domain="order" status={orderStatus} className="shrink-0" />
-            </div>
-            <p className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
-              <Clock3 aria-hidden className="size-4 shrink-0" />
-              {saving ? "Сохранение…" : `Текущий чек · ${itemCount} поз.`}
+        <div className="flex min-h-12 min-w-0 items-center gap-2">
+          {titleSlot ?? (
+            <p className="truncate font-display text-title font-semibold">
+              {tableLabel || "Новый заказ"}
+              {orderNumber !== undefined && <span className="text-body-sm font-normal text-muted-foreground"> · Заказ №{orderNumber}</span>}
             </p>
-          </div>
-          {onMore && (
-            <Button variant="ghost" size="icon" aria-label="Действия с заказом" onClick={onMore} disabled={disabled}>
-              <Ellipsis />
-            </Button>
           )}
+          <StatusPill domain="order" status={orderStatus} className="shrink-0" />
+          <span aria-live="polite" className="ml-auto shrink-0 text-body-sm text-muted-foreground">
+            {saving ? "Сохранение…" : null}
+          </span>
         </div>
         {comment?.trim() && (
           <p className="flex items-start gap-1.5 text-body-sm text-muted-foreground">
@@ -165,7 +169,7 @@ export function OrderPanel({
           </div>
         ) : (
           <>
-          <div aria-hidden className="grid grid-cols-[minmax(0,1fr)_120px_96px] gap-x-2 border-b border-border pb-2 text-body-sm font-semibold text-muted-foreground">
+          <div aria-hidden className={cn(LINE_GRID, "border-b border-border pb-2 text-body-sm font-semibold text-muted-foreground")}>
             <span>Наименование</span>
             <span className="text-center">Кол-во</span>
             <span className="text-right">Сумма</span>
@@ -197,23 +201,23 @@ export function OrderPanel({
           </button>
         </div>
       )}
-      <div className="flex gap-1 border-t border-border bg-muted px-2 py-1.5">
-        <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onDiscount} disabled={disabled || !hasActive}>
+      <div className="flex gap-1 border-t border-border bg-muted p-1">
+        <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onDiscount} disabled={disabled || !hasActive}>
           <Percent />
           Скидка
         </Button>
         {onGuest && (
-          <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onGuest} disabled={disabled || !hasActive} title={guestLabel}>
+          <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onGuest} disabled={disabled || !hasActive} title={guestLabel}>
             <UserRound />
             <span className="truncate">{guestLabel || "Гость"}</span>
           </Button>
         )}
-        <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen || Boolean(offlineReason)} title={offlineReason ?? undefined}>
+        <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen || Boolean(offlineReason)} title={offlineReason ?? undefined}>
           <ChefHat />
           {sendingToKitchen ? "Отправка…" : "На кухню"}
         </Button>
         {onMore && (
-          <Button variant="ghost" className="h-11 min-w-0 flex-1 px-2" onClick={onMore} disabled={disabled}>
+          <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" aria-haspopup="dialog" onClick={onMore} disabled={disabled}>
             <Ellipsis />
             Ещё
           </Button>
@@ -230,10 +234,14 @@ export function OrderPanel({
             <span className="tabular-nums">{formatTenge(-discountAmount)}</span>
           </div>
         )}
-        <div className="flex justify-between text-muted-foreground">
-          <span>Қызмет ақысы · сервисный сбор {serviceChargePercent}%</span>
-          <span className="tabular-nums">{formatTenge(serviceChargeAmount)}</span>
-        </div>
+        {serviceChargeShown && (
+          <div className="flex justify-between text-muted-foreground">
+            <span>
+              <span lang="kk">Қызмет ақысы</span> · сервисный сбор {serviceChargePercent}%
+            </span>
+            <span className="tabular-nums">{formatTenge(serviceChargeAmount)}</span>
+          </div>
+        )}
         {loyaltyRedemption > 0 && (
           <div className="flex justify-between text-success">
             <span>Баллами</span>
@@ -291,6 +299,7 @@ function OrderLineRow({
   onVoid: (clientLineId: string) => void
 }) {
   const details = lineDetails(line)
+  const showKk = Boolean(line.nameKk?.trim()) && line.nameKk.trim() !== line.name.trim()
   const voided = Boolean(line.voidedAt)
   const sent = Boolean(line.sentToKitchenAt) && !voided
   // A sent line is fixed: «−» and the bin open «Удалить позицию»; «+» adds a new portion as its own line.
@@ -302,9 +311,14 @@ function OrderLineRow({
   const remove = () => (sent ? onVoid(line.clientLineId) : onRemove(line.clientLineId))
 
   return (
-    <li className={cn("grid grid-cols-[minmax(0,1fr)_120px_96px] items-start gap-x-2 py-3", voided && "text-muted-foreground")} aria-label={voided ? `${line.name} — удалено` : undefined}>
-      <div className="min-w-0 pt-2">
+    <li className={cn(LINE_GRID, "items-start py-3", voided && "text-muted-foreground")} aria-label={voided ? `${line.name} — удалено` : undefined}>
+      <div className="min-w-0 pt-3">
         <p className={cn("text-body font-semibold", voided && "line-through")}>{line.name}</p>
+        {showKk && (
+          <p lang="kk" className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>
+            {line.nameKk}
+          </p>
+        )}
         {details && <p className={cn("text-body-sm text-muted-foreground", voided && "line-through")}>{details}</p>}
         {sent && (
           <TonePill tone="info" className="mt-1 gap-1">
@@ -319,22 +333,22 @@ function OrderLineRow({
         )}
       </div>
       {voided ? (
-        <span className="w-[120px] pt-2 text-center text-body font-semibold tabular-nums line-through">{line.quantity}</span>
+        <span className="pt-3 text-center text-body font-semibold tabular-nums line-through">{line.quantity}</span>
       ) : (
         <div className="flex items-center">
-          <Button variant="secondary" size="icon" aria-label={sent ? `Удалить позицию: ${line.name}` : `Убрать одну порцию: ${line.name}`} onClick={decrement}>
+          <Button variant="secondary" size="icon" className="size-12" aria-label={sent ? `Удалить позицию: ${line.name}` : `Убрать одну порцию: ${line.name}`} onClick={decrement}>
             <Minus />
           </Button>
           <span className="w-8 text-center text-body font-semibold tabular-nums">{line.quantity}</span>
-          <Button variant="secondary" size="icon" aria-label={`Добавить порцию: ${line.name}`} onClick={() => onIncrement(line.clientLineId)}>
+          <Button variant="secondary" size="icon" className="size-12" aria-label={`Добавить порцию: ${line.name}`} onClick={() => onIncrement(line.clientLineId)}>
             <Plus />
           </Button>
         </div>
       )}
-      <div className="flex min-w-0 flex-col items-end">
-        <Money value={lineTotal(line)} size="sm" className={cn("pt-2 text-right", voided && "text-muted-foreground line-through")} />
+      <div className="flex min-w-0 flex-col items-end gap-2">
+        <Money value={lineTotal(line)} size="sm" className={cn("pt-3 text-right", voided && "text-muted-foreground line-through")} />
         {!voided && (
-          <Button variant="ghost" size="icon" aria-label={sent ? `Удалить позицию с кухни: ${line.name}` : `Удалить: ${line.name}`} onClick={remove} disabled={isLocked(line) && !sent} className="-mr-2">
+          <Button variant="ghost" size="icon" aria-label={sent ? `Удалить позицию с кухни: ${line.name}` : `Удалить: ${line.name}`} onClick={remove} disabled={isLocked(line) && !sent} className="-mr-3 size-12 text-muted-foreground hover:text-destructive">
             <Trash2 />
           </Button>
         )}

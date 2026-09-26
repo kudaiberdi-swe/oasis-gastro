@@ -21,7 +21,7 @@ export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
   count?: number
 }
 
-/** Filter and category chip, 36/44px. Active is --nav with --nav-foreground (POS-DESIGN §5). */
+/** Filter and category chip, 36/44px. Active is a fill (--chip-active: dark by day, light at night — POS-DESIGN §5). */
 const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(({ active = false, size = "md", tone, count, className, children, type = "button", ...props }, ref) => (
   <button
     ref={ref}
@@ -30,7 +30,7 @@ const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(({ active = false, s
     className={cn(
       "relative inline-flex shrink-0 items-center gap-2 overflow-hidden rounded-control border px-3 text-body-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50",
       size === "lg" ? "h-11" : "h-9",
-      active ? "border-nav bg-nav text-nav-foreground" : "border-input bg-card text-foreground hover:bg-muted",
+      active ? "border-chip-active bg-chip-active text-chip-active-foreground" : "border-input bg-card text-foreground hover:bg-muted",
       tone && cn("pl-4 before:absolute before:inset-y-0 before:left-0 before:w-[3px]", toneClass[tone]),
       focusRingClass,
       className,
@@ -38,7 +38,7 @@ const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(({ active = false, s
     {...props}
   >
     {children}
-    {count !== undefined ? <span className={cn("tabular-nums", active ? "text-nav-muted" : "text-muted-foreground")}>{count}</span> : null}
+    {count !== undefined ? <span className={cn("tabular-nums", active ? "text-chip-active-muted" : "text-muted-foreground")}>{count}</span> : null}
   </button>
 ))
 Chip.displayName = "Chip"

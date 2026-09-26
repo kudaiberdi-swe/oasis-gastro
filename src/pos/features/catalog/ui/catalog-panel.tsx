@@ -8,11 +8,9 @@ import {
   goBack,
   openView,
   POPULAR_VIEW,
-  SORT_OPTIONS,
   sortProducts,
   type CatalogNavigation,
   type CatalogProduct,
-  type CatalogSort,
   type CatalogView,
 } from "@/pos/features/catalog/model/catalog-view"
 import { needsConfiguration } from "@/pos/features/catalog/model/modifier-selection"
@@ -24,13 +22,13 @@ import { Button } from "@/shared/components/ui/button"
 import { Chip, type CategoryTone } from "@/shared/components/ui/chip"
 import { EmptyState } from "@/shared/components/ui/empty-state"
 import { Input } from "@/shared/components/ui/input"
-import { Select } from "@/shared/components/ui/select"
 import { Skeleton } from "@/shared/components/ui/skeleton"
 import { useToast } from "@/shared/components/ui/toast"
 import { errorMessage } from "@/shared/lib/error-message"
 
-// Category strip colour (POS-DESIGN §2.3). Categories carry no tone field yet, so it is read from the
-// bilingual label; categories that match nothing (sauces, garnishes, «Прочее») get no strip.
+// Category strip colour (POS-DESIGN §2.3). The office sets it on the group (categories.colorToken, a
+// cat-* token), so an iiko rename never drops the strip; a group without one falls back to a guess
+// from the bilingual label, and one that matches nothing (sauces, garnishes, «Прочее») gets no strip.
 // --cat-turkistan is reserved for dishes marked Туркестан and is never assigned to a category.
 const CATEGORY_TONES: Array<[RegExp, CategoryTone]> = [
   [/салат/i, "green"],
@@ -44,6 +42,14 @@ export function categoryTone(label: string): CategoryTone | undefined {
   return CATEGORY_TONES.find(([pattern]) => pattern.test(label))?.[1]
 }
 
+const STORED_TONES: Record<string, CategoryTone> = { "cat-meat": "meat", "cat-dairy": "dairy", "cat-bread": "bread", "cat-green": "green", "cat-tea": "tea" }
+
+/** The stored colorToken first; the label guess only for a group the office has not colored. */
+export function categoryToneOf(category: { label: string; colorToken?: string | null }): CategoryTone | undefined {
+  const stored = category.colorToken ? STORED_TONES[category.colorToken] : undefined
+  return stored ?? categoryTone(category.label)
+}
+
 /** What the cashier screen drives from outside: F2 focuses the search, a scan adds through the same path as a tap. */
 export interface CatalogPanelControl {
   focusSearch: () => void
@@ -55,28 +61,27 @@ export interface CatalogPanelControl {
 // «Популярное» has no server filter yet: it is the popular flag over a larger first page.
 const POPULAR_PAGE = 100
 
-// Toolbar icon buttons: 44px ghost on --card; the pressed one gets the --nav fill like an active chip.
-const toolbarButton = "text-foreground aria-pressed:bg-nav aria-pressed:text-nav-foreground aria-pressed:hover:bg-nav"
+// Toolbar icon buttons: 48px ghost on --card; the pressed one gets the active-chip fill.
+const toolbarButton = "size-12 text-foreground aria-pressed:bg-chip-active aria-pressed:text-chip-active-foreground aria-pressed:hover:bg-chip-active"
 
 /**
- * POS catalog (W1-POS-11, POS-DESIGN §6.2/§11.2): toolbar ← ⌂ ☆ 🕘 + search + counter, category
- * chips that scroll only inside their own strip (L-2), sort, cards, «Показать ещё», empty states.
+ * POS catalog (W1-POS-11, POS-DESIGN §6.2/§11.2): toolbar ← ⌂ ☆ 🕘 + search (+ the kitchen screen
+ * button), category chips that scroll only inside their own strip (L-2), cards by name, «Показать ещё»,
+ * empty states. No sort control and no hint row: the grid is the whole panel.
  */
 export function CatalogPanel({
   sessionToken,
   onAddProduct,
   recentStorageKey,
-  footerAction,
-  menuLabel = "Sandyq",
+  toolbarAction,
   controlRef,
 }: {
   sessionToken: string
   onAddProduct: (item: CatalogItem) => void
   /** localStorage key of «Последние» (per employee); omitted — kept for this screen only. */
   recentStorageKey?: string
-  /** Extra control on the right of the footer (the kitchen screen button). */
-  footerAction?: ReactNode
-  menuLabel?: string
+  /** Extra control at the right end of the toolbar (the kitchen screen button). */
+  toolbarAction?: ReactNode
   /** F2 and the barcode scanner of the cashier screen (W3-POS-01). */
   controlRef?: Ref<CatalogPanelControl>
 }) {
@@ -86,7 +91,6 @@ export function CatalogPanel({
   const [configuring, setConfiguring] = useState<CatalogProduct | null>(null)
   const [navigation, setNavigation] = useState<CatalogNavigation>({ current: ALL_VIEW, back: [] })
   const [search, setSearch] = useState("")
-  const [sort, setSort] = useState<CatalogSort>("name")
   const view = navigation.current
   const searching = search.trim().length > 0
   const listKind = searching ? "list" : view.kind === "all" || view.kind === "category" ? "list" : view.kind
@@ -99,7 +103,7 @@ export function CatalogPanel({
   const recent = useRecentProducts(recentStorageKey)
 
   const favoriteSet = useMemo(() => new Set(favoriteIds ?? []), [favoriteIds])
-  const toneByCategory = useMemo(() => new Map(categories.map((category) => [category.externalId, categoryTone(category.label)] as const)), [categories])
+  const toneByCategory = useMemo(() => new Map(categories.map((category) => [category.externalId, categoryToneOf(category)] as const)), [categories])
 
   const source: { items: CatalogProduct[]; loading: boolean; canLoadMore: boolean; loadMore: () => void } =
     listKind === "popular"
@@ -109,8 +113,8 @@ export function CatalogPanel({
         : listKind === "recent"
           ? { items: recent.items, loading: false, canLoadMore: false, loadMore: () => {} }
           : listed
-  // «Последние» keeps its own order (newest first) unless the cashier picks another sort.
-  const items = listKind === "recent" && sort === "name" ? source.items : sortProducts(source.items, sort)
+  // Dishes by name (what a cashier scans for); «Последние» keeps its own order, newest first.
+  const items = listKind === "recent" ? source.items : sortProducts(source.items, "name")
 
   function go(next: CatalogView) {
     setSearch("")
@@ -158,7 +162,7 @@ export function CatalogPanel({
 
   return (
     <section aria-label="Меню" className="flex h-full min-w-0 flex-1 flex-col overflow-x-clip rounded-panel border border-border bg-card">
-      <div className="flex items-center gap-1 border-b border-border px-2 py-2">
+      <div className="flex items-center gap-1 border-b border-border p-2">
         <Button variant="ghost" size="icon" aria-label="Назад" className={toolbarButton} disabled={!navigation.back.length} onClick={() => setNavigation(goBack)}>
           <ArrowLeft />
         </Button>
@@ -184,23 +188,20 @@ export function CatalogPanel({
             className="h-[var(--control-h-pos)] pl-10 text-body"
           />
         </div>
-        <p className="shrink-0 pl-2 text-right text-body-sm leading-tight text-muted-foreground" aria-live="polite">
-          В каталоге
-          <br />
-          <span className="font-semibold text-foreground tabular-nums">{source.loading ? "…" : items.length}</span> загружено
-        </p>
+        {toolbarAction ? <div className="ml-1 shrink-0">{toolbarAction}</div> : null}
       </div>
 
-      <div className="flex items-center gap-2 border-b border-border px-2 py-2">
-        <div role="group" aria-label="Категории" className="no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain">
-          <Chip size="lg" active={!searching && view.kind === "popular"} onClick={(event) => chooseChip(POPULAR_VIEW, event.currentTarget)}>
+      <div className="border-b border-border p-2">
+        <div role="group" aria-label="Категории" className="no-scrollbar flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain">
+          <Chip size="lg" className="h-12" active={!searching && view.kind === "popular"} onClick={(event) => chooseChip(POPULAR_VIEW, event.currentTarget)}>
             Популярное
           </Chip>
           {categories.map((category) => (
             <Chip
               key={category.externalId}
               size="lg"
-              tone={categoryTone(category.label)}
+              className="h-12"
+              tone={toneByCategory.get(category.externalId)}
               active={activeCategory === category.externalId}
               onClick={(event) => chooseChip({ kind: "category", categoryExternalId: category.externalId }, event.currentTarget)}
             >
@@ -208,12 +209,11 @@ export function CatalogPanel({
             </Chip>
           ))}
         </div>
-        <Select aria-label="Сортировка" className="w-44 shrink-0" value={sort} onValueChange={(value) => setSort(value as CatalogSort)} options={SORT_OPTIONS} />
       </div>
 
       <div className="min-h-0 flex-1 overflow-x-clip overflow-y-auto p-2">
         {source.loading ? (
-          <div role="status" aria-label="Загрузка меню" className="grid grid-cols-3 gap-2.5 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
+          <div role="status" aria-label="Загрузка меню" className="grid grid-cols-3 gap-2 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
             {Array.from({ length: 8 }, (_, index) => (
               <Skeleton key={index} className="aspect-[4/5] w-full rounded-card" />
             ))}
@@ -235,7 +235,7 @@ export function CatalogPanel({
             }
           />
         ) : (
-          <div className="grid grid-cols-3 gap-2.5 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
+          <div className="grid grid-cols-3 gap-2 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
             {items.map((product) => (
               <ProductCard
                 key={product._id}
@@ -262,13 +262,6 @@ export function CatalogPanel({
         )}
       </div>
 
-      <footer className="flex min-h-12 items-center justify-between gap-3 border-t border-border px-3 py-0.5 text-body-sm text-muted-foreground">
-        <span className="truncate">Нажмите на карточку, чтобы добавить позицию</span>
-        <span className="flex shrink-0 items-center gap-3">
-          {footerAction}
-          <span>Меню: {menuLabel}</span>
-        </span>
-      </footer>
       <ModifierDialog
         sessionToken={sessionToken}
         product={configurable}

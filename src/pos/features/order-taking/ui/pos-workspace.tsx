@@ -89,7 +89,8 @@ export function PosWorkspace() {
       <LoginScreen
         onLogin={session.signIn}
         locked={session.locked}
-          onChangeTerminal={() => session.chooseTerminal(null)}
+        terminalLabel={branch && terminal ? terminalLabel(branch.restaurantName, terminal.name) : undefined}
+        onChangeTerminal={() => session.chooseTerminal(null)}
       />
     )
   }
@@ -495,8 +496,8 @@ function AuthenticatedPos({
           sessionToken={sessionToken}
           onAddProduct={draft.addItem}
           recentStorageKey={`sandyq-pos-recent:${terminalExternalId}:${access.employee.id}`}
-          footerAction={
-            <Button variant="ghost" onClick={() => setShowKitchen(true)}>
+          toolbarAction={
+            <Button variant="ghost" className="h-12 px-3" onClick={() => setShowKitchen(true)}>
               <ChefHat /> Экран кухни{kitchenTickets.length > 0 ? ` · ${kitchenTickets.length}` : ""}
             </Button>
           }
