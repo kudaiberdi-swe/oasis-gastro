@@ -19,14 +19,14 @@ import { HistoryDialog } from "@/pos/features/history/ui/history-dialog"
 import type { RefundInput } from "@/pos/features/history/ui/refund-panel"
 import { useNotifications } from "@/pos/features/notifications/data/use-notifications"
 import { NotificationsDialog } from "@/pos/features/notifications/ui/notifications-dialog"
-import { useCheck, useOpenChecks, useOrderMutations, useSuggestion, useTransferTargets } from "@/pos/features/order-taking/data/use-orders"
+import { useCheck, useFloor, useOpenChecks, useOrderMutations, useSuggestion, useTransferTargets } from "@/pos/features/order-taking/data/use-orders"
 import { CancelOrderDialog } from "@/pos/features/order-taking/ui/cancel-dialog"
 import { CommentDialog } from "@/pos/features/order-taking/ui/comment-dialog"
 import { DiscountDialog } from "@/pos/features/order-taking/ui/discount-dialog"
 import { ChecksSwitcher } from "@/pos/features/order-taking/ui/checks-switcher"
+import { FloorGrid } from "@/pos/features/order-taking/ui/floor-grid"
 import { OrderActionsDialog, type ActionBlocks, type OrderAction } from "@/pos/features/order-taking/ui/order-actions-dialog"
 import { SplitDialog } from "@/pos/features/order-taking/ui/split-dialog"
-import { TableDialog, type TableSeatInput } from "@/pos/features/order-taking/ui/table-dialog"
 import { TransferDialog } from "@/pos/features/order-taking/ui/transfer-dialog"
 import { useOrderDraft, type TableSeat } from "@/pos/features/order-taking/model/use-order-draft"
 import type { OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
@@ -113,7 +113,7 @@ export function terminalLabel(restaurantName: string, terminalName: string) {
 }
 
 /** Dialogs of the cashier screen that replace each other (one at a time). */
-type PosDialog = "menu" | "profile" | "notifications" | "history" | "shift" | "new-table" | Exclude<OrderAction, "void" | "precheck"> | "actions" | null
+type PosDialog = "menu" | "profile" | "notifications" | "history" | "shift" | "floor" | Exclude<OrderAction, "void" | "precheck"> | "actions" | null
 
 /** Unavailable order actions with the reason shown on their tile (W1-POS-15). */
 export function orderActionBlocks(input: { orderId: string | null; lines: OrderDraftLine[]; transferTargets: unknown[] | undefined }): ActionBlocks {
@@ -179,6 +179,7 @@ function AuthenticatedPos({
   const notifications = useNotifications(sessionToken)
   const attendance = useAttendance(sessionToken, dialog === "profile")
   const transferTargets = useTransferTargets(sessionToken, dialog === "actions" || dialog === "transfer")
+  const floor = useFloor(sessionToken, dialog === "floor" || dialog === "move-table")
 
   const draft = useOrderDraft({
     sessionToken,
@@ -445,14 +446,7 @@ function AuthenticatedPos({
           orderNumber={draft.orderNumber}
           orderStatus={openChecks.find((check) => check.orderId === draft.orderId)?.status ?? "draft"}
           titleSlot={
-            <ChecksSwitcher
-              tableLabel={draft.tableLabel}
-              orderNumber={draft.orderNumber}
-              checks={openChecks}
-              activeOrderId={draft.orderId}
-              onSelect={(orderId) => selectCheck(orderId)}
-              onNew={() => setDialog("new-table")}
-            />
+            <ChecksSwitcher tableLabel={draft.tableLabel} orderNumber={draft.orderNumber} openCount={openChecks.length} onOpenFloor={() => setDialog("floor")} />
           }
           lines={draft.lines}
           itemCount={draft.itemCount}
@@ -631,11 +625,13 @@ function AuthenticatedPos({
         onManagerRequired={requestApproval}
       />
 
-      <TableDialog
-        open={dialog === "new-table"}
+      <FloorGrid
+        open={dialog === "floor"}
         onOpenChange={closeDialog}
-        mode="new"
-        onSubmit={(seat: TableSeatInput) => selectCheck(null, { tableLabel: seat.tableLabel, hallLabel: seat.hallLabel, guestCount: seat.guestCount })}
+        floor={floor}
+        activeOrderId={draft.orderId}
+        onOpenTable={(seat) => selectCheck(null, seat)}
+        onSelectCheck={(orderId) => selectCheck(orderId)}
       />
       <OrderActionsDialog
         open={dialog === "actions"}
@@ -663,7 +659,17 @@ function AuthenticatedPos({
         onTransfer={handleTransfer}
         onManagerRequired={requestApproval}
       />
-      <TableDialog open={dialog === "move-table"} onOpenChange={closeDialog} mode="move" current={{ tableLabel: draft.tableLabel }} onSubmit={(seat) => draft.moveToTable(seat)} />
+      <FloorGrid
+        open={dialog === "move-table"}
+        onOpenChange={closeDialog}
+        mode="move"
+        floor={floor}
+        activeOrderId={draft.orderId}
+        currentTable={{ tableLabel: draft.tableLabel }}
+        onOpenTable={() => {}}
+        onSelectCheck={() => {}}
+        onMove={(seat) => draft.moveToTable(seat)}
+      />
       <CancelOrderDialog
         open={dialog === "cancel"}
         onOpenChange={closeDialog}

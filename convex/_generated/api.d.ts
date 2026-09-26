@@ -80,6 +80,7 @@ import type * as domains_office_internal from "../domains/office/internal.js";
 import type * as domains_office_migrations from "../domains/office/migrations.js";
 import type * as domains_office_mutations from "../domains/office/mutations.js";
 import type * as domains_office_queries from "../domains/office/queries.js";
+import type * as domains_orders_floor from "../domains/orders/floor.js";
 import type * as domains_orders_mutations from "../domains/orders/mutations.js";
 import type * as domains_orders_queries from "../domains/orders/queries.js";
 import type * as domains_orders_types from "../domains/orders/types.js";
@@ -299,6 +300,7 @@ declare const fullApi: ApiFromModules<{
   "domains/office/migrations": typeof domains_office_migrations;
   "domains/office/mutations": typeof domains_office_mutations;
   "domains/office/queries": typeof domains_office_queries;
+  "domains/orders/floor": typeof domains_orders_floor;
   "domains/orders/mutations": typeof domains_orders_mutations;
   "domains/orders/queries": typeof domains_orders_queries;
   "domains/orders/types": typeof domains_orders_types;

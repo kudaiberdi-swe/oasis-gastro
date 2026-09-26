@@ -224,39 +224,22 @@ describe("ProductCard (W1-POS-11)", () => {
   })
 })
 
-describe("ChecksSwitcher (W1-POS-10)", () => {
-  const checks = [
-    { orderId: "o1", number: 100004, tableLabel: "Стол 7", status: "draft", total: 12_650, itemCount: 3, updatedAt: Date.UTC(2026, 8, 25, 6, 30) },
-    { orderId: "o2", number: 100005, tableLabel: "", status: "held", total: 1_990, itemCount: 1, updatedAt: Date.UTC(2026, 8, 25, 7, 0) },
-  ]
-
-  it("lists the terminal's open checks with status and time and switches to the chosen one", () => {
-    const onSelect = vi.fn()
-    const onNew = vi.fn()
-    render(<ChecksSwitcher tableLabel="Стол 7" orderNumber={100004} checks={checks} activeOrderId="o1" onSelect={onSelect} onNew={onNew} />)
-    const trigger = screen.getByRole("button", { name: /^Открытые чеки: 2/ })
-    expect(trigger.textContent).toContain("Стол 7")
-    expect(trigger.textContent).toContain("Заказ №100004")
-    fireEvent.click(trigger)
-    const list = screen.getByRole("dialog", { name: "Открытые чеки" })
-    expect(within(list).getByText("Открыт")).toBeTruthy()
-    expect(within(list).getByText("Отложен")).toBeTruthy()
-    expect(within(list).getByText("Без стола")).toBeTruthy()
-    expect(within(list).getByText(/№100004 · 3 поз\. · 11:30/)).toBeTruthy()
-    const active = within(list).getByRole("button", { name: /Стол 7/ })
-    expect(active.getAttribute("aria-current")).toBe("true")
-    expect(active.className).not.toContain("primary")
-    fireEvent.click(within(list).getByRole("button", { name: /Без стола/ }))
-    expect(onSelect).toHaveBeenCalledWith("o2")
+describe("ChecksSwitcher (W1-POS-10, hall grid)", () => {
+  it("«Зал · N открыто» is a 48px button beside the current table and opens the hall", () => {
+    const onOpenFloor = vi.fn()
+    render(<ChecksSwitcher tableLabel="Стол 7" orderNumber={100004} openCount={2} onOpenFloor={onOpenFloor} />)
+    const hall = screen.getByRole("button", { name: "Зал · 2 открыто" })
+    expect(hall.className).toContain("h-[var(--control-h-pos)]")
+    expect(screen.getByText("Стол 7")).toBeTruthy()
+    expect(screen.getByText("· №100004")).toBeTruthy()
+    fireEvent.click(hall)
+    expect(onOpenFloor).toHaveBeenCalled()
   })
 
-  it("«+ Новый стол» at the bottom opens the new-table dialog", () => {
-    const onNew = vi.fn()
-    render(<ChecksSwitcher tableLabel="" checks={[]} activeOrderId={null} onSelect={() => {}} onNew={onNew} />)
-    fireEvent.click(screen.getByRole("button", { name: /^Открытые чеки: 0/ }))
-    expect(screen.getByText("Открытых чеков нет.")).toBeTruthy()
-    fireEvent.click(screen.getByRole("button", { name: /Новый стол/ }))
-    expect(onNew).toHaveBeenCalled()
+  it("a check with no table yet reads «Новый заказ»", () => {
+    render(<ChecksSwitcher tableLabel="" openCount={0} onOpenFloor={() => {}} />)
+    expect(screen.getByText("Новый заказ")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Зал · 0 открыто" })).toBeTruthy()
   })
 })
 

@@ -15,10 +15,10 @@ test("a cashier sells a dish for cash and the kitchen sees it", async ({ page, s
     await openShift.getByRole("button", { name: /Открыть смену/ }).click()
   }
 
-  // «Стол ▾» in the order panel opens the open checks with «+ Новый стол» (W1-POS-10).
-  await page.getByRole("button", { name: /^Открытые чеки/ }).click()
-  await page.getByRole("button", { name: /Новый стол/ }).click()
-  await page.getByRole("dialog", { name: /Новый стол/ }).getByRole("button", { name: "Открыть стол" }).click()
+  // «Зал · N открыто» in the order panel opens the hall grid; «Без стола» starts a check with no table
+  // (works with or without a floor plan on the seeded branch).
+  await page.getByRole("button", { name: /^Зал · \d+ открыто/ }).click()
+  await page.getByRole("dialog", { name: "Зал" }).getByRole("button", { name: /Без стола/ }).click()
   await page.getByRole("region", { name: "Меню" }).getByRole("button").filter({ hasText: /₸/ }).first().click()
   await page.getByRole("button", { name: /Оплатить/ }).click()
   const payment = page.getByRole("dialog")

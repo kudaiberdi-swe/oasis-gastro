@@ -14,7 +14,7 @@ import { CancelOrderDialog, cancelProblem } from "@/pos/features/order-taking/ui
 import { OrderActionsDialog } from "@/pos/features/order-taking/ui/order-actions-dialog"
 import { orderActionBlocks } from "@/pos/features/order-taking/ui/pos-workspace"
 import { SplitDialog, splitProblem } from "@/pos/features/order-taking/ui/split-dialog"
-import { TableDialog } from "@/pos/features/order-taking/ui/table-dialog"
+import { FloorGrid } from "@/pos/features/order-taking/ui/floor-grid"
 import type { PosCashOperationType, PosDeletionReason } from "@/pos/features/retail/data/use-retail-settings"
 import { MainMenuDialog } from "@/pos/features/session/ui/main-menu-dialog"
 import { ProfileDialog } from "@/pos/features/session/ui/profile-dialog"
@@ -284,10 +284,12 @@ describe("order actions (W1-POS-15)", () => {
     const onSubmit = vi.fn(async () => {
       throw new Error("За столом «Стол 3» уже открыт чек №15 — объедините чеки или выберите другой стол")
     })
-    render(<TableDialog open onOpenChange={() => {}} mode="move" current={{ tableLabel: "Стол 7" }} onSubmit={onSubmit} />)
-    fireEvent.change(screen.getByLabelText("Стол"), { target: { value: "Стол 3" } })
-    fireEvent.click(screen.getByRole("button", { name: "Перенести" }))
+    // A table taken meanwhile at another terminal (the grid still showed it free).
+    const floor = { halls: [{ name: "Зал", tables: [{ tableId: "t3", label: "Стол 3", capacity: 4, checks: [] }] }], orphans: [], tableCount: 1, truncated: false }
+    render(<FloorGrid open onOpenChange={() => {}} mode="move" floor={floor} activeOrderId="o7" currentTable={{ tableLabel: "Стол 7" }} onOpenTable={() => {}} onSelectCheck={() => {}} onMove={onSubmit} />)
+    fireEvent.click(screen.getByRole("button", { name: /^Стол 3: свободен/ }))
     expect(await screen.findByText(/уже открыт чек №15/)).toBeTruthy()
+    expect(onSubmit).toHaveBeenCalledWith({ tableLabel: "Стол 3", hallLabel: "Зал" })
   })
 })
 

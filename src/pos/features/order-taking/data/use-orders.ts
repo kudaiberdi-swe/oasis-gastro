@@ -7,6 +7,11 @@ export function useOpenChecks(sessionToken: string | null) {
   return useQuery(api.domains.orders.queries.listOpenChecks, sessionToken ? { sessionToken } : "skip") ?? []
 }
 
+/** «Зал»: the restaurant's tables by hall with the open checks at them (orders.floor); only while the grid is open. */
+export function useFloor(sessionToken: string | null, enabled: boolean) {
+  return useQuery(api.domains.orders.floor.floor, sessionToken && enabled ? { sessionToken } : "skip")
+}
+
 export function useCheck(sessionToken: string | null, orderId: Id<"orders"> | null) {
   return useQuery(api.domains.orders.queries.getCheck, sessionToken && orderId ? { sessionToken, orderId } : "skip")
 }

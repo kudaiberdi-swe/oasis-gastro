@@ -48,7 +48,7 @@ type ServerTotals = { subtotal: number; discountAmount: number; serviceChargeAmo
 
 type Snapshot = { lines: OrderDraftLine[]; tableLabel: string; discountPercent: number; discountReason: string; comment: string; orderType: DraftOrderType }
 
-/** Table, hall and guests a new check is opened with («Новый стол», W1-POS-10). */
+/** Table, hall and guests a new check is opened with (a table tile of «Зал», floor-grid.tsx). */
 export type TableSeat = { tableLabel?: string; hallLabel?: string; guestCount?: number }
 
 /**
