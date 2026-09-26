@@ -36,7 +36,7 @@ describe("report catalog and registry (W1-RPT-01)", () => {
     const { admin, stranger, branch } = await office(t)
     const config = { dateFrom: "2026-09-01", dateTo: "2026-09-30", restaurantExternalIds: [] }
     await expect(stranger.query(api.domains.reports.queries.execute, { reportId: "sales-01", config })).rejects.toThrow(/Недостаточно прав/)
-    await expect(admin.query(api.domains.reports.queries.execute, { reportId: "delivery-01", config })).rejects.toThrow(/в разработке/)
+    await expect(admin.query(api.domains.reports.queries.execute, { reportId: "integrations-08", config })).rejects.toThrow(/в разработке/)
     await expect(admin.query(api.domains.reports.queries.execute, { reportId: "sales-01", config: { ...config, dateFrom: "2025-01-01" } })).rejects.toThrow(/года/)
     await expect(branch.query(api.domains.reports.queries.execute, { reportId: "sales-01", config: { ...config, restaurantExternalIds: ["shymkent"] } })).rejects.toThrow(/Нет доступа/)
     expect((await branch.query(api.domains.reports.queries.execute, { reportId: "sales-01", config: { ...config, restaurantExternalIds: ["almaty"] } })).rows).toEqual([])

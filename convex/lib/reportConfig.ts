@@ -41,4 +41,6 @@ export type ReportResult = {
   totals: Record<string, number>
   kpis: { key: string; label: string; value: number; unit: ColumnUnit }[]
   truncated: boolean
+  /** The report cannot be computed yet (e.g. telephony not connected): the office shows this instead of an empty table. */
+  unavailable?: { title: string; description: string }
 }

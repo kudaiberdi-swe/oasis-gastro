@@ -14,6 +14,8 @@ export type ReportDefinition = {
   wave: "W1" | "W2" | "W3"
   configurable: boolean
   kzApplicability: "applicable" | "not-applicable-kz"
+  /** Owner decision Г-11: the report depends only on a mechanic the business does not use (certificates, coupons, referrals, corporate clients). */
+  mechanicDisabled: boolean
   requiredCapability?: string
 }
 
@@ -30,7 +32,7 @@ export const FAMILY_LABELS: Record<ReportFamily, string> = {
   integrations: "Интеграции и контроль",
 }
 
-type Row = { id: string; title: string; description?: string; family: ReportFamily; wave: ReportDefinition["wave"]; configurable?: boolean; kzApplicability?: ReportDefinition["kzApplicability"]; requiredCapability?: string }
+type Row = { id: string; title: string; description?: string; family: ReportFamily; wave: ReportDefinition["wave"]; configurable?: boolean; kzApplicability?: ReportDefinition["kzApplicability"]; mechanicDisabled?: boolean; requiredCapability?: string }
 
 const ROWS: Row[] = [
   { id: "sales-olap", title: "OLAP-отчёт по продажам", description: "Свободный конструктор строк, колонок, показателей и фильтров продаж", family: "sales", wave: "W1", configurable: true },
@@ -166,7 +168,7 @@ const ROWS: Row[] = [
   { id: "delivery-07", title: "Доставки по операторам", family: "delivery", wave: "W3" },
   { id: "delivery-08", title: "Доставки по курьерам", family: "delivery", wave: "W3" },
   { id: "delivery-09", title: "Доставки по клиентам", family: "delivery", wave: "W3" },
-  { id: "delivery-10", title: "Корпоративные клиенты", family: "delivery", wave: "W3" },
+  { id: "delivery-10", title: "Корпоративные клиенты", family: "delivery", wave: "W3", mechanicDisabled: true },
   { id: "delivery-11", title: "Отменённые доставки", family: "delivery", wave: "W3" },
   { id: "delivery-12", title: "Причины отмен доставок", family: "delivery", wave: "W3" },
   { id: "delivery-13", title: "Опоздания доставки", family: "delivery", wave: "W3" },
@@ -232,6 +234,7 @@ export const REPORT_CATALOG: ReportDefinition[] = ROWS.map((row) => ({
   category: FAMILY_LABELS[row.family],
   configurable: row.configurable ?? false,
   kzApplicability: row.kzApplicability ?? "applicable",
+  mechanicDisabled: row.mechanicDisabled ?? false,
 }))
 
 export function findReport(reportId: string) {

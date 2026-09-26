@@ -142,6 +142,7 @@ export const coverage = query({
       total: REPORT_CATALOG.length,
       implemented: REPORT_CATALOG.filter((report) => REPORT_REGISTRY[report.id]).length,
       notApplicableKz: REPORT_CATALOG.filter((report) => report.kzApplicability === "not-applicable-kz").length,
+      mechanicDisabled: REPORT_CATALOG.filter((report) => report.mechanicDisabled).length,
       byFamily,
       implementedIds: REPORT_CATALOG.filter((report) => REPORT_REGISTRY[report.id]).map((report) => report.id),
     }

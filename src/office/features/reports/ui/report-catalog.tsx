@@ -6,7 +6,7 @@ import { Checkbox, EmptyState, Input, Select, TonePill } from "@/shared/componen
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
 import type { ReportCoverage } from "../data/use-reports"
-import { ALL_FAMILIES, FAMILY_LABELS, filterReports, isNotApplicableKz, REPORT_CATALOG, REPORT_FAMILIES, type ReportDefinition } from "../model/catalog"
+import { ALL_FAMILIES, FAMILY_LABELS, filterReports, isMechanicDisabled, isNotApplicableKz, REPORT_CATALOG, REPORT_FAMILIES, type ReportDefinition } from "../model/catalog"
 
 // Catalog column (330px ≥1024): search «Название или показатель», family select («Все отчёты» + 10),
 // report cards with Russian tags. Ready/in-development comes from coverage.implementedIds.
@@ -83,6 +83,7 @@ function CatalogCard({ report, active, ready, search }: { report: ReportDefiniti
           <TonePill>{report.familyLabel}</TonePill>
           {report.configurable ? <TonePill tone="info">OLAP</TonePill> : null}
           {isNotApplicableKz(report) ? <TonePill tone="warning">Не применяется в РК</TonePill> : null}
+          {isMechanicDisabled(report) ? <TonePill tone="warning">Механика выключена</TonePill> : null}
         </span>
       </div>
     </Link>

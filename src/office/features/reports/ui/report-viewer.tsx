@@ -6,7 +6,7 @@ import { Banner, Button, EmptyState, Skeleton, SkeletonRows, TonePill } from "@/
 import { errorMessage } from "@/shared/lib/error-message"
 
 import { useReportResult, type ReportConfig, type ReportCoverage, type ReportRestaurant, type ReportResult } from "../data/use-reports"
-import { findCatalogReport, isNotApplicableKz, type ReportDefinition } from "../model/catalog"
+import { findCatalogReport, isMechanicDisabled, isNotApplicableKz, type ReportDefinition } from "../model/catalog"
 import { EXPORT_MIME, exportFileName, toCsv, toXlsx, type ExportMeta } from "../model/export"
 import { formatGeneratedAt, formatReportValue } from "../model/format"
 import { configFromFilters, periodError, type ReportFilters } from "../model/url-state"
@@ -90,6 +90,7 @@ function ViewerHeader({ report, implemented, viewName }: { report: ReportDefinit
         <TonePill>{report.familyLabel}</TonePill>
         {report.configurable ? <TonePill tone="info">OLAP</TonePill> : null}
         {isNotApplicableKz(report) ? <TonePill tone="warning">Не применяется в РК</TonePill> : null}
+        {isMechanicDisabled(report) ? <TonePill tone="warning">Механика выключена</TonePill> : null}
       </div>
     </header>
   )
@@ -102,6 +103,15 @@ function NotImplemented({ report }: { report: ReportDefinition }) {
         size="lg"
         title="Не применяется в Казахстане"
         description="Отчёт относится к механике, которой нет в РК (например, ЕГАИС). Он оставлен в каталоге для полноты и не рассчитывается."
+      />
+    )
+  }
+  if (isMechanicDisabled(report)) {
+    return (
+      <EmptyState
+        size="lg"
+        title="Недоступно: механика выключена"
+        description="Сертификаты, купоны, реферальная программа и корпоративные клиенты в Sandyq не используются (решение владельца). Отчёт оставлен в каталоге для полноты и не рассчитывается."
       />
     )
   }
@@ -174,6 +184,17 @@ function ReportBody({ report, filters, onFiltersChange, restaurants }: { report:
 
 function ReportResultView({ report, result }: { report: ReportDefinition; result: ReportResult }) {
   const chart = useMemo(() => daySeries(result), [result])
+  if (result.unavailable) {
+    // The data source is not connected yet (e.g. telephony): an honest state instead of zeros.
+    return (
+      <>
+        <EmptyState size="lg" title={result.unavailable.title} description={result.unavailable.description} />
+        <p className="text-caption text-muted-foreground">
+          Источник: {result.sourceLabel} · проверено {formatGeneratedAt(result.generatedAt)}
+        </p>
+      </>
+    )
+  }
   return (
     <>
       {result.truncated ? (

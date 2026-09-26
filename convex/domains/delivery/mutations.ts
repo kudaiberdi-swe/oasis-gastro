@@ -176,6 +176,8 @@ export async function writeDeliveryOrder(ctx: MutationCtx, args: SaveDeliveryOrd
       zoneExternalId: zone?.externalId,
       sourceExternalId: source.externalId,
       courierExternalId,
+      // W3-RPT-03: when the current courier was assigned (a new courier restarts it; none clears it).
+      assignedAt: !courierExternalId ? undefined : courierExternalId === existing?.courierExternalId ? existing?.assignedAt : now,
       guestId,
       expectedAt: args.expectedAt,
       cookingStartAt: args.expectedAt - deliveryMs - cookingMs,
@@ -267,7 +269,9 @@ export const transitionOrder = mutation({
       if (!courier) throw new ConvexError("Назначьте курьера")
       if (delivery.status !== "delivered" && !["available", "assigned", "returning"].includes(courier.status)) throw new ConvexError(`Курьер «${courier.name}» сейчас занят`)
       await ctx.db.patch(courier._id, { status: "on-delivery", updatedAt: now })
+      if (delivery.pickedUpAt === undefined) patch.pickedUpAt = now // a return from «Доставлен» keeps the first departure
     }
+    if (courierExternalId && courierExternalId !== delivery.courierExternalId) patch.assignedAt = now
     if (delivery.status === "delivered" && args.to === "on-way" && delivery.paymentStatus === "paid") throw new ConvexError("Заказ уже оплачен — вернуть в путь можно только через возврат")
     if (args.to === "delivered") {
       patch.actualDeliveredAt = now
@@ -312,7 +316,7 @@ export const assignCourier = mutation({
         const previous = await requireCourier(ctx, delivery.courierExternalId)
         if (previous.status === "assigned") await ctx.db.patch(previous._id, { status: "available", updatedAt: now })
       }
-      await ctx.db.patch(delivery._id, { courierExternalId: undefined, version: delivery.version + 1, updatedAt: now })
+      await ctx.db.patch(delivery._id, { courierExternalId: undefined, assignedAt: undefined, version: delivery.version + 1, updatedAt: now })
       await writeOfficeAudit(ctx, email, { action: "delivery-order.assign", summary: `Доставка ${delivery.number}: курьер снят`, resourceType: "delivery-orders", resourceExternalId: delivery.externalId, restaurantExternalId: delivery.restaurantExternalId, capability })
       return { version: delivery.version + 1 }
     }
@@ -324,7 +328,7 @@ export const assignCourier = mutation({
       if (previous.status === "assigned") await ctx.db.patch(previous._id, { status: "available", updatedAt: now })
     }
     await ctx.db.patch(courier._id, { status: "assigned", updatedAt: now })
-    await ctx.db.patch(delivery._id, { courierExternalId: courier.externalId, version: delivery.version + 1, updatedAt: now })
+    await ctx.db.patch(delivery._id, { courierExternalId: courier.externalId, assignedAt: courier.externalId === delivery.courierExternalId ? (delivery.assignedAt ?? now) : now, version: delivery.version + 1, updatedAt: now })
     await writeOfficeAudit(ctx, email, { action: "delivery-order.assign", summary: `Доставка ${delivery.number}: курьер «${courier.name}»`, resourceType: "delivery-orders", resourceExternalId: delivery.externalId, restaurantExternalId: delivery.restaurantExternalId, capability })
     await appendOutboxEvent(ctx, { aggregateType: "delivery-order", aggregateExternalId: delivery.externalId, eventType: "delivery-order.courier-assigned", restaurantExternalId: delivery.restaurantExternalId, payload: { courierExternalId: courier.externalId } })
     return { version: delivery.version + 1 }

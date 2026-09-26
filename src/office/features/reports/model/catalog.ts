@@ -16,6 +16,11 @@ export function isNotApplicableKz(report: ReportDefinition) {
   return report.kzApplicability === "not-applicable-kz"
 }
 
+/** Owner decision Г-11: the mechanic behind the report is switched off, so it is never computed. */
+export function isMechanicDisabled(report: ReportDefinition) {
+  return report.mechanicDisabled
+}
+
 export function filterReports(
   reports: ReportDefinition[],
   { search, family, onlyReady, implemented }: { search: string; family: string; onlyReady?: boolean; implemented?: ReadonlySet<string> },

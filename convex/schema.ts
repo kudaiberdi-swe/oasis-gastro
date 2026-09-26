@@ -1976,6 +1976,10 @@ export default defineSchema({
     predictedCookingCompleteAt: v.optional(v.number()),
     predictedDeliveryAt: v.optional(v.number()),
     actualDeliveredAt: v.optional(v.number()),
+    // W3-RPT-03: status times marked from the office (no courier app, no GPS) — the courier assigned
+    // and the order leaving with them; delivery-15/16 measure between these and actualDeliveredAt.
+    assignedAt: v.optional(v.number()),
+    pickedUpAt: v.optional(v.number()),
     subtotal: v.number(),
     deliveryFee: v.number(),
     commissionAmount: v.optional(v.number()),
