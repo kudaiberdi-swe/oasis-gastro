@@ -2208,10 +2208,15 @@ export default defineSchema({
     startedAt: v.number(),
     answeredAt: v.optional(v.number()),
     endedAt: v.optional(v.number()),
+    // W3-DLV-09 (optional): what the provider's webhook adds.
+    durationSeconds: v.optional(v.number()),
+    recordingUrl: v.optional(v.string()), // origin + path only: query strings (access tokens) are dropped
+    updatedAt: v.optional(v.number()),
   })
     .index("by_external_id", ["externalId"])
     .index("by_started", ["startedAt"])
-    .index("by_phone_started", ["phone", "startedAt"]),
+    .index("by_phone_started", ["phone", "startedAt"])
+    .index("by_restaurant_started", ["restaurantExternalId", "startedAt"]),
 
   // Price lists (W2-CAT-15): each version is a row of its series; publishing one expires the previous.
   priceLists: defineTable({

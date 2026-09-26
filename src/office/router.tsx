@@ -19,6 +19,7 @@ import { FavoritesWorkspace } from "@/office/features/favorites/ui/favorites-wor
 import { DataExchangeWorkspace } from "@/office/features/data-exchange/ui/data-exchange-workspace"
 import { CouriersWorkspace } from "@/office/features/delivery/ui/couriers-workspace"
 import { CallCenterWorkspace, DeliveryOrdersWorkspace } from "@/office/features/delivery/ui/delivery-orders-workspace"
+import { TelephonyWorkspace } from "@/office/features/delivery/ui/telephony-workspace"
 import { SourcesWorkspace } from "@/office/features/delivery/ui/sources-workspace"
 import { ZonesWorkspace } from "@/office/features/delivery/ui/zones-workspace"
 import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
@@ -144,6 +145,7 @@ const WORKSPACES: Record<string, ComponentType> = {
   "delivery-zones": ZonesWorkspace,
   couriers: CouriersWorkspace,
   "call-center": CallCenterWorkspace,
+  telephony: TelephonyWorkspace,
   "delivery-sources": SourcesWorkspace,
   reports: ReportsWorkspace,
   "report-favorites": ReportFavoritesWorkspace,

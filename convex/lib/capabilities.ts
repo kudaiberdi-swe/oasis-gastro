@@ -48,7 +48,7 @@ const GROUPS: { id: string; sections: [id: string, kind: SectionKind][] }[] = [
     sections: [["employees", "reference"], ["positions", "reference"], ["shift-types", "reference"], ["schedule", "approval"], ["attendance", "document"], ["payroll", "approval"], ["motivation", "published"], ["medical-records", "approval"]],
   },
   { id: "guests", sections: [["guests", "reference"], ["loyalty-programs", "published"], ["guest-categories", "reference"], ["campaigns", "approval"], ["reservations", "approval"]] },
-  { id: "delivery", sections: [["delivery-orders", "document"], ["delivery-zones", "reference"], ["couriers", "reference"], ["call-center", "document"], ["telephony", "view"], ["delivery-sources", "reference"]] },
+  { id: "delivery", sections: [["delivery-orders", "document"], ["delivery-zones", "reference"], ["couriers", "reference"], ["call-center", "document"], ["telephony", "reference"], ["delivery-sources", "reference"]] },
   { id: "corporation", sections: [["organizations", "reference"], ["restaurants", "reference"], ["departments", "reference"], ["data-exchange", "reference"], ["document-locks", "document"]] },
   {
     id: "exchange",

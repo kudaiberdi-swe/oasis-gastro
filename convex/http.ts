@@ -4,6 +4,7 @@ import { ConvexError } from "convex/values"
 import { internal } from "./_generated/api"
 import { httpAction, type ActionCtx } from "./_generated/server"
 import { auth } from "./auth"
+import { telephonyWebhook } from "./domains/telephony/internal"
 import { CLOUD_API_SECRET_ENV, MAX_BODY_BYTES, readEnv, verifySignedRequest } from "./lib/hmac"
 
 const http = httpRouter()
@@ -141,6 +142,10 @@ http.route({
     return json(result.order.duplicate ? 200 : 201, result.order)
   }),
 })
+
+// Incoming calls of the telephony provider, signed with TELEPHONY_WEBHOOK_SECRET (W3-DLV-09). An exact
+// path, so it wins over the Cloud API prefix route below.
+http.route({ path: "/api/v1/webhooks/telephony", method: "POST", handler: telephonyWebhook })
 
 http.route({
   pathPrefix: "/api/v1/webhooks/",

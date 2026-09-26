@@ -144,6 +144,10 @@ import type * as domains_stockDocuments_access from "../domains/stockDocuments/a
 import type * as domains_stockDocuments_mutations from "../domains/stockDocuments/mutations.js";
 import type * as domains_stockDocuments_queries from "../domains/stockDocuments/queries.js";
 import type * as domains_stockDocuments_validators from "../domains/stockDocuments/validators.js";
+import type * as domains_telephony_internal from "../domains/telephony/internal.js";
+import type * as domains_telephony_mutations from "../domains/telephony/mutations.js";
+import type * as domains_telephony_providers from "../domains/telephony/providers.js";
+import type * as domains_telephony_queries from "../domains/telephony/queries.js";
 import type * as domains_workforce_attendance from "../domains/workforce/attendance.js";
 import type * as domains_workforce_medical from "../domains/workforce/medical.js";
 import type * as domains_workforce_motivation from "../domains/workforce/motivation.js";
@@ -358,6 +362,10 @@ declare const fullApi: ApiFromModules<{
   "domains/stockDocuments/mutations": typeof domains_stockDocuments_mutations;
   "domains/stockDocuments/queries": typeof domains_stockDocuments_queries;
   "domains/stockDocuments/validators": typeof domains_stockDocuments_validators;
+  "domains/telephony/internal": typeof domains_telephony_internal;
+  "domains/telephony/mutations": typeof domains_telephony_mutations;
+  "domains/telephony/providers": typeof domains_telephony_providers;
+  "domains/telephony/queries": typeof domains_telephony_queries;
   "domains/workforce/attendance": typeof domains_workforce_attendance;
   "domains/workforce/medical": typeof domains_workforce_medical;
   "domains/workforce/motivation": typeof domains_workforce_motivation;

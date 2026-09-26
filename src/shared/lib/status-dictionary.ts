@@ -87,7 +87,10 @@ const PRICE_LIST: Record<string, StatusEntry> = {
   expired: { label: "Истёк", tone: "neutral" },
 }
 
+// telephonyCalls.status (W3-DLV-09).
 const CALL: Record<string, StatusEntry> = {
+  ringing: { label: "Звонит", tone: "info" },
+  answered: { label: "Разговор", tone: "info" },
   completed: { label: "Завершён", tone: "success" },
   missed: { label: "Пропущен", tone: "warning" },
   failed: { label: "Ошибка", tone: "danger" },
