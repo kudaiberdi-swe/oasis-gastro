@@ -245,7 +245,7 @@ export const postDocument = mutation({
         if (product.writeOffMethod !== "finished-product") throw new ConvexError(`«${product.name}» должна списываться готовым продуктом — иначе её состав спишется дважды`)
         const output = await ctx.db.query("inventoryItems").withIndex("by_product", (q) => q.eq("productExternalId", product.externalId)).first()
         if (!output) throw new ConvexError(`У заготовки «${product.name}» нет складской позиции`)
-        const plan = await planRecipeOutput(ctx, product, line.quantity, doc.date)
+        const plan = await planRecipeOutput(ctx, product, line.quantity, doc.date, doc.restaurantExternalId)
         if (plan.warnings.length || !plan.components.length) throw new ConvexError(`У «${product.name}» нет действующей техкарты или состава`)
         plans.push({ line, output, plan })
       }

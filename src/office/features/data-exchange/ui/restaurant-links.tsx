@@ -53,7 +53,21 @@ export function RestaurantLinks() {
   }
 
   const columns: Column<RestaurantLinkRow>[] = [
-    { key: "restaurant", header: "Ресторан Sandyq", cell: (row) => <span className="font-semibold">{row.restaurantName}</span>, sortValue: (row) => row.restaurantName },
+    {
+      key: "restaurant",
+      header: "Ресторан Sandyq",
+      // Names repeat (a seed branch and the same branch from iiko): the code and the source tell them apart.
+      cell: (row) => (
+        <span className="flex flex-col">
+          <span className="font-semibold">{row.restaurantName}</span>
+          <span className="text-caption text-muted-foreground">
+            код {row.restaurantExternalId.slice(0, 16)}
+            {row.fromIiko ? " · из iiko" : ""}
+          </span>
+        </span>
+      ),
+      sortValue: (row) => row.restaurantName,
+    },
     {
       key: "department",
       header: "Подразделение iiko",

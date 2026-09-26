@@ -26,6 +26,8 @@ const DEFINITIONS = {
   payroll: { code: "3350", name: "Задолженность по оплате труда", type: "liability" },
   customerAdvances: { code: "3520", name: "Авансы полученные (предоплаты банкетов и резервов)", type: "liability" },
   loyaltyLiability: { code: "3510", name: "Обязательства по программе лояльности (оценочные)", type: "liability" },
+  // W1-IIKO-05: the other side of the opening stock balances brought from iiko (to confirm with the accountant, TODO.md).
+  openingBalance: { code: "5520", name: "Нераспределённая прибыль прошлых лет (вводные остатки)", type: "equity" },
   revenue: { code: "6010", name: "Доход от реализации продукции и услуг", type: "income" },
   salesReturns: { code: "6020", name: "Возврат проданной продукции", type: "contra-income" },
   serviceRevenue: { code: "6030", name: "Доход от оказания услуг", type: "income" },

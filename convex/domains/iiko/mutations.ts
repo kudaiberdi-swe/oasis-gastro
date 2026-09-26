@@ -1,6 +1,8 @@
 import { v } from "convex/values"
 
 import { internalMutation } from "../../_generated/server"
+import { applyPrice, applyProduct, applyProductGroup, applyRecipeChart, priceArgs, productArgs, productGroupArgs, recipeChartArgs } from "./catalog"
+import { applyCashShift, applyOpeningBalance, applyOrder, cashShiftArgs, openingBalanceArgs, orderArgs } from "./operations"
 import { applySupplier, applyTerminal, applyUnit, applyWarehouse, supplierArgs, terminalArgs, unitArgs, warehouseArgs } from "./projections"
 
 // --- Run tracking (called from scripts/iiko/import-convex.mjs via `npx convex run`) -------
@@ -153,6 +155,14 @@ export const importBatch = internalMutation({
     terminals: v.optional(v.array(v.object(terminalArgs))),
     units: v.optional(v.array(v.object(unitArgs))),
     suppliers: v.optional(v.array(v.object(supplierArgs))),
+    // W1-IIKO-04/05, W2-IIKO-08/09, W2-RTL-01 (decisions Б-B4 and D7 of 2026-09-26).
+    productGroups: v.optional(v.array(v.object(productGroupArgs))),
+    products: v.optional(v.array(v.object(productArgs))),
+    openingBalances: v.optional(v.array(v.object(openingBalanceArgs))),
+    recipeCharts: v.optional(v.array(v.object(recipeChartArgs))),
+    prices: v.optional(v.array(v.object(priceArgs))),
+    cashShifts: v.optional(v.array(v.object(cashShiftArgs))),
+    orders: v.optional(v.array(v.object(orderArgs))),
   },
   handler: async (ctx, args) => {
     let departmentsChanged = 0
@@ -185,6 +195,13 @@ export const importBatch = internalMutation({
     await run("corporation/terminals", "terminal", args.terminals, (row) => applyTerminal(ctx, row))
     await run("v2/entities/list?rootType=MeasureUnit", "unit", args.units, (row) => applyUnit(ctx, row))
     await run("suppliers", "supplier", args.suppliers, (row) => applySupplier(ctx, row))
+    await run("v2/entities/products/group/list", "product-group", args.productGroups, (row) => applyProductGroup(ctx, row))
+    await run("v2/entities/products/list", "product", args.products, (row) => applyProduct(ctx, row))
+    await run("v2/reports/balance/stores", "balance", args.openingBalances, (row) => applyOpeningBalance(ctx, row))
+    await run("v2/assemblyCharts/getAll", "recipe", args.recipeCharts, (row) => applyRecipeChart(ctx, row))
+    await run("v2/price", "price", args.prices, (row) => applyPrice(ctx, row))
+    await run("v2/cashshifts/list", "cash-shift", args.cashShifts, (row) => applyCashShift(ctx, row))
+    await run("reports/olap?report=SALES", "order", args.orders, (row) => applyOrder(ctx, row))
     return { departments: args.departments.length, employees: args.employees.length, departmentsChanged, employeesChanged, changed, skipped }
   },
 })

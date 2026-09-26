@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Orchestrates extract -> import -> reconcile in one command. Master-data only by design —
-// there's no `--master-only` flag to pass because Phase 3 never extracts anything else.
+// Orchestrates extract -> import -> reconcile in one command. Flags are forwarded to every step:
+//   --with-stock-master --with-products --with-balances --with-prices --with-sales [--from --to] [--prod]
+// (see endpoint-registry.mjs). Every iiko call is a GET.
 import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"

@@ -59,7 +59,7 @@ export const listRecipeVersions = query({
     const product = await productOf(ctx, args.productExternalId)
     if (!product) return []
     const versions = await ctx.db.query("recipeVersions").withIndex("by_product_effective", (q) => q.eq("productId", product._id)).order("desc").take(50)
-    return versions.map((version) => ({ _id: version._id, version: version.version, status: version.status, effectiveFrom: version.effectiveFrom, batchYield: version.batchYield, createdBy: version.createdBy, createdAt: version.createdAt }))
+    return versions.map((version) => ({ _id: version._id, version: version.version, status: version.status, effectiveFrom: version.effectiveFrom, batchYield: version.batchYield, createdBy: version.createdBy, createdAt: version.createdAt, fromIiko: version.sourceSystem === "iiko-server" }))
   },
 })
 

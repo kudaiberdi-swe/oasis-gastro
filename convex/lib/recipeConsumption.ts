@@ -35,6 +35,7 @@ async function expand(
   lineId: Id<"orderLines">,
   out: { components: ConsumptionComponent[]; warnings: ConsumptionWarning[] },
   depth: number,
+  restaurantExternalId?: string,
 ) {
   const version = await recipeVersionAt(ctx, product._id, at)
   if (!version) {
@@ -42,7 +43,7 @@ async function expand(
     return
   }
   const factor = batches / (version.batchYield > 0 ? version.batchYield : 1)
-  for (const line of await recipeLinesOf(ctx, version._id)) {
+  for (const line of await recipeLinesOf(ctx, version._id, restaurantExternalId)) {
     if (line.kind === "item" && line.inventoryItemId) {
       out.components.push({ inventoryItemId: line.inventoryItemId, quantity: line.quantity * factor, sourceLineId: lineId, reason: depth === 0 ? "recipe" : "preparation" })
       continue
@@ -63,17 +64,17 @@ async function expand(
       continue
     }
     // Batches of the preparation needed = kg needed / kg one batch yields.
-    const lines = await recipeLinesOf(ctx, componentVersion._id)
+    const lines = await recipeLinesOf(ctx, componentVersion._id, restaurantExternalId)
     const outputKg = lines.reduce((sum, row) => sum + weightKg(row) * (1 - row.coldLossPercent / 100) * (1 - row.hotLossPercent / 100), 0)
     if (!(outputKg > 0)) {
       out.warnings.push({ productId: component._id, orderLineId: lineId, code: "zero-weight" })
       continue
     }
-    await expand(ctx, component, (neededKg / outputKg) * (componentVersion.batchYield > 0 ? componentVersion.batchYield : 1), at, lineId, out, depth + 1)
+    await expand(ctx, component, (neededKg / outputKg) * (componentVersion.batchYield > 0 ? componentVersion.batchYield : 1), at, lineId, out, depth + 1, restaurantExternalId)
   }
 }
 
-export async function planOrderConsumption(ctx: QueryCtx, args: { lines: Doc<"orderLines">[]; at: number }) {
+export async function planOrderConsumption(ctx: QueryCtx, args: { lines: Doc<"orderLines">[]; at: number; restaurantExternalId?: string }) {
   const out = { components: [] as ConsumptionComponent[], warnings: [] as ConsumptionWarning[] }
   for (const line of args.lines) {
     const product = await ctx.db.get(line.productId)
@@ -85,7 +86,7 @@ export async function planOrderConsumption(ctx: QueryCtx, args: { lines: Doc<"or
       if (!item) out.warnings.push({ productId: product._id, orderLineId: line._id, code: "no-inventory-item" })
       else out.components.push({ inventoryItemId: item._id, quantity: portions, sourceLineId: line._id, reason: "finished-product" })
     } else {
-      await expand(ctx, product, portions, args.at, line._id, out, 0)
+      await expand(ctx, product, portions, args.at, line._id, out, 0, args.restaurantExternalId)
     }
     for (const selection of line.modifierSelections ?? []) {
       const modifier = await ctx.db.query("modifiers").withIndex("by_external_id", (q) => q.eq("externalId", selection.externalId)).unique()
@@ -141,7 +142,7 @@ export async function consumeOrderStock(
     await warnings([{ code: "no-warehouse" }])
     return { cost: 0, movementIds: [] as Id<"stockMovements">[] }
   }
-  const plan = await planOrderConsumption(ctx, { lines: args.lines, at: args.occurredAt })
+  const plan = await planOrderConsumption(ctx, { lines: args.lines, at: args.occurredAt, restaurantExternalId: args.restaurantExternalId })
   await warnings(plan.warnings)
 
   // One movement per item, in the item's unit.
@@ -207,8 +208,8 @@ export async function reverseOrderConsumption(ctx: MutationCtx, args: { order: D
 }
 
 /** A preparation's recipe for `quantity` units of output, as inventory quantities (production acts, W2-PRD-02). */
-export async function planRecipeOutput(ctx: QueryCtx, product: Doc<"products">, quantity: number, at: number) {
+export async function planRecipeOutput(ctx: QueryCtx, product: Doc<"products">, quantity: number, at: number, restaurantExternalId?: string) {
   const out = { components: [] as ConsumptionComponent[], warnings: [] as ConsumptionWarning[] }
-  await expand(ctx, product, quantity, at, "" as Id<"orderLines">, out, 0)
+  await expand(ctx, product, quantity, at, "" as Id<"orderLines">, out, 0, restaurantExternalId)
   return out
 }

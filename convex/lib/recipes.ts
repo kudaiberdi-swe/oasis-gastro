@@ -18,8 +18,18 @@ export async function recipeVersionAt(ctx: QueryCtx, productId: Id<"products">, 
   return versions.find((version) => version.status !== "draft") ?? null
 }
 
-export async function recipeLinesOf(ctx: QueryCtx, versionId: Id<"recipeVersions">) {
-  return ctx.db.query("recipeLines").withIndex("by_version", (q) => q.eq("versionId", versionId)).take(100)
+/**
+ * The lines of a version for a restaurant. An iiko chart can hold a variant of a line per department
+ * (W2-IIKO-08): the restaurant gets the lines of its linked department. Without a restaurant, or for one
+ * with no iiko link, the lines of one reference department — never the sum of every branch's variant.
+ */
+export async function recipeLinesOf(ctx: QueryCtx, versionId: Id<"recipeVersions">, restaurantExternalId?: string) {
+  const lines = await ctx.db.query("recipeLines").withIndex("by_version", (q) => q.eq("versionId", versionId)).take(200)
+  const reference = lines.find((line) => line.iikoDepartmentExternalIds?.length)?.iikoDepartmentExternalIds?.[0]
+  if (!reference) return lines
+  const link = restaurantExternalId ? await ctx.db.query("restaurantSourceLinks").withIndex("by_restaurant", (q) => q.eq("restaurantExternalId", restaurantExternalId)).first() : null
+  const department = link?.iikoDepartmentExternalId ?? reference
+  return lines.filter((line) => !line.iikoDepartmentExternalIds?.length || line.iikoDepartmentExternalIds.includes(department))
 }
 
 /** Weighted average stock cost of an item (per its unit) — for one restaurant, or across all branches. */
@@ -45,7 +55,7 @@ export type CostedRecipe = { version: Doc<"recipeVersions">; lines: (Doc<"recipe
  * recipe's cost per kg of output (recursively, depth ≤ 3).
  */
 export async function costRecipe(ctx: QueryCtx, version: Doc<"recipeVersions">, at: number, restaurantExternalId?: string, depth = 0): Promise<CostedRecipe> {
-  const lines = await recipeLinesOf(ctx, version._id)
+  const lines = await recipeLinesOf(ctx, version._id, restaurantExternalId)
   const costed = await Promise.all(
     lines.map(async (line) => {
       let unitCost = 0

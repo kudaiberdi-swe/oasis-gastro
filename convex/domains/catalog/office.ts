@@ -260,7 +260,9 @@ export const saveProductCard = mutation({
       }
       if (overlay) await ctx.db.patch(overlay._id, value)
       else await ctx.db.insert("iikoEntityOverlays", { overlayKey: `product:${product.externalId}`, entityType: "product", sourceExternalId: product.externalId, ...value })
-      await ctx.db.patch(product._id, { writeOffMethod: args.writeOffMethod })
+      // The product row is what the POS reads: mirror the overlay onto it now (the next import keeps it — W1-IIKO-04).
+      const nameKk = args.nameKk.trim()
+      await ctx.db.patch(product._id, { name, nameKk, nameSort: name.toLocaleLowerCase("ru"), searchText: productSearchText(name, nameKk, product.sku), prepArea: args.prepArea, enabled: args.enabled && !product.sourceDeleted, writeOffMethod: args.writeOffMethod, unitWeightKg: args.unitWeightKg })
       changed.push("overlay")
     } else {
       const next = {

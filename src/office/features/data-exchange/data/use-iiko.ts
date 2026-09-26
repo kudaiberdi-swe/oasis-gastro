@@ -12,7 +12,7 @@ const office = api.domains.iiko.office
 export const ENDPOINT_PAGE_SIZE = 40
 
 /** The command that refreshes the mirror (docs/iiko-connection-runbook.md); shown, never executed. */
-export const IIKO_SEED_COMMAND = "npm run iiko:seed -- --master-only"
+export const IIKO_SEED_COMMAND = "npm run iiko:seed -- --with-stock-master --with-products --with-balances --with-prices --with-sales"
 
 export function useIntegrationOverview() {
   return useQuery(office.integrationOverview, {})

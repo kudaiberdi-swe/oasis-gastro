@@ -281,8 +281,10 @@ export default defineSchema({
     importedAt: v.optional(v.number()),
     sourceDeleted: v.optional(v.boolean()),
     sourceReadOnly: v.optional(v.boolean()),
+    iikoProductExternalId: v.optional(v.string()), // W1-IIKO-04: the iiko product this row projects (also a matched seed product)
   })
     .index("by_external_id", ["externalId"])
+    .index("by_iiko_product", ["iikoProductExternalId"])
     .index("by_enabled_and_category_and_name", ["enabled", "category", "nameSort"])
     .index("by_enabled_and_name", ["enabled", "nameSort"])
     .index("by_enabled_and_popular_and_name", ["enabled", "popular", "nameSort"])
@@ -298,6 +300,10 @@ export default defineSchema({
     productId: v.id("products"),
     restaurantExternalId: v.string(),
     priceKzt: v.number(),
+    // W2-IIKO-09: a row projected from iiko's price list. A row without sourceSystem is Sandyq's own and wins.
+    sourceSystem: v.optional(v.literal("iiko-server")),
+    sourceHash: v.optional(v.string()),
+    importedAt: v.optional(v.number()),
   })
     .index("by_product_restaurant", ["productId", "restaurantExternalId"])
     .index("by_restaurant", ["restaurantExternalId"]),
@@ -1130,6 +1136,53 @@ export default defineSchema({
     .index("by_restaurant", ["restaurantExternalId"])
     .index("by_department", ["iikoDepartmentExternalId"]),
 
+  // W2-RTL-01 (decision D7): iiko cash shifts and orders of Sandyq departments, read-only, without personal
+  // data — no guest names or phones; employees only by their iiko id (the office shows the code).
+  iikoCashShifts: defineTable({
+    externalId: v.string(),
+    restaurantExternalId: v.string(),
+    departmentExternalId: v.string(),
+    sessionNumber: v.number(),
+    cashRegisterNumber: v.optional(v.number()),
+    status: v.string(), // iiko sessionStatus: OPEN | CLOSED | ACCEPTED …
+    openedAt: v.number(),
+    closedAt: v.optional(v.number()),
+    managerEmployeeExternalId: v.optional(v.string()),
+    startCash: v.number(),
+    salesCash: v.number(),
+    salesCard: v.number(),
+    salesCredit: v.number(),
+    payIn: v.number(),
+    payOut: v.number(),
+    cashDiff: v.number(),
+    ordersTotal: v.number(), // iiko payOrders — the sum of paid orders, ₸
+    sourceHash: v.string(),
+    importedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_opened", ["restaurantExternalId", "openedAt"])
+    .index("by_opened", ["openedAt"]),
+
+  iikoOrders: defineTable({
+    externalId: v.string(), // iiko UniqOrderId
+    restaurantExternalId: v.string(),
+    departmentExternalId: v.string(),
+    orderNumber: v.number(),
+    openedAt: v.number(),
+    businessDate: v.string(),
+    orderTypeName: v.optional(v.string()),
+    cashShiftExternalId: v.optional(v.string()),
+    grossAmount: v.number(), // DishSumInt — by the menu, before discounts
+    total: v.number(), // DishDiscountSumInt — after discounts and surcharges (service charge)
+    guestCount: v.number(),
+    sourceHash: v.string(),
+    importedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_opened", ["restaurantExternalId", "openedAt"])
+    .index("by_opened", ["openedAt"])
+    .index("by_shift", ["cashShiftExternalId"]),
+
   iikoDepartments: defineTable({
     externalId: v.string(),
     parentExternalId: v.optional(v.string()),
@@ -1220,8 +1273,10 @@ export default defineSchema({
     defaultVatRate: v.optional(v.number()),
     sourceSystem: v.optional(v.string()),
     importedAt: v.optional(v.number()),
+    iikoProductExternalId: v.optional(v.string()), // W1-IIKO-04: the iiko GOODS/PREPARED product this item stocks
   })
     .index("by_external_id", ["externalId"])
+    .index("by_iiko_product", ["iikoProductExternalId"])
     .index("by_active_and_name", ["active", "nameSort"])
     .index("by_product", ["productExternalId"])
     .index("by_unit", ["unitExternalId"])
@@ -1640,10 +1695,15 @@ export default defineSchema({
     status: v.union(v.literal("draft"), v.literal("active"), v.literal("superseded")),
     createdBy: v.string(),
     createdAt: v.number(),
+    // W2-IIKO-08: a version projected from an iiko assembly chart (read-only; a later local version wins by date).
+    sourceSystem: v.optional(v.literal("iiko-server")),
+    iikoChartExternalId: v.optional(v.string()),
+    sourceHash: v.optional(v.string()),
   })
     .index("by_product_effective", ["productId", "effectiveFrom"])
     .index("by_recipe_version", ["recipeId", "version"])
-    .index("by_product_status_effective", ["productId", "status", "effectiveFrom"]),
+    .index("by_product_status_effective", ["productId", "status", "effectiveFrom"])
+    .index("by_iiko_chart", ["iikoChartExternalId"]),
 
   recipeLines: defineTable({
     versionId: v.id("recipeVersions"),
@@ -1657,6 +1717,8 @@ export default defineSchema({
     coldLossPercent: v.number(),
     hotLossPercent: v.number(),
     sortOrder: v.number(),
+    // W2-IIKO-08: an iiko chart line limited to some departments (its store specification); absent = every branch.
+    iikoDepartmentExternalIds: v.optional(v.array(v.string())),
   })
     .index("by_version", ["versionId", "sortOrder"])
     .index("by_component", ["componentProductId"]),

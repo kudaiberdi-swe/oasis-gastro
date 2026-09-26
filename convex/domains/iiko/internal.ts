@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
 
 import { internalMutation, internalQuery } from "../../_generated/server"
@@ -38,4 +39,19 @@ export const saveOverlay = internalMutation({
     if (existing) await ctx.db.patch(existing._id, value)
     else await ctx.db.insert("iikoEntityOverlays", value)
   },
+})
+
+/** Sandyq's own products (not from iiko), for the import script to match iiko dishes by name (W1-IIKO-04). */
+export const productsForMatching = internalQuery({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query("products").withIndex("by_external_id").paginate(args.paginationOpts)
+    return { ...page, page: page.page.filter((product) => product.sourceSystem !== "iiko-server").map((product) => ({ externalId: product.externalId, name: product.name, linked: Boolean(product.iikoProductExternalId) })) }
+  },
+})
+
+/** The iiko departments linked to Sandyq restaurants: the extract pulls prices and sales only for them. */
+export const linkedDepartments = internalQuery({
+  args: {},
+  handler: async (ctx) => (await ctx.db.query("restaurantSourceLinks").take(200)).map((link) => link.iikoDepartmentExternalId),
 })

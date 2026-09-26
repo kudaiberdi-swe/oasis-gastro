@@ -55,7 +55,7 @@ export function RecipeTab({ card, product, recipe, canEdit, canActivate, activat
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <p className="text-body-sm text-muted-foreground">
-          {status === "new" ? "Новая версия" : status ? `Версия ${recipe.selectedVersion ? `v${recipe.selectedVersion.version}` : ""} · ${RECIPE_STATUS[status].label.toLocaleLowerCase("ru")}` : "Техкарты ещё нет"}
+          {status === "new" ? "Новая версия" : status ? `Версия ${recipe.selectedVersion ? `v${recipe.selectedVersion.version}` : ""} · ${RECIPE_STATUS[status].label.toLocaleLowerCase("ru")}${recipe.selectedVersion?.fromIiko ? " · из iiko" : ""}` : "Техкарты ещё нет"}
         </p>
         <Field label="Филиал для расчёта" className="w-full sm:w-72">
           {(control) => <Select {...control} value={recipe.restaurant} onValueChange={recipe.setRestaurant} options={branchOptions} />}

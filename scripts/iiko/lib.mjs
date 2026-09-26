@@ -199,13 +199,21 @@ export function recordsFromPayload(payload) {
 export const ALLOWLISTS = {
   workforce: ["id", "code", "name", "mainRoleId", "rolesIds", "mainRoleCode", "roleCodes", "departmentCodes", "responsibilityDepartmentCodes", "deleted", "supplier", "client", "employee"],
   organization: ["id", "parentId", "code", "name", "type", "deleted"],
+  // corporation/groups: only to map terminals (restaurant sections) and cash registers to departments.
+  "department-group": ["id", "name", "departmentId", "pointOfSaleDtoes.pointOfSaleDto[].id", "pointOfSaleDtoes.pointOfSaleDto[].name"],
   warehouse: ["id", "parentId", "code", "name", "type", "deleted"],
-  terminal: ["id", "name", "anonymous", "groupInfo.id", "groupInfo.name", "deleted"],
+  terminal: ["id", "name", "anonymous", "deleted"],
   unit: ["id", "code", "name", "fullName", "systemName", "deleted"],
   supplier: ["id", "code", "name", "supplier", "representsStore", "deleted"],
-  "product-group": ["id", "name", "parent", "position", "deleted"],
-  product: ["id", "name", "num", "code", "description", "parent", "category", "type", "mainUnit", "defaultSalePrice", "defaultIncludedInMenu", "unitWeight", "productWriteoffStrategy", "placeType.id", "placeType.name", "modifiers[].id", "deleted"],
+  "product-group": ["id", "name", "parent", "num", "position", "deleted"],
+  product: ["id", "name", "num", "parent", "type", "mainUnit", "defaultSalePrice", "defaultIncludedInMenu", "unitWeight", "deleted"],
+  recipe: ["id", "assembledProductId", "dateFrom", "dateTo", "assembledAmount", "technologyDescription", "items[].productId", "items[].amountIn", "items[].amountMiddle", "items[].amountOut", "items[].departmentExternalIds"],
   balance: ["store", "product", "amount", "sum"],
+  price: ["departmentId", "productId", "productSizeId", "prices[].dateFrom", "prices[].dateTo", "prices[].price", "prices[].included"],
+  // Cash shifts: sums and dates; the manager only by iiko id (D7 — the office shows the code, not the name).
+  "cash-shift": ["id", "sessionNumber", "cashRegNumber", "openDate", "closeDate", "managerId", "sessionStartCash", "salesCash", "salesCard", "salesCredit", "payIn", "payOut", "cashDiff", "payOrders", "sessionStatus", "pointOfSaleId"],
+  // OLAP SALES rows renamed by extract.mjs: no waiter, guest, phone or address columns are ever requested.
+  order: ["departmentId", "orderId", "orderNumber", "openTime", "orderType", "sessionId", "grossAmount", "total", "guestCount"],
 }
 
 export function sanitizeRecord(record, domain) {

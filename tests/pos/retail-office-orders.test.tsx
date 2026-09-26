@@ -142,6 +142,28 @@ describe("«Заказы и чеки» register (W1-RTL-05)", () => {
     expect(last(LIST)).toEqual({ status: "all", restaurantExternalId: "r1" })
   })
 
+  it("«Источник: iiko» shows the read-only iiko orders of the restaurant, without tabs, search or a receipt card (W2-RTL-01)", async () => {
+    mocks.paginated["domains/retail/office:listIikoOrders"] = [
+      { _id: "io1", number: 5, source: "iiko", openedAt: Date.parse("2026-09-25T14:02:02+05:00"), businessDate: "2026-09-25", restaurantName: "Sandyq Абая", orderTypeName: "Обычный заказ", shiftNumber: 42, guestCount: 2, grossAmount: 28160, total: 32384 },
+    ]
+    Element.prototype.scrollIntoView = vi.fn()
+    const router = renderAt("/office/orders")
+    fireEvent.click(screen.getByRole("combobox", { name: "Источник" }))
+    fireEvent.click(await screen.findByRole("option", { name: "iiko" }))
+    expect(screen.queryByRole("tablist", { name: "Статус заказов" })).toBeNull()
+    expect(screen.queryByPlaceholderText("Номер, позиция или комментарий")).toBeNull()
+    expect(screen.queryByText("Выберите заказ для просмотра чека")).toBeNull()
+    const table = screen.getByRole("table", { name: "Заказы iiko" })
+    const [, row] = within(table).getAllByRole("row")
+    expect(within(row).getByText("№5")).toBeTruthy()
+    expect(within(row).getByText("Обычный заказ · гостей 2")).toBeTruthy()
+    expect(within(row).getByText(formatTenge(32384), exact)).toBeTruthy()
+    expect(last("domains/retail/office:listIikoOrders")).toEqual({ restaurantExternalId: "r1" })
+    expect(last(LIST)).toBe("skip")
+    fireEvent.click(within(row).getByText("№5"))
+    expect(router.state.location.pathname).toBe("/office/orders")
+  })
+
   it("a tab narrows the status on the server", () => {
     renderAt("/office/orders")
     fireEvent.click(screen.getByRole("tab", { name: "Возвраты" }))

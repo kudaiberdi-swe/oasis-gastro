@@ -2,7 +2,7 @@ import type { ShiftCandidate } from "@/office/features/finance/data/use-finance-
 import type { OrderReceiptData } from "@/pos/features/checkout/model/order-receipt"
 import { describeStatus } from "@/shared/lib/status-dictionary"
 
-import type { CashDirection, OrderDetail, OrderStatusTab, ShiftCard, ShiftStatusTab } from "../data/use-retail-office"
+import type { CashDirection, OrderDetail, OrderStatusTab, SalesSource, ShiftCard, ShiftStatusTab } from "../data/use-retail-office"
 
 // Pure helpers of the retail office sections (W1-RTL-04/05/06): tabs, filters, card mappings.
 
@@ -20,6 +20,16 @@ export const SHIFT_TABS: { value: ShiftStatusTab; label: string }[] = [
   { value: "open", label: "Открытые" },
   { value: "closed", label: "Закрытые" },
 ]
+
+export const SOURCE_OPTIONS: { value: SalesSource; label: string }[] = [
+  { value: "sandyq", label: "Sandyq POS" },
+  { value: "iiko", label: "iiko" },
+]
+
+/** iiko shift statuses (sessionStatus) in Russian; anything unknown shows as it came. */
+export function iikoShiftStatusLabel(status: string) {
+  return ({ OPEN: "Открыта", CLOSED: "Закрыта", UNACCEPTED: "Закрыта, не принята", ACCEPTED: "Принята" } as Record<string, string>)[status] ?? status
+}
 
 export const DIRECTION_LABEL: Record<CashDirection, string> = { "cash-in": "Внесение", "cash-out": "Изъятие" }
 export const DIRECTION_TONE = { "cash-in": "success", "cash-out": "warning" } as const

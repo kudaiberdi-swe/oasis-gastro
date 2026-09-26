@@ -267,3 +267,86 @@ export const getZReport = query({
     return { ...report, restaurantName: restaurant.name, restaurantAddress: restaurant.address, terminalName: terminal?.name ?? "Касса", terminalNumber: terminal?.terminalNumber ?? 0 }
   },
 })
+
+// ── iiko orders and cash shifts (W2-RTL-01, decision D7) ─────────────────────────────────────────────
+// Read-only projections of the iiko sales of linked Sandyq departments: no actions, no receipt card,
+// no personal data (the shift manager only by the iiko employee code).
+
+/** iiko orders of the user's restaurants, newest first. */
+export const listIikoOrders = query({
+  args: { restaurantExternalId: v.optional(v.string()), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.orders.view")
+    if (args.restaurantExternalId) await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    const restaurants = await restaurantsFor(ctx, user, args.restaurantExternalId)
+    if (!restaurants.length) return { page: [], isDone: true, continueCursor: "" }
+    const names = new Map(restaurants.map((restaurant) => [restaurant.externalId, restaurant.name]))
+    const single = args.restaurantExternalId ? restaurants[0] : null
+    const page = single
+      ? await ctx.db.query("iikoOrders").withIndex("by_restaurant_opened", (q) => q.eq("restaurantExternalId", single.externalId)).order("desc").paginate(args.paginationOpts)
+      : await ctx.db.query("iikoOrders").withIndex("by_opened").order("desc").paginate(args.paginationOpts)
+    const shiftNumbers = new Map<string, number | null>()
+    const rows = []
+    for (const order of page.page) {
+      if (!names.has(order.restaurantExternalId)) continue
+      const shiftId = order.cashShiftExternalId
+      if (shiftId && !shiftNumbers.has(shiftId)) shiftNumbers.set(shiftId, (await ctx.db.query("iikoCashShifts").withIndex("by_external_id", (q) => q.eq("externalId", shiftId)).unique())?.sessionNumber ?? null)
+      rows.push({
+        _id: order._id,
+        number: order.orderNumber,
+        source: "iiko" as const,
+        openedAt: order.openedAt,
+        businessDate: order.businessDate,
+        restaurantName: names.get(order.restaurantExternalId) ?? "",
+        orderTypeName: order.orderTypeName ?? null,
+        shiftNumber: shiftId ? (shiftNumbers.get(shiftId) ?? null) : null,
+        guestCount: order.guestCount,
+        grossAmount: order.grossAmount,
+        total: order.total,
+      })
+    }
+    return { ...page, page: rows }
+  },
+})
+
+/** iiko cash shifts of the user's restaurants, newest first. */
+export const listIikoShifts = query({
+  args: { restaurantExternalId: v.optional(v.string()), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.cash-shifts.view")
+    if (args.restaurantExternalId) await requireRestaurantScope(ctx, user, args.restaurantExternalId)
+    const restaurants = await restaurantsFor(ctx, user, args.restaurantExternalId)
+    if (!restaurants.length) return { page: [], isDone: true, continueCursor: "" }
+    const names = new Map(restaurants.map((restaurant) => [restaurant.externalId, restaurant.name]))
+    const single = args.restaurantExternalId ? restaurants[0] : null
+    const page = single
+      ? await ctx.db.query("iikoCashShifts").withIndex("by_restaurant_opened", (q) => q.eq("restaurantExternalId", single.externalId)).order("desc").paginate(args.paginationOpts)
+      : await ctx.db.query("iikoCashShifts").withIndex("by_opened").order("desc").paginate(args.paginationOpts)
+    const rows = []
+    for (const shift of page.page) {
+      if (!names.has(shift.restaurantExternalId)) continue
+      const managerId = shift.managerEmployeeExternalId
+      const manager = managerId ? await ctx.db.query("iikoEmployees").withIndex("by_external_id", (q) => q.eq("externalId", managerId)).unique() : null
+      rows.push({
+        _id: shift._id,
+        number: shift.sessionNumber,
+        source: "iiko" as const,
+        cashRegisterNumber: shift.cashRegisterNumber ?? null,
+        restaurantName: names.get(shift.restaurantExternalId) ?? "",
+        status: shift.status,
+        openedAt: shift.openedAt,
+        closedAt: shift.closedAt ?? null,
+        managerCode: manager?.code ?? null,
+        startCash: shift.startCash,
+        salesCash: shift.salesCash,
+        salesCard: shift.salesCard,
+        salesCredit: shift.salesCredit,
+        payIn: shift.payIn,
+        payOut: shift.payOut,
+        cashDiff: shift.cashDiff,
+        ordersTotal: shift.ordersTotal,
+      })
+    }
+    return { ...page, page: rows }
+  },
+})

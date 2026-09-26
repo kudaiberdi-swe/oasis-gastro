@@ -454,7 +454,7 @@ const dishesReport: Calculator = async (ctx, config, restaurants) => {
       continue
     }
     const portions = version.batchYield > 0 ? version.batchYield : 1
-    for (const line of await recipeLinesOf(ctx, version._id)) {
+    for (const line of await recipeLinesOf(ctx, version._id, restaurants.length === 1 ? restaurants[0] : undefined)) {
       const component = await lineComponent(ctx, line, item, product)
       const perPortion = line.quantity / portions
       const itemId = line.kind === "item" ? line.inventoryItemId : (component.key as Id<"inventoryItems">)

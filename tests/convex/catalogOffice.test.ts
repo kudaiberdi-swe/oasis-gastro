@@ -107,7 +107,8 @@ describe("product card (W1-CAT-05)", () => {
       await ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", "p-1")).unique(),
       await ctx.db.query("iikoEntityOverlays").withIndex("by_entity_type_and_source_external_id", (q) => q.eq("entityType", "product").eq("sourceExternalId", "p-1")).unique(),
     ])
-    expect(product?.name).toBe("Сорпа 1")
+    // The overlay is what a re-import keeps; the product row mirrors it at once so the POS shows the edit (W1-IIKO-04).
+    expect(product?.name).toBe("Сорпа (Sandyq)")
     expect(overlay).toMatchObject({ label: "Сорпа (Sandyq)", localSettings: { price: 2450 } })
     expect((await admin.query(office.getProductCard, { externalId: "p-1" }))?.name).toBe("Сорпа (Sandyq)")
   })

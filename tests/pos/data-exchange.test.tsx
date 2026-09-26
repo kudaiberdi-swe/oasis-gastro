@@ -113,9 +113,9 @@ describe("«Обмен между точками» — no import yet (parity wit
     expect(screen.getByRole("heading", { name: "Репликация и покрытие API" })).toBeTruthy()
     expect(screen.getByText("Импорт ещё не выполнялся")).toBeTruthy()
     for (const label of ["Операций Server API", "Зеркалируется", "Заблокировано one-way", "Записей последнего запуска"]) expect(screen.getByText(label)).toBeTruthy()
-    expect(screen.getByText("npm run iiko:seed -- --master-only")).toBeTruthy()
+    expect(screen.getByText("npm run iiko:seed -- --with-stock-master --with-products --with-balances --with-prices --with-sales")).toBeTruthy()
     fireEvent.click(screen.getByRole("button", { name: "Скопировать" }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith("npm run iiko:seed -- --master-only"))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("npm run iiko:seed -- --with-stock-master --with-products --with-balances --with-prices --with-sales"))
     expect(await screen.findByRole("button", { name: "Скопировано" })).toBeTruthy()
   })
 

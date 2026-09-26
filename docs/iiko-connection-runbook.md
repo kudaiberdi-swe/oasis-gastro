@@ -22,12 +22,26 @@ Auth itself is session-key based: `GET /resto/api/auth?login=&pass=sha1(password
 
 ## What actually gets pulled
 
-Only two endpoints, ever — see `scripts/iiko/endpoint-registry.mjs`:
+Every endpoint is a `GET` listed in `scripts/iiko/endpoint-registry.mjs`. By default only the org tree and
+staff; the rest behind flags (decisions Б-B4 and D7 of 2026-09-26, `docs/IMPLEMENTATION-PLAN.md` §2.5):
 
-- `corporation/departments` → the org/branch tree (JURPERSON and DEPARTMENT rows)
-- `employees` → staff records
+| Flag | Endpoints | Lands in |
+|---|---|---|
+| — | `corporation/departments`, `employees` | `iikoDepartments` → organizations / restaurants; `iikoEmployees` |
+| `--with-stock-master` | `corporation/stores`, points of sale of `corporation/groups`, `v2/entities/list?rootType=MeasureUnit`, `suppliers` | warehouses, POS terminals (inactive), units, suppliers |
+| `--with-products` | `v2/entities/products/group/list`, `v2/entities/products/list`, `v2/assemblyCharts/getAll` | product groups, dishes / preparations / stock items, recipe versions «из iiko» |
+| `--with-balances` | `v2/reports/balance/stores` | opening stock movements + journal entries (only where Sandyq has no movements yet) |
+| `--with-prices` | `v2/price` | branch prices (`productPrices` with `sourceSystem: "iiko-server"`; Sandyq's own price wins) |
+| `--with-sales --from --to` | `v2/cashshifts/list`, `reports/olap?report=SALES` | `iikoCashShifts`, `iikoOrders` (read-only; «Источник: iiko» in the office) |
 
-No sales, orders, stock, or menu data is imported from iiko. That's deliberate — see the BRD for why (the seeded menu from `public/menu-data/*.json` is the source of truth for the catalog; iiko is only for real org structure and staff).
+`corporation/terminals` is not used: on this account it lists only anonymous back-office machines; the POS
+cash registers are the points of sale of `corporation/groups`. `v2/*` endpoints answer JSON (406 for XML).
+
+**Sandyq scope of the shared nomenclature.** Products of the Sandyq top-level groups (names with
+sandyq / sandyk / сандык), plus whatever lies in Sandyq stores, plus everything their assembly charts use
+(transitively). Chart lines excluded for every Sandyq department by their store specification are dropped.
+A seed dish (from the menu PDFs) with the same normalized name is linked instead of duplicated; every other
+iiko dish arrives **hidden from the POS** — show it in the product card.
 
 ## Brand scoping
 
@@ -37,12 +51,10 @@ If the business ever confirms a wider scope, pass `--brand <term>` to match a si
 
 ## PII handling
 
-`sanitizeRecord` (`lib.mjs`) works by **allowlist, not blocklist** — only these fields are ever read out of a source response, for either domain:
-
-- `organization`: `id, parentId, code, name, type, deleted`
-- `workforce`: `id, code, name, mainRoleId, rolesIds, mainRoleCode, roleCodes, departmentCodes, responsibilityDepartmentCodes, deleted, supplier, client, employee`
-
-Nothing else — no phone, email, IIN, login, or address — is ever selected from the raw XML, so there's no PII-strip step to keep in sync as the source schema changes.
+`sanitizeRecord` (`lib.mjs`) works by **allowlist, not blocklist** — only the keys in `ALLOWLISTS` are ever
+read out of a source response. No phone, email, IIN, login or address; cash shifts carry the manager only by
+iiko id (the office shows the code); orders come from OLAP columns chosen by `extract.mjs` — no waiter, guest,
+phone or address columns are ever requested (D7). `tests/scripts/iikoReadOnly.test.ts` pins this.
 
 ## Running it
 
@@ -76,9 +88,8 @@ An imported `iikoEmployees` row is not a POS login by itself. `domains/workforce
 1. In the office, `/office/data-exchange` → «Сопоставление филиалов»: link every Sandyq restaurant to its iiko
    department (`restaurantSourceLinks`). Stores and terminals of an unlinked department are skipped and
    reported on their endpoint — never attached to the first restaurant at hand.
-2. Extract with the stock master endpoints: `npm run iiko:extract -- --with-stock-master`
-   (stores, terminals, measure units, suppliers; all `GET`). Products and balances need
-   `--with-products` / `--with-balances` too and wait for blocker Б-B4.
+2. Extract with the flags you need (table above), e.g. everything for the last week:
+   `npm run iiko:seed -- --with-stock-master --with-products --with-balances --with-prices --with-sales`.
 3. Import as usual (`npm run iiko:import -- --input=…`). Imported terminals arrive **inactive** with the next
    free number of their restaurant; enable them in the office. Suppliers arrive without a BIN — fill it in
    the office. Every re-import only touches records whose payload hash changed.

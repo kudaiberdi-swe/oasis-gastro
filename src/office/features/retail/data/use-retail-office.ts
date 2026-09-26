@@ -20,6 +20,10 @@ export type OrderDetail = NonNullable<FunctionReturnType<typeof office.getOrderD
 export type ShiftCard = FunctionReturnType<typeof office.listShifts>["page"][number]
 export type ShiftStatusTab = NonNullable<FunctionArgs<typeof office.listShifts>["status"]>
 export type OfficeZReport = NonNullable<FunctionReturnType<typeof office.getZReport>>
+export type IikoOrderRow = FunctionReturnType<typeof office.listIikoOrders>["page"][number]
+export type IikoShiftRow = FunctionReturnType<typeof office.listIikoShifts>["page"][number]
+/** Where the rows of «Заказы и чеки» / «Кассовые смены» come from (W2-RTL-01). */
+export type SalesSource = "sandyq" | "iiko"
 
 const withRestaurant = (restaurantExternalId: string | undefined) => (restaurantExternalId ? { restaurantExternalId } : {})
 
@@ -76,4 +80,14 @@ export function useAcceptShift() {
 export function useLoadZReport() {
   const convex = useConvex()
   return useCallback((zReportId: NonNullable<ShiftCard["zReportId"]>) => convex.query(office.getZReport, { zReportId }), [convex])
+}
+
+/** iiko orders of linked departments (read-only, W2-RTL-01). */
+export function useIikoOrders(restaurantExternalId: string | undefined, enabled = true) {
+  return usePaginatedQuery(office.listIikoOrders, enabled ? withRestaurant(restaurantExternalId) : "skip", { initialNumItems: RETAIL_OFFICE_PAGE_SIZE })
+}
+
+/** iiko cash shifts of linked departments (read-only, W2-RTL-01). */
+export function useIikoShifts(restaurantExternalId: string | undefined, enabled = true) {
+  return usePaginatedQuery(office.listIikoShifts, enabled ? withRestaurant(restaurantExternalId) : "skip", { initialNumItems: RETAIL_OFFICE_PAGE_SIZE })
 }

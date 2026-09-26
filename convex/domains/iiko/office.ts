@@ -3,7 +3,6 @@ import { ConvexError, v } from "convex/values"
 
 import { mutation, query } from "../../_generated/server"
 import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
-import { listOperationalRestaurants } from "../../lib/restaurants"
 
 // Office view of the iiko mirror (W1-IIKO-06) and branch mapping (W1-IIKO-02). Read-only towards
 // iiko: nothing here calls it; imports run from scripts/iiko on a trusted machine.
@@ -52,14 +51,17 @@ export const restaurantLinkOptions = query({
   handler: async (ctx) => {
     const { user } = await requireOfficeCapability(ctx, "office.data-exchange.view")
     const network = user.restaurantScopes.includes("*")
-    const restaurants = (await listOperationalRestaurants(ctx)).filter((restaurant) => network || user.restaurantScopes.includes(restaurant.externalId))
+    // Every active restaurant, not only those with a POS terminal: an iiko branch gets its terminals from the
+    // import, and the import needs this link first.
+    const active = await ctx.db.query("restaurants").withIndex("by_active_and_name", (q) => q.eq("active", true)).take(200)
+    const restaurants = active.filter((restaurant) => network || user.restaurantScopes.includes(restaurant.externalId))
     const allDepartments = await ctx.db.query("iikoDepartments").take(200)
     const departments = allDepartments.filter((department) => department.type === "DEPARTMENT")
     const rows = []
     for (const restaurant of restaurants) {
       const link = await ctx.db.query("restaurantSourceLinks").withIndex("by_restaurant", (q) => q.eq("restaurantExternalId", restaurant.externalId)).first()
       const department = link ? departments.find((row) => row.externalId === link.iikoDepartmentExternalId) : null
-      rows.push({ restaurantExternalId: restaurant.externalId, restaurantName: restaurant.name, iikoDepartmentExternalId: link?.iikoDepartmentExternalId ?? null, iikoDepartmentName: department?.name ?? null, confirmedBy: link?.confirmedBy ?? null, confirmedAt: link?.confirmedAt ?? null })
+      rows.push({ restaurantExternalId: restaurant.externalId, restaurantName: restaurant.name, fromIiko: restaurant.sourceSystem === "iiko-server", iikoDepartmentExternalId: link?.iikoDepartmentExternalId ?? null, iikoDepartmentName: department?.name ?? null, confirmedBy: link?.confirmedBy ?? null, confirmedAt: link?.confirmedAt ?? null })
     }
     return { restaurants: rows, departments: departments.map((row) => ({ externalId: row.externalId, name: row.name, code: row.code ?? null })) }
   },

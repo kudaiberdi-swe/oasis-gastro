@@ -15,7 +15,7 @@ export const supplierArgs = { externalId: v.string(), code: v.optional(v.string(
 
 type Result = { changed: boolean; skipped?: string }
 
-async function mirrored(ctx: MutationCtx, endpointKey: string, recordExternalId: string, payloadHash: string) {
+export async function mirrored(ctx: MutationCtx, endpointKey: string, recordExternalId: string, payloadHash: string) {
   const mirrorKey = `${endpointKey}:${recordExternalId}`
   const existing = await ctx.db.query("iikoMirrorRecords").withIndex("by_mirror_key", (q) => q.eq("mirrorKey", mirrorKey)).unique()
   return {
