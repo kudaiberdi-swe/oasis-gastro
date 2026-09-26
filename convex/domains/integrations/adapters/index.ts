@@ -3,7 +3,7 @@ import { cloudApiAdapter } from "./cloudApiWebhook"
 import { ediAdapter } from "./edi"
 import { fiscalAdapter } from "./fiscal"
 import { mapsAdapter } from "./maps"
-import { emailAdapter, smsAdapter } from "./messaging"
+import { emailAdapter, messagingAdapter, smsAdapter } from "./messaging"
 import { oneCAdapter } from "./oneC"
 import { telephonyAdapter } from "./telephony"
 import type { AdapterContext, AdapterJob, AdapterResult, ProviderAdapter } from "./types"
@@ -30,7 +30,7 @@ const egaisAdapter: ProviderAdapter = {
 }
 
 export const ADAPTERS: Record<string, ProviderAdapter> = Object.fromEntries(
-  [eventBusAdapter, emailAdapter, smsAdapter, mapsAdapter, telephonyAdapter, bankAdapter, fiscalAdapter, oneCAdapter, ediAdapter, egaisAdapter, cloudApiAdapter].map((adapter) => [adapter.provider, adapter]),
+  [eventBusAdapter, emailAdapter, smsAdapter, messagingAdapter, mapsAdapter, telephonyAdapter, bankAdapter, fiscalAdapter, oneCAdapter, ediAdapter, egaisAdapter, cloudApiAdapter].map((adapter) => [adapter.provider, adapter]),
 )
 
 export function adapterFor(provider: string): ProviderAdapter | undefined {

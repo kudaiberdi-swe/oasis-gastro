@@ -65,7 +65,7 @@ describe("provider adapters and dead-letter (W3-INT-06)", () => {
     expect(rows.every((job) => job.status === "dead-letter" && job.attempts === 1)).toBe(true)
     expect(rows.find((job) => job.provider === "maps")?.error).toBe("Провайдер не подключён: карты и геокодирование (2GIS)")
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(providersOfCard("integration-messaging").sort()).toEqual(["email", "sms"])
+    expect(providersOfCard("integration-messaging").sort()).toEqual(["email", "messaging", "sms"])
   })
 
   it("email without RESEND_API_KEY ends in dead-letter «ключ не задан» and works the moment the key exists", async () => {
@@ -151,8 +151,8 @@ describe("provider adapters and dead-letter (W3-INT-06)", () => {
     await guestWithConsents(t, ["personal-data", "sms"])
     await t.run((ctx) =>
       ctx.db.insert("integrationJobs", {
-        ...base, externalId: "sms", provider: "sms", operation: "campaign.send", sourceExternalId: "campaign-1", idempotencyKey: "campaign:campaign-1:guest-1:sms",
-        payload: { campaignExternalId: "campaign-1", guestExternalId: "guest-1", recipient: "7701•••••67", text: "Комбо выходного дня −20 %" },
+        ...base, externalId: "sms", provider: "messaging", operation: "send-campaign", sourceExternalId: "campaign-1", idempotencyKey: "campaign:campaign-1:guest-1:sms",
+        payload: { campaignExternalId: "campaign-1", guestExternalId: "guest-1", channel: "sms", recipient: "7701•••••67", text: "Комбо выходного дня −20 %" },
       }),
     )
     await runQueue(t)
@@ -165,7 +165,7 @@ describe("provider adapters and dead-letter (W3-INT-06)", () => {
 
     // Mobizon refuses: the error names the reason, not the number or the key.
     fetchMock.mockImplementation(async () => jsonResponse(200, { code: 1, data: {}, message: `Неверный номер ${PHONE}` }))
-    await t.run((ctx) => ctx.db.insert("integrationJobs", { ...base, externalId: "sms-2", provider: "sms", operation: "campaign.send", idempotencyKey: "k2", payload: { guestExternalId: "guest-1", text: "Привет" } }))
+    await t.run((ctx) => ctx.db.insert("integrationJobs", { ...base, externalId: "sms-2", provider: "messaging", operation: "send-campaign", idempotencyKey: "k2", payload: { guestExternalId: "guest-1", channel: "sms", text: "Привет" } }))
     await runQueue(t)
     const failed = (await jobs(t)).find((row) => row.externalId === "sms-2")!
     expect(failed.status).toBe("dead-letter")
@@ -178,7 +178,7 @@ describe("provider adapters and dead-letter (W3-INT-06)", () => {
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)
     await guestWithConsents(t, ["sms"])
-    await t.run((ctx) => ctx.db.insert("integrationJobs", { ...base, externalId: "sms", provider: "sms", operation: "campaign.send", idempotencyKey: "k", payload: { guestExternalId: "guest-1", text: "Привет" } }))
+    await t.run((ctx) => ctx.db.insert("integrationJobs", { ...base, externalId: "sms", provider: "messaging", operation: "send-campaign", idempotencyKey: "k", payload: { guestExternalId: "guest-1", channel: "sms", text: "Привет" } }))
     await runQueue(t)
     expect((await jobs(t))[0]).toMatchObject({ status: "dead-letter", error: "Нет действующего согласия гостя на рассылку — сообщение не отправлено" })
     expect(fetchMock).not.toHaveBeenCalled()
@@ -192,7 +192,7 @@ describe("provider adapters and dead-letter (W3-INT-06)", () => {
     const start = (almatyHour + 2) % 24
     const quietHours = { start: Math.min(start, 22), end: Math.min(start, 22) + 1 }
     await t.run(async (ctx) => {
-      await ctx.db.insert("integrationJobs", { ...base, externalId: "later", provider: "sms", operation: "campaign.send", idempotencyKey: "q", payload: { text: "x", quietHours } })
+      await ctx.db.insert("integrationJobs", { ...base, externalId: "later", provider: "messaging", operation: "send-campaign", idempotencyKey: "q", payload: { channel: "sms", text: "x", quietHours } })
       await ctx.db.insert("integrationJobs", { ...base, externalId: "stale", provider: "1c", operation: "export", idempotencyKey: "s", status: "processing", attempts: 1, nextAttemptAt: now - PROCESSING_LEASE_MS, payload: {} })
     })
     await runQueue(t)

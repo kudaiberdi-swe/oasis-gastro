@@ -11,7 +11,13 @@ export const RESEND_URL = "https://api.resend.com/emails"
 export const MOBIZON_URL = "https://api.mobizon.kz/service/message/sendsmsmessage"
 
 export const PASSWORD_RESET_OPERATION = "office-user.password-reset"
-export const CAMPAIGN_OPERATION = "campaign.send"
+/**
+ * Campaign sends (W3-LOY-08; the contract the loyalty reports read, W3-RPT-04): provider «messaging»,
+ * operation «send-campaign», payload {campaignExternalId, campaignName, guestId, guestExternalId, channel,
+ * restaurantExternalId?, recipient (masked), subject?, text, quietHours}.
+ */
+export const MESSAGING_PROVIDER = "messaging"
+export const CAMPAIGN_OPERATION = "send-campaign"
 
 type Message = { subject: string; text: string }
 
@@ -118,5 +124,18 @@ export const smsAdapter: ProviderAdapter = {
     if (body?.code !== 0) return { status: "failed", error: `Mobizon: ${typeof body?.message === "string" && body.message ? body.message.slice(0, 200) : "отказ"} (код ${String(body?.code ?? "—")})` }
     const data = (body.data ?? {}) as Record<string, unknown>
     return { status: "ok", result: { provider: "mobizon", messageId: data.messageId ?? null, to: maskPhone(recipient) } }
+  },
+}
+
+/** The campaign provider: the job's payload.channel picks Resend (email) or Mobizon (SMS). */
+export const messagingAdapter: ProviderAdapter = {
+  provider: MESSAGING_PROVIDER,
+  cardModuleId: "integration-messaging",
+  configured: (env) => emailAdapter.configured(env) || smsAdapter.configured(env),
+  async send(job, context) {
+    const channel = ((job.payload ?? {}) as Record<string, unknown>).channel
+    if (channel === "sms") return smsAdapter.send(job, context)
+    if (channel === "email") return emailAdapter.send(job, context)
+    return { status: "failed", error: "Не указан канал рассылки (sms или email)" }
   },
 }

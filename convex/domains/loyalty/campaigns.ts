@@ -11,7 +11,7 @@ import { effectiveScopes, getOfficeAuthEmail, hasNetworkScope, hasScope, require
 import { appendOutboxEvent } from "../../lib/outbox"
 import { maskEmail, maskPhone } from "../../lib/pii"
 import { almatyBusinessDate, nextAlmatyWindowTime } from "../../lib/time"
-import { CAMPAIGN_OPERATION } from "../integrations/adapters/messaging"
+import { CAMPAIGN_OPERATION, MESSAGING_PROVIDER } from "../integrations/adapters/messaging"
 
 // «Рассылки и акции» (W3-LOY-08). Lifecycle: draft → pending-approval → approved → completed, or
 // cancelled. Approving queues one integration job per guest who may receive it (Г-2: consent to
@@ -303,7 +303,7 @@ export const enqueueCampaign = internalMutation({
       if (!inAudience(guest, campaign) || !(await canMessageGuest(ctx, guest, campaign.channel, now))) continue
       const guestExternalId = guest.externalId ?? `guest-${guest._id}`
       const result = await enqueueIntegrationJob(ctx, {
-        provider: campaign.channel,
+        provider: MESSAGING_PROVIDER,
         operation: CAMPAIGN_OPERATION,
         sourceExternalId: campaign.externalId,
         idempotencyKey: `campaign:${campaign.externalId}:${guestExternalId}:${campaign.channel}`,
@@ -311,7 +311,10 @@ export const enqueueCampaign = internalMutation({
         nextAttemptAt,
         payload: {
           campaignExternalId: campaign.externalId,
+          campaignName: campaign.name,
+          guestId: guest._id,
           guestExternalId,
+          ...(guest.restaurantExternalId ? { restaurantExternalId: guest.restaurantExternalId } : {}),
           channel: campaign.channel,
           recipient: campaign.channel === "sms" ? maskPhone(guest.phone) : maskEmail(guest.email),
           ...(campaign.subject ? { subject: campaign.subject } : {}),

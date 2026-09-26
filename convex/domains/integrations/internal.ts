@@ -9,6 +9,7 @@ import { insideAlmatyWindow, nextAlmatyWindowTime } from "../../lib/time"
 import { countCampaignJob } from "../loyalty/campaigns"
 import { adapterFor, EVENT_BUS, runAdapter } from "./adapters"
 import { CLOUD_API_PROVIDER, cloudApiWebhookFor } from "./adapters/cloudApiWebhook"
+import { MESSAGING_PROVIDER } from "./adapters/messaging"
 import type { AdapterCard, AdapterJob, AdapterRecipient, AdapterResult } from "./adapters/types"
 
 export { EVENT_BUS }
@@ -124,7 +125,9 @@ export const claimIntegrationJobs = internalMutation({
       let recipient: AdapterRecipient | null = null
       if (typeof payload.guestExternalId === "string") {
         const guest = await ctx.db.query("guests").withIndex("by_external_id", (q) => q.eq("externalId", payload.guestExternalId as string)).unique()
-        const channel = job.provider === "sms" || job.provider === "email" ? job.provider : null
+        // Campaign jobs (provider «messaging») name the channel in the payload; direct sms/email jobs in the provider.
+        const named = job.provider === MESSAGING_PROVIDER ? payload.channel : job.provider
+        const channel = named === "sms" || named === "email" ? named : null
         if (!guest || !channel || !(await canMessageGuest(ctx, guest, channel, now))) {
           await deadLetter(ctx, job, job.attempts, "Нет действующего согласия гостя на рассылку — сообщение не отправлено", now)
           continue

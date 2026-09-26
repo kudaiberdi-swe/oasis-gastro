@@ -38,7 +38,7 @@ async function setup() {
 
 type T = Awaited<ReturnType<typeof setup>>
 const jobs = (t: T) => t.run((ctx) => ctx.db.query("integrationJobs").withIndex("by_source_status").collect())
-const campaignJobs = async (t: T) => (await jobs(t)).filter((job) => job.operation === "campaign.send")
+const campaignJobs = async (t: T) => (await jobs(t)).filter((job) => job.operation === "send-campaign")
 
 /** Tomorrow 22:00 in Almaty and the expected send time — 09:00 of the day after. */
 function lateEvening() {
@@ -83,7 +83,7 @@ describe("campaigns with quiet hours (W3-LOY-08)", () => {
     await approve(t, saved.externalId, saved.version)
     const queued = await campaignJobs(t)
     expect(queued.map((job) => job.payload.guestExternalId)).toEqual(["g-ok"])
-    expect(queued[0]).toMatchObject({ provider: "sms", status: "queued", idempotencyKey: `campaign:${saved.externalId}:g-ok:sms`, organizationExternalId: "sandyq" })
+    expect(queued[0]).toMatchObject({ provider: "messaging", status: "queued", payload: { channel: "sms", campaignName: "Комбо выходного дня", restaurantExternalId: "almaty" }, idempotencyKey: `campaign:${saved.externalId}:g-ok:sms`, organizationExternalId: "sandyq" })
     expect(JSON.stringify(queued[0])).not.toContain("77010000001")
     const card = await admin.query(campaigns.getCampaign, { externalId: saved.externalId })
     expect(card).toMatchObject({ status: "approved", audienceCount: 1, enqueueState: "done", jobsPending: true })
