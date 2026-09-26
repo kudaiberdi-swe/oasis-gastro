@@ -658,7 +658,7 @@
       "Do keep one wine primary per screen and make the other actions secondary, ghost or link.",
       "Do set every amount of money in the price style (Cormorant, tabular figures) so columns align.",
       "Do keep POS and kitchen targets at 48px or more and text at 14px or more.",
-      "Do show Kazakh and Russian side by side where the menu has both, Russian first.",
+      "Do show Kazakh and Russian side by side where the menu has both, the interface language first (Russian by default).",
       "Do run npm run contrast after touching colors; text 4.5:1, borders 3:1, in day and night."
     ],
     "donts": [

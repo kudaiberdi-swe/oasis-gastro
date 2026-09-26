@@ -3,8 +3,9 @@
 <!-- impeccable:product-schema 1 -->
 
 Scope: the internal restaurant system in this repo — the cashier (`/pos`), the kitchen screen (`/kitchen`)
-and the back office (`/office`). The marketing site in `website/` is a separate product; the root `DESIGN.md`
-describes that site, while `docs/POS-DESIGN.md` and `docs/OFFICE-DESIGN.md` describe this app.
+and the back office (`/office`). The marketing site in `website/` is a separate product. The root `DESIGN.md`
+holds the app's design system (its first eight sections) and, in its last section **Website**, the spec of
+that site; detailed screen rules for this app live in `docs/POS-DESIGN.md` and `docs/OFFICE-DESIGN.md`.
 
 ## Platform
 
@@ -48,8 +49,10 @@ reading everything that already exists in iiko instead of re-entering it.
   edits made in Sandyq.
 - Personal data of guests and employees is masked without a dedicated right; iiko sales come in without
   guest personal data.
-- Interface language: Russian today; **Kazakh + Russian interface is required** (a language switch, at
-  least on the POS) — not built yet. Dish names already carry both `name` (ru) and `nameKk` (kk).
+- Interface language: the POS has a Russian / Kazakh interface switch («Язык интерфейса» in the staff
+  profile, remembered per terminal; texts in `src/pos/i18n/`). The Kazakh texts still need a review by a
+  native speaker. The kitchen screen and the office are Russian only. Dishes and modifiers carry both `name`
+  (ru) and `nameKk` (kk) and show both, Kazakh with `lang="kk"`; product groups have no Kazakh name yet.
 - Undecided / pending: VAT rate and payers, chart-of-accounts codes and payroll rates (accountant);
   kitchen stations (chef); email, SMS, maps, telephony providers' keys; custom domain.
 

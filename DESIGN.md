@@ -308,14 +308,14 @@ is linear, not rounded: the 4px rust bar beside a title, the 2px gold bar markin
 - **Office sidebar:** night-ink frame, felt-grey 14px items, raised hover; the active item is raised, gold,
   semibold, with a 2px gold bar on its left edge; groups collapse, search filters sections.
 - **POS header:** the same dark frame with the Sandyq mark (`sandyq-group-logo.svg`, gold, 32px), terminal and
-  shift state («Смена №12 · открыта 09:41»); theme, density and the reserved RU/KK switch live in the profile.
+  shift state («Смена №12 · открыта 09:41»); theme, density and the RU/KK interface language switch live in the staff profile.
 
 ### Page Header (signature)
 Breadcrumb in 12px, then the Cormorant display title set against a 4px rust bar, an optional description,
 and the section's actions aligned to the right. It is the brand's most recognizable mark inside the tool.
 
 ### Dish Card (signature)
-A white card with a 3px category strip, the Russian name first and the Kazakh name second, the price in
+A white card with a 3px category strip, the name in the interface language first (Russian in RU, Kazakh in KK, with `lang="kk"`) and the other one second, the price in
 Cormorant tabular figures in brass, and availability shown in text, not only in color.
 
 ## Do's and Don'ts
@@ -325,7 +325,7 @@ Cormorant tabular figures in brass, and availability shown in text, not only in 
 - **Do** keep one wine primary per screen and make the other actions secondary, ghost or link.
 - **Do** set every amount of money in the price style (Cormorant, tabular figures) so columns align.
 - **Do** keep POS and kitchen targets at 48px or more and text at 14px or more.
-- **Do** show Kazakh and Russian side by side where the menu has both, Russian first.
+- **Do** show Kazakh and Russian side by side where the menu has both, the interface language first (Russian by default).
 - **Do** run `npm run contrast` after touching colors; text 4.5:1, borders 3:1, in day and night.
 
 ### Don't:

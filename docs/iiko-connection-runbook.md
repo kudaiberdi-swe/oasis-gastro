@@ -1,6 +1,6 @@
 # iiko connection runbook
 
-How to pull real Sandyq branch/employee data from the chain's iiko Server account. For the code that implements this, see `scripts/iiko/` and `convex/domains/iiko/`; for how it fits the rest of the system, see [ARCHITECTURE.md § iiko integration](ARCHITECTURE.md#iiko-integration).
+How to pull real Sandyq data (branches, staff, and behind flags stock master data, products, charts, balances, prices, shifts and orders) from the chain's iiko Server account. For the code that implements this, see `scripts/iiko/` and `convex/domains/iiko/`; for how it fits the rest of the system, see [ARCHITECTURE.md § iiko integration](ARCHITECTURE.md#iiko-integration).
 
 ## The one rule
 
@@ -41,7 +41,7 @@ cash registers are the points of sale of `corporation/groups`. `v2/*` endpoints 
 sandyq / sandyk / сандык), plus whatever lies in Sandyq stores, plus everything their assembly charts use
 (transitively). Chart lines excluded for every Sandyq department by their store specification are dropped.
 A seed dish (from the menu PDFs) with the same normalized name is linked instead of duplicated; every other
-iiko dish arrives **hidden from the POS** — show it in the product card.
+iiko dish arrives **hidden from the POS** — show it in the product card, or show all the ones priced in your branches at once with «Показать блюда iiko с ценой» in «Номенклатура» (a dry run counts them first; a dish hidden on purpose stays hidden, and a shown one stays shown after a re-import).
 
 ## Brand scoping
 
@@ -73,7 +73,7 @@ npm run iiko:reconcile   # compares staged vs mirrored counts, exits non-zero on
 
 `import-convex.mjs` chunks records into batches of 50 before calling `domains/iiko/mutations:importBatch` — a single call with all ~363 employees at once hits Convex's per-mutation operation budget and times out. Don't remove the chunking if you're touching this script.
 
-Against production, prefix with a one-off deploy key (see [ARCHITECTURE.md § Environments](ARCHITECTURE.md#environments) for the mint-use-delete pattern) — none of the iiko scripts have a dev-only guard the way `seed-sandyq.mjs` does, since re-running the import is always idempotent and safe.
+Against production, use `bash scripts/prod-iiko-import.sh` (`--from <date>` for sales since a date, `--yes` to skip the question): it mints a one-off deploy key into a temp file, runs the flagged extract and import, and deletes the key on exit. By hand, prefix with a one-off deploy key (see [ARCHITECTURE.md § Environments](ARCHITECTURE.md#environments) for the mint-use-delete pattern) — none of the iiko scripts have a dev-only guard the way `seed-sandyq.mjs` does, since re-running the import is always idempotent and safe.
 
 ## Known sharp edge: XML declaration parsing
 
@@ -81,11 +81,11 @@ Against production, prefix with a one-off deploy key (see [ARCHITECTURE.md § En
 
 ## Connecting an entity back to the operational side of the system
 
-An imported `iikoEmployees` row is not a POS login by itself. `domains/workforce/mutations.ts:provisionPosAccess` (surfaced in `/office` → Кадры → "Из iiko") bridges one to a real `employees` row — the code and PIN are always generated locally there, never derived from anything iiko returns.
+An imported `iikoEmployees` row is not a POS login by itself. `domains/workforce/mutations.ts:provisionPosAccess` (surfaced in `/office` → «Сотрудники» → «Из iiko», and in «Корпорация → Обмен данными с iiko → Доступ сотрудников к Sandyq POS») bridges one to a real `employees` row — the code and PIN are always generated locally there, never derived from anything iiko returns.
 
 ## Stock master data (W1-IIKO-01..03) — still GET only
 
-1. In the office, `/office/data-exchange` → «Сопоставление филиалов»: link every Sandyq restaurant to its iiko
+1. In the office, «Корпорация → Обмен данными с iiko» (`/office/data-exchange`) → «Сопоставление филиалов»: link every Sandyq restaurant to its iiko
    department (`restaurantSourceLinks`). Stores and terminals of an unlinked department are skipped and
    reported on their endpoint — never attached to the first restaurant at hand.
 2. Extract with the flags you need (table above), e.g. everything for the last week:
