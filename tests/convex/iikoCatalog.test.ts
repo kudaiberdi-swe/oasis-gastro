@@ -125,6 +125,18 @@ describe("iiko recipes and prices (W2-IIKO-08/09)", () => {
   })
 })
 
+describe("iiko import run totals", () => {
+  it("the endpoint shows the run's total, not the size of its last chunk", async () => {
+    const { t } = await linked()
+    await t.mutation(internal.domains.iiko.mutations.beginRun, { runExternalId: "run-1" })
+    await t.mutation(internal.domains.iiko.mutations.importBatch, { ...empty, products: [dish, meat] })
+    await t.mutation(internal.domains.iiko.mutations.importBatch, { ...empty, products: [broth] })
+    await t.mutation(internal.domains.iiko.mutations.completeRun, { runExternalId: "run-1", counts: { departments: 0, employees: 0 }, countsByEndpoint: { "v2/entities/products/list": 3 } })
+    const state = await t.run((ctx) => ctx.db.query("iikoEndpointStates").withIndex("by_endpoint_key", (q) => q.eq("endpointKey", "v2/entities/products/list")).unique())
+    expect(state?.recordCount).toBe(3)
+  })
+})
+
 describe("iiko opening balances (W1-IIKO-05)", () => {
   it("the first import posts an opening movement and a journal entry; a repeat does nothing; Sandyq's own movements are only compared", async () => {
     const { t } = await linked()

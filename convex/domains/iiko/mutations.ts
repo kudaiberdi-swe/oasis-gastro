@@ -23,6 +23,11 @@ export const completeRun = internalMutation({
     const run = await ctx.db.query("iikoImportRuns").withIndex("by_external_id", (q) => q.eq("runExternalId", args.runExternalId)).unique()
     if (!run) return
     await ctx.db.patch(run._id, { status: "completed", completedAt: Date.now(), counts: args.counts, ...(args.countsByEndpoint ? { countsByEndpoint: args.countsByEndpoint } : {}) })
+    // importBatch runs per chunk and leaves the chunk's size on the endpoint: the run's totals replace it.
+    for (const [endpointKey, recordCount] of Object.entries(args.countsByEndpoint ?? {})) {
+      const state = await ctx.db.query("iikoEndpointStates").withIndex("by_endpoint_key", (q) => q.eq("endpointKey", endpointKey)).unique()
+      if (state) await ctx.db.patch(state._id, { recordCount })
+    }
   },
 })
 
