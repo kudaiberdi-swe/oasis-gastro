@@ -42,9 +42,9 @@ export type XReportData = ShiftReportSnapshot & {
   openingCash: number
 }
 
-const ROLE_LABEL: Record<EmployeeRole, string> = { cashier: "Кассир", manager: "Менеджер", administrator: "Администратор", kitchen: "Кухня" }
+export const ROLE_LABEL: Record<EmployeeRole, string> = { cashier: "Кассир", manager: "Менеджер", administrator: "Администратор", kitchen: "Кухня" }
 
-const METHOD_LABEL: Record<PaymentMethod, string> = { cash: "Наличные", card: "Банковские карты", qr: "QR" }
+export const METHOD_LABEL: Record<PaymentMethod, string> = { cash: "Наличные", card: "Банковские карты", qr: "QR" }
 
 export function duration(start: number, end: number) {
   const minutes = Math.max(0, Math.floor((end - start) / 60_000))

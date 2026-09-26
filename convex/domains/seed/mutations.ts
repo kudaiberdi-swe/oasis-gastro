@@ -4,6 +4,7 @@ import { internalMutation } from "../../_generated/server"
 import { employeeRole } from "../../lib/validators"
 import { seedCashflowCategoryRows, seedChartOfAccountsRows } from "../finance/seed"
 import { seedRetailDefaults } from "../retail/internal"
+import { seedPrintTemplateRows } from "../platform/printTemplates"
 import { categoryPrepArea } from "../catalog/migrations"
 
 async function upsertByExternalId<T extends { externalId: string }>(
@@ -151,6 +152,7 @@ export const seedAll = internalMutation({
     }
 
     await seedCashflowCategoryRows(ctx)
+    await seedPrintTemplateRows(ctx)
     return {
       organization: args.organization.externalId,
       restaurants: args.restaurants.length,

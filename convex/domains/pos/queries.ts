@@ -2,9 +2,11 @@ import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
 
 import { query } from "../../_generated/server"
-import { requireOperator } from "../../lib/auth"
+import { requireAnyOperator, requireOperator } from "../../lib/auth"
 import { isAvailable } from "../../lib/availability"
 import { resolvePrice } from "../../lib/pricing"
+import { resolveSetting } from "../../lib/settings"
+import { activePrintTemplate } from "../platform/printTemplates"
 
 /** The terminal's notifications, newest first, with this employee's read flag (W1-POS-09). */
 export const notifications = query({
@@ -52,5 +54,26 @@ export const unreadNotificationCount = query({
     const access = await requireOperator(ctx, args.sessionToken)
     const latest = await ctx.db.query("posNotifications").withIndex("by_terminal_created", (q) => q.eq("terminalId", access.terminal._id)).order("desc").take(200)
     return latest.reduce((count, item) => count + (item.readBy.includes(access.employee._id) ? 0 : 1), 0)
+  },
+})
+
+/**
+ * What the terminal reads from the office (W3-ADM-10/12): the published print templates of the check,
+ * pre-check, X and Z (null — the built-in form stays) and the idle-lock minutes of «Настройки системы».
+ */
+export const terminalSettings = query({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const access = await requireAnyOperator(ctx, args.sessionToken)
+    const restaurant = { externalId: access.restaurant.externalId, organizationExternalId: access.restaurant.organizationExternalId }
+    const organization = await ctx.db.query("organizations").withIndex("by_external_id", (q) => q.eq("externalId", restaurant.organizationExternalId)).unique()
+    const idleLock = await resolveSetting(ctx, "security.posIdleLockMinutes", { organizationExternalId: restaurant.organizationExternalId, restaurantExternalId: restaurant.externalId, terminalExternalId: access.terminal.externalId })
+    const [receipt, precheck, xReport, zReport] = await Promise.all((["receipt", "precheck", "x-report", "z-report"] as const).map((type) => activePrintTemplate(ctx, type, restaurant)))
+    return {
+      idleLockMinutes: idleLock.value,
+      organizationName: organization?.legalName || organization?.name || "",
+      restaurantAddress: access.restaurant.address,
+      printTemplates: { receipt, precheck, "x-report": xReport, "z-report": zReport },
+    }
   },
 })

@@ -7,7 +7,7 @@ import { LiveSyncIndicator } from "@/pos/components/live-sync-indicator"
 import { CatalogPanel, type CatalogPanelControl } from "@/pos/features/catalog/ui/catalog-panel"
 import { useBarcodeLookup } from "@/pos/features/hotkeys/data/use-barcode-lookup"
 import { useBarcodeScanner, usePosHotkeys } from "@/pos/features/hotkeys/ui/use-pos-hotkeys"
-import { buildOrderReceiptHtml, precheckFromDraft } from "@/pos/features/checkout/model/order-receipt"
+import { precheckFromDraft } from "@/pos/features/checkout/model/order-receipt"
 import { PaymentDialog, type CheckoutPayment } from "@/pos/features/checkout/ui/payment-dialog"
 import { useKitchenBoard } from "@/kitchen/features/board/data/use-kitchen-board"
 import { KitchenBoard } from "@/kitchen/features/board/ui/kitchen-board"
@@ -31,6 +31,7 @@ import type { OrderDraftLine } from "@/pos/features/order-taking/model/draft-lin
 import { OrderPanel, type OrderTypeOption } from "@/pos/components/order-panel"
 import { VoidLineDialog } from "@/pos/features/order-taking/ui/void-line-dialog"
 import { printHtml } from "@/pos/features/print/print-document"
+import { usePosPrinter } from "@/pos/features/print/template-print"
 import { useRetailSettings, type PosOrderType } from "@/pos/features/retail/data/use-retail-settings"
 import { useLoyaltyMutations, useLoyaltyQuote, useOrderGuest } from "@/pos/features/loyalty/data/use-loyalty"
 import { GuestDialog } from "@/pos/features/loyalty/ui/guest-dialog"
@@ -42,8 +43,6 @@ import { useManagerApproval } from "@/pos/features/session/ui/manager-approval-d
 import { ProfileDialog, ROLE_LABEL } from "@/pos/features/session/ui/profile-dialog"
 import { usePosSession } from "@/pos/features/session/model/use-pos-session"
 import { TerminalPicker } from "@/pos/features/session/ui/terminal-picker"
-import { buildXReportHtml } from "@/pos/features/shifts/model/x-report"
-import { buildZReportHtml } from "@/pos/features/shifts/model/z-report"
 import type { CashMovementInput } from "@/pos/features/shifts/model/cash-operations"
 import { OpenShiftDialog, ShiftDialog, type ShiftTab } from "@/pos/features/shifts/ui/shift-dialog"
 import { useClosePreview, useCurrentShift, useShiftMutations, useZReportLoader } from "@/pos/features/shifts/data/use-shifts"
@@ -150,6 +149,8 @@ function AuthenticatedPos({
   const { requestApproval, dialog: managerDialog } = useManagerApproval(terminalExternalId)
   const { attachGuest, detachGuest, setRedemption } = useLoyaltyMutations()
   const loadZReport = useZReportLoader(sessionToken)
+  // Check, pre-check, X and Z by the office's published templates (W3-ADM-10), else the built-in forms.
+  const printer = usePosPrinter(sessionToken)
 
   const [selectedOrderId, setSelectedOrderId] = useState<Id<"orders"> | null>(null)
   const [pendingSeat, setPendingSeat] = useState<TableSeat>({})
@@ -280,13 +281,13 @@ function AuthenticatedPos({
       managerApprovalToken = token
     }
     const report = await createXReport({ sessionToken, idempotencyKey: crypto.randomUUID(), managerApprovalToken })
-    printHtml(buildXReportHtml(report))
+    printHtml(printer.xReport(report))
   }
 
   async function printZReport(shiftId: string) {
     const report = await loadZReport(shiftId)
     if (!report) throw new Error("Z-отчёт этой смены не найден")
-    printHtml(buildZReportHtml(report, place))
+    printHtml(printer.zReport(report, place))
   }
 
   async function handleCashMovement(input: CashMovementInput & { idempotencyKey: string; managerApprovalToken?: string }) {
@@ -331,7 +332,7 @@ function AuthenticatedPos({
 
   function printPrecheck() {
     const orderTypeName = typeOptions.find((option) => option.value === (draft.orderType.externalId ?? draft.orderType.mode))?.label
-    printHtml(buildOrderReceiptHtml(precheckFromDraft(draft, { ...place, operatorName: access.employee.displayName, orderTypeName })))
+    printHtml(printer.order(precheckFromDraft(draft, { ...place, operatorName: access.employee.displayName, orderTypeName })))
   }
 
   function handleAction(action: Exclude<OrderAction, "void">) {
@@ -576,7 +577,7 @@ function AuthenticatedPos({
         sessionToken={sessionToken}
         onContinue={handleContinue}
         onRefund={handleRefund}
-        onPrint={(order) => printHtml(buildOrderReceiptHtml(receiptFromOrder(order, place)))}
+        onPrint={(order) => printHtml(printer.order(receiptFromOrder(order, place)))}
         onManagerRequired={requestApproval}
       />
       <ShiftDialog

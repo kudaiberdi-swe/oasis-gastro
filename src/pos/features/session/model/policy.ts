@@ -1,2 +1,2 @@
-/** Mirrors convex/lib/policy.ts IDLE_LOCK_MS — kept client-side since the server doesn't push idle events. */
+/** Default of «security.posIdleLockMinutes» (convex/lib/settings.ts) until the terminal settings load; the timer runs client-side. */
 export const IDLE_LOCK_MS_CLIENT = 5 * 60 * 1000

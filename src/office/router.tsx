@@ -41,6 +41,9 @@ import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-or
 import { KitchenPlanWorkspace, SemiFinishedSheetWorkspace } from "@/office/features/production-logistics/ui/logistics-page"
 import { AssemblyActsWorkspace, InternalOrdersWorkspace, ProcessingActsWorkspace, ProductionWorkspace, PurchaseOrdersWorkspace, SalesActsWorkspace } from "@/office/features/production/ui/production-workspace"
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
+import { EquipmentWorkspace } from "@/office/features/platform/ui/equipment-workspace"
+import { PrintTemplatesWorkspace } from "@/office/features/platform/ui/print-templates-workspace"
+import { SystemSettingsWorkspace } from "@/office/features/platform/ui/system-settings-workspace"
 import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
 import { ReportFavoritesWorkspace } from "@/office/features/reports/ui/report-favorites-page"
 import { ReportSchedulesWorkspace } from "@/office/features/reports/ui/report-schedules-page"
@@ -140,6 +143,9 @@ const WORKSPACES: Record<string, ComponentType> = {
   roles: AccessControlWorkspace,
   users: AccessControlWorkspace,
   terminals: TerminalsWorkspace,
+  equipment: EquipmentWorkspace,
+  "print-templates": PrintTemplatesWorkspace,
+  "system-settings": SystemSettingsWorkspace,
   "document-locks": PeriodLocksWorkspace,
   "data-exchange": DataExchangeWorkspace,
   "audit-log": AuditLogWorkspace,

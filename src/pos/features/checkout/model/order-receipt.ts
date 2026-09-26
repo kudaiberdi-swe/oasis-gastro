@@ -40,7 +40,7 @@ export type OrderReceiptData = {
   payments?: ReceiptPayment[]
 }
 
-function itemsWord(count: number) {
+export function itemsWord(count: number) {
   const mod10 = count % 10
   const mod100 = count % 100
   if (mod100 >= 11 && mod100 <= 14) return "позиций"

@@ -11,7 +11,7 @@ import { financeHooks, validateFinanceRecord } from "./modules"
 // Finance records (W1-FIN-01) on the domain-record engine. Every handler checks office.<module>.<action>
 // and the restaurant scope itself.
 
-function moduleOf(moduleId: FinanceModuleId): ModuleDefinition {
+function moduleOf(moduleId: FinanceModuleId): ModuleDefinition<"financeRecords"> {
   return { moduleId, ...FINANCE_MODULES[moduleId] }
 }
 

@@ -19,7 +19,7 @@ export function FormSection({ title, children }: { title: string; children: Reac
 }
 
 /** «Проведение и аудит»: number, status, dates and version of a saved record. */
-export function RecordAudit({ record, children }: { record: FinanceRecord; children?: ReactNode }) {
+export function RecordAudit({ record, children }: { record: Pick<FinanceRecord, "number" | "status" | "businessDate" | "createdAt" | "updatedAt" | "postedAt" | "reversedAt" | "version">; children?: ReactNode }) {
   const rows: [string, ReactNode][] = [
     ["Номер", <span className="font-semibold">{record.number}</span>],
     ["Статус", <StatusPill domain="document" status={record.status} />],

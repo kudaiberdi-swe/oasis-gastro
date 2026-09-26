@@ -1,4 +1,4 @@
-import { useAction, useMutation } from "convex/react"
+import { useAction, useMutation, useQuery } from "convex/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { api } from "../../../../../convex/_generated/api"
@@ -52,6 +52,10 @@ export function usePosSession() {
   const logoutMutation = useMutation(api.domains.auth.mutations.logout)
   const lockMutation = useMutation(api.domains.auth.mutations.lock)
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // «Автоблокировка кассы» of «Настройки системы» (W3-ADM-12, terminal → restaurant → organization); 5 min until it loads.
+  const settings = useQuery(api.domains.pos.queries.terminalSettings, access ? { sessionToken: access.sessionToken } : "skip")
+  const idleMs = useRef(IDLE_LOCK_MS_CLIENT)
+  idleMs.current = settings?.idleLockMinutes ? settings.idleLockMinutes * 60_000 : IDLE_LOCK_MS_CLIENT
 
   const [terminalExternalId, setTerminalExternalId] = useState<string | null>(() => resolveTerminalExternalId())
 
@@ -102,7 +106,7 @@ export function usePosSession() {
   const touch = useCallback(() => {
     if (!access) return
     if (idleTimer.current) clearTimeout(idleTimer.current)
-    idleTimer.current = setTimeout(() => void lock(), IDLE_LOCK_MS_CLIENT)
+    idleTimer.current = setTimeout(() => void lock(), idleMs.current)
   }, [access, lock])
 
   useEffect(() => {
@@ -116,6 +120,12 @@ export function usePosSession() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Boolean(access)])
+
+  // A new idle-lock value from the office restarts the running timer with it.
+  useEffect(() => {
+    if (access && settings?.idleLockMinutes) touch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.idleLockMinutes])
 
   return { access, locked, terminalExternalId, chooseTerminal, signIn, signOut, lock }
 }

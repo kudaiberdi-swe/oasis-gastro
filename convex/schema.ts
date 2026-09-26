@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 import { authTables } from "@convex-dev/auth/server"
 import { financeModuleId, financeRecordData } from "./domains/finance/validators"
+import { platformModuleId, platformRecordData, printRoutingRule } from "./domains/platform/validators"
 import { officeDomainStatus } from "./lib/validators"
 import { retailKind, retailSettingData } from "./domains/retail/validators"
 import { reportConfig } from "./lib/reportConfig"
@@ -1556,6 +1557,34 @@ export default defineSchema({
     .index("by_module_restaurant_date", ["moduleId", "restaurantExternalId", "businessDate"])
     .index("by_counterparty_module", ["counterpartyExternalId", "moduleId"])
     .searchIndex("search_finance_records", { searchField: "searchText", filterFields: ["moduleId", "status", "restaurantExternalId"] }),
+  // Platform domain records (W3-ADM-10…12): print templates, equipment, system settings — the same
+  // contract as financeRecords (lib/domainRecords.ts). A network-wide record keeps «organization:<id>» in
+  // restaurantExternalId; lookupKey is the module's own lookup (documentType|scope, key|scope|object, terminal).
+  platformRecords: defineTable({
+    externalId: v.string(),
+    moduleId: platformModuleId,
+    number: v.string(),
+    name: v.string(),
+    status: officeDomainStatus,
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    businessDate: v.string(), // YYYY-MM-DD
+    amount: v.number(), // always 0: no money on platform records (L-10)
+    data: platformRecordData,
+    lookupKey: v.optional(v.string()),
+    routing: v.optional(v.array(printRoutingRule)), // equipment: station → printer
+    searchText: v.string(),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    postedAt: v.optional(v.number()),
+    reversedAt: v.optional(v.number()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_module_status_date", ["moduleId", "status", "businessDate"])
+    .index("by_module_restaurant_date", ["moduleId", "restaurantExternalId", "businessDate"])
+    .index("by_module_lookup_status", ["moduleId", "lookupKey", "status"])
+    .searchIndex("search_platform_records", { searchField: "searchText", filterFields: ["moduleId", "status", "restaurantExternalId"] }),
   // Production and logistics documents (W2-PRD-02…06): production acts, processing, assembly and sales
   // acts, internal orders, purchase orders — one typed table, lines inline.
   productionDocuments: defineTable({

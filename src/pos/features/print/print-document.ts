@@ -45,19 +45,30 @@ export const PRINT_STYLES = `
   .note { margin-top: 6px; padding: 5px; border: 1px solid #000; overflow-wrap: anywhere; }
   .footer { margin-top: 12px; text-align: center; }
   .slogan { margin-top: 6px; text-align: center; font-size: 10px; letter-spacing: .12em; }
+  .line { margin: 0; padding: 1px 0; overflow-wrap: anywhere; }
+  .align-right { text-align: right; }
+  .large { font-family: Arial, sans-serif; font-size: 16px; }
+  .logo { margin: 0 0 4px; text-align: center; }
+  .logo img { height: 18mm; filter: grayscale(1) brightness(0); }
+  .divider.solid { border-top: 2px solid #000; }
+  .copy { break-after: page; }
   @media screen { body { padding: 16px 0; background: #eee; } .paper { background: #fff; } }
   @media print { body { width: 80mm; } .paper { margin: 0; } }
 `
 
-export function printPage(title: string, body: string) {
+export function printPage(title: string, body: string, options: { widthMm?: 58 | 80; copies?: number } = {}) {
+  // 58 mm tape: 50 mm printable; copies are separate pages of the same form.
+  const narrow = options.widthMm === 58 ? "@page { size: 58mm auto; margin: 0; } .paper { width: 50mm; } @media print { body { width: 58mm; } }" : ""
+  const copies = Math.min(Math.max(1, Math.round(options.copies ?? 1)), 5)
+  const papers = Array.from({ length: copies }, (_, index) => `<main class="paper${index < copies - 1 ? " copy" : ""}">${body}</main>`).join("")
   return `<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
 <title>${escapeHtml(title)}</title>
-<style>${PRINT_STYLES}</style>
+<style>${PRINT_STYLES}${narrow}</style>
 </head>
-<body><main class="paper">${body}</main></body>
+<body>${papers}</body>
 </html>`
 }
 
@@ -83,7 +94,7 @@ export function printHtml(html: string): boolean {
   doc.close()
   const cleanup = () => window.setTimeout(() => frame.remove(), 1000)
   target.addEventListener("afterprint", cleanup, { once: true })
-  window.setTimeout(() => {
+  const print = () => {
     try {
       target.focus()
       target.print()
@@ -91,6 +102,27 @@ export function printHtml(html: string): boolean {
       // Browsers without afterprint on frames still get the frame removed.
       window.setTimeout(() => frame.remove(), 60_000)
     }
-  }, 50)
+  }
+  // A template's logo is an image: print once it has loaded (at most 1.5 s), so the paper never misses it.
+  const pending = Array.from(doc.images ?? []).filter((image) => !image.complete)
+  if (!pending.length) window.setTimeout(print, 50)
+  else {
+    let printed = false
+    const once = () => {
+      if (printed) return
+      printed = true
+      print()
+    }
+    let left = pending.length
+    for (const image of pending) {
+      const done = () => {
+        left -= 1
+        if (left <= 0) once()
+      }
+      image.addEventListener("load", done, { once: true })
+      image.addEventListener("error", done, { once: true })
+    }
+    window.setTimeout(once, 1500)
+  }
   return true
 }
