@@ -59,6 +59,8 @@ import { SuppliersPage } from "@/office/features/stock/ui/suppliers-page"
 import { UnitsPage } from "@/office/features/stock/ui/units-page"
 import { WarehousesPage } from "@/office/features/stock/ui/warehouses-page"
 import { AttendanceWorkspace } from "@/office/features/workforce/ui/attendance-workspace"
+import { MedicalRecordsWorkspace } from "@/office/features/workforce/ui/medical-records-workspace"
+import { MotivationWorkspace } from "@/office/features/workforce/ui/motivation-workspace"
 import { PayrollWorkspace } from "@/office/features/workforce/ui/payroll-workspace"
 import { PositionsWorkspace } from "@/office/features/workforce/ui/positions-workspace"
 import { ScheduleWorkspace } from "@/office/features/workforce/ui/schedule-workspace"
@@ -119,6 +121,8 @@ const WORKSPACES: Record<string, ComponentType> = {
   schedule: ScheduleWorkspace,
   attendance: AttendanceWorkspace,
   payroll: PayrollWorkspace,
+  motivation: MotivationWorkspace,
+  "medical-records": MedicalRecordsWorkspace,
   guests: LoyaltyWorkspace,
   "loyalty-programs": LoyaltyProgramsWorkspace,
   "guest-categories": GuestCategoriesWorkspace,

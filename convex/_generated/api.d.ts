@@ -118,6 +118,8 @@ import type * as domains_stockDocuments_mutations from "../domains/stockDocument
 import type * as domains_stockDocuments_queries from "../domains/stockDocuments/queries.js";
 import type * as domains_stockDocuments_validators from "../domains/stockDocuments/validators.js";
 import type * as domains_workforce_attendance from "../domains/workforce/attendance.js";
+import type * as domains_workforce_medical from "../domains/workforce/medical.js";
+import type * as domains_workforce_motivation from "../domains/workforce/motivation.js";
 import type * as domains_workforce_mutations from "../domains/workforce/mutations.js";
 import type * as domains_workforce_payroll from "../domains/workforce/payroll.js";
 import type * as domains_workforce_queries from "../domains/workforce/queries.js";
@@ -143,6 +145,7 @@ import type * as lib_loyalty from "../lib/loyalty.js";
 import type * as lib_loyaltyCore from "../lib/loyaltyCore.js";
 import type * as lib_modifierPricing from "../lib/modifierPricing.js";
 import type * as lib_money from "../lib/money.js";
+import type * as lib_motivation from "../lib/motivation.js";
 import type * as lib_numbering from "../lib/numbering.js";
 import type * as lib_obligations from "../lib/obligations.js";
 import type * as lib_officeAccess from "../lib/officeAccess.js";
@@ -295,6 +298,8 @@ declare const fullApi: ApiFromModules<{
   "domains/stockDocuments/queries": typeof domains_stockDocuments_queries;
   "domains/stockDocuments/validators": typeof domains_stockDocuments_validators;
   "domains/workforce/attendance": typeof domains_workforce_attendance;
+  "domains/workforce/medical": typeof domains_workforce_medical;
+  "domains/workforce/motivation": typeof domains_workforce_motivation;
   "domains/workforce/mutations": typeof domains_workforce_mutations;
   "domains/workforce/payroll": typeof domains_workforce_payroll;
   "domains/workforce/queries": typeof domains_workforce_queries;
@@ -320,6 +325,7 @@ declare const fullApi: ApiFromModules<{
   "lib/loyaltyCore": typeof lib_loyaltyCore;
   "lib/modifierPricing": typeof lib_modifierPricing;
   "lib/money": typeof lib_money;
+  "lib/motivation": typeof lib_motivation;
   "lib/numbering": typeof lib_numbering;
   "lib/obligations": typeof lib_obligations;
   "lib/officeAccess": typeof lib_officeAccess;

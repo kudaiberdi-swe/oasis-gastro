@@ -800,9 +800,84 @@ export default defineSchema({
     runExternalId: v.optional(v.string()), // the run that took it
     createdBy: v.string(),
     createdAt: v.number(),
+    sourceExternalId: v.optional(v.string()), // W3-HR-07: the motivation program that accrued it (one per employee)
   })
     .index("by_external_id", ["externalId"])
-    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"]),
+    .index("by_restaurant_date", ["restaurantExternalId", "businessDate"])
+    .index("by_source_employee", ["sourceExternalId", "employeeId"]),
+
+  // Motivation programs (W3-HR-07): a KPI rule per restaurant and period (draft → published ⇄ inactive,
+  // → expired). Results come from sales facts, kitchen timers and attendance against the schedule; the
+  // accrual writes bonus adjustments that the payroll run takes — never postings of its own.
+  motivationPrograms: defineTable({
+    externalId: v.string(),
+    number: v.string(), // МП-YYYY-NNNNN
+    name: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    status: v.union(v.literal("draft"), v.literal("published"), v.literal("inactive"), v.literal("expired")),
+    metric: v.union(v.literal("sales"), v.literal("average-check"), v.literal("kitchen-time"), v.literal("attendance")),
+    threshold: v.number(), // ₸ (sales, average check), minutes (kitchen time) or % of shifts on time (attendance)
+    rewardType: v.union(v.literal("fixed"), v.literal("percent")),
+    rewardValue: v.number(), // ₸ or % of the employee's sales
+    startsAt: v.string(), // YYYY-MM-DD
+    endsAt: v.string(),
+    requiresApproval: v.boolean(),
+    participants: v.object({ positionExternalIds: v.optional(v.array(v.string())), employeeCodes: v.optional(v.array(v.string())) }),
+    accruedAmount: v.optional(v.number()),
+    accruedAt: v.optional(v.number()),
+    version: v.number(),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_status_starts", ["status", "startsAt"])
+    .index("by_restaurant_starts", ["restaurantExternalId", "startsAt"])
+    .searchIndex("search_motivation", { searchField: "searchText", filterFields: ["status", "restaurantExternalId"] }),
+
+  // Medical books and analyses (W3-HR-08): the document, its term and fitness for work — never a
+  // diagnosis. draft → pending-approval → approved; the daily job warns the restaurant before the end
+  // date and, by the setting, takes the employee's admission away once a document runs out unrenewed.
+  medicalRecords: defineTable({
+    externalId: v.string(),
+    number: v.string(), // МК-YYYY-NNNNN
+    employeeId: v.id("employees"),
+    employeeCode: v.string(),
+    employeeName: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    status: v.union(v.literal("draft"), v.literal("pending-approval"), v.literal("approved"), v.literal("cancelled")),
+    documentType: v.union(v.literal("medical-book"), v.literal("analysis"), v.literal("certificate")),
+    issuedAt: v.string(), // YYYY-MM-DD
+    expiresAt: v.string(), // YYYY-MM-DD, the last valid day, after issuedAt
+    issuer: v.string(),
+    documentNumber: v.string(), // personal data: masked without office.employees.pii
+    fitForWork: v.boolean(),
+    comment: v.optional(v.string()), // personal data: hidden without office.employees.pii
+    expiryProcessed: v.boolean(), // the daily job has handled the end of the term
+    version: v.number(),
+    searchText: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_expires", ["expiresAt"])
+    .index("by_status_expires", ["status", "expiresAt"])
+    .index("by_restaurant_expires", ["restaurantExternalId", "expiresAt"])
+    .index("by_restaurant_status_expires", ["restaurantExternalId", "status", "expiresAt"])
+    .index("by_status_processed_expires", ["status", "expiryProcessed", "expiresAt"])
+    .index("by_employee_type_expires", ["employeeId", "documentType", "expiresAt"])
+    .searchIndex("search_medical_records", { searchField: "searchText", filterFields: ["status", "restaurantExternalId"] }),
+
+  // Workforce settings (W3-HR-08): one row per key; a missing row means the defaults in code.
+  workforceSettings: defineTable({
+    key: v.literal("medical-records"),
+    revokeAdmissionOnExpiry: v.boolean(),
+    notifyWithinDays: v.number(), // 0 — no POS warning before the end date
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   payrollPayouts: defineTable({
     externalId: v.string(),

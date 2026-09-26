@@ -14,6 +14,7 @@ crons.interval("expire retail settings", { minutes: 10 }, internal.domains.retai
 crons.daily("expire loyalty points", { hourUTC: 22, minuteUTC: 0 }, internal.domains.loyalty.expiry.expireLoyaltyPoints, {})
 crons.interval("release stale loyalty reservations", { minutes: 10 }, internal.domains.loyalty.expiry.releaseStaleReservations, {})
 crons.interval("dispatch report mailings", { minutes: 1 }, internal.domains.reports.schedules.dispatchSchedules, {})
+crons.daily("medical records expiry", { hourUTC: 19, minuteUTC: 30 }, internal.domains.workforce.medical.processMedicalExpiry, {})
 crons.interval("reconcile price order statuses", { minutes: 1 }, internal.domains.pricing.crons.reconcileStatuses, {})
 
 export default crons
