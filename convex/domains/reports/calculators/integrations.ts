@@ -1,6 +1,9 @@
 import type { Doc } from "../../../_generated/dataModel"
 import type { ReportConfig, ReportResult } from "../../../lib/reportConfig"
+import { CLOUD_API_PROVIDER } from "../../integrations/adapters/cloudApiWebhook"
+import type { EquipmentType } from "../../platform/modules"
 import type { Calculator } from "../registry"
+import { matcher } from "./_facts"
 import { aggregate, col, dayEnd, dayStart } from "./_shared"
 import { coversNetwork, localDateTime, restaurantNames, scopeOf, statusResult } from "./_scope"
 import { newBudget, percent, spend, type Budget } from "./stockHelpers"
@@ -263,41 +266,59 @@ function notApplicableKz(what: string): Calculator {
 
 // ── 11: Cloud API and webhooks ────────────────────────────────────────────────
 
+/**
+ * What came and went through the Cloud API (W3-INT-03): the delivery orders the website sent (they carry
+ * the channel's own id, deliveryOrders.sourceOrderId), the inbound webhooks and the website's outgoing
+ * webhooks (provider «cloud-api») of the integration queue.
+ */
 const cloudApi: Calculator = async (ctx, config, restaurants) => {
-  const columns = [col("group", "Источник", "text"), col("kind", "Тип", "text"), col("total", "Вызовов", "count"), col("completed", "Успешно", "count"), col("failed", "Ошибок", "count"), col("last", "Последний", "text")]
+  const columns = [col("group", "Источник", "text"), col("kind", "Тип", "text"), col("total", "Всего", "count"), col("completed", "Принято / выполнено", "count"), col("pending", "В очереди", "count"), col("failed", "Ошибок", "count"), col("cancelled", "Отменено", "count"), col("amount", "Сумма заказов", "money"), col("last", "Последний", "text")]
   const budget = newBudget()
-  const inScope = scopeOf(restaurants, await coversNetwork(ctx, restaurants))
-  const groups = new Map<string, { label: string; kind: string; total: number; completed: number; failed: number; last: number }>()
-  const add = (key: string, label: string, kind: string, at: number, ok: boolean, failed: boolean) => {
-    const row = groups.get(key) ?? { label, kind, total: 0, completed: 0, failed: 0, last: 0 }
+  const matches = matcher(config)
+  const groups = new Map<string, { label: string; kind: string; total: number; completed: number; pending: number; failed: number; cancelled: number; amount: number; last: number }>()
+  const add = (key: string, label: string, kind: string, at: number, outcome: "completed" | "pending" | "failed" | "cancelled", amount = 0) => {
+    const row = groups.get(key) ?? { label, kind, total: 0, completed: 0, pending: 0, failed: 0, cancelled: 0, amount: 0, last: 0 }
     row.total += 1
-    if (ok) row.completed += 1
-    if (failed) row.failed += 1
+    row[outcome] += 1
+    row.amount += amount
     row.last = Math.max(row.last, at)
     groups.set(key, row)
   }
-  // Inbound webhooks go through the queue (W3-INT-03 contract: direction inbound, operation webhook).
+  const sources = new Map<string, string>()
+  const sourceName = async (externalId: string) => {
+    if (!sources.has(externalId)) sources.set(externalId, (await ctx.db.query("deliverySources").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique())?.name ?? externalId)
+    return sources.get(externalId)!
+  }
+  let orders = 0
+  for (const restaurant of restaurants) {
+    for await (const order of ctx.db.query("deliveryOrders").withIndex("by_restaurant_created", (q) => q.eq("restaurantExternalId", restaurant).gte("createdAt", dayStart(config.dateFrom)).lte("createdAt", dayEnd(config.dateTo)))) {
+      if (!spend(budget)) break
+      if (!order.sourceOrderId) continue
+      const name = await sourceName(order.sourceExternalId)
+      if (!matches(name, order.number, order.sourceOrderId)) continue
+      orders += 1
+      const cancelled = order.status === "cancelled"
+      add(`orders:${order.sourceExternalId}`, name, "Заказы через Cloud API", order.createdAt, cancelled ? "cancelled" : "completed", cancelled ? 0 : order.total)
+    }
+  }
+  const outcomeOf = (job: Job) => (job.status === "completed" ? "completed" : FAILED.has(job.status) ? "failed" : job.status === "cancelled" ? "cancelled" : "pending")
   for await (const job of periodJobs(ctx, config, restaurants, budget)) {
-    if (job.direction !== "inbound") continue
-    add(`webhook:${job.provider}`, job.provider, "Входящий вебхук", job.createdAt, job.status === "completed", FAILED.has(job.status))
+    if (job.direction === "inbound") add(`webhook-in:${job.provider}`, job.provider, "Входящий вебхук", job.createdAt, outcomeOf(job))
+    else if (job.provider === CLOUD_API_PROVIDER) add(`webhook-out:${job.operation}`, "Сайт (Cloud API)", `Исходящий вебхук · ${job.operation}`, job.createdAt, outcomeOf(job))
   }
-  // Signed Cloud API calls leave an audit event of the actor "api:<source>".
-  const from = dayStart(config.dateFrom)
-  const to = dayEnd(config.dateTo)
-  for await (const event of ctx.db.query("auditEvents").withIndex("by_actor_occurred", (q) => q.gte("actorKey", "api:").lt("actorKey", "api;"))) {
-    if (!spend(budget)) break
-    if (event.occurredAt < from || event.occurredAt > to || !inScope(event.restaurantExternalId)) continue
-    add(event.actorKey, event.actorKey.slice(4), `Cloud API · ${event.action}`, event.occurredAt, true, false)
-  }
-  const rows = [...groups.entries()].sort((a, b) => b[1].total - a[1].total).map(([key, row]) => ({ key, cells: { group: row.label, kind: row.kind, total: row.total, completed: row.completed, failed: row.failed, last: localDateTime(row.last) } }))
-  const sum = (key: "total" | "completed" | "failed") => rows.reduce((total, row) => total + row.cells[key], 0)
+  const rows = [...groups.entries()]
+    .sort((a, b) => b[1].total - a[1].total)
+    .map(([key, row]) => ({ key, cells: { group: row.label, kind: row.kind, total: row.total, completed: row.completed, pending: row.pending, failed: row.failed, cancelled: row.cancelled, amount: row.amount, last: localDateTime(row.last) } }))
+  const sum = (key: "total" | "completed" | "pending" | "failed" | "cancelled" | "amount") => rows.reduce((total, row) => total + row.cells[key], 0)
   return {
-    sourceLabel: rows.length ? "Входящие вебхуки (очередь интеграций) и вызовы Cloud API (журнал аудита)" : "Вызовов Cloud API и вебхуков за период нет",
+    sourceLabel: rows.length ? "Заказы доставки, принятые через Cloud API, и вебхуки очереди интеграций (входящие и исходящие сайту)" : "Заказов через Cloud API и вебхуков за период нет",
     columns,
     rows,
-    totals: { total: sum("total"), completed: sum("completed"), failed: sum("failed") },
+    totals: { total: sum("total"), completed: sum("completed"), pending: sum("pending"), failed: sum("failed"), cancelled: sum("cancelled"), amount: sum("amount") },
     kpis: [
-      { key: "total", label: "Вызовов", value: sum("total"), unit: "count" },
+      { key: "orders", label: "Заказов через API", value: orders, unit: "count" },
+      { key: "amount", label: "Сумма заказов", value: sum("amount"), unit: "money" },
+      { key: "webhooks", label: "Вебхуков", value: sum("total") - orders, unit: "count" },
       { key: "failed", label: "Ошибок", value: sum("failed"), unit: "count" },
     ],
     truncated: budget.truncated,
@@ -306,57 +327,105 @@ const cloudApi: Calculator = async (ctx, config, restaurants) => {
 
 // ── 12: external menu publication ─────────────────────────────────────────────
 
-/** Publications of the external menu leave as integration jobs of the operation "external-menu.publish". */
+const CHANNEL_LABEL: Record<Doc<"externalMenus">["channel"], string> = { website: "Сайт", "mobile-app": "Мобильное приложение", aggregators: "Агрегаторы", all: "Все каналы" }
+const MENU_STATUS: Record<Doc<"externalMenus">["status"], string> = { draft: "Черновик", published: "Опубликовано", inactive: "Снято с публикации" }
+const MENU_RECORDS_LIMIT = 200
+
+/**
+ * The external menu (W3-INT-04): every snapshot published in the period for the report's restaurants
+ * (the version is the content hash — an unchanged catalog adds no row), with its channel record. A record
+ * in mode «живое меню» has no snapshots: the API serves the current catalog, counted in the KPIs.
+ */
 const externalMenu: Calculator = async (ctx, config, restaurants) => {
-  const columns = [col("group", "Когда", "text"), col("provider", "Канал", "text"), col("status", "Статус", "text"), col("attempts", "Попыток", "count"), col("error", "Ошибка", "text")]
-  const budget = newBudget()
+  const columns = [col("group", "Когда", "text"), col("menu", "Публикация", "text"), col("channel", "Канал", "text"), col("restaurant", "Ресторан", "text"), col("version", "Версия", "text"), col("items", "Позиций", "count"), col("author", "Опубликовал", "text"), col("status", "Статус записи", "text")]
+  const names = await restaurantNames(ctx, restaurants)
+  const selected = new Set(restaurants)
+  const matches = matcher(config)
+  const records = await ctx.db.query("externalMenus").withIndex("by_creation_time").order("desc").take(MENU_RECORDS_LIMIT)
   const rows = []
-  for await (const job of periodJobs(ctx, config, restaurants, budget)) {
-    if (!job.operation.startsWith("external-menu")) continue
-    if (rows.length < ROW_LIMIT) rows.push({ key: job.externalId, cells: { group: localDateTime(job.createdAt), provider: job.provider, status: STATUS_LABEL[job.status], attempts: job.attempts, error: job.error ?? "—" } })
+  let menus = 0
+  let live = 0
+  let versionsTruncated = false
+  for (const record of records) {
+    const covered = record.restaurantExternalIds.includes("*") ? restaurants : record.restaurantExternalIds.filter((id) => selected.has(id))
+    if (!covered.length) continue
+    menus += 1
+    if (record.mode === "live" && record.status === "published") live += 1
+    for (const restaurant of covered) {
+      const versions = await ctx.db.query("externalMenuVersions").withIndex("by_record_restaurant_published", (q) => q.eq("recordExternalId", record.externalId).eq("restaurantExternalId", restaurant).gte("publishedAt", dayStart(config.dateFrom)).lte("publishedAt", dayEnd(config.dateTo))).take(100)
+      if (versions.length === 100) versionsTruncated = true
+      for (const version of versions) {
+        if (!matches(record.name, record.number, names.get(restaurant) ?? restaurant)) continue
+        rows.push({ key: String(version._id), cells: { group: localDateTime(version.publishedAt), menu: `${record.number} «${record.name}»`, channel: CHANNEL_LABEL[record.channel], restaurant: names.get(restaurant) ?? restaurant, version: version.version.slice(0, 8), items: version.itemCount, author: version.publishedBy, status: MENU_STATUS[record.status] } })
+      }
+    }
   }
-  const published = rows.filter((row) => row.cells.status === STATUS_LABEL.completed).length
+  rows.sort((a, b) => b.cells.group.localeCompare(a.cells.group))
   return {
-    sourceLabel: rows.length ? "Публикации внешнего меню (очередь интеграций)" : "Не подключено: публикаций внешнего меню за период нет — канал сайта и агрегаторов не настроен",
+    sourceLabel: menus ? "Снимки внешнего меню по ресторанам, опубликованные за период (версия — хеш содержимого)" : "Не подключено: внешнее меню не настроено — создайте публикацию в разделе «Внешнее меню»",
     columns,
-    rows: rows.sort((a, b) => b.cells.group.localeCompare(a.cells.group)),
+    rows,
     totals: {},
     kpis: [
-      { key: "publications", label: "Публикаций", value: rows.length, unit: "count" },
-      { key: "published", label: "Доставлено", value: published, unit: "count" },
+      { key: "publications", label: "Снимков меню", value: rows.length, unit: "count" },
+      { key: "menus", label: "Публикаций (каналов)", value: menus, unit: "count" },
+      { key: "live", label: "В режиме «живое меню»", value: live, unit: "count" },
     ],
-    truncated: budget.truncated,
+    truncated: records.length === MENU_RECORDS_LIMIT || versionsTruncated,
   }
 }
 
 // ── 13: equipment ─────────────────────────────────────────────────────────────
 
 const KIND_LABEL: Record<string, string> = { pos: "Касса", kds: "Экран кухни", office: "Офис", delivery: "Касса доставки" }
+const EQUIPMENT_LABEL: Record<EquipmentType, string> = { "receipt-printer": "Принтер чеков", "kitchen-printer": "Кухонный принтер", "fiscal-register": "ККМ", scale: "Весы", kds: "Экран кухни", "payment-terminal": "Платёжный терминал" }
 const SILENT_MS = 24 * 3_600_000
+const STATE_LABEL = { online: "На связи", silent: "Нет отклика больше суток", off: "Отключено", unknown: "Нет данных об отклике" } as const
+const dataText = (data: Doc<"platformRecords">["data"], key: string) => (typeof data[key] === "string" && (data[key] as string).trim() ? (data[key] as string).trim() : "")
 
 /**
- * Registered POS terminals and their last response (last session activity, last sign-in). The printers,
- * scales and fiscal registers register of W3-ADM-11 is not kept yet — the report says so.
+ * The POS terminals and the equipment register of W3-ADM-11 (platformRecords «equipment»: printers, fiscal
+ * registers, scales, kitchen screens, payment terminals). A terminal answers by its last session activity
+ * or sign-in; a device bound to a terminal answers by that terminal — a free-standing one has no signal.
  */
 const equipment: Calculator = async (ctx, config, restaurants) => {
-  const columns = [col("group", "Устройство", "text"), col("restaurant", "Ресторан", "text"), col("kind", "Тип", "text"), col("appVersion", "Версия", "text"), col("lastSeen", "Последний отклик", "text"), col("state", "Состояние", "text")]
+  const columns = [col("group", "Устройство", "text"), col("restaurant", "Ресторан", "text"), col("kind", "Тип", "text"), col("serial", "Серийный №", "text"), col("connection", "Подключение", "text"), col("terminal", "Терминал", "text"), col("lastSeen", "Последний отклик", "text"), col("state", "Состояние", "text")]
   const names = await restaurantNames(ctx, restaurants)
+  const matches = matcher(config)
   const at = Math.min(Date.now(), dayEnd(config.dateTo))
-  const rows = []
-  const states = { online: 0, silent: 0, off: 0 }
+  const rows: { key: string; cells: Record<string, string> }[] = []
+  const states = { online: 0, silent: 0, off: 0, unknown: 0 }
+  let truncated = false
+  const push = (key: string, cells: Record<string, string>, state: keyof typeof STATE_LABEL, lastSeen: number) => {
+    if (!matches(cells.group, cells.kind, cells.serial)) return
+    states[state] += 1
+    rows.push({ key, cells: { ...cells, lastSeen: lastSeen ? localDateTime(lastSeen) : "Нет данных", state: STATE_LABEL[state] } })
+  }
   for (const restaurant of restaurants) {
     const doc = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", restaurant)).unique()
     if (!doc) continue
+    const restaurantName = names.get(restaurant) ?? restaurant
+    const terminals = new Map<string, { name: string; active: boolean; lastSeen: number }>()
     for (const terminal of await ctx.db.query("posTerminals").withIndex("by_restaurant_number", (q) => q.eq("restaurantId", doc._id)).take(100)) {
       const session = await ctx.db.query("posSessions").withIndex("by_terminal_created", (q) => q.eq("terminalId", terminal._id).lte("createdAt", at)).order("desc").first()
       const lastSeen = Math.max(session ? Math.min(session.lastActivityAt, at) : 0, terminal.lastLoginAt && terminal.lastLoginAt <= at ? terminal.lastLoginAt : 0)
+      terminals.set(terminal.externalId, { name: terminal.name, active: terminal.active, lastSeen })
       const state = !terminal.active ? "off" : lastSeen && at - lastSeen <= SILENT_MS ? "online" : "silent"
-      states[state] += 1
-      rows.push({ key: terminal.externalId, cells: { group: `${terminal.name} №${terminal.terminalNumber}`, restaurant: names.get(restaurant) ?? restaurant, kind: KIND_LABEL[terminal.kind ?? "pos"] ?? "Касса", appVersion: terminal.appVersion ?? "—", lastSeen: lastSeen ? localDateTime(lastSeen) : "Нет данных", state: state === "off" ? "Отключено" : state === "online" ? "На связи" : "Нет отклика больше суток" } })
+      push(terminal.externalId, { group: `${terminal.name} №${terminal.terminalNumber}`, restaurant: restaurantName, kind: KIND_LABEL[terminal.kind ?? "pos"] ?? "Касса", serial: "—", connection: terminal.appVersion ? `Версия ${terminal.appVersion}` : "—", terminal: "—" }, state, lastSeen)
+    }
+    const devices = await ctx.db.query("platformRecords").withIndex("by_module_restaurant_date", (q) => q.eq("moduleId", "equipment").eq("restaurantExternalId", restaurant)).take(200)
+    if (devices.length === 200) truncated = true
+    for (const device of devices.sort((a, b) => a.name.localeCompare(b.name, "ru"))) {
+      const type = dataText(device.data, "type") as EquipmentType
+      const bound = terminals.get(dataText(device.data, "terminalExternalId"))
+      const lastSeen = bound?.active ? bound.lastSeen : 0
+      const state = device.status !== "active" ? "off" : !bound ? "unknown" : !bound.active ? "off" : lastSeen && at - lastSeen <= SILENT_MS ? "online" : "silent"
+      const connection = [dataText(device.data, "driver"), dataText(device.data, "endpoint")].filter(Boolean).join(" · ") || "—"
+      push(device.externalId, { group: device.name, restaurant: restaurantName, kind: EQUIPMENT_LABEL[type] ?? type, serial: dataText(device.data, "serial") || "—", connection, terminal: bound?.name ?? "—" }, state, lastSeen)
     }
   }
   return {
-    sourceLabel: "Кассовые терминалы и их последний отклик; реестр принтеров, весов и ККМ ещё не ведётся",
+    sourceLabel: "Кассовые терминалы и реестр оборудования (принтеры, ККМ, весы, экраны кухни, эквайринг); отклик устройства — по привязанному терминалу",
     columns,
     rows,
     totals: {},
@@ -364,10 +433,12 @@ const equipment: Calculator = async (ctx, config, restaurants) => {
       { key: "online", label: "На связи", value: states.online, unit: "count" },
       { key: "silent", label: "Без отклика > 24 ч", value: states.silent, unit: "count" },
       { key: "off", label: "Отключено", value: states.off, unit: "count" },
+      { key: "unknown", label: "Без привязки к терминалу", value: states.unknown, unit: "count" },
     ],
-    truncated: false,
+    truncated,
   }
 }
+
 
 // ── 14: system events ─────────────────────────────────────────────────────────
 

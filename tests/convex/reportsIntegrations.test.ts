@@ -49,7 +49,6 @@ describe("integration queue reports (W3-RPT-06: integrations-01…04, 06, 11, 12
       { provider: "messaging", operation: "send-campaign", status: "completed", payload: { restaurantExternalId: "astana", channel: "sms" } },
       { provider: "1c", operation: "export-sales", status: "completed", createdAt: at("2026-07-10") }, // outside the period
     ])
-    await t.run((ctx) => ctx.db.insert("auditEvents", { actorKey: "api:site", action: "order.create", summary: "Заказ с сайта", resourceType: "order", resourceExternalId: "o1", organizationExternalId: "sandyq", restaurantExternalId: "almaty", occurredAt: at("2026-08-15") }))
 
     const queue = await run("integrations-01")
     const cells = Object.fromEntries(queue.rows.map((row) => [row.key, row.cells]))
@@ -76,14 +75,53 @@ describe("integration queue reports (W3-RPT-06: integrations-01…04, 06, 11, 12
     expect(edi.rows).toEqual([])
     expect(edi.sourceLabel).toMatch(/^Не подключено: провайдер «EDI»/)
 
+    // Cloud API: two website orders (one cancelled), a phone order without the channel's id, the wolt
+    // webhooks above and one outgoing status webhook to the website.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("deliverySources", { externalId: "source-website", name: "Сайт sandyq.kz", kind: "website", restaurantExternalIds: ["*"], commissionPercent: 0, confirmationRequired: false, settlementMode: "on-closed", active: true, updatedAt: 0 })
+      const order = { organizationExternalId: "sandyq", restaurantExternalId: "almaty", customerName: "Гость", phone: "+77010000000", address: "Абая, 1", expectedAt: 0, subtotal: 5000, deliveryFee: 0, total: 5000, paymentStatus: "unpaid" as const, comment: "", version: 1, searchText: "", updatedAt: 0 }
+      await ctx.db.insert("deliveryOrders", { ...order, externalId: "d1", number: "Д-1", status: "delivered", sourceExternalId: "source-website", sourceOrderId: "web-1", createdAt: at("2026-08-12") })
+      await ctx.db.insert("deliveryOrders", { ...order, externalId: "d2", number: "Д-2", status: "cancelled", sourceExternalId: "source-website", sourceOrderId: "web-2", createdAt: at("2026-08-13") })
+      await ctx.db.insert("deliveryOrders", { ...order, externalId: "d3", number: "Д-3", status: "delivered", sourceExternalId: "phone", createdAt: at("2026-08-13") })
+    })
+    await jobs(t, [{ externalId: "job-hook", idempotencyKey: "hook-1", provider: "cloud-api", operation: "delivery-order.status", status: "dead-letter", error: "CLOUD_API_WEBHOOK_URL не задан" }])
     const api11 = await run("integrations-11")
-    expect(api11.rows.map((row) => [row.key, row.cells.kind, row.cells.total, row.cells.completed, row.cells.failed])).toEqual([["webhook:wolt", "Входящий вебхук", 2, 1, 1], ["api:site", "Cloud API · order.create", 1, 1, 0]])
+    expect(api11.rows.map((row) => [row.key, row.cells.kind, row.cells.total, row.cells.completed, row.cells.failed, row.cells.cancelled, row.cells.amount])).toEqual([
+      ["orders:source-website", "Заказы через Cloud API", 2, 1, 0, 1, 5000],
+      ["webhook-in:wolt", "Входящий вебхук", 2, 1, 1, 0, 0],
+      ["webhook-out:delivery-order.status", "Исходящий вебхук · delivery-order.status", 1, 0, 1, 0, 0],
+    ])
+    expect(api11.rows[0].cells.group).toBe("Сайт sandyq.kz")
+    expect(Object.fromEntries(api11.kpis.map((kpi) => [kpi.key, kpi.value]))).toMatchObject({ orders: 2, amount: 5000, webhooks: 3, failed: 2 })
+    // A restaurant report: its API orders only, the network-level webhooks are left out.
+    expect((await run("integrations-11", { restaurantExternalIds: ["almaty"] })).rows.map((row) => row.key)).toEqual(["orders:source-website"])
+    expect((await run("integrations-11", { restaurantExternalIds: ["astana"] })).rows).toEqual([])
+  })
 
+  it("integrations-12: the external menu snapshots of the period by restaurant", async () => {
+    const { t } = await setup()
+    const run = await office(t)
     const menu = await run("integrations-12")
     expect(menu.rows).toEqual([])
     expect(menu.sourceLabel).toMatch(/^Не подключено/)
-    await jobs(t, [{ externalId: "job-menu", idempotencyKey: "menu-1", provider: "website", operation: "external-menu.publish", status: "completed" }])
-    expect((await run("integrations-12")).rows.map((row) => [row.cells.provider, row.cells.status])).toEqual([["website", "Выполнено"]])
+    await t.run(async (ctx) => {
+      const record = { channel: "website" as const, organizationExternalId: "sandyq", version: 2, createdAt: 0, updatedAt: 0 }
+      await ctx.db.insert("externalMenus", { ...record, externalId: "menu-site", number: "EXM-000001", name: "Меню сайта", mode: "published", restaurantExternalIds: ["*"], status: "published", publishedAt: at("2026-08-10") })
+      await ctx.db.insert("externalMenus", { ...record, externalId: "menu-live", number: "EXM-000002", name: "Живое меню", mode: "live", restaurantExternalIds: ["astana"], status: "published", publishedAt: at("2026-08-10") })
+      const version = { recordExternalId: "menu-site", snapshot: { items: [], categories: [] }, publishedBy: "admin@sandyq.test" }
+      await ctx.db.insert("externalMenuVersions", { ...version, restaurantExternalId: "almaty", version: "a1b2c3d4e5f6", itemCount: 42, publishedAt: at("2026-08-10") })
+      await ctx.db.insert("externalMenuVersions", { ...version, restaurantExternalId: "astana", version: "ffee0011aabb", itemCount: 40, publishedAt: at("2026-08-20") })
+      await ctx.db.insert("externalMenuVersions", { ...version, restaurantExternalId: "almaty", version: "0000aaaa1111", itemCount: 41, publishedAt: at("2026-07-01") }) // outside the period
+    })
+    const all = await run("integrations-12")
+    expect(all.rows.map((row) => [row.cells.restaurant, row.cells.menu, row.cells.channel, row.cells.version, row.cells.items, row.cells.status])).toEqual([
+      ["Астана", "EXM-000001 «Меню сайта»", "Сайт", "ffee0011", 40, "Опубликовано"],
+      ["Алматы", "EXM-000001 «Меню сайта»", "Сайт", "a1b2c3d4", 42, "Опубликовано"],
+    ])
+    expect(Object.fromEntries(all.kpis.map((kpi) => [kpi.key, kpi.value]))).toMatchObject({ publications: 2, menus: 2, live: 1 })
+    const almaty = await run("integrations-12", { restaurantExternalIds: ["almaty"] })
+    expect(almaty.rows.map((row) => row.cells.version)).toEqual(["a1b2c3d4"])
+    expect(almaty.kpis.find((kpi) => kpi.key === "menus")?.value).toBe(1) // the live menu of Астана is not listed
   })
 })
 
@@ -133,9 +171,31 @@ describe("control reports (W3-RPT-06: integrations-05, 07…10, 13…15)", () =>
       await ctx.db.insert("posTerminals", { externalId: "t2", restaurantId: restaurant._id, name: "Касса 2", terminalNumber: 2, nextOrderNumber: 1, active: false })
       await ctx.db.insert("posTerminals", { externalId: "t3", restaurantId: restaurant._id, name: "Экран кухни", terminalNumber: 3, nextOrderNumber: 1, active: true, kind: "kds" })
     })
+    // The equipment register (W3-ADM-11): a kitchen printer on the live terminal, a fiscal register on the
+    // disabled one, a scale without a terminal and a switched-off receipt printer.
+    await t.run(async (ctx) => {
+      const device = (externalId: string, name: string, status: "active" | "inactive", data: Record<string, string>) =>
+        ctx.db.insert("platformRecords", { externalId, moduleId: "equipment", number: externalId.toUpperCase(), name, status, organizationExternalId: "sandyq", restaurantExternalId: "almaty", businessDate: today, amount: 0, data, searchText: "", version: 1, createdAt: 0, updatedAt: 0 })
+      await device("eq-1", "Принтер горячего цеха", "active", { type: "kitchen-printer", serial: "SN-1", driver: "ESC/POS", endpoint: "192.168.1.50:9100", terminalExternalId: "t1" })
+      await device("eq-2", "ККМ зала", "active", { type: "fiscal-register", serial: "KKM-7", terminalExternalId: "t2" })
+      await device("eq-3", "Весы склада", "active", { type: "scale", serial: "", driver: "", endpoint: "" })
+      await device("eq-4", "Старый принтер", "inactive", { type: "receipt-printer", terminalExternalId: "t1" })
+    })
     const devices = await run("integrations-13", { ...period, restaurantExternalIds: ["almaty"] })
-    expect(devices.rows.map((row) => [row.key, row.cells.kind, row.cells.state])).toEqual([["t1", "Касса", "На связи"], ["t2", "Касса", "Отключено"], ["t3", "Экран кухни", "Нет отклика больше суток"]])
-    expect(devices.sourceLabel).toMatch(/реестр принтеров, весов и ККМ ещё не ведётся/)
+    expect(devices.rows.map((row) => [row.key, row.cells.kind, row.cells.terminal, row.cells.state])).toEqual([
+      ["t1", "Касса", "—", "На связи"],
+      ["t2", "Касса", "—", "Отключено"],
+      ["t3", "Экран кухни", "—", "Нет отклика больше суток"],
+      ["eq-3", "Весы", "—", "Нет данных об отклике"],
+      ["eq-2", "ККМ", "Касса 2", "Отключено"],
+      ["eq-1", "Кухонный принтер", "Касса 1", "На связи"],
+      ["eq-4", "Принтер чеков", "Касса 1", "Отключено"],
+    ])
+    expect(devices.rows.find((row) => row.key === "eq-1")?.cells).toMatchObject({ serial: "SN-1", connection: "ESC/POS · 192.168.1.50:9100" })
+    expect(devices.rows.find((row) => row.key === "eq-1")?.cells.lastSeen).toBe(devices.rows[0].cells.lastSeen)
+    expect(Object.fromEntries(devices.kpis.map((kpi) => [kpi.key, kpi.value]))).toEqual({ online: 2, silent: 1, off: 3, unknown: 1 })
+    expect(devices.sourceLabel).toMatch(/реестр оборудования/)
+    expect((await run("integrations-13", { ...period, restaurantExternalIds: ["almaty"], search: "ккм" })).rows.map((row) => row.key)).toEqual(["eq-2"])
 
     const events = await run("integrations-14", period)
     expect(events.rows.length).toBeGreaterThan(2)
