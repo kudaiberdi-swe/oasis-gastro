@@ -64,6 +64,7 @@ import type * as domains_integrations_validators from "../domains/integrations/v
 import type * as domains_kitchen_access from "../domains/kitchen/access.js";
 import type * as domains_kitchen_mutations from "../domains/kitchen/mutations.js";
 import type * as domains_kitchen_queries from "../domains/kitchen/queries.js";
+import type * as domains_loyalty_campaigns from "../domains/loyalty/campaigns.js";
 import type * as domains_loyalty_expiry from "../domains/loyalty/expiry.js";
 import type * as domains_loyalty_mutations from "../domains/loyalty/mutations.js";
 import type * as domains_loyalty_office from "../domains/loyalty/office.js";
@@ -277,6 +278,7 @@ declare const fullApi: ApiFromModules<{
   "domains/kitchen/access": typeof domains_kitchen_access;
   "domains/kitchen/mutations": typeof domains_kitchen_mutations;
   "domains/kitchen/queries": typeof domains_kitchen_queries;
+  "domains/loyalty/campaigns": typeof domains_loyalty_campaigns;
   "domains/loyalty/expiry": typeof domains_loyalty_expiry;
   "domains/loyalty/mutations": typeof domains_loyalty_mutations;
   "domains/loyalty/office": typeof domains_loyalty_office;

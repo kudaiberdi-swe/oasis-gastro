@@ -178,6 +178,16 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "external-menu.save": "Сохранение внешнего меню",
   "external-menu.publish": "Публикация внешнего меню",
   "external-menu.deactivate": "Снятие внешнего меню с публикации",
+  "campaign.save": "Сохранение кампании",
+  "campaign.submit": "Кампания на согласование",
+  "campaign.approve": "Согласование и запуск кампании",
+  "campaign.complete": "Кампания проведена",
+  "campaign.cancel": "Отмена кампании",
+  "integration-card.save": "Сохранение карточки интеграции",
+  "integration-card.publish": "Публикация карточки интеграции",
+  "integration-card.deactivate": "Отключение карточки интеграции",
+  "telephony.call-update": "Изменение статуса звонка",
+  "telephony.call-create": "Исходящий звонок",
 }
 
 /**

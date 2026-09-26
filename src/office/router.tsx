@@ -35,6 +35,7 @@ import { LoyaltyProgramsWorkspace } from "@/office/features/loyalty/ui/programs-
 import { ReservationsWorkspace } from "@/office/features/loyalty/ui/reservations-workspace"
 import { CloudApiWorkspace } from "@/office/features/integrations/ui/cloud-api-workspace"
 import { ExternalMenuWorkspace } from "@/office/features/integrations/ui/external-menu-workspace"
+import { CampaignsWorkspace } from "@/office/features/loyalty/ui/campaigns-register"
 import { ModifiersWorkspace } from "@/office/features/modifiers/ui/modifiers-workspace"
 import { NomenclatureWorkspace } from "@/office/features/nomenclature/ui/nomenclature-workspace"
 import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-workspace"
@@ -137,6 +138,7 @@ const WORKSPACES: Record<string, ComponentType> = {
   guests: LoyaltyWorkspace,
   "loyalty-programs": LoyaltyProgramsWorkspace,
   "guest-categories": GuestCategoriesWorkspace,
+  campaigns: CampaignsWorkspace,
   reservations: ReservationsWorkspace,
   "delivery-orders": DeliveryOrdersWorkspace,
   "delivery-zones": ZonesWorkspace,

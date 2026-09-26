@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values"
 
 import { mutation, type MutationCtx } from "../../_generated/server"
+import { countCampaignJob } from "../loyalty/campaigns"
 import { effectiveScopes, getOfficeAuthEmail, hasScope, requireOfficeCapability, writeOfficeAudit } from "../../lib/officeAccess"
 
 type Office = Awaited<ReturnType<typeof requireOfficeCapability>>
@@ -24,6 +25,8 @@ export const retryIntegrationJob = mutation({
     if (!["failed", "dead-letter", "retrying", "cancelled"].includes(job.status)) throw new ConvexError("Повторить можно только неуспешное или отменённое задание")
     const now = Date.now()
     await ctx.db.patch(job._id, { status: "queued", attempts: 0, nextAttemptAt: now, error: undefined, updatedAt: now })
+    // A campaign message given another chance no longer counts as an error.
+    if (job.status === "dead-letter") await countCampaignJob(ctx, job, "dead-letter", -1)
     await writeOfficeAudit(ctx, email, { action: "integration-job.retry", summary: `Повтор задания ${job.operation} (${job.provider})`, resourceType: "integration-job", resourceExternalId: job.externalId, capability: "office.integration-jobs.edit" })
   },
 })

@@ -1525,7 +1525,42 @@ export default defineSchema({
     .index("by_status_attempt", ["status", "nextAttemptAt"])
     .index("by_created", ["createdAt"]) // W3-RPT-06: integration reports by period
     .index("by_provider_created", ["provider", "createdAt"])
-    .index("by_provider_status_updated", ["provider", "status", "updatedAt"]),
+    .index("by_provider_status_updated", ["provider", "status", "updatedAt"])
+    .index("by_source_status", ["sourceExternalId", "status"]),
+
+  // Mailings and promotions (W3-LOY-08): approval lifecycle; approving queues one job per guest with
+  // consent (idempotencyKey campaign:<id>:<guest>:<channel>). Counters follow the jobs' final states.
+  campaigns: defineTable({
+    externalId: v.string(),
+    number: v.string(),
+    name: v.string(),
+    organizationExternalId: v.string(),
+    status: v.union(v.literal("draft"), v.literal("pending-approval"), v.literal("approved"), v.literal("completed"), v.literal("cancelled")),
+    channel: v.union(v.literal("sms"), v.literal("email")),
+    categoryExternalId: v.optional(v.string()),
+    restaurantExternalIds: v.array(v.string()), // "*" — every restaurant
+    scheduledAt: v.number(),
+    quietHoursStart: v.number(), // Almaty hours, [start, end)
+    quietHoursEnd: v.number(),
+    subject: v.optional(v.string()), // email only
+    template: v.string(),
+    audienceCount: v.number(), // jobs queued
+    sentCount: v.number(),
+    failedCount: v.number(),
+    enqueueState: v.union(v.literal("idle"), v.literal("running"), v.literal("done")),
+    cancelReason: v.optional(v.string()),
+    version: v.number(),
+    searchText: v.string(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    approvedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_status_scheduled", ["status", "scheduledAt"])
+    .index("by_scheduled", ["scheduledAt"])
+    .searchIndex("search_campaigns", { searchField: "searchText", filterFields: ["status"] }),
 
   // Integration cards (W3-INT-01/06): the provider configuration of an «Обмен и интеграции» section per
   // organization, publish lifecycle. secretRef is the NAME of an env variable — never the secret itself.

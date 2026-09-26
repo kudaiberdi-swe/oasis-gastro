@@ -6,6 +6,7 @@ import type { Doc } from "../../_generated/dataModel"
 import { canMessageGuest } from "../../lib/consents"
 import { envValue } from "../../lib/env"
 import { insideAlmatyWindow, nextAlmatyWindowTime } from "../../lib/time"
+import { countCampaignJob } from "../loyalty/campaigns"
 import { adapterFor, EVENT_BUS, runAdapter } from "./adapters"
 import { CLOUD_API_PROVIDER, cloudApiWebhookFor } from "./adapters/cloudApiWebhook"
 import type { AdapterCard, AdapterJob, AdapterRecipient, AdapterResult } from "./adapters/types"
@@ -88,7 +89,9 @@ async function deadLetter(ctx: MutationCtx, job: Doc<"integrationJobs">, attempt
 }
 
 /** Domain bookkeeping when a job reaches a final state (campaign counters, W3-LOY-08). */
-async function afterJobSettled(_ctx: MutationCtx, _job: Doc<"integrationJobs">, _status: "completed" | "dead-letter") {}
+async function afterJobSettled(ctx: MutationCtx, job: Doc<"integrationJobs">, status: "completed" | "dead-letter") {
+  await countCampaignJob(ctx, job, status)
+}
 
 /**
  * Takes due jobs for processing: queued and retrying ones whose time came, and «processing» ones whose
