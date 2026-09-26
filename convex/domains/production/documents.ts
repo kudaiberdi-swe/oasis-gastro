@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server"
-import { ConvexError, v } from "convex/values"
+import { ConvexError, v, type ObjectType } from "convex/values"
 
 import { mutation, query, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import type { Doc, Id } from "../../_generated/dataModel"
@@ -90,99 +90,111 @@ export const getDocument = query({
   },
 })
 
+const saveArgs = {
+  externalId: v.optional(v.string()),
+  type: TYPE,
+  restaurantExternalId: v.string(),
+  date: v.number(),
+  sourceWarehouseExternalId: v.optional(v.string()),
+  destinationWarehouseExternalId: v.optional(v.string()),
+  supplierExternalId: v.optional(v.string()),
+  expectedDate: v.optional(v.number()),
+  concept: v.optional(v.string()),
+  comment: v.string(),
+  lines: v.array(lineInput),
+}
+export type SaveProductionDocumentArgs = ObjectType<typeof saveArgs>
+
 /** Saves a draft (creates it when externalId is absent). The server numbers and prices; lines are resolved here. */
 export const saveDocument = mutation({
-  args: {
-    externalId: v.optional(v.string()),
-    type: TYPE,
-    restaurantExternalId: v.string(),
-    date: v.number(),
-    sourceWarehouseExternalId: v.optional(v.string()),
-    destinationWarehouseExternalId: v.optional(v.string()),
-    supplierExternalId: v.optional(v.string()),
-    expectedDate: v.optional(v.number()),
-    concept: v.optional(v.string()),
-    comment: v.string(),
-    lines: v.array(lineInput),
-  },
+  args: saveArgs,
   handler: async (ctx, args) => {
     const { user, role } = await requireOfficeCapability(ctx, cap(args.type, "edit"))
     await requireRestaurantScope(ctx, user, args.restaurantExternalId)
     const email = (await getOfficeAuthEmail(ctx))!
-    const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", args.restaurantExternalId)).unique()
-    if (!restaurant) throw new ConvexError("Ресторан не найден")
-    const source = await warehouseOf(ctx, args.sourceWarehouseExternalId)
-    const destination = await warehouseOf(ctx, args.destinationWarehouseExternalId)
-    for (const warehouse of [source, destination]) if (warehouse) await requireWarehouseScope(ctx, user, warehouse.externalId, role)
-    const needsSource = args.type !== "purchase-order"
-    const needsDestination = args.type === "production" || args.type === "processing" || args.type === "assembly" || args.type === "internal-order" || args.type === "purchase-order"
-    if (needsSource && !source) throw new ConvexError("Выберите склад-источник")
-    if (needsDestination && !destination) throw new ConvexError("Выберите склад назначения")
-    // Both warehouses belong to the restaurant, except an internal order between restaurants of one organization.
-    for (const warehouse of [source, destination]) {
-      if (!warehouse) continue
-      if (args.type === "internal-order") {
-        if (warehouse.organizationExternalId !== restaurant.organizationExternalId) throw new ConvexError("Склады должны быть в одной организации")
-        if (!warehouse.internalTransfers) throw new ConvexError(`Склад «${warehouse.name}» не принимает внутренние перемещения`)
-      } else if (warehouse.restaurantExternalId !== restaurant.externalId && !(args.type === "purchase-order" && warehouse === destination && warehouse.restaurantExternalId === restaurant.externalId)) {
-        throw new ConvexError("Склады документа должны принадлежать ресторану")
-      }
-    }
-    if (source && destination && source._id === destination._id && args.type === "internal-order") throw new ConvexError("Склады источника и назначения совпадают")
-    const supplier = args.supplierExternalId ? await ctx.db.query("suppliers").withIndex("by_external_id", (q) => q.eq("externalId", args.supplierExternalId!)).unique() : null
-    if (args.type === "purchase-order" && !supplier) throw new ConvexError("Выберите поставщика")
-    if (!args.lines.length) throw new ConvexError("Добавьте строки")
-
-    const lines: Doc<"productionDocuments">["lines"] = []
-    for (const [index, input] of args.lines.entries()) {
-      if (!(input.quantity > 0)) throw new ConvexError("Количество должно быть больше нуля")
-      if (args.type === "production") {
-        const product = input.productExternalId ? await ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", input.productExternalId!)).unique() : null
-        if (!product || product.itemType !== "preparation") throw new ConvexError("Выпускать можно только заготовку")
-        lines.push({ lineNo: index + 1, productId: product._id, name: product.name, quantity: roundQuantity(input.quantity), direction: "output" as const })
-        continue
-      }
-      const item = input.inventoryItemExternalId ? await ctx.db.query("inventoryItems").withIndex("by_external_id", (q) => q.eq("externalId", input.inventoryItemExternalId!)).unique() : null
-      if (!item) throw new ConvexError("Складская позиция не найдена")
-      const direction = args.type === "processing" || args.type === "assembly" ? (input.direction ?? "input") : args.type === "purchase-order" ? "output" : "input"
-      if (input.costShare !== undefined && !(input.costShare > 0)) throw new ConvexError("Доля себестоимости должна быть больше нуля")
-      lines.push({ lineNo: index + 1, inventoryItemId: item._id, name: item.name, quantity: roundQuantity(input.quantity), direction, ...(input.expectedUnitCost !== undefined ? { expectedUnitCost: input.expectedUnitCost } : {}), ...(input.costShare !== undefined ? { costShare: input.costShare } : {}) })
-    }
-    if ((args.type === "processing" || args.type === "assembly") && (!lines.some((line) => line.direction === "input") || !lines.some((line) => line.direction === "output"))) throw new ConvexError("Нужны строки входа и выхода")
-
-    const warnings: string[] = []
-    if (args.type === "purchase-order" && supplier?.minimumOrder) {
-      const expected = lines.reduce((sum, line) => sum + (line.expectedUnitCost ?? 0) * line.quantity, 0)
-      if (expected < supplier.minimumOrder) warnings.push(`Минимальный заказ поставщика — ${supplier.minimumOrder} ₸`)
-    }
-    const now = Date.now()
-    const value = {
-      date: args.date,
-      sourceWarehouseId: source?._id,
-      destinationWarehouseId: destination?._id,
-      supplierId: supplier?._id,
-      expectedDate: args.expectedDate,
-      concept: args.concept?.trim() || undefined,
-      comment: args.comment.trim(),
-      lines,
-      totalAmount: args.type === "purchase-order" ? Math.round(lines.reduce((sum, line) => sum + (line.expectedUnitCost ?? 0) * line.quantity, 0)) : 0,
-      updatedAt: now,
-    }
-    let externalId = args.externalId
-    if (externalId) {
-      const existing = await requireDoc(ctx, externalId)
-      if (existing.type !== args.type || existing.restaurantExternalId !== args.restaurantExternalId) throw new ConvexError("Документ не найден")
-      if (existing.status !== "draft") throw new ConvexError("Изменить можно только черновик")
-      await ctx.db.patch(existing._id, { ...value, searchText: `${existing.number} ${lines.map((line) => line.name).join(" ")} ${value.comment}`.toLocaleLowerCase("ru"), version: existing.version + 1 })
-    } else {
-      const number = await nextNumber(ctx, { moduleId: CONFIG[args.type].section, prefix: CONFIG[args.type].prefix, organizationExternalId: restaurant.organizationExternalId, businessDate: businessDateFor(args.date, restaurant.businessDayCutoffMinutes) })
-      externalId = `${args.type}-${crypto.randomUUID()}`
-      await ctx.db.insert("productionDocuments", { ...value, externalId, type: args.type, number, status: "draft", organizationExternalId: restaurant.organizationExternalId, restaurantExternalId: restaurant.externalId, searchText: `${number} ${lines.map((line) => line.name).join(" ")} ${value.comment}`.toLocaleLowerCase("ru"), version: 1, createdBy: email, createdAt: now })
-    }
-    await writeOfficeAudit(ctx, email, { action: `${CONFIG[args.type].section}.save`, summary: `${CONFIG[args.type].label}: черновик, ${lines.length} строк`, resourceType: CONFIG[args.type].section, resourceExternalId: externalId, restaurantExternalId: restaurant.externalId, capability: cap(args.type, "edit") })
-    return { externalId, warnings }
+    return saveProductionDocument(ctx, { user, role, email }, args)
   },
 })
+
+/**
+ * The body of saveDocument, for callers that checked office.<section>.edit and the restaurant scope
+ * themselves (the semi-finished sheet makes production act drafts, W3-PRD-08).
+ */
+export async function saveProductionDocument(ctx: MutationCtx, access: { user: Doc<"officeUsers">; role: Doc<"officeRoles">; email: string }, args: SaveProductionDocumentArgs) {
+  const { user, role, email } = access
+  const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", args.restaurantExternalId)).unique()
+  if (!restaurant) throw new ConvexError("Ресторан не найден")
+  const source = await warehouseOf(ctx, args.sourceWarehouseExternalId)
+  const destination = await warehouseOf(ctx, args.destinationWarehouseExternalId)
+  for (const warehouse of [source, destination]) if (warehouse) await requireWarehouseScope(ctx, user, warehouse.externalId, role)
+  const needsSource = args.type !== "purchase-order"
+  const needsDestination = args.type === "production" || args.type === "processing" || args.type === "assembly" || args.type === "internal-order" || args.type === "purchase-order"
+  if (needsSource && !source) throw new ConvexError("Выберите склад-источник")
+  if (needsDestination && !destination) throw new ConvexError("Выберите склад назначения")
+  // Both warehouses belong to the restaurant, except an internal order between restaurants of one organization.
+  for (const warehouse of [source, destination]) {
+    if (!warehouse) continue
+    if (args.type === "internal-order") {
+      if (warehouse.organizationExternalId !== restaurant.organizationExternalId) throw new ConvexError("Склады должны быть в одной организации")
+      if (!warehouse.internalTransfers) throw new ConvexError(`Склад «${warehouse.name}» не принимает внутренние перемещения`)
+    } else if (warehouse.restaurantExternalId !== restaurant.externalId && !(args.type === "purchase-order" && warehouse === destination && warehouse.restaurantExternalId === restaurant.externalId)) {
+      throw new ConvexError("Склады документа должны принадлежать ресторану")
+    }
+  }
+  if (source && destination && source._id === destination._id && args.type === "internal-order") throw new ConvexError("Склады источника и назначения совпадают")
+  const supplier = args.supplierExternalId ? await ctx.db.query("suppliers").withIndex("by_external_id", (q) => q.eq("externalId", args.supplierExternalId!)).unique() : null
+  if (args.type === "purchase-order" && !supplier) throw new ConvexError("Выберите поставщика")
+  if (!args.lines.length) throw new ConvexError("Добавьте строки")
+
+  const lines: Doc<"productionDocuments">["lines"] = []
+  for (const [index, input] of args.lines.entries()) {
+    if (!(input.quantity > 0)) throw new ConvexError("Количество должно быть больше нуля")
+    if (args.type === "production") {
+      const product = input.productExternalId ? await ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", input.productExternalId!)).unique() : null
+      if (!product || product.itemType !== "preparation") throw new ConvexError("Выпускать можно только заготовку")
+      lines.push({ lineNo: index + 1, productId: product._id, name: product.name, quantity: roundQuantity(input.quantity), direction: "output" as const })
+      continue
+    }
+    const item = input.inventoryItemExternalId ? await ctx.db.query("inventoryItems").withIndex("by_external_id", (q) => q.eq("externalId", input.inventoryItemExternalId!)).unique() : null
+    if (!item) throw new ConvexError("Складская позиция не найдена")
+    const direction = args.type === "processing" || args.type === "assembly" ? (input.direction ?? "input") : args.type === "purchase-order" ? "output" : "input"
+    if (input.costShare !== undefined && !(input.costShare > 0)) throw new ConvexError("Доля себестоимости должна быть больше нуля")
+    lines.push({ lineNo: index + 1, inventoryItemId: item._id, name: item.name, quantity: roundQuantity(input.quantity), direction, ...(input.expectedUnitCost !== undefined ? { expectedUnitCost: input.expectedUnitCost } : {}), ...(input.costShare !== undefined ? { costShare: input.costShare } : {}) })
+  }
+  if ((args.type === "processing" || args.type === "assembly") && (!lines.some((line) => line.direction === "input") || !lines.some((line) => line.direction === "output"))) throw new ConvexError("Нужны строки входа и выхода")
+
+  const warnings: string[] = []
+  if (args.type === "purchase-order" && supplier?.minimumOrder) {
+    const expected = lines.reduce((sum, line) => sum + (line.expectedUnitCost ?? 0) * line.quantity, 0)
+    if (expected < supplier.minimumOrder) warnings.push(`Минимальный заказ поставщика — ${supplier.minimumOrder} ₸`)
+  }
+  const now = Date.now()
+  const value = {
+    date: args.date,
+    sourceWarehouseId: source?._id,
+    destinationWarehouseId: destination?._id,
+    supplierId: supplier?._id,
+    expectedDate: args.expectedDate,
+    concept: args.concept?.trim() || undefined,
+    comment: args.comment.trim(),
+    lines,
+    totalAmount: args.type === "purchase-order" ? Math.round(lines.reduce((sum, line) => sum + (line.expectedUnitCost ?? 0) * line.quantity, 0)) : 0,
+    updatedAt: now,
+  }
+  let externalId = args.externalId
+  if (externalId) {
+    const existing = await requireDoc(ctx, externalId)
+    if (existing.type !== args.type || existing.restaurantExternalId !== args.restaurantExternalId) throw new ConvexError("Документ не найден")
+    if (existing.status !== "draft") throw new ConvexError("Изменить можно только черновик")
+    await ctx.db.patch(existing._id, { ...value, searchText: `${existing.number} ${lines.map((line) => line.name).join(" ")} ${value.comment}`.toLocaleLowerCase("ru"), version: existing.version + 1 })
+  } else {
+    const number = await nextNumber(ctx, { moduleId: CONFIG[args.type].section, prefix: CONFIG[args.type].prefix, organizationExternalId: restaurant.organizationExternalId, businessDate: businessDateFor(args.date, restaurant.businessDayCutoffMinutes) })
+    externalId = `${args.type}-${crypto.randomUUID()}`
+    await ctx.db.insert("productionDocuments", { ...value, externalId, type: args.type, number, status: "draft", organizationExternalId: restaurant.organizationExternalId, restaurantExternalId: restaurant.externalId, searchText: `${number} ${lines.map((line) => line.name).join(" ")} ${value.comment}`.toLocaleLowerCase("ru"), version: 1, createdBy: email, createdAt: now })
+  }
+  await writeOfficeAudit(ctx, email, { action: `${CONFIG[args.type].section}.save`, summary: `${CONFIG[args.type].label}: черновик, ${lines.length} строк`, resourceType: CONFIG[args.type].section, resourceExternalId: externalId, restaurantExternalId: restaurant.externalId, capability: cap(args.type, "edit") })
+  return { externalId, warnings }
+}
 
 /** Approval steps of internal and purchase orders, and cancelling any draft. */
 export const transitionDocument = mutation({

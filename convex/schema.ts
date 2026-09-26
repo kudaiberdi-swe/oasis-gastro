@@ -1526,6 +1526,45 @@ export default defineSchema({
     .index("by_type_status_date", ["type", "status", "date"])
     .searchIndex("search_production_documents", { searchField: "searchText", filterFields: ["type", "status", "restaurantExternalId"] }),
 
+  // Kitchen plans and semi-finished sheets (W3-PRD-07/08): one record per restaurant × business date,
+  // lines from the kitchen forecast (lib/forecast.ts). A plan lists dishes; a sheet lists preparations.
+  productionRecords: defineTable({
+    externalId: v.string(),
+    moduleId: v.union(v.literal("kitchen-plan"), v.literal("semi-finished-sheet")),
+    number: v.string(),
+    businessDate: v.string(), // YYYY-MM-DD, the Almaty business date planned
+    status: v.union(v.literal("draft"), v.literal("active"), v.literal("posted"), v.literal("reversed"), v.literal("cancelled")),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    comment: v.string(),
+    lines: v.array(
+      v.object({
+        lineNo: v.number(),
+        productExternalId: v.string(),
+        name: v.string(),
+        unit: v.optional(v.string()),
+        forecastQuantity: v.number(), // plan: forecast portions; sheet: need from the forecast × recipes
+        onHand: v.optional(v.number()), // sheet: the restaurant's stock of the preparation when calculated
+        plannedQuantity: v.number(),
+        actualQuantity: v.optional(v.number()), // sheet: posted production acts of the date, frozen on posting
+      }),
+    ),
+    productionActExternalIds: v.optional(v.array(v.string())), // sheet: the production act drafts made from it
+    searchText: v.string(),
+    version: v.number(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    postedAt: v.optional(v.number()),
+    reversedAt: v.optional(v.number()),
+    reason: v.optional(v.string()), // of a reversal or a cancellation
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_module_restaurant_date", ["moduleId", "restaurantExternalId", "businessDate"])
+    .index("by_module_status_date", ["moduleId", "status", "businessDate"])
+    .index("by_module_date", ["moduleId", "businessDate"])
+    .searchIndex("search_production_records", { searchField: "searchText", filterFields: ["moduleId", "status", "restaurantExternalId"] }),
+
   // Payment ↔ obligation allocations (W2-FIN-10): one row per obligation a payment settles.
   paymentAllocations: defineTable({
     paymentExternalId: v.string(),

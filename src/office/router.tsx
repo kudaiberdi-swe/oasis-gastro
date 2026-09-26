@@ -36,6 +36,7 @@ import { AuditLogWorkspace } from "@/office/features/platform/ui/audit-log-works
 import { PeriodLocksWorkspace } from "@/office/features/platform/ui/period-locks-workspace"
 import { PriceListsWorkspace } from "@/office/features/price-lists/ui/price-lists-workspace"
 import { PriceOrdersWorkspace } from "@/office/features/price-orders/ui/price-orders-workspace"
+import { KitchenPlanWorkspace, SemiFinishedSheetWorkspace } from "@/office/features/production-logistics/ui/logistics-page"
 import { AssemblyActsWorkspace, InternalOrdersWorkspace, ProcessingActsWorkspace, ProductionWorkspace, PurchaseOrdersWorkspace, SalesActsWorkspace } from "@/office/features/production/ui/production-workspace"
 import { TerminalsWorkspace } from "@/office/features/platform/ui/terminals-workspace"
 import { ProductGroupsWorkspace } from "@/office/features/product-groups/ui/product-groups-workspace"
@@ -103,6 +104,8 @@ const WORKSPACES: Record<string, ComponentType> = {
   "sales-acts": SalesActsWorkspace,
   "purchase-orders": PurchaseOrdersWorkspace,
   "internal-orders": InternalOrdersWorkspace,
+  "kitchen-plan": KitchenPlanWorkspace,
+  "semi-finished-sheet": SemiFinishedSheetWorkspace,
   "cashflow-categories": CashflowCategoriesWorkspace,
   counterparties: CounterpartiesWorkspace,
   transactions: TransactionsWorkspace,
