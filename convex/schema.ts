@@ -1678,6 +1678,47 @@ export default defineSchema({
   })
     .index("by_payment", ["paymentExternalId"])
     .index("by_obligation", ["obligationExternalId"]),
+  // Bank statement import (W3-FIN-11): the CSV column mapping saved per bank account, and one row per
+  // imported file. Statement lines themselves are «bank-statements» finance records.
+  bankImportProfiles: defineTable({
+    accountIban: v.string(), // normalised KZ… IBAN
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(), // where the lines go by default
+    bank: v.string(), // preset id: sandyq | kaspi-business | halyk | manual
+    encoding: v.union(v.literal("auto"), v.literal("utf-8"), v.literal("windows-1251")),
+    delimiter: v.union(v.literal("auto"), v.literal(";"), v.literal(",")),
+    amountMode: v.union(v.literal("signed"), v.literal("direction"), v.literal("debit-credit")),
+    // Column of each field: the header name (matched first) and its 0-based position.
+    columns: v.array(v.object({ field: v.string(), header: v.optional(v.string()), index: v.optional(v.number()) })),
+    incomingValues: v.optional(v.string()), // values of the direction column that mean «приход», comma-separated
+    hasHeader: v.boolean(),
+    updatedAt: v.number(),
+    updatedByEmail: v.string(),
+  }).index("by_iban", ["accountIban"]),
+  bankStatementImports: defineTable({
+    externalId: v.string(),
+    accountIban: v.string(),
+    bank: v.string(),
+    organizationExternalId: v.string(),
+    restaurantExternalId: v.string(),
+    fileName: v.optional(v.string()),
+    periodFrom: v.string(), // YYYY-MM-DD of the earliest line
+    periodTo: v.string(),
+    importedCount: v.number(),
+    duplicateCount: v.number(),
+    importedAt: v.number(),
+    importedByEmail: v.string(),
+  })
+    .index("by_external_id", ["externalId"])
+    .index("by_restaurant_imported", ["restaurantExternalId", "importedAt"]),
+  // Lines of a budget (W3-FIN-13): plan by account or by cashflow category; the budget's amount is their sum.
+  budgetLines: defineTable({
+    budgetExternalId: v.string(),
+    lineNo: v.number(),
+    accountExternalId: v.optional(v.string()),
+    cashflowCategoryExternalId: v.optional(v.string()),
+    planAmount: v.number(), // whole tenge
+  }).index("by_budget", ["budgetExternalId", "lineNo"]),
   // ── Catalog: sizes, price orders, modifiers (W1-CAT-07/09/10; new tables, strict from the start) ──
   sizeScales: defineTable({
     externalId: v.string(),

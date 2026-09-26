@@ -27,6 +27,9 @@ import type * as domains_delivery_internal from "../domains/delivery/internal.js
 import type * as domains_delivery_mutations from "../domains/delivery/mutations.js";
 import type * as domains_delivery_queries from "../domains/delivery/queries.js";
 import type * as domains_delivery_shared from "../domains/delivery/shared.js";
+import type * as domains_finance_bankStatements from "../domains/finance/bankStatements.js";
+import type * as domains_finance_budgets from "../domains/finance/budgets.js";
+import type * as domains_finance_cashflow from "../domains/finance/cashflow.js";
 import type * as domains_finance_modules from "../domains/finance/modules.js";
 import type * as domains_finance_mutations from "../domains/finance/mutations.js";
 import type * as domains_finance_obligations from "../domains/finance/obligations.js";
@@ -142,6 +145,7 @@ import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_availability from "../lib/availability.js";
 import type * as lib_bin from "../lib/bin.js";
+import type * as lib_budgets from "../lib/budgets.js";
 import type * as lib_capabilities from "../lib/capabilities.js";
 import type * as lib_checkoutCore from "../lib/checkoutCore.js";
 import type * as lib_deliveryCore from "../lib/deliveryCore.js";
@@ -220,6 +224,9 @@ declare const fullApi: ApiFromModules<{
   "domains/delivery/mutations": typeof domains_delivery_mutations;
   "domains/delivery/queries": typeof domains_delivery_queries;
   "domains/delivery/shared": typeof domains_delivery_shared;
+  "domains/finance/bankStatements": typeof domains_finance_bankStatements;
+  "domains/finance/budgets": typeof domains_finance_budgets;
+  "domains/finance/cashflow": typeof domains_finance_cashflow;
   "domains/finance/modules": typeof domains_finance_modules;
   "domains/finance/mutations": typeof domains_finance_mutations;
   "domains/finance/obligations": typeof domains_finance_obligations;
@@ -335,6 +342,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/availability": typeof lib_availability;
   "lib/bin": typeof lib_bin;
+  "lib/budgets": typeof lib_budgets;
   "lib/capabilities": typeof lib_capabilities;
   "lib/checkoutCore": typeof lib_checkoutCore;
   "lib/deliveryCore": typeof lib_deliveryCore;

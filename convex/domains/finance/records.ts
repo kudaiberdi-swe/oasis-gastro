@@ -102,10 +102,10 @@ export const transition = mutation({
   args: { moduleId: financeModuleId, externalId: v.string(), action: domainAction, expectedVersion: v.number(), reason: v.optional(v.string()) },
   handler: async (ctx, { moduleId, ...args }) => {
     const module = moduleOf(moduleId)
-    const { user } = await requireOfficeCapability(ctx, transitionCapability(module, args.action))
+    const { user, role } = await requireOfficeCapability(ctx, transitionCapability(module, args.action))
     const email = await getOfficeAuthEmail(ctx)
     if (!email) throw new ConvexError("Требуется вход в Office")
-    const record = await transitionDomainRecord(ctx, "financeRecords", email, user, module, args, financeHooks(ctx, moduleId))
+    const record = await transitionDomainRecord(ctx, "financeRecords", email, user, module, args, financeHooks(ctx, moduleId, { email, capabilities: role.capabilities }))
     return { status: record.status, version: record.version }
   },
 })

@@ -2,10 +2,12 @@ import { ConvexError } from "convex/values"
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server"
 
 import type { DataModel, Doc } from "../../_generated/dataModel"
-import type { SaveDomainRecordArgs, TransitionHooks } from "../../lib/domainRecords"
+import { monthEnd } from "../../lib/budgets"
+import { saveDomainRecord, type SaveDomainRecordArgs, type TransitionHooks } from "../../lib/domainRecords"
 import { postJournalEntry, reverseJournalEntries } from "../../lib/ledger"
 import { allocateObligation, cancelObligations, createObligation, getObligation } from "../../lib/obligations"
-import type { FinanceModuleId } from "./validators"
+import { allowsCapability, writeOfficeAudit } from "../../lib/officeAccess"
+import { FINANCE_MODULES, type FinanceModuleId } from "./validators"
 
 type QueryCtx = GenericQueryCtx<DataModel>
 type MutationCtx = GenericMutationCtx<DataModel>
@@ -16,7 +18,9 @@ type Data = SaveDomainRecordArgs["data"]
 
 const text = (data: Data, key: string) => (typeof data[key] === "string" ? (data[key] as string).trim() : "")
 
+const DATE = /^\d{4}-\d{2}-\d{2}$/
 const DIRECTIONS = ["incoming", "outgoing", "both"]
+const PRIORITIES = ["required", "normal", "optional"]
 const ACTIVITIES = ["operating", "investing", "financing"]
 const ROLES = ["supplier", "customer", "aggregator"]
 
@@ -105,13 +109,149 @@ export async function validateFinanceRecord(ctx: QueryCtx, moduleId: FinanceModu
       Object.assign(args.data, { originalAmount: args.amount, allocatedAmount: 0, obligationKind: text(args.data, "obligationKind") || "other", dueDate: due || null })
       return {}
     }
+    case "bank-statements": {
+      // Lines come only from importStatement; a draft line's card changes its counterparty (when the BIN
+      // found none), the cashflow category its payment gets, and a comment — never the bank's own fields.
+      const existing = args.externalId ? await financeRecord(ctx, args.externalId) : null
+      if (!existing) throw new ConvexError("Строки выписки создаются импортом CSV")
+      const counterpartyChanged = (args.counterpartyExternalId ?? "") !== (existing.counterpartyExternalId ?? "")
+      if (counterpartyChanged && existing.data.matchStatus === "matched") throw new ConvexError("Сначала снимите сопоставление")
+      if (args.counterpartyExternalId) {
+        const counterparty = await financeRecord(ctx, args.counterpartyExternalId)
+        if (!counterparty || counterparty.moduleId !== "counterparties") throw new ConvexError("Контрагент не найден")
+      }
+      if (args.cashflowCategoryExternalId) {
+        const category = await financeRecord(ctx, args.cashflowCategoryExternalId)
+        if (!category || category.moduleId !== "cashflow-categories") throw new ConvexError("Статья ДДС не найдена")
+      }
+      const comment = text(args.data, "comment")
+      const data = counterpartyChanged ? withoutSuggestion({ ...existing.data, matchStatus: "unmatched" }) : { ...existing.data }
+      if (comment) data.comment = comment
+      else delete data.comment
+      return { name: existing.name, businessDate: existing.businessDate, amount: existing.amount, data }
+    }
+    case "payment-calendar": {
+      const direction = text(args.data, "direction")
+      if (direction !== "incoming" && direction !== "outgoing") throw new ConvexError("Укажите поток: поступление или платёж")
+      const plannedAt = text(args.data, "plannedAt")
+      if (!DATE.test(plannedAt)) throw new ConvexError("Плановая дата — ГГГГ-ММ-ДД")
+      const priority = text(args.data, "priority") || "normal"
+      if (!PRIORITIES.includes(priority)) throw new ConvexError("Приоритет: обязательный, обычный или отложенный")
+      if (!(Number.isInteger(args.amount) && args.amount > 0)) throw new ConvexError("Сумма — целое число тенге больше нуля")
+      const obligationId = text(args.data, "obligationExternalId")
+      if (obligationId) {
+        const obligation = await financeRecord(ctx, obligationId)
+        if (!obligation || obligation.moduleId !== "accounts-payable" || obligation.restaurantExternalId !== args.restaurantExternalId) throw new ConvexError("Обязательство не найдено в этом ресторане")
+        if ((obligation.data.direction === "receivable") !== (direction === "incoming")) throw new ConvexError("Поток не совпадает с видом задолженности")
+      }
+      Object.assign(args.data, { direction, plannedAt, priority })
+      return {}
+    }
+    case "budgets": {
+      // The version is the server's: 1 for a new budget, the next one only through copyBudgetVersion.
+      const existing = args.externalId ? await financeRecord(ctx, args.externalId) : null
+      const month = args.businessDate.slice(0, 7)
+      const start = text(args.data, "periodStart") || `${month}-01`
+      const end = text(args.data, "periodEnd") || monthEnd(month)
+      if (!DATE.test(start) || !DATE.test(end)) throw new ConvexError("Период бюджета — даты ГГГГ-ММ-ДД")
+      if (start > end) throw new ConvexError("Начало периода позже его конца")
+      const version = existing && typeof existing.data.budgetVersion === "number" ? existing.data.budgetVersion : 1
+      const previous = existing && typeof existing.data.previousVersionExternalId === "string" ? { previousVersionExternalId: existing.data.previousVersionExternalId } : {}
+      Object.assign(args.data, { periodStart: start, periodEnd: end, budgetVersion: version, ...previous })
+      return {}
+    }
     default:
       return {}
   }
 }
 
+/** A bank line's data without an auto-match suggestion. */
+export function withoutSuggestion(data: Data): Data {
+  const { suggestedExternalId: _id, suggestedKind: _kind, suggestedNumber: _number, ...rest } = data
+  return rest
+}
+
+export type FinanceActor = { email: string; capabilities: string[] }
+
+/** Posts a payment the office did not walk through approval here (one a bank line creates or confirms). */
+async function postPaymentRecord(ctx: MutationCtx, payment: Doc<"financeRecords">, actor: FinanceActor, summary: string) {
+  await financeHooks(ctx, "payments").beforePost!(payment)
+  const now = Date.now()
+  await ctx.db.patch(payment._id, { status: "posted", postedAt: now, version: payment.version + 1, updatedAt: now })
+  await writeOfficeAudit(ctx, actor.email, { action: "payments.bank-post", summary, resourceType: "payments", resourceExternalId: payment.externalId, restaurantExternalId: payment.restaurantExternalId, capability: "office.bank-statements.post", details: { number: payment.number } })
+}
+
+/** Drops a payment's link to a bank line (the line was unmatched, cancelled or reversed). */
+export async function unlinkBankPayment(ctx: MutationCtx, paymentExternalId: string, lineExternalId: string) {
+  const payment = await financeRecord(ctx, paymentExternalId)
+  if (!payment || payment.data.bankLineExternalId !== lineExternalId) return
+  const { bankLineExternalId: _line, ...data } = payment.data
+  await ctx.db.patch(payment._id, { data, version: payment.version + 1, updatedAt: Date.now() })
+}
+
+/**
+ * A bank line (W3-FIN-11) posted: matched to a payment — the payment is (or gets) posted and nothing else
+ * is written; otherwise the line becomes a posted bank payment of its counterparty, allocated to the
+ * matched obligation if any. Reversing a line reverses the payment it created.
+ */
+function bankLineHooks(ctx: MutationCtx, actor?: FinanceActor): TransitionHooks {
+  return {
+    beforePost: async (line) => {
+      if (!actor) throw new ConvexError("Требуется вход в Office")
+      const direction = line.data.direction === "incoming" ? "incoming" : "outgoing"
+      const linked = text(line.data, "matchedPaymentExternalId")
+      if (linked) {
+        const payment = await financeRecord(ctx, linked)
+        if (!payment || payment.moduleId !== "payments") throw new ConvexError("Сопоставленный платёж не найден — снимите сопоставление")
+        if (payment.status === "approved") {
+          if (!allowsCapability(actor.capabilities, "office.payments.post")) throw new ConvexError(`Платёж ${payment.number} согласован, но не проведён — проведите его в «Платежах»`)
+          await postPaymentRecord(ctx, payment, actor, `Платёж ${payment.number} проведён по выписке ${line.number}`)
+        } else if (payment.status !== "posted") throw new ConvexError(`Платёж ${payment.number} не согласован — снимите сопоставление`)
+        await ctx.db.patch(line._id, { data: withoutSuggestion({ ...line.data, matchStatus: "posted" }) })
+        return
+      }
+      const counterpartyExternalId = line.counterpartyExternalId
+      if (!counterpartyExternalId) throw new ConvexError("Контрагент по БИН не найден — выберите контрагента в строке")
+      if (!line.cashflowCategoryExternalId) throw new ConvexError("Выберите статью ДДС — строка станет платежом")
+      const obligationId = text(line.data, "matchedObligationExternalId")
+      const obligation = obligationId ? await getObligation(ctx, obligationId) : null
+      if (obligationId && (!obligation || obligation.status !== "posted" || obligation.amount <= 0)) throw new ConvexError("Сопоставленное обязательство уже закрыто — снимите сопоставление")
+      const payment = await saveDomainRecord(ctx, "financeRecords", actor.email, { moduleId: "payments", ...FINANCE_MODULES.payments }, {
+        name: text(line.data, "purpose") || line.name,
+        restaurantExternalId: obligation?.restaurantExternalId ?? line.restaurantExternalId,
+        businessDate: line.businessDate,
+        amount: line.amount,
+        counterpartyExternalId,
+        cashflowCategoryExternalId: line.cashflowCategoryExternalId,
+        data: { direction, method: "bank", bankLineExternalId: line.externalId, comment: `Банковская выписка, строка ${line.number}` },
+      })
+      if (obligation) await ctx.db.insert("paymentAllocations", { paymentExternalId: payment.externalId, obligationExternalId: obligation.externalId, amount: Math.min(line.amount, obligation.amount) })
+      await postPaymentRecord(ctx, payment, actor, `Платёж ${payment.number} создан и проведён по выписке ${line.number}`)
+      await ctx.db.patch(line._id, { data: withoutSuggestion({ ...line.data, matchStatus: "posted", matchedPaymentExternalId: payment.externalId, matchedNumber: payment.number, createdPayment: true }) })
+    },
+    beforeReverse: async (line) => {
+      const linked = text(line.data, "matchedPaymentExternalId")
+      const payment = linked ? await financeRecord(ctx, linked) : null
+      if (payment && line.data.createdPayment === true) {
+        if (payment.status === "posted") {
+          await financeHooks(ctx, "payments").beforeReverse!(payment)
+          const now = Date.now()
+          await ctx.db.patch(payment._id, { status: "reversed", reversedAt: now, version: payment.version + 1, updatedAt: now })
+          if (actor) await writeOfficeAudit(ctx, actor.email, { action: "payments.bank-reverse", summary: `Платёж ${payment.number} сторнирован со строкой выписки ${line.number}`, resourceType: "payments", resourceExternalId: payment.externalId, restaurantExternalId: payment.restaurantExternalId, capability: "office.bank-statements.reverse" })
+        }
+      } else if (payment) await unlinkBankPayment(ctx, payment.externalId, line.externalId)
+      const { matchedPaymentExternalId: _payment, matchedObligationExternalId: _obligation, matchedNumber: _number, createdPayment: _created, ...data } = line.data
+      await ctx.db.patch(line._id, { data: { ...withoutSuggestion(data), matchStatus: "unmatched" } })
+    },
+    beforeCancel: async (line) => {
+      const linked = text(line.data, "matchedPaymentExternalId")
+      if (linked) await unlinkBankPayment(ctx, linked, line.externalId)
+    },
+  }
+}
+
 /** What posting and reversing a record writes: journal lines, obligations, payment allocations. */
-export function financeHooks(ctx: MutationCtx, moduleId: FinanceModuleId): TransitionHooks {
+export function financeHooks(ctx: MutationCtx, moduleId: FinanceModuleId, actor?: FinanceActor): TransitionHooks {
   const line = (record: Doc<"financeRecords">, suffix: string, debit: string, credit: string, amount: number, description: string, manual = false) =>
     amount > 0
       ? postJournalEntry(ctx, { externalId: `finance-${record.externalId}${suffix}`, restaurantExternalId: record.restaurantExternalId, sourceModuleId: moduleId, sourceExternalId: record.externalId, sourceNumber: record.number, occurredAt: Date.now(), businessDate: record.businessDate, debitAccount: debit, creditAccount: credit, amount, description, manual })
@@ -120,6 +260,7 @@ export function financeHooks(ctx: MutationCtx, moduleId: FinanceModuleId): Trans
     await reverseJournalEntries(ctx, { sourceExternalId: record.externalId, occurredAt: Date.now(), reversalKey: "reverse", description: `Сторно: ${record.name}` })
   }
 
+  if (moduleId === "bank-statements") return bankLineHooks(ctx, actor)
   if (moduleId === "transactions") {
     return {
       beforePost: async (record) => {

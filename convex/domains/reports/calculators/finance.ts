@@ -1,5 +1,6 @@
 import type { Doc } from "../../../_generated/dataModel"
 import { accountExternalId, SYSTEM_ACCOUNTS } from "../../../lib/accounts"
+import { budgetLinesOf, budgetPeriodOf } from "../../../lib/budgets"
 import type { ReportColumn, ReportResult } from "../../../lib/reportConfig"
 import type { Calculator } from "../registry"
 import { col, dayEnd, dayStart, localDate, SCAN_BUDGET } from "./_shared"
@@ -264,28 +265,32 @@ const cashBook: Calculator = async (ctx, config, restaurants) => {
 
 // ── finance-05 План-факт, finance-14 Исполнение бюджета ─────────────────────────────────────────
 
-type BudgetLine = { record: FinanceRecord; account?: string; category?: string; start: string; end: string; plan: number; fact: number }
+type BudgetLine = { record: FinanceRecord; key: string; account?: string; category?: string; start: string; end: string; plan: number; fact: number }
 
 /**
- * Approved and posted budget records whose period meets the report period. One record = one line (the
- * `lines` array of W3-FIN-13 does not fit the flat `financeRecordData` yet): plan = amount, article =
- * `data.accountExternalId` / debit / credit account or the cashflow category, period = `data.periodStart…periodEnd`
- * (else the month of the record). Fact from the budget start up to min(end, dateTo): account turnover in its
- * normal direction, or posted payments of the category.
+ * Approved and posted budget records whose period meets the report period, one report line per budget line
+ * (W3-FIN-13 `budgetLines`; a budget saved before them is one line: plan = amount, article =
+ * `data.accountExternalId` / debit / credit account or the cashflow category — lib/budgets budgetLinesOf).
+ * A version replaced by an agreed newer one is left out. Period = `data.periodStart…periodEnd` (else the
+ * month of the record). Fact from the budget start up to min(end, dateTo): account turnover in its normal
+ * direction, or posted payments of the category.
  */
 async function budgetLines(ctx: Ctx, config: Config, restaurants: string[], budget: Budget) {
   const accounts = await accountsMap(ctx)
   const lookup = recordLookup(ctx)
   const lines: BudgetLine[] = []
+  const superseded = new Set<string>()
   for await (const record of financeRecords(ctx, "budgets", restaurants, { to: config.dateTo }, budget)) {
     if (record.status !== "approved" && record.status !== "posted") continue
-    const monthStart = `${record.businessDate.slice(0, 7)}-01`
-    const start = isDate(record.data.periodStart) ? record.data.periodStart : monthStart
-    const end = isDate(record.data.periodEnd) ? record.data.periodEnd : shiftDate(`${shiftDate(monthStart, 32).slice(0, 7)}-01`, -1)
+    if (typeof record.data.previousVersionExternalId === "string") superseded.add(record.data.previousVersionExternalId)
+    const { start, end } = budgetPeriodOf(record)
     if (end < config.dateFrom || start > config.dateTo) continue
-    const account = (typeof record.data.accountExternalId === "string" && record.data.accountExternalId) || record.debitAccountExternalId || record.creditAccountExternalId || undefined
-    lines.push({ record, account, category: record.cashflowCategoryExternalId, start, end, plan: record.amount, fact: 0 })
+    const planned = await budgetLinesOf(ctx, record)
+    for (const line of planned) {
+      lines.push({ record, key: planned.length > 1 ? `${record.externalId}:${line.lineNo}` : record.externalId, account: line.accountExternalId, category: line.cashflowCategoryExternalId, start, end, plan: line.planAmount, fact: 0 })
+    }
   }
+  for (let index = lines.length - 1; index >= 0; index -= 1) if (superseded.has(lines[index].record.externalId)) lines.splice(index, 1)
   for (const line of lines) {
     const to = line.end < config.dateTo ? line.end : config.dateTo
     const allowed = new Set([line.record.restaurantExternalId])
@@ -347,7 +352,7 @@ const budgetExecution: Calculator = async (ctx, config, restaurants) => {
   for (const line of lines) {
     const article = await articleOf(line, accounts, lookup)
     rows.push({
-      key: line.record.externalId,
+      key: line.key,
       cells: { group: `${line.record.number} ${line.record.name}`, restaurant: names.get(line.record.restaurantExternalId) ?? line.record.restaurantExternalId, article: article.label, period: `${line.start} — ${line.end}`, plan: line.plan, fact: line.fact, remainder: line.plan - line.fact, execution: percent(line.fact, line.plan), status: line.fact > line.plan ? "Перерасход" : "В пределах" },
     })
   }

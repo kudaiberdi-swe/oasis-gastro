@@ -191,7 +191,7 @@ export type RecordEditor<D> = ReturnType<typeof useRecordEditor<D>>
 
 /** RightPanel + form + dialogs around a card's sections. */
 export function RecordEditorPanel<D>({ editor, title, formLabel, onClose, children }: { editor: RecordEditor<D>; title: ReactNode; formLabel: string; onClose: () => void; children: ReactNode }) {
-  const { confirm, setConfirm, setDialogError } = editor
+  const { setConfirm } = editor
   const errorRef = useReveal(editor.error)
   return (
     <>
@@ -221,6 +221,16 @@ export function RecordEditorPanel<D>({ editor, title, formLabel, onClose, childr
           {children}
         </form>
       </RightPanel>
+      <RecordEditorDialogs editor={editor} onClose={onClose} />
+    </>
+  )
+}
+
+/** «Закрыть без сохранения?», the reverse / cancel reason and the unsaved-changes guard of a card or a full-page editor. */
+export function RecordEditorDialogs<D>({ editor, onClose }: { editor: RecordEditor<D>; onClose: () => void }) {
+  const { confirm, setConfirm, setDialogError } = editor
+  return (
+    <>
       <ConfirmDialog
         open={confirm === "close"}
         onOpenChange={(open) => setConfirm(open ? "close" : null)}

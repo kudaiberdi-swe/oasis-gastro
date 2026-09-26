@@ -24,6 +24,9 @@ import { ZonesWorkspace } from "@/office/features/delivery/ui/zones-workspace"
 import { TransactionsWorkspace } from "@/office/features/finance/ui/journal-workspace"
 import { ShiftAcceptanceWorkspace } from "@/office/features/finance/ui/shift-acceptance-workspace"
 import { AccountsPayableWorkspace } from "@/office/features/finance/ui/accounts-payable-workspace"
+import { BankStatementsWorkspace } from "@/office/features/finance/ui/bank-statements-workspace"
+import { BudgetsWorkspace } from "@/office/features/finance/ui/budgets-workspace"
+import { PaymentCalendarWorkspace } from "@/office/features/finance/ui/payment-calendar-workspace"
 import { PaymentsWorkspace } from "@/office/features/finance/ui/payments-workspace"
 import { ServicesWorkspace } from "@/office/features/finance/ui/services-workspace"
 import { GuestCategoriesWorkspace } from "@/office/features/loyalty/ui/categories-workspace"
@@ -120,6 +123,9 @@ const WORKSPACES: Record<string, ComponentType> = {
   services: ServicesWorkspace,
   "accounts-payable": AccountsPayableWorkspace,
   payments: PaymentsWorkspace,
+  "bank-statements": BankStatementsWorkspace,
+  "payment-calendar": PaymentCalendarWorkspace,
+  budgets: BudgetsWorkspace,
   employees: WorkforceWorkspace,
   positions: PositionsWorkspace,
   "shift-types": ShiftTypesWorkspace,

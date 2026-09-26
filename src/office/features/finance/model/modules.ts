@@ -280,6 +280,7 @@ export const JOURNAL_SOURCES: Record<string, { label: string; section?: string }
   transactions: { label: "Ручная операция", section: "transactions" },
   services: { label: "Акт услуг", section: "services" },
   payments: { label: "Платёж", section: "payments" },
+  "bank-statements": { label: "Банковская выписка", section: "bank-statements" },
   payroll: { label: "Ведомость", section: "payroll" },
   "shift-acceptance": { label: "Принятие смены" },
   "cash-operations": { label: "Внесение / изъятие" },
