@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import { api, internal } from "../../convex/_generated/api"
 import type { Id } from "../../convex/_generated/dataModel"
+import type { ReportConfig } from "../../convex/lib/reportConfig"
 import schema from "../../convex/schema"
 import { cashier, draft, setup } from "./fixtures/pos"
 
@@ -171,5 +172,81 @@ describe("sales reports W2 (W2-RPT-03)", () => {
     const report = await run(admin, "sales-26", date)
     expect(report.rows[0].cells).toMatchObject({ group: date, orderCount: 1, serviceMinutes: 30, tickets: 1, kitchenMinutes: 12, cookMinutes: 7 })
     expect(report.kpis.find((kpi) => kpi.key === "kitchen")?.value).toBe(12)
+  })
+})
+
+// W1-RPT-06 leftovers: the OLAP constructor over the facts, the checks list over the orders and the
+// refunds by check over the payments.
+type Config = ReportConfig
+const execute = (admin: ReturnType<T["withIdentity"]>, reportId: string, date: string, extra: Partial<Config> = {}) =>
+  admin.query(api.domains.reports.queries.execute, { reportId, config: { dateFrom: date, dateTo: date, restaurantExternalIds: [], ...extra } })
+
+describe("sales W1 leftovers (W1-RPT-06: sales-olap, sales-10, sales-20)", () => {
+  it("sales-olap: groupings × measure from the facts reconcile with sales-01; two sales dimensions are refused", async () => {
+    const { admin, date, total } = await sales()
+    const byDay = await execute(admin, "sales-olap", date)
+    expect(byDay.columns.map((column) => column.label)).toEqual(["День", "Выручка"])
+    expect(byDay.rows.map((row) => [row.cells.group, row.cells.value])).toEqual([[date, total.netAmount]])
+    expect(byDay.kpis.map((kpi) => kpi.value)).toEqual([total.netAmount, 3, Math.round(total.netAmount / 3)])
+
+    const tables = await execute(admin, "sales-olap", date, { groupBy: "restaurant", secondaryGroupBy: "table", measure: "average" })
+    expect(tables.columns.map((column) => column.key)).toEqual(["group", "secondary", "value", "orderCount", "netAmount"])
+    expect(tables.rows.map((row) => [row.cells.group, row.cells.secondary, row.cells.value, row.cells.orderCount])).toEqual([["Алматы", "Стол 5", 2875, 1], ["Алматы", "Стол 1", 1150, 2]])
+    expect(tables.totals).toEqual({ value: Math.round(total.netAmount / 3), orderCount: 3, netAmount: total.netAmount })
+
+    const payments = await execute(admin, "sales-olap", date, { groupBy: "payment-type", measure: "count" })
+    expect(payments.totals.value).toBe(3)
+    expect(payments.columns[1].label).toBe("Оплат")
+    const dishes = await execute(admin, "sales-olap", date, { groupBy: "product", secondaryGroupBy: "month" })
+    expect(dishes.totals.value).toBe(total.netAmount)
+    expect(dishes.rows.map((row) => [row.cells.group, row.cells.secondary])).toEqual([["Бешбармак", date.slice(0, 7)], ["Чай", date.slice(0, 7)]])
+    const weeks = await execute(admin, "sales-olap", date, { groupBy: "week", measure: "count" })
+    expect(weeks.rows).toHaveLength(1)
+    expect(String(weeks.rows[0].cells.group)).toMatch(/^\d{2}\.\d{2}\.\d{4} – \d{2}\.\d{2}\.\d{4}$/)
+
+    await expect(execute(admin, "sales-olap", date, { groupBy: "product", secondaryGroupBy: "employee" })).rejects.toThrow(/Такая комбинация пока недоступна: «Блюдо» × «Официант»/)
+    await expect(execute(admin, "sales-olap", date, { groupBy: "quarter-hour" })).rejects.toThrow(/Такая комбинация пока недоступна/)
+  })
+
+  it("sales-10: every check of the day with table, waiter, positions and status; a status filter", async () => {
+    const { t, admin, date, total, productId } = await sales()
+    await draft(t, productId, 3) // still open
+    const report = await execute(admin, "sales-10", date)
+    expect(report.rows.map((row) => [row.cells.table, row.cells.waiter, row.cells.lines, row.cells.total, row.cells.status])).toEqual([
+      ["Стол 5", "Кассир", 3, 2875, "Оплачен"],
+      ["Стол 1", "Кассир", 1, 1150, "Оплачен"],
+      ["Стол 1", "Кассир", 1, 1150, "Оплачен"],
+      ["Стол 1", "Кассир", 3, 3450, "Открыт"],
+    ])
+    expect(report.rows.every((row) => /^№\d+$/.test(String(row.cells.group)) && /^\d{2}:\d{2}$/.test(String(row.cells.time)))).toBe(true)
+    expect(Object.fromEntries(report.kpis.map((kpi) => [kpi.key, kpi.value]))).toMatchObject({ checks: 4, sold: 3, soldTotal: total.netAmount, cancelled: 0 })
+    expect(report.totals).toEqual({ lines: 8, total: total.netAmount + 3450 })
+    expect(report.truncated).toBe(false)
+    expect((await execute(admin, "sales-10", date, { extra: { status: "draft" } })).rows.map((row) => row.cells.status)).toEqual(["Открыт"])
+    expect((await execute(admin, "sales-10", date, { search: "Стол 5" })).rows).toHaveLength(1)
+  })
+
+  it("sales-20: refunds by check with reason, cashier and kind; a payment without a restaurant is placed by its shift", async () => {
+    const { t, admin, date } = await sales()
+    const [table, one] = await t.run((ctx) => ctx.db.query("orders").withIndex("by_status_created", (q) => q.eq("status", "paid")).take(2))
+    await t.mutation(api.domains.orders.mutations.refund, { sessionToken: cashier, orderId: table._id, idempotencyKey: "r1", amount: 500, method: "cash", reason: "Остыло", managerApprovalToken: "m1" })
+    await t.mutation(api.domains.orders.mutations.refund, { sessionToken: cashier, orderId: one._id, idempotencyKey: "r2", amount: 1150, method: "card", reason: "Не понравилось", managerApprovalToken: "m2" })
+    const report = await execute(admin, "sales-20", date)
+    expect(report.rows.map((row) => [row.cells.check, row.cells.terminal, row.cells.amount, row.cells.kind, row.cells.reason, row.cells.cashier])).toEqual([
+      [`№${table.number}`, "Касса 1", 500, "Частичный", "Остыло", "Кассир"],
+      [`№${one.number}`, "Касса 1", 1150, "Полный", "Не понравилось", "Кассир"],
+    ])
+    expect(report.totals.amount).toBe((await execute(admin, "sales-01", date)).totals.refundAmount)
+    expect(report.kpis.map((kpi) => kpi.value)).toEqual([1650, 2, 2])
+    expect((await execute(admin, "sales-20", date, { search: "остыло" })).rows).toHaveLength(1)
+
+    // A refund recorded before payments carried a restaurant (M-2) is found through its shift.
+    await t.run(async (ctx) => {
+      const refund = (await ctx.db.query("payments").withIndex("by_order_created", (q) => q.eq("orderId", table._id)).take(10)).find((payment) => payment.type === "refund")!
+      await ctx.db.patch(refund._id, { restaurantId: undefined })
+      await ctx.db.insert("restaurants", { externalId: "astana", organizationExternalId: "sandyq", name: "Астана", address: "—", timezone: "Asia/Almaty", active: true })
+    })
+    expect((await execute(admin, "sales-20", date)).rows.map((row) => row.cells.amount)).toEqual([500, 1150])
+    expect((await execute(admin, "sales-20", date, { restaurantExternalIds: ["astana"] })).rows).toEqual([])
   })
 })
