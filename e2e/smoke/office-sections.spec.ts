@@ -1,4 +1,4 @@
-import { officeNavigation } from "../../src/office/model/navigation"
+import { officeNavigation } from "../../frontend/app/office/model/navigation"
 import { expect, test } from "../fixtures"
 
 // Walks every office section in the shell harness (/dev/office), so it runs without an office

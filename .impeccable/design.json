@@ -634,7 +634,7 @@
       },
       {
         "name": "The One File Rule",
-        "body": "Raw color values exist only in src/shared/styles/theme.css; components use semantic tokens (bg-card, text-accent, border-input…).",
+        "body": "Raw color values exist only in frontend/app/shared/styles/theme.css; components use semantic tokens (bg-card, text-accent, border-input…).",
         "section": "colors"
       },
       {

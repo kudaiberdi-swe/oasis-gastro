@@ -154,7 +154,7 @@ export async function expiringAndExpired(ctx: QueryCtx, args: { restaurantExtern
 
 type MedicalInput = { documentType: Row["documentType"]; issuedAt: string; expiresAt: string; issuer: string; documentNumber?: string; fitForWork: boolean; comment?: string }
 
-/** The same rules as validateMedical in src/office/features/workforce/model/w3.ts (B:convex/workforce.ts:127-131). */
+/** The same rules as validateMedical in frontend/app/office/features/workforce/model/w3.ts (B:convex/workforce.ts:127-131). */
 function checkMedical(input: MedicalInput, creating: boolean) {
   if (!DATE.test(input.issuedAt)) throw new ConvexError("Укажите дату выдачи")
   if (!DATE.test(input.expiresAt)) throw new ConvexError("Укажите срок действия")

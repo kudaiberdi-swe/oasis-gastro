@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 import { allowsCapability, CAPABILITY_CATALOG, isValidCapability } from "../../convex/lib/capabilities"
 import { effectiveScopes, requireOrganizationScope, requireWarehouseScope } from "../../convex/lib/officeAccess"
 import schema from "../../convex/schema"
-import { officeItems } from "../../src/office/model/navigation"
+import { officeItems } from "../../frontend/app/office/model/navigation"
 
 const modules = import.meta.glob("../../convex/**/*.ts")
 

@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — see the root DESIGN.md, section «Website» §7. Tailwind v4 is CSS-first: everything in
+ * @theme becomes both a CSS variable (var(--color-cream)) and a utility (bg-cream).
+ * Components must use these tokens; no raw hex values outside this file.
+ */
+@theme {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-ink: #121316;
+  --color-ink-soft: #1e1e1e;
+  --color-cream: #fff7ec;
+  --color-cream-alt: #faf8f5;
+  --color-stone: #e7e5e4;
+  --color-gold: #b28f6f;
+  --color-gold-link: #8a6526;
+  --color-clay: #9d7455;
+  --color-clay-strong: #7f5c43;
+  --color-brown: #331f15;
+  --color-amber: #b45309;
+  --color-amber-dark: #92400e;
+  --color-rust: #a33009;
+  --color-wine: #8c2323;
+  --color-wine-dark: #6e1b1b;
+  --color-charcoal: #23282d;
+  --color-charcoal-hover: #555555;
+  --color-muted: #555555;
+  --color-muted-2: #4b5563;
+  --color-muted-3: #666666;
+  --color-body: #333333;
+  --color-stone-500: #78716c;
+  --color-line: #e8e3dc;
+  --color-field: #d1d5db;
+  --color-field-label: #374151;
+  --color-form: #fefce8;
+  --color-form-border: #fef08a;
+  --color-danger: #b91c1c;
+  --color-snow: #fafafa;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Times New Roman", Times, "Liberation Serif", "Noto Serif", Georgia, serif;
+
+  --breakpoint-xs: 30rem;    /* 480 */
+  --breakpoint-sm: 37.5rem;  /* 600 */
+  --breakpoint-md: 48rem;    /* 768 */
+  --breakpoint-lg: 62rem;    /* 992 */
+  --breakpoint-xl: 64rem;    /* 1024 */
+  --breakpoint-wide: 73.75rem; /* 1180 */
+  --breakpoint-2xl: 80rem;   /* 1280 */
+  --breakpoint-3xl: 90rem;   /* 1440 */
+
+  --radius-btn: 6px;
+  --radius-img: 8px;
+  --radius-card: 12px;
+  --radius-pill: 14px;
+  --radius-panel: 16px;
+  --radius-phone: 44px;
+
+  --shadow-card: 0 10px 20px rgb(0 0 0 / 0.06);
+  --shadow-modal: 0 10px 25px rgb(0 0 0 / 0.1);
+  --shadow-phone: 0 30px 60px rgb(18 19 22 / 0.25);
+  --text-shadow-hero: 0 2px 4px rgb(0 0 0 / 0.3);
+  --text-shadow-band: 1px 1px 5px rgb(0 0 0 / 0.5);
+
+  --spacing-header: 75px;
+  --spacing-gutter-wide: 103px;
+
+  --container-header: 1400px;
+  --container-content: 1200px;
+  --container-boxed: 1140px;
+  --container-banquets: 1160px;
+  --container-author: 1280px;
+  --container-wide: 1440px;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-marquee-slow: marquee-full 25s linear infinite;
+  --animate-marquee-cards: marquee-half 50s linear infinite;
+  --animate-kenburns: kenburns 16s ease-in-out infinite alternate;
+
+  @keyframes marquee-full {
+    from { transform: translateX(0); }
+    to { transform: translateX(-100%); }
+  }
+  @keyframes marquee-half {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes kenburns {
+    from { transform: scale(1); }
+    to { transform: scale(1.08); }
+  }
+}
+
+@layer base {
+  :root {
+    --header-bg: rgb(18 19 22 / 0.95);
+    --header-border: rgb(255 255 255 / 0.05);
+    --dropdown-border: rgb(255 255 255 / 0.1);
+    --hero-overlay: linear-gradient(to top, rgb(0 0 0 / 0.6) 0%, rgb(0 0 0 / 0.2) 100%);
+    --media-overlay: rgb(0 0 0 / 0.2);
+    --band-overlay: rgb(18 19 22 / 0.45);
+    --backdrop: rgb(0 0 0 / 0.4);
+    --brown-muted: rgb(51 31 21 / 0.7);
+    --brown-line: rgb(51 31 21 / 0.1);
+    --amber-line: rgb(180 83 9 / 0.2);
+    color-scheme: light;
+  }
+
+  html {
+    scroll-padding-top: var(--spacing-header);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    padding-top: var(--spacing-header);
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  body.menu-open {
+    overflow: hidden;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .text-shadow-hero {
+    text-shadow: var(--text-shadow-hero);
+  }
+  .text-shadow-band {
+    text-shadow: var(--text-shadow-band);
+  }
+  /* Pause CSS marquees on hover and on keyboard focus inside them. */
+  .marquee:hover .marquee-track,
+  .marquee:focus-within .marquee-track {
+    animation-play-state: paused;
+  }
+}

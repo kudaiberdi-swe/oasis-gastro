@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/**"
-      - "public/**"
+      - "frontend/app/**"
+      - "frontend/public/**"
       - "index.html"
       - "vite.config.ts"
       - "tsconfig*.json"
@@ -19,8 +19,8 @@ on:
       - ".github/workflows/deploy-frontend.yml"
   pull_request:
     paths:
-      - "src/**"
-      - "public/**"
+      - "frontend/app/**"
+      - "frontend/public/**"
       - "index.html"
       - "vite.config.ts"
       - "tsconfig*.json"

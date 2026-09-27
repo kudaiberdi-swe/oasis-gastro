@@ -1,7 +1,7 @@
 # POS-DESIGN — дизайн Sandyq для кассы, офиса, кухни и курьера
 
-> Статус: спецификация от 2026-09-24; по ней построены касса, кухня и офис (волны W0–W3), касса переделана ещё раз 2026-09-26 (редизайн «деньги и контроль», зал, касание, казахский язык). Где реализация ушла от текста, раздел помечен **«Сейчас»** — это описание кода, а не план. Источник правды для токенов — `S:src/shared/styles/theme.css` и корневой `DESIGN.md`; таблицы §2 оставлены как история решения D2 и обновлены там, где значения поменялись.
-> Связанные документы: `05-OFFICE-DESIGN.md` (детальная спецификация офиса), `reference/archive/PLAN.md` (что переносим из bahandi-pos), корневой `DESIGN.md` (дизайн-система приложения «The Carved Chest» и, в разделе «Website», спецификация маркетингового сайта `website/`), `09-WEBSITE-ASSETS.md` (картинки), дизайн-система Sandyq `/Users/beket/Desktop/echo/.claude/sandyq-design.skill` (`SKILL.md`, `references/tokens.css`, `references/patterns.md`, `assets/ornament.svg`).
+> Статус: спецификация от 2026-09-24; по ней построены касса, кухня и офис (волны W0–W3), касса переделана ещё раз 2026-09-26 (редизайн «деньги и контроль», зал, касание, казахский язык). Где реализация ушла от текста, раздел помечен **«Сейчас»** — это описание кода, а не план. Источник правды для токенов — `S:frontend/app/shared/styles/theme.css` и корневой `DESIGN.md`; таблицы §2 оставлены как история решения D2 и обновлены там, где значения поменялись.
+> Связанные документы: `05-OFFICE-DESIGN.md` (детальная спецификация офиса), `reference/archive/PLAN.md` (что переносим из bahandi-pos), корневой `DESIGN.md` (дизайн-система приложения «The Carved Chest» и, в разделе «Website», спецификация маркетингового сайта `frontend/site/`), `09-WEBSITE-ASSETS.md` (картинки), дизайн-система Sandyq `/Users/beket/Desktop/echo/.claude/sandyq-design.skill` (`SKILL.md`, `references/tokens.css`, `references/patterns.md`, `assets/ornament.svg`).
 
 Задача документа — описать, как функционал bahandi-pos (91 раздел офиса, POS, кухня, курьер) должен выглядеть в стиле Sandyq. Как в шаблоне bahandi не делаем:
 
@@ -21,7 +21,7 @@
 3. **Одно красное главное действие на экран.** Красный (wine/kilim) только у главной кнопки: «Оплатить», «Открыть смену», «Провести», «Сохранить». Активные чипы, вкладки, пункты меню и ссылки не красные (§4).
 4. **Золото — для декора и для тёмного фона.** На светлом фоне для текста есть отдельный тёмный оттенок `accent` (контраст ≥ 4.5:1).
 5. **Читаемость на расстоянии.** В POS текст не меньше 14 px и цели нажатия не меньше 48 px (`--control-h-pos`; сейчас так у шапки, тулбара, чипов, степперов, корзины и панели действий). На кухне номер заказа не меньше 32 px. В офисе текст не меньше 12 px.
-6. **Все цвета, шрифты, радиусы и тени — только из токенов** в `S:src/shared/styles/theme.css`. В `.tsx` нет hex, `rgb()`, `bg-white`/`text-white` и палитровых классов Tailwind.
+6. **Все цвета, шрифты, радиусы и тени — только из токенов** в `S:frontend/app/shared/styles/theme.css`. В `.tsx` нет hex, `rgb()`, `bg-white`/`text-white` и палитровых классов Tailwind.
 7. **Раскладка и состав — как у bahandi, внешний вид — Sandyq** (решение пользователя, `reference/archive/PLAN.md` D4/D5). Каждый экран повторяет расположение блоков, кнопок, вкладок и колонок со скриншотов `reference/bahandi-screenshots/`. Меняются цвета, шрифты, размеры, радиусы, декор, тексты бренда, а также баги из `reference/archive/PLAN.md` §12.1. Для каждого экрана есть шаблон в §11 и строка в `reference/archive/PLAN.md` §13.
 
 ---
@@ -95,7 +95,7 @@
 | `--nav` | `#0B0C0E` *(вывод.)* | |
 | `--nav-accent` | `#B28F6F` | |
 
-Tailwind: добавить в `S:src/shared/styles/index.css` строку `@custom-variant dark (&:where([data-theme=night], [data-theme=night] *));`. Иначе `dark:` реагирует на тему ОС, а не на переключатель (так сделано в bahandi: 17 мест).
+Tailwind: добавить в `S:frontend/app/shared/styles/index.css` строку `@custom-variant dark (&:where([data-theme=night], [data-theme=night] *));`. Иначе `dark:` реагирует на тему ОС, а не на переключатель (так сделано в bahandi: 17 мест).
 
 ### 2.3 Категории меню (замена «product swatches»)
 
@@ -117,7 +117,7 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 ### 3.1 Шрифты
 - **UI:** `"Golos Text", "PT Sans", "Segoe UI", Roboto, Arial, sans-serif`. Веса 400, 500, 600, 700.
   - Убрать `font-extrabold` (800 не загружается, браузер синтезирует жирность) и `font-black` (у bahandi 238 мест).
-  - Убрать `font-feature-settings "cv02","cv03","cv04","cv11"`: это Inter-варианты из шаблона (`S:src/shared/styles/index.css:52`).
+  - Убрать `font-feature-settings "cv02","cv03","cv04","cv11"`: это Inter-варианты из шаблона (`S:frontend/app/shared/styles/index.css:52`).
 - **Display:** `"Cormorant", "PT Serif", Georgia, serif`. Веса 500, 600 и italic 500.
   - Цифры: `font-variant-numeric: lining-nums tabular-nums` (класс `.sq-price` из skill).
 - Загрузка: Google Fonts с `display=swap`, как сейчас в `S:index.html:11-16`. Лучше self-host через `@fontsource` (так bahandi грузит Manrope), чтобы касса работала без внешней сети.
@@ -140,12 +140,12 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 Для сравнения: у bahandi 74 % текста 6–9 px (`B:` подсчёт по `src/`), у sandyq минимум 12 px (`text-xs`).
 
 ### 3.3 Правила
-- Заголовки разделов, диалогов и итогов набираются Cormorant 600. Сейчас в S `DialogTitle` — Golos 800 с отрицательным трекингом (`S:src/shared/components/ui/dialog.tsx:55`).
+- Заголовки разделов, диалогов и итогов набираются Cormorant 600. Сейчас в S `DialogTitle` — Golos 800 с отрицательным трекингом (`S:frontend/app/shared/components/ui/dialog.tsx:55`).
 - **Шепчущее слово** (skill: whisper): Cormorant italic, lowercase, цвет `--accent` (на тёмном `--nav-accent`), над заголовком раздела офиса и экранов входа. Слова: «menu», «stock», «kitchen», «finance», «team», «guests», «reports», «history».
   - В таблицах и диалогах не используется.
   - Сейчас в S используется 0 раз, при этом italic загружается впустую.
 - **Капс** только в казахских ритуальных названиях (БАТА, ТАБАҚ ТАРТУ) и нигде больше. Заголовки колонок таблиц пишутся sentence case, 12 px, 600, `--muted-foreground`. Сейчас в S `uppercase` стоит 21 раз, в B около 33 раз.
-- **Цены:** формат `7 990 ₸` с тонким пробелом U+2009 между разрядами и неразрывным U+00A0 перед ₸. Одна функция `formatTenge` в `S:src/shared/lib/utils.ts`. Сейчас `Intl ru-KZ` даёт NBSP, а в 4 местах формат задан вручную: `S:shift-dialog.tsx:82,116`, `S:stock-workspace.tsx:102`, quick-cash.
+- **Цены:** формат `7 990 ₸` с тонким пробелом U+2009 между разрядами и неразрывным U+00A0 перед ₸. Одна функция `formatTenge` в `S:frontend/app/shared/lib/utils.ts`. Сейчас `Intl ru-KZ` даёт NBSP, а в 4 местах формат задан вручную: `S:shift-dialog.tsx:82,116`, `S:stock-workspace.tsx:102`, quick-cash.
   - Минус всегда `−` (U+2212). Сейчас в finance, reports и stock стоит `-`.
 - **Названия блюд** на двух языках: сначала RU (крупно), под ним KZ (`--text-body-sm`, muted). Порядок KZ → RU по skill можно включить настройкой D8.
   - **Сейчас:** порядок задаёт язык интерфейса кассы (§6.7): в RU первым идёт русское название, в KK — казахское; казахская часть всегда с `lang="kk"`. Так на карточке блюда (до двух строк), в строке заказа, в диалоге модификаторов (и у опций), в списках возврата и удаления позиции. Модификаторы строки заказа — русская строка и под ней казахская. У групп товаров (чипы категорий) казахского названия пока нет.
@@ -167,7 +167,7 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 | `--space-1…6` | 4, 8, 12, 16, 24, 32 px | отступы |
 
 Что убрать:
-- `rounded-xl` у `size=lg` и `rounded-lg` у `sm` в `S:src/shared/components/ui/button.tsx:21-24` — сейчас они перебивают 2 px;
+- `rounded-xl` у `size=lg` и `rounded-lg` у `sm` в `S:frontend/app/shared/components/ui/button.tsx:21-24` — сейчас они перебивают 2 px;
 - `rounded-full` у чипов категорий (`S:catalog-panel.tsx:27,37`), методов оплаты и quick-cash (`S:payment-dialog.tsx:78,112`), пилюли «Активен» (`S:workforce-workspace.tsx:82`);
 - радиус диалога 12 px (`S:dialog.tsx:35`);
 - цветное свечение под primary-кнопкой (`S:button.tsx:12`);
@@ -182,7 +182,7 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 
 ---
 
-## 5. Примитивы (`S:src/shared/components/ui/*`)
+## 5. Примитивы (`S:frontend/app/shared/components/ui/*`)
 
 Список нужных примитивов. Ни в S, ни в B полного набора нет: в B `Field` продублирован в 7 файлах.
 
@@ -198,11 +198,11 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 | **StatusPill** | Высота 24px, радиус 2px, текст 12px 600, текст = тон. Тоны: neutral, success, warning, danger, info (accent). Сейчас в B нет тона «ошибка», размер 7px и uppercase. **Сейчас:** success, warning и danger — на непрозрачной подложке `--*-surface` с рамкой 35 %; «Возвращён» — `--destructive-muted` на parchment; info — accent на 10 %. «Отложен» (amber), «Возвращён» и «Оплачен» (green) не делят тон; неизвестный статус — «Другой статус» |
 | **Dialog** | Радиус `--radius-panel`, фон card, тень `--shadow-float`, overlay `--overlay`. Заголовок Cormorant 600 22px, опциональное whisper-слово над ним. Кнопка закрытия квадратная 36px ghost, `aria-label="Закрыть"` (сейчас по-английски «Close»). Футер-примитив: справа primary, слева secondary |
 | **Toast** | Внизу по центру, фон `--nav`, текст `--nav-foreground`, слева иконка success, warning или destructive. 4 с, `role="status"`, для ошибок `role="alert"` |
-| **EmptyState** | Орнамент 120px цвета `--gold` по центру, заголовок Cormorant 22px, одна строка muted, одна кнопка. Для пустых каталога, склада и заказов можно фото из `S:public/images` в тоне сепии на 20 % |
+| **EmptyState** | Орнамент 120px цвета `--gold` по центру, заголовок Cormorant 22px, одна строка muted, одна кнопка. Для пустых каталога, склада и заказов можно фото из `S:frontend/public/images` в тоне сепии на 20 % |
 | **Skeleton** | Фон muted с пульсом opacity (выключается под reduced motion). Заменяет «Загрузка…» простым текстом |
 | **PageHeader** (офис) | Хлебные крошки 12px muted, затем whisper-слово (Cormorant italic accent), затем заголовок Cormorant 600 28px, затем описание 14px muted. Справа действия (одна primary). Снизу золотая `--hairline` |
-| **Sidebar** (офис) | Фон `--nav`, ширина 264px. Логотип `S:public/branding/sandyq-group-logo.svg` 28px и слово «Sandyq» Cormorant. Поиск. Группы: заголовок 12px 600 `--nav-muted`, пункт 14px `--nav-foreground`, активный пункт — `--nav-accent` + полоска 2px слева. Внизу пользователь, филиал, тема, выход |
-| **Ornament** | Инлайн SVG из `S:public/branding/ornament.svg` (`currentColor`). Только симметрично, левый и зеркальный правый (`-scale-x-100`), как в `S:src/pos/features/session/ui/login-screen.tsx:66-69` — это единственное место, где он применён правильно |
+| **Sidebar** (офис) | Фон `--nav`, ширина 264px. Логотип `S:frontend/public/branding/sandyq-group-logo.svg` 28px и слово «Sandyq» Cormorant. Поиск. Группы: заголовок 12px 600 `--nav-muted`, пункт 14px `--nav-foreground`, активный пункт — `--nav-accent` + полоска 2px слева. Внизу пользователь, филиал, тема, выход |
+| **Ornament** | Инлайн SVG из `S:frontend/public/branding/ornament.svg` (`currentColor`). Только симметрично, левый и зеркальный правый (`-scale-x-100`), как в `S:frontend/app/pos/features/session/ui/login-screen.tsx:66-69` — это единственное место, где он применён правильно |
 | **Money** | Компонент суммы: Cormorant 600, `tabular-nums`, цвет `--accent` на светлом и `--nav-accent` на тёмном, формат `7 990 ₸` |
 | **PinPad** | Клавиши 72×64 px, радиус 2px, цифры Cormorant 600 28px. Точки PIN — золотые кружки 12px. Ввод и с физической клавиатуры (сейчас нет ни в S, ни в B), Enter отправляет |
 
@@ -212,9 +212,9 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 
 ### 6.1 Выбор терминала и вход (POS, кухня, курьер)
 - Весь экран `--nav`.
-  - Слева (≥1024px) фото `S:public/images/slide-img-3.jpg` (вход в зал), overlay `linear-gradient(to top, rgb(0 0 0/.6), rgb(0 0 0/.2))`.
+  - Слева (≥1024px) фото `S:frontend/public/images/slide-img-3.jpg` (вход в зал), overlay `linear-gradient(to top, rgb(0 0 0/.6), rgb(0 0 0/.2))`.
   - Справа карточка card, радиус 8px, ширина 420px.
-- Над формой: логотип `S:public/branding/sandyq-kz-logo.svg` (белый) 56px, whisper «pos» / «kitchen» / «courier», заголовок Cormorant «Касса Sandyq» + название филиала.
+- Над формой: логотип `S:frontend/public/branding/sandyq-kz-logo.svg` (белый) 56px, whisper «pos» / «kitchen» / «courier», заголовок Cormorant «Касса Sandyq» + название филиала.
 - Орнамент симметрично над заголовком.
 - Пикер (источник данных — `B:terminal-picker.tsx`): филиалы как крупные radio-карточки. Адрес филиала 14px muted. Тег «Туркестан» — единственное место с `--cat-turkistan`.
 - PIN: см. PinPad. Код сотрудника — отдельный шаг, как сейчас в S.
@@ -286,7 +286,7 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
   - метрики — Money 24px с подписью 14px;
   - закрытие — слепой пересчёт (MoneyInput), ожидаемое показывать только после ввода, расхождение success/destructive.
   - **Сейчас:** пересчёт слепой и на сервере — кассир (не менеджер и не администратор) не видит ожидаемую наличность и выручку открытой смены ни в «Текущей», ни в истории. Шаг 1 — только «Насчитано»; «Сверить» (`shifts.reconcileCount`, аудит `shift.count`) показывает ожидаемое, насчитанное и расхождение, примечание о PIN менеджера — только если |расхождение| ≥ порога; «Пересчитать» очищает и возвращает к шагу 1; закрытие спрашивает «Закрыть смену и напечатать Z-отчёт? Действие необратимо.», Z-отчёт печатается сразу (повторно — с экрана открытия смены). В изъятии PIN менеджера упоминается только там, где его требует сервер; ошибка лимита — «Сумма больше, чем учтено в кассе», без суммы.
-- **Нет связи** (**сейчас**, `src/pos/model/use-connection.ts`): полоса под шапкой, «Оплатить» и «На кухню» выключены с причиной рядом, F4 и «Подтвердить» заблокированы.
+- **Нет связи** (**сейчас**, `frontend/app/pos/model/use-connection.ts`): полоса под шапкой, «Оплатить» и «На кухню» выключены с причиной рядом, F4 и «Подтвердить» заблокированы.
 - **История, возврат, отмена, перенос** — диалоги по `B:order-dialogs.tsx`, в стиле §5. Для отмены и возврата — danger-кнопка и подтверждение PIN менеджера.
 - **Подтверждение менеджера** — Dialog с whisper «manager», PinPad, текстом причины.
 - **Тексты** (**сейчас**): без разработческих формулировок; сетевые, валидационные и скрытые серверные ошибки — коротко («Не получилось. Повторите.»); вход — «Sandyq · филиал · касса», подпись 14px.
@@ -320,7 +320,7 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
   - сбоку панель пояснения себестоимости (`B:costing-explainer.tsx`) с золотой hairline.
 - **ProductEditor** (номенклатура):
   - Tabs «Основное / Единицы / Фото / Размеры / Модификаторы / Техкарта / Технология»;
-  - поле KZ-названия и цены по филиалам сохранить из `S:src/office/features/catalog/ui/catalog-workspace.tsx` ProductDialog;
+  - поле KZ-названия и цены по филиалам сохранить из `S:frontend/app/office/features/catalog/ui/catalog-workspace.tsx` ProductDialog;
   - фото — зона drag-and-drop 4:3.
 - **Техкарта**: таблица брутто, нетто, выход и себестоимость, KPI «Фудкост %» (success < 30 %, warning 30–35 %, destructive > 35 % — пороги в настройках), история версий списком с датами.
 - **Расписание**: календарь-неделя (строки сотрудники, колонки дни, блоки смен цвета типа смены) вместо карточек B.
@@ -342,7 +342,7 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
   - гость и телефон — ссылка `tel:` 44px;
   - кнопки «Маршрут» (secondary) и следующего статуса (primary, одна).
 - Сумма к оплате у двери — Money 28px.
-- Манифест: `name: "Sandyq Courier"`, `theme_color: #121316`, `background_color: #FFF7EC`, иконки 192 и 512 px из `S:public/branding/sandyq-group-favicon-140.webp`. У B иконок нет, цвет `#173F35`.
+- Манифест: `name: "Sandyq Courier"`, `theme_color: #121316`, `background_color: #FFF7EC`, иконки 192 и 512 px из `S:frontend/public/branding/sandyq-group-favicon-140.webp`. У B иконок нет, цвет `#173F35`.
 
 ### 6.6 Печатные формы (чек, предчек, X, Z, накладные)
 - Ширина 80 мм, чёрно-белые. Шапка: логотип `sandyq-kz-hidden-menu-logo.svg` (чёрный) и название юрлица.
@@ -353,7 +353,7 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 ### 6.7 Язык интерфейса кассы (**сейчас**)
 
 - Русский и казахский: «Язык интерфейса» в профиле сотрудника (RU / KK), выбор хранится в браузере терминала (`sandyq-pos-locale`), как тема и плотность, и переживает перезагрузку и повторный вход.
-- Тексты — `S:src/pos/i18n/ru.ts` (ключи и русский) и `kk.ts` (казахский; ключ без перевода не пройдёт typecheck); интерполяция `{name}` и формы множественного числа. Слова общих примитивов (закрыть, стереть, загрузка, статусы) приходят через `S:src/shared/lib/ui-labels.tsx`. Ошибки клиента — на языке интерфейса, сообщения сервера — по-русски.
+- Тексты — `S:frontend/app/pos/i18n/ru.ts` (ключи и русский) и `kk.ts` (казахский; ключ без перевода не пройдёт typecheck); интерполяция `{name}` и формы множественного числа. Слова общих примитивов (закрыть, стереть, загрузка, статусы) приходят через `S:frontend/app/shared/lib/ui-labels.tsx`. Ошибки клиента — на языке интерфейса, сообщения сервера — по-русски.
 - Названия блюд и модификаторов — §3.3. Экран кухни и офис — только по-русски; у групп товаров нет казахского названия.
 - Казахские тексты написаны без носителя языка — нужна вычитка (TODO.md §3).
 
@@ -394,16 +394,16 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 | Тексты | «Bahandi · Абая», «Касса №1», «Kaspi», «Данные меню: bahandi.kz», `lang="en"` | данные из конфигурации терминала и справочников; `lang="ru"` |
 
 Что было в sandyq на 2026-09-24 и выглядело шаблонно (исправить в W0, `reference/archive/PLAN.md` §9). **Сейчас исправлено** (W0-FND/UI, гарды `npm run guards`); `open-checks-list.tsx` и `office-layout.tsx` удалены — их заменили `checks-switcher.tsx` + `floor-grid.tsx` и `office-shell.tsx` + `sidebar.tsx`:
-- `S:src/shared/components/ui/dialog.tsx:35,44,55`: радиус 12, зелёная тень, круглая кнопка «Close», заголовок Golos 800;
-- `S:src/shared/components/ui/button.tsx:12,14,21-24`: свечение, slate-тень, радиусы 8/12;
-- `S:src/pos/features/catalog/ui/catalog-panel.tsx:27,37`: красные круглые чипы;
-- `S:src/pos/features/order-taking/ui/open-checks-list.tsx:20,31`: красная рамка активного чека и «Новый стол»;
-- `S:src/pos/features/checkout/ui/payment-dialog.tsx:78,112,126`: красные круглые чипы, красная ссылка «Разделить»;
-- `S:src/office/components/office-layout.tsx:8-15,53`: светлый сайдбар без бренда, красный активный пункт и иконка `UtensilsCrossed`;
-- `S:src/pos/components/app-header.tsx:39,45`: `hover:bg-white/10`;
+- `S:frontend/app/shared/components/ui/dialog.tsx:35,44,55`: радиус 12, зелёная тень, круглая кнопка «Close», заголовок Golos 800;
+- `S:frontend/app/shared/components/ui/button.tsx:12,14,21-24`: свечение, slate-тень, радиусы 8/12;
+- `S:frontend/app/pos/features/catalog/ui/catalog-panel.tsx:27,37`: красные круглые чипы;
+- `S:frontend/app/pos/features/order-taking/ui/open-checks-list.tsx:20,31`: красная рамка активного чека и «Новый стол»;
+- `S:frontend/app/pos/features/checkout/ui/payment-dialog.tsx:78,112,126`: красные круглые чипы, красная ссылка «Разделить»;
+- `S:frontend/app/office/components/office-layout.tsx:8-15,53`: светлый сайдбар без бренда, красный активный пункт и иконка `UtensilsCrossed`;
+- `S:frontend/app/pos/components/app-header.tsx:39,45`: `hover:bg-white/10`;
 - во всех офисных таблицах: заголовки `text-xs font-extrabold uppercase tracking-wide`;
-- `S:src/shared/styles/theme.css`: неиспользуемые `--product-*`, `--tracking-tight`, `--space-*`, `--control-height`, `.panel-shadow`; night без destructive, success и warning;
-- `S:index.html`: нет favicon (`public/branding/sandyq-group-favicon-140.webp`).
+- `S:frontend/app/shared/styles/theme.css`: неиспользуемые `--product-*`, `--tracking-tight`, `--space-*`, `--control-height`, `.panel-shadow`; night без destructive, success и warning;
+- `S:index.html`: нет favicon (`frontend/public/branding/sandyq-group-favicon-140.webp`).
 
 ---
 
@@ -411,15 +411,15 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
 
 | Файл | Где использовать |
 |---|---|
-| `S:public/branding/sandyq-group-logo.svg` (золотой знак) | Sidebar, шапка POS, favicon (через webp) |
-| `S:public/branding/sandyq-kz-logo.svg` (белый) | Экран входа (POS, кухня, курьер, офис) |
-| `S:public/branding/sandyq-kz-hidden-menu-logo.svg` (чёрный) | Печатные формы |
-| `S:public/branding/ornament.svg` | Рамка входа, EmptyState, экран «Оплачено» |
-| `S:public/images/slide-img-3.jpg`, `slide-img-1.jpg` | Фон экрана входа |
-| `S:public/images/cymbal-3.jpg`, `hero-block-main-2.jpg` | Заглушки фото блюд до загрузки реальных (помечать «пример») |
-| `S:public/branding/sandyq-group-favicon-140.webp` | favicon, иконки PWA (сгенерировать 192 и 512) |
+| `S:frontend/public/branding/sandyq-group-logo.svg` (золотой знак) | Sidebar, шапка POS, favicon (через webp) |
+| `S:frontend/public/branding/sandyq-kz-logo.svg` (белый) | Экран входа (POS, кухня, курьер, офис) |
+| `S:frontend/public/branding/sandyq-kz-hidden-menu-logo.svg` (чёрный) | Печатные формы |
+| `S:frontend/public/branding/ornament.svg` | Рамка входа, EmptyState, экран «Оплачено» |
+| `S:frontend/public/images/slide-img-3.jpg`, `slide-img-1.jpg` | Фон экрана входа |
+| `S:frontend/public/images/cymbal-3.jpg`, `hero-block-main-2.jpg` | Заглушки фото блюд до загрузки реальных (помечать «пример») |
+| `S:frontend/public/branding/sandyq-group-favicon-140.webp` | favicon, иконки PWA (сгенерировать 192 и 512) |
 
-Не рисовать логотипы и подпись этнографа заново (правило skill «Brand marks»), только файлы из `public/branding`.
+Не рисовать логотипы и подпись этнографа заново (правило skill «Brand marks»), только файлы из `frontend/public/branding`.
 
 ---
 
@@ -433,7 +433,7 @@ Tailwind: добавить в `S:src/shared/styles/index.css` строку `@cus
   
   Дневная и ночная тема. Сохранять в `reference/app-screenshots/<wave>/`.
 - Автопроверки:
-  - grep на `#[0-9a-f]{3,6}`, `rgb(`, `bg-white`, `text-white`, `-(amber|orange|emerald|…)-\d` в `src/**/*.tsx` — 0 совпадений;
+  - grep на `#[0-9a-f]{3,6}`, `rgb(`, `bg-white`, `text-white`, `-(amber|orange|emerald|…)-\d` в `frontend/app/**/*.tsx` — 0 совпадений;
   - grep на `text-\[(6|7|8|9|10|11)px\]` — 0;
   - axe-core на каждом экране — 0 нарушений контраста и фокуса.
 - Ручная проверка по чек-листу skill:

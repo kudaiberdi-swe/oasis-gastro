@@ -13,7 +13,7 @@ Two people can read this repo cold from here: this file gets you running locally
 - **`/office`** — the back office. Email/password login (separate from POS PINs). A dark-sidebar shell with 12 groups / 91 sections (the bahandi-pos structure), filtered by the user's rights. Every section has a working screen except «План счетов» (placeholder) and «Касса» (a link to `/pos`) — nomenclature, recipes, stock and production documents, finance (double-entry journal, cash flow, bank statements, budgets), staff and payroll, guests and loyalty, delivery, 190 reports, integrations, and «Обмен данными с iiko». Every office query and change is limited to the user's restaurants. Each surface and each office section loads as its own chunk.
 - **`convex/`** — the backend: schema, one folder per business domain (`domains/<name>/{queries,mutations}.ts`), shared helpers in `lib/`.
 - **`scripts/iiko/`** — a read-only sync toolkit against the real iiko Server API (GET only, enforced by design — see the rule below): org tree and staff, plus (behind flags) stores, registers, units, suppliers, products, assembly charts, opening balances, prices, cash shifts and orders without personal data. `scripts/prod-iiko-import.sh` runs the whole import against prod.
-- **`scripts/seed-sandyq.mjs`** — seeds the real menu (parsed from `public/menu-data/*.json`) plus org/restaurants/terminals.
+- **`scripts/seed-sandyq.mjs`** — seeds the real menu (parsed from `frontend/public/menu-data/*.json`) plus org/restaurants/terminals.
 
 **Hard rule: never write to iiko.** Every script, action, and ad-hoc call against the iiko API must be GET-only. This is a live production account for a real, currently-operating business — not a sandbox. See `convex/domains/iiko/` and `scripts/iiko/lib.mjs`'s `IikoClient` (which only ever exposes `.get()`).
 
@@ -44,7 +44,7 @@ npm run iiko:seed       # extract → import → reconcile, scoped to Sandyq onl
 | `npm run build` | Typecheck + production frontend build |
 | `npm run typecheck` | `tsc -b` across the whole repo (frontend + convex) |
 | `npm run test` | Runs every test under `tests/` (vitest): `tests/convex` (backend, `convex-test`), `tests/pos`, `tests/kitchen` and `tests/office` (UI, jsdom), `tests/scripts` (guard/contrast/unbounded-query/compare scripts, iiko read-only) |
-| `npm run contrast` | WCAG contrast of the day/night theme tokens in `src/shared/styles/theme.css` |
+| `npm run contrast` | WCAG contrast of the day/night theme tokens in `frontend/app/shared/styles/theme.css` |
 | `npm run guards` | Static checks for the hard rules (auth on public functions, `ConvexError`, office restaurant scope, design tokens) — ratchet against `scripts/guards/baseline.json` (now empty, so any violation fails); public functions without a session must be listed in `scripts/guards/public-allowlist.json` |
 | `npm run e2e` | Playwright e2e (`e2e/`), local only: starts its own Vite dev server on :5198 against the dev deployment, installed Chrome, 4 surfaces × day/night. The sale smoke test needs the `seed:e2e` env loaded — or use `bash scripts/e2e-pos.sh` |
 | `npm run e2e:screens` | Screenshot run → `reference/app-screenshots/W0/…`, then `scripts/compare-screens.mjs` builds the bahandi-vs-sandyq parity page `reference/app-screenshots/W0/compare.html` |
@@ -88,7 +88,7 @@ The bare root URL `/` redirects to `/pos` and keeps the query string, so the `?t
 
 Two independent GitHub Actions workflows on `goecho-ai/sandyq`. Each has a `verify` job that runs on every push to `main` and on every pull request touching its paths: `npm ci` → `npm run typecheck` → `npm test` → `npm run guards`, plus `npm run contrast` in the frontend workflow and `npm run lint:convex` in the backend one. The deploy job has `needs: verify`, runs only for pushes to `main` (never for a pull request), and uses the `production` GitHub Environment. Nothing reaches prod unless typecheck, tests and guards (and, for the frontend, contrast) are green; a pull request only verifies and never deploys. Playwright e2e is **not** a CI job yet — it runs locally only.
 
-- **`deploy-frontend.yml`** — path-filtered to `src/**`, `public/**`, `tests/**`, the guard/contrast scripts and other frontend files. Builds with `VITE_CONVEX_URL` pointed at prod, deploys `dist/` to the Azure Static Web App above via `Azure/static-web-apps-deploy@v1`.
+- **`deploy-frontend.yml`** — path-filtered to `frontend/app/**`, `frontend/public/**`, `tests/**`, the guard/contrast scripts and other frontend files. Builds with `VITE_CONVEX_URL` pointed at prod, deploys `dist/` to the Azure Static Web App above via `Azure/static-web-apps-deploy@v1`.
 - **`deploy-backend.yml`** — path-filtered to `convex/**`, `tests/**`, the guard scripts, `package*.json` and the TS/Vite configs. Runs `npx convex deploy` against prod.
 
 `npm run typecheck` checks both the frontend (`tsc -b`) and the Convex functions (`tsc -p convex`); `tsc -b` alone never looked at `convex/`.

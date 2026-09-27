@@ -17,8 +17,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./frontend/app/*"],
+      "@convex/*": ["./convex/*"]
     }
   },
-  "include": ["src"]
+  "include": ["frontend/app"]
 }

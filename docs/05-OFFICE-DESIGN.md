@@ -1,6 +1,6 @@
 # OFFICE-DESIGN — дизайн офиса (back-office) Sandyq
 
-> Статус: спецификация от 2026-09-24; по ней построен офис (W0–W3): все разделы, кроме «План счетов» (заглушка «Раздел в разработке»), работают, «Касса» — ссылка на `/pos`, «Экран кухни» — раздел офиса. Общие правила дизайна приложения теперь сведены в корневом `DESIGN.md`; значения токенов — `src/shared/styles/theme.css`.
+> Статус: спецификация от 2026-09-24; по ней построен офис (W0–W3): все разделы, кроме «План счетов» (заглушка «Раздел в разработке»), работают, «Касса» — ссылка на `/pos`, «Экран кухни» — раздел офиса. Общие правила дизайна приложения теперь сведены в корневом `DESIGN.md`; значения токенов — `frontend/app/shared/styles/theme.css`.
 > Токены, шрифты, примитивы и общие правила — в `04-POS-DESIGN.md` §1–5 и §10. Этот документ их не повторяет, а описывает только офис.
 > Что переносим и в каком порядке — `reference/archive/PLAN.md` (§4.3 разделы офиса, §12 баги стенда, §13 матрица паритета).
 > Скриншоты bahandi — `reference/bahandi-screenshots/office/`, `office-details/` (индекс: `reference/bahandi-screenshots/README.md`). Ниже пути даны относительно этой папки.
@@ -46,7 +46,7 @@
 
 **В Sandyq меняется:**
 - **Сайдбар тёмный** (`--nav` ink, 264 px).
-  - Знак `S:public/branding/sandyq-group-logo.svg` 28 px + Cormorant 20 px «Sandyq Office» + StatusPill «Сеть».
+  - Знак `S:frontend/public/branding/sandyq-group-logo.svg` 28 px + Cormorant 20 px «Sandyq Office» + StatusPill «Сеть».
   - Поиск: `--nav-raised`, 40 px, placeholder «Раздел, документ или отчёт».
   - Заголовок группы: 14 px 600 `--nav-muted` с иконкой 18 px. Пункт: 14 px `--nav-foreground`, высота 36 px, отступ слева 32 px.
   - Активный пункт: текст `--nav-accent`, полоска 2 px `--gold` слева, фон `--nav-raised`. Hover: фон `--nav-raised`.

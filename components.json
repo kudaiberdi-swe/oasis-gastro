@@ -4,7 +4,7 @@
   "rsc": false,
   "tsx": true,
   "tailwind": {
-    "css": "src/shared/styles/index.css",
+    "css": "frontend/app/shared/styles/index.css",
     "baseColor": "neutral",
     "cssVariables": true
   },

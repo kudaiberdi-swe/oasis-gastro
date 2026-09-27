@@ -26,7 +26,7 @@ The business currently runs its cashier and back-office operations entirely on a
 
 - Build an owned, modern cashier + back-office system for the Sandyq brand.
 - Source real operational data (menu, employees, branches, stock, historical sales) from the existing iiko account rather than manual data entry.
-- Ship a frontend on Sandyq's own visual identity (logo, colors, typography, imagery — already collected from `sandyq.kz` / `sandyqgroup.com` into `public/`).
+- Ship a frontend on Sandyq's own visual identity (logo, colors, typography, imagery — already collected from `sandyq.kz` / `sandyqgroup.com` into `frontend/public/`).
 
 ## 4. Non-goals / explicit constraints
 

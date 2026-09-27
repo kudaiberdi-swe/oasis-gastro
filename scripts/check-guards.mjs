@@ -98,7 +98,7 @@ export function collectViolations(root = ROOT) {
   for (const file of walk(path.join(root, "convex"), (f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))) {
     violations.push(...scanBackendSource(path.relative(root, file), readFileSync(file, "utf8"), publicAllowlist))
   }
-  for (const file of walk(path.join(root, "src"), (f) => f.endsWith(".tsx"))) {
+  for (const file of walk(path.join(root, "frontend/app"), (f) => f.endsWith(".tsx"))) {
     violations.push(...scanFrontendSource(path.relative(root, file), readFileSync(file, "utf8")))
   }
   return violations

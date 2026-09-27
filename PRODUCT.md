@@ -3,7 +3,7 @@
 <!-- impeccable:product-schema 1 -->
 
 Scope: the internal restaurant system in this repo — the cashier (`/pos`), the kitchen screen (`/kitchen`)
-and the back office (`/office`). The marketing site in `website/` is a separate product. The root `DESIGN.md`
+and the back office (`/office`). The marketing site in `frontend/site/` is a separate product. The root `DESIGN.md`
 holds the app's design system (its first eight sections) and, in its last section **Website**, the spec of
 that site; detailed screen rules for this app live in `docs/04-POS-DESIGN.md` and `docs/05-OFFICE-DESIGN.md`.
 
@@ -50,7 +50,7 @@ reading everything that already exists in iiko instead of re-entering it.
 - Personal data of guests and employees is masked without a dedicated right; iiko sales come in without
   guest personal data.
 - Interface language: the POS has a Russian / Kazakh interface switch («Язык интерфейса» in the staff
-  profile, remembered per terminal; texts in `src/pos/i18n/`). The Kazakh texts still need a review by a
+  profile, remembered per terminal; texts in `frontend/app/pos/i18n/`). The Kazakh texts still need a review by a
   native speaker. The kitchen screen and the office are Russian only. Dishes and modifiers carry both `name`
   (ru) and `nameKk` (kk) and show both, Kazakh with `lang="kk"`; product groups have no Kazakh name yet.
 - Undecided / pending: VAT rate and payers, chart-of-accounts codes and payroll rates (accountant);
@@ -58,7 +58,7 @@ reading everything that already exists in iiko instead of re-entering it.
 
 ## Brand Commitments
 
-- Name: Sandyq (Сандық). Logos and ornaments in `public/branding/` (`sandyq-kz-logo.svg`,
+- Name: Sandyq (Сандық). Logos and ornaments in `frontend/public/branding/` (`sandyq-kz-logo.svg`,
   `sandyq-kz-hidden-menu-logo.svg`, `ornament.svg`, …).
 - Brand design reference: `../.claude/sandyq-design.skill` (real tokens and patterns), taken from the
   public sites sandyq.kz / sandyqgroup.com.
@@ -66,9 +66,9 @@ reading everything that already exists in iiko instead of re-entering it.
 
 ## Evidence on Hand
 
-- Real menus: `public/menu-pdfs/`, parsed per city in `public/menu-data/{almaty,shymkent,turkistan}.json`.
+- Real menus: `frontend/public/menu-pdfs/`, parsed per city in `frontend/public/menu-data/{almaty,shymkent,turkistan}.json`.
 - Real operational data mirrored read-only from iiko (products, recipes, prices, stock, staff, shifts, orders).
-- Site imagery in `public/images/`.
+- Site imagery in `frontend/public/images/`.
 - No customer testimonials, benchmarks or metrics to cite — do not invent any.
 
 ## Product Principles

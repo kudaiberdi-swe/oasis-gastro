@@ -14,7 +14,7 @@
   "compilerOptions": {
     "paths": {
       "@/*": [
-        "./src/*"
+        "./frontend/app/*"
       ]
     }
   }

@@ -1,10 +1,10 @@
 # Sandyq website — asset map
 
-Every image on the site comes from the repo's `public/` folder (the same folder the POS uses). Nothing is hotlinked from sandyqgroup.com. `website/scripts/optimize-images.mjs` (runs before `dev`/`build`) converts rasters to WebP at 480 / 768 / 1080 / 1440 / 1920 px (only widths smaller than the original, skipping ones within 15% of it), copies SVGs with their XML comments stripped, copies the menu PDFs, and writes `website/src/config/images.gen.json` with intrinsic width/height. The `<Picture>` component reads that manifest so every `<img>` has `width`/`height`, a `srcset` and `sizes`; everything except the first screen is `loading="lazy"`.
+Every image on the site comes from the repo's `frontend/public/` folder (the same folder the POS uses). Nothing is hotlinked from sandyqgroup.com. `frontend/site/scripts/optimize-images.mjs` (runs before `dev`/`build`) converts rasters to WebP at 480 / 768 / 1080 / 1440 / 1920 px (only widths smaller than the original, skipping ones within 15% of it), copies SVGs with their XML comments stripped, copies the menu PDFs, and writes `frontend/site/src/config/images.gen.json` with intrinsic width/height. The `<Picture>` component reads that manifest so every `<img>` has `width`/`height`, a `srcset` and `sizes`; everything except the first screen is `loading="lazy"`.
 
 The "Reference role" column names the image that plays the same role on the reference page, so the substitution is traceable.
 
-## Photos (`public/images/`)
+## Photos (`frontend/public/images/`)
 
 | File | Size | What it shows | Used on | Role (reference equivalent) |
 |---|---|---|---|---|
@@ -23,7 +23,7 @@ The "Reference role" column names the image that plays the same role on the refe
 | `hero-block-main-3.jpg` | 720×720 | Cushion + carved chest | `/restaurant` uniqueness "Интерьер" | Reference `san-uniq-004` (carpets and chests) |
 | `bright-bulbs.png` | 303×544 | Coloured glass lamps (portrait) | `/restaurant` rotated signature card; uniqueness "Свет" | Reference signature video in the rotated card (portrait) |
 
-## Brand and decor (`public/branding/`, `public/images/*.svg`)
+## Brand and decor (`frontend/public/branding/`, `frontend/public/images/*.svg`)
 
 | File | Used on | Notes |
 |---|---|---|
@@ -40,11 +40,11 @@ The "Reference role" column names the image that plays the same role on the refe
 | `branding/sandyq-kz-hidden-menu-logo.svg` (black) | Not used | Reserved for a future light menu variant |
 | `branding/sandyq-group-favicon.webp` | Not used | 140×186 variant; the square 140 one is the favicon |
 
-## Menus (`public/menu-pdfs/`)
+## Menus (`frontend/public/menu-pdfs/`)
 
 | File | Used on |
 |---|---|
-| `menu-almaty.pdf`, `menu-shymkent.pdf`, `menu-turkistan.pdf` | `/restaurant` location cards ("Меню" links), footer "Sandyq → Меню". Copied to `website/public/menu/` by the asset script |
+| `menu-almaty.pdf`, `menu-shymkent.pdf`, `menu-turkistan.pdf` | `/restaurant` location cards ("Меню" links), footer "Sandyq → Меню". Copied to `frontend/site/public/menu/` by the asset script |
 
 ## Missing vs. reference
 

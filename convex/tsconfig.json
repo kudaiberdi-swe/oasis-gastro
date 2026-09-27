@@ -12,7 +12,7 @@
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "paths": {
-      "@/*": ["./../src/*"]
+      "@/*": ["./../frontend/app/*"]
     },
 
     /* These compiler options are required by Convex */

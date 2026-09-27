@@ -15,7 +15,7 @@ type MutationCtx = GenericMutationCtx<DataModel>
 type FinanceRecord = Doc<"financeRecords">
 type ScopedUser = { restaurantScopes: string[] }
 
-// Bank statements (W3-FIN-11): CSV lines parsed in the browser (src/office/features/finance/model/parse-statement.ts)
+// Bank statements (W3-FIN-11): CSV lines parsed in the browser (frontend/app/office/features/finance/model/parse-statement.ts)
 // become «bank-statements» finance records, one per line; they are matched to payments and obligations of
 // W2-FIN-09/10 by the counterparty's BIN, the amount and the date, and posted (modules.ts bankLineHooks).
 // Sandyq banks: Kaspi Business, Halyk and others (owner decision Б-6); no sample file has been seen yet, so

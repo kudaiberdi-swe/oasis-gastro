@@ -21,7 +21,7 @@
 | `/pos` | кассиры, официанты, менеджеры | Касса: выбор терминала, вход по коду и PIN, сетка зала, чеки, оплата, смены, X/Z-отчёты. Интерфейс RU/KK |
 | `/kitchen` | кухня | Экран кухни: терминал → PIN → доска заказов по станциям (только RU) |
 | `/office` | администраторы, бухгалтерия, склад, HR | Бэк-офис: вход по email и паролю, 12 групп / 91 раздел, 190 отчётов, обмен данными с iiko |
-| `website/` | гости | Отдельный маркетинговый сайт (свой `package.json`, Vite на порту 5180). Сейчас лежит в папке, но в git не добавлен |
+| `frontend/site/` | гости | Отдельный маркетинговый сайт (свой `package.json`, Vite на порту 5180). Сейчас не собирается: папка `src/pages/` пустая (страницы не написаны), деплоя нет |
 
 Корень `/` перенаправляет на `/pos`, `?terminal=<id>` сразу выбирает кассу. Вход в кассу (PIN) и в офис
 (email) — две независимые системы, они намеренно не связаны.
@@ -38,19 +38,34 @@
 
 ## 4. Карта репозитория
 
+Весь фронтенд — в `frontend/`, бэкенд — в `convex/`:
+
+```
+sandyq/
+├─ convex/            бэкенд (Convex)
+├─ frontend/
+│  ├─ app/            касса, кухня, офис — алиас `@/` (было `src/`)
+│  ├─ site/           маркетинговый сайт для гостей (было `website/`)
+│  └─ public/         общие файлы бренда: логотипы, фото, меню (было `public/`)
+├─ scripts/ tests/ e2e/ docs/ reference/
+└─ index.html vite.config.ts package.json   сборка `frontend/app`
+```
+
+Импорты бэкенда из фронтенда — через алиас `@convex/…` (например `@convex/_generated/api`), без относительных `../../convex`.
+
 | Путь | Что там |
 |---|---|
 | `convex/` | Бэкенд: `schema.ts`, `domains/<домен>/{queries,mutations}.ts` (28 доменов: orders, shifts, catalog, stock, finance, workforce, loyalty, reports, iiko …), общие помощники в `lib/`, `http.ts` (Cloud API), `crons.ts`, `migrations/` |
-| `src/pos/` | Касса: `features/`, `components/`, `model/`, тексты интерфейса RU/KK в `i18n/` |
-| `src/kitchen/` | Экран кухни |
-| `src/office/` | Бэк-офис: оболочка, `engine/` (движок реестров), `features/` (разделы), `model/navigation.ts` |
-| `src/shared/` | Общее: UI-примитивы, маршруты (`routing/routes.tsx`), токены темы (`styles/theme.css` — единственное место с цветами) |
+| `frontend/app/pos/` | Касса: `features/`, `components/`, `model/`, тексты интерфейса RU/KK в `i18n/` |
+| `frontend/app/kitchen/` | Экран кухни |
+| `frontend/app/office/` | Бэк-офис: оболочка, `engine/` (движок реестров), `features/` (разделы), `model/navigation.ts` |
+| `frontend/app/shared/` | Общее: UI-примитивы, маршруты (`routing/routes.tsx`), токены темы (`styles/theme.css` — единственное место с цветами) |
 | `scripts/` | Сид (`seed-sandyq.mjs`, `seed-e2e.mjs`), проверки (`check-guards.mjs`, `check-contrast.mjs`, `check-unbounded-queries.mjs`, `verify.sh`), e2e (`e2e-pos.sh`), prod-скрипты (`prod-iiko-import.sh`, `prod-w1-maintenance.sh`), ротация ключей (`rotate-ci-deploy-key.sh`, `rotate-cloud-api-secret.sh`) |
 | `scripts/iiko/` | Синхронизация с iiko только на чтение: `extract` → `import-convex` → `reconcile`; клиент в `lib.mjs` умеет только `GET` |
 | `e2e/` | Playwright: `smoke/`, `a11y/`, `regressions/`, `screens/` (скриншоты для сверки с bahandi) |
 | `tests/` | Все unit/integration-тесты: `convex/`, `pos/`, `kitchen/`, `office/`, `scripts/` |
-| `public/` | Меню (`menu-pdfs/`, разобранные `menu-data/*.json`), логотипы и орнаменты (`branding/`), фото (`images/`) |
-| `website/` | Маркетинговый сайт (отдельное приложение) |
+| `frontend/public/` | Меню (`menu-pdfs/`, разобранные `menu-data/*.json`), логотипы и орнаменты (`branding/`), фото (`images/`) |
+| `frontend/site/` | Маркетинговый сайт (отдельное приложение) |
 | `docs/` | Эта документация — только `.md`, по порядку чтения |
 | `reference/` | Справочные материалы: скриншоты bahandi и сайтов, исходники сайтов-образцов, архив старых планов (см. `reference/README.md`) |
 | `.github/workflows/` | CI/CD: `deploy-frontend.yml`, `deploy-backend.yml` |
@@ -84,7 +99,7 @@ npm run dev       # http://localhost:5173
 - **CI/CD.** Каждый push в `main` запускает GitHub Actions: `verify` (typecheck, тесты, guards; во фронтенде
   ещё contrast, в бэкенде lint:convex), затем деплой — фронтенд в Azure Static Web App `sandyq-frontend`
   (адрес `*.azurestaticapps.net`, своего домена пока нет), бэкенд — `npx convex deploy` в prod. Workflow
-  запускаются по путям: фронтенд — `src/**`, `public/**` и др., бэкенд — `convex/**` и др. Pull request только
+  запускаются по путям: фронтенд — `frontend/app/**`, `frontend/public/**` и др., бэкенд — `convex/**` и др. Pull request только
   проверяется и не деплоится. **Push в `main` = выкат в прод.**
 - **Ключ деплоя prod: mint → use → delete.** Для ручных действий с prod ключ создаётся одноразово
   (`npx convex deployment token create … --deployment prod`), используется в одной команде как
@@ -136,7 +151,7 @@ bash scripts/e2e-pos.sh     # e2e локально: сид dev для e2e + ве
 | Бизнес-требования и открытые вопросы | `docs/02-BRD.md` |
 | Таблицы, функции, связи доменов, окружения | `docs/03-ARCHITECTURE.md` |
 | Как выглядит касса / офис | `DESIGN.md`, `docs/04-POS-DESIGN.md`, `docs/05-OFFICE-DESIGN.md` |
-| Цвета и токены в коде | `src/shared/styles/theme.css` |
+| Цвета и токены в коде | `frontend/app/shared/styles/theme.css` |
 | Как загрузить данные из iiko | `docs/06-IIKO-RUNBOOK.md`, `scripts/iiko/` |
 | API для сайта sandyq.kz | `docs/07-CLOUD-API.md`, `convex/http.ts` |
 | Что сделано по плану, решения владельца | `docs/08-IMPLEMENTATION-PLAN.md` §0 и §2 |
@@ -164,7 +179,7 @@ bash scripts/e2e-pos.sh     # e2e локально: сид dev для e2e + ве
 6. `06-IIKO-RUNBOOK.md` — подключение к iiko и загрузка данных (только чтение), в том числе на prod.
 7. `07-CLOUD-API.md` — контракт Cloud API для сайта sandyq.kz: подпись, маршруты, вебхуки.
 8. `08-IMPLEMENTATION-PLAN.md` — выполненный план W0–W3: статус (§0), решения владельца (§2), задачи по волнам.
-9. `09-WEBSITE-ASSETS.md` — карта изображений маркетингового сайта `website/`.
+9. `09-WEBSITE-ASSETS.md` — карта изображений маркетингового сайта `frontend/site/`.
 
 Архив (история, для работы не нужен): `reference/archive/PLAN.md` — исходный план переноса из bahandi-pos
 (решения D1–D9, матрица паритета §13, её читает `scripts/compare-screens.mjs`),

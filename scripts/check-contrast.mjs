@@ -7,7 +7,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const THEME_PATH = path.join(ROOT, "src/shared/styles/theme.css")
+const THEME_PATH = path.join(ROOT, "frontend/app/shared/styles/theme.css")
 
 // [foreground token, background token, minimum ratio]
 export const PAIRS = [

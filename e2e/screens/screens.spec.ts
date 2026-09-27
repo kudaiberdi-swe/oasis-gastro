@@ -1,4 +1,4 @@
-import { officeNavigation } from "../../src/office/model/navigation"
+import { officeNavigation } from "../../frontend/app/office/model/navigation"
 import { showTerminalPicker, test } from "../fixtures"
 
 // Screenshot harness (npm run e2e:screens): W0 screens per surface and theme into

@@ -1,6 +1,6 @@
 // Office capability catalog (W1-ACL-01): office.<section>.<action>, office.<section>.*, "*", plus the
 // special office.guests.pii. Sections and their order follow the office navigation (12 groups,
-// 91 sections — src/office/model/navigation.ts, same ids as bahandi-pos); the test keeps them in sync.
+// 91 sections — frontend/app/office/model/navigation.ts, same ids as bahandi-pos); the test keeps them in sync.
 
 export const ACTIONS = ["view", "edit", "post", "approve", "reverse", "cancel"] as const
 export type CapabilityAction = (typeof ACTIONS)[number]

@@ -76,7 +76,7 @@ type ProgramInput = {
   participants: { positionExternalIds?: string[]; employeeCodes?: string[] }
 }
 
-/** The same rules as validateProgram in src/office/features/workforce/model/w3.ts. */
+/** The same rules as validateProgram in frontend/app/office/features/workforce/model/w3.ts. */
 function checkProgram(input: ProgramInput) {
   if (input.name.trim().length < 2) throw new ConvexError("Укажите название программы")
   if (!DATE.test(input.startsAt) || !DATE.test(input.endsAt)) throw new ConvexError("Даты — ГГГГ-ММ-ДД")
