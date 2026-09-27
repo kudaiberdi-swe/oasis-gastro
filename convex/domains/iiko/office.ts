@@ -75,6 +75,10 @@ export async function linkDepartment(ctx: MutationCtx, args: { restaurantExterna
   if (!department || department.type !== "DEPARTMENT") throw new ConvexError("Подразделение iiko не найдено")
   for (const link of await ctx.db.query("restaurantSourceLinks").withIndex("by_department", (q) => q.eq("iikoDepartmentExternalId", args.iikoDepartmentExternalId!)).take(10)) await ctx.db.delete(link._id)
   await ctx.db.insert("restaurantSourceLinks", { restaurantExternalId: args.restaurantExternalId, iikoDepartmentExternalId: args.iikoDepartmentExternalId, confirmedBy: args.confirmedBy, confirmedAt: Date.now() })
+  // The import creates a restaurant per iiko department until it is linked; once the department belongs to a
+  // Sandyq restaurant, that stand-in is switched off so the terminal picker shows the branch once.
+  const standIn = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", args.iikoDepartmentExternalId!)).unique()
+  if (standIn && standIn.externalId !== args.restaurantExternalId && standIn.sourceSystem === "iiko-server" && standIn.active) await ctx.db.patch(standIn._id, { active: false })
 }
 
 export const linkRestaurantToIikoDepartment = mutation({

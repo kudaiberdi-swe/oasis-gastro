@@ -344,14 +344,17 @@ export const saveProductCard = mutation({
  * sells there. A dish the office hid on purpose (overlay «В продаже» off) and one deleted in iiko stay hidden.
  * Paged over productPrices; `dryRun` only counts.
  */
-/** iiko's service positions that are not guest dishes: free items (compliments, staff meals) and test ones. */
-export function isServiceIikoItem(name: string, branchPrice: number) {
-  return branchPrice <= 0 || /(^|[^а-яёa-z])(тест|стафф?|staff|test)/i.test(name)
+/**
+ * iiko's service positions by name — compliments, staff meals, test items. A 0 ₸ branch price is handled per
+ * branch by the POS itself (off that branch's menu), so a dish free in one branch stays on sale in another.
+ */
+export function isServiceIikoItem(name: string) {
+  return /(^|[^а-яёa-z])(тест|стафф?|staff|test|комплимент)/i.test(name)
 }
 
 /**
  * One page of «Показать блюда iiko с ценой»; `inScope` limits it to the caller's branches. Service positions
- * (a 0 ₸ price, «тест», «стафф») are never shown, and one shown earlier is hidden again.
+ * («тест», «стафф», «комплимент») are never shown, and one shown earlier is hidden again; a 0 ₸ row decides nothing.
  */
 export async function showPricedIikoDishesPage(ctx: MutationCtx, args: { inScope: (restaurantExternalId: string) => boolean; email: string; paginationOpts: { numItems: number; cursor: string | null }; dryRun?: boolean; auditRestaurantExternalId?: string }) {
   const page = await ctx.db.query("productPrices").withIndex("by_restaurant").paginate(args.paginationOpts)
@@ -360,11 +363,11 @@ export async function showPricedIikoDishesPage(ctx: MutationCtx, args: { inScope
   let shown = 0
   let hiddenService = 0
   for (const price of page.page) {
-    if (price.sourceSystem !== "iiko-server" || !args.inScope(price.restaurantExternalId) || seen.has(price.productId)) continue
+    if (price.sourceSystem !== "iiko-server" || price.priceKzt <= 0 || !args.inScope(price.restaurantExternalId) || seen.has(price.productId)) continue
     seen.add(price.productId)
     const product = await ctx.db.get(price.productId)
     if (!product || product.sourceSystem !== "iiko-server" || product.itemType !== "dish" || product.sourceDeleted) continue
-    if (isServiceIikoItem(product.name, price.priceKzt)) {
+    if (isServiceIikoItem(product.name)) {
       if (product.enabled) {
         hiddenService += 1
         if (!args.dryRun) await ctx.db.patch(product._id, { enabled: false })

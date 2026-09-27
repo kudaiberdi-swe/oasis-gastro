@@ -29,6 +29,19 @@ describe("iiko stock master projections (W1-IIKO-02/03/06)", () => {
     expect(state?.message).toMatch(/не сопоставлено/)
   })
 
+  it("linking a department to a Sandyq restaurant switches off the stand-in restaurant the import made for it", async () => {
+    const { t } = await setup()
+    const { admin } = await office(t)
+    await t.run(async (ctx) => {
+      const almaty = (await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", "almaty")).unique())!
+      const { _id, _creationTime, ...fields } = almaty
+      await ctx.db.insert("restaurants", { ...fields, externalId: "dep-almaty", name: "Sandyq  Алматы", sourceSystem: "iiko-server" as const, active: true })
+    })
+    await admin.mutation(api.domains.iiko.office.linkRestaurantToIikoDepartment, { restaurantExternalId: "almaty", iikoDepartmentExternalId: "dep-almaty" })
+    const rows = await t.run((ctx) => ctx.db.query("restaurants").take(10))
+    expect(Object.fromEntries(rows.map((row) => [row.externalId, row.active]))).toMatchObject({ almaty: true, "dep-almaty": false })
+  })
+
   it("with a link: store and an inactive terminal with the next number; re-import changes nothing; anonymous skipped", async () => {
     const { t } = await setup()
     const { admin, stranger } = await office(t)

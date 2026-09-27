@@ -85,6 +85,9 @@ export const seedAll = internalMutation({
 
     const productIds = new Map<string, any>()
     for (const product of args.products) {
+      // A PDF dish matched to an iiko one belongs to iiko now: the seed leaves it, its prices and its stop list alone.
+      const linked = await ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", product.externalId)).unique()
+      if (linked?.iikoProductExternalId) continue
       const id = await upsertByExternalId(ctx, "products", {
         externalId: product.externalId,
         name: product.name,
@@ -114,6 +117,7 @@ export const seedAll = internalMutation({
         .query("productPrices")
         .withIndex("by_product_restaurant", (q) => q.eq("productId", productId).eq("restaurantExternalId", price.restaurantExternalId))
         .unique()
+      if (existing?.sourceSystem) continue // an imported (iiko) price is never overwritten by the PDF menu
       if (existing) await ctx.db.patch(existing._id, { priceKzt: price.priceKzt })
       else await ctx.db.insert("productPrices", { productId, restaurantExternalId: price.restaurantExternalId, priceKzt: price.priceKzt })
     }
