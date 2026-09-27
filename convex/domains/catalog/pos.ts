@@ -115,7 +115,7 @@ export const favoriteProducts = query({
       const product = await ctx.db.get(favorite.productId)
       if (!product?.enabled || stopListActive(await stopListRow(ctx, product._id, restaurantExternalId), at)) continue
       const resolved = await resolvePrice(ctx, { product, restaurantExternalId, at })
-      if (resolved.source === "base") continue // not on this branch's menu
+      if (resolved.source === "base" || resolved.price <= 0) continue // not on this branch's menu
       const { basePrice: _base, ...rest } = product
       rows.push({ ...rest, price: resolved.price })
     }

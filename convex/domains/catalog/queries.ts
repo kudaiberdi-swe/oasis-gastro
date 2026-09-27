@@ -29,7 +29,8 @@ async function withResolvedPrice(ctx: QueryCtx, product: Doc<"products">, restau
 async function onBranchMenu(ctx: QueryCtx, product: Doc<"products">, restaurantExternalId: string): Promise<PosProduct | null> {
   const at = Date.now()
   const resolved = await resolvePrice(ctx, { product, restaurantExternalId, at })
-  if (resolved.source === "base") return null
+  // A 0 ₸ branch price is an iiko service position (compliment, staff meal) — not a dish for guests.
+  if (resolved.source === "base" || resolved.price <= 0) return null
   const { basePrice: _basePrice, ...rest } = product
   const imageUrl = product.imageStorageId ? ((await ctx.storage.getUrl(product.imageStorageId)) ?? undefined) : product.imagePath
   return { ...rest, price: resolved.price, available: await isAvailable(ctx, product._id, restaurantExternalId, at), ...(imageUrl ? { imageUrl } : {}) }
@@ -54,7 +55,7 @@ export const listCategories = query({
             .take(50)
           if (!dishes.length) return null
           const prices = await resolvePrices(ctx, dishes, restaurantExternalId, at)
-          return prices.some((price) => price.source !== "base") ? category : null
+          return prices.some((price) => price.source !== "base" && price.price > 0) ? category : null
         }),
     )
     return withDishes.filter((category) => category !== null)

@@ -430,6 +430,9 @@ describe("public function access (W0-BUG-01)", () => {
       await ctx.db.insert("categories", { externalId: "cold", label: "Холодное", shortLabel: "Холодное", sortOrder: 4, active: true })
       const elsewhereId = await ctx.db.insert("products", { externalId: "elsewhere", name: "Блюдо другого филиала", nameKk: "Басқа", nameSort: "блюдо другого филиала", searchText: "блюдо другого филиала", description: "", category: "cold", categorySort: 4, basePrice: 700, popular: false, sku: "EL-1", baseUnit: "порц." as const, enabled: true })
       await ctx.db.insert("productPrices", { productId: elsewhereId, restaurantExternalId: "other-branch", priceKzt: 800 })
+      // A 0 ₸ price here is an iiko service position (compliment, staff meal): off the menu too.
+      const freeId = await ctx.db.insert("products", { externalId: "compliment", name: "Комплимент", nameKk: "Сый", nameSort: "комплимент", searchText: "комплимент", description: "", category: "hot", categorySort: 1, basePrice: 500, popular: false, sku: "CM-1", baseUnit: "порц." as const, enabled: true })
+      await ctx.db.insert("productPrices", { productId: freeId, restaurantExternalId: "sandyq-test", priceKzt: 0 })
       await ctx.db.insert("categories", { externalId: "iiko-group-prep", label: "Кухня ПФ", shortLabel: "Кухня ПФ", sortOrder: 3 })
       await ctx.db.insert("products", { externalId: "prep-1", name: "Бульон ПФ", nameKk: "Сорпа ЖФ", nameSort: "бульон пф", searchText: "бульон пф", description: "", category: "iiko-group-prep", categorySort: 3, basePrice: 0, popular: false, sku: "PF-1", baseUnit: "порц." as const, enabled: false })
     })
