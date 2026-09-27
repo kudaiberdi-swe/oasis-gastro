@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react"
-import { Bike, ChefHat, Ellipsis, MessageSquareText, Minus, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
+import { Bike, ChefHat, Ellipsis, LoaderCircle, MessageSquareText, Minus, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
 
 import { isLocked, lineDetails, lineDetailsKk, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
 import { bilingualName, useT } from "@/pos/i18n"
@@ -137,8 +137,14 @@ export function OrderPanel({
             </p>
           )}
           <StatusPill domain="order" status={orderStatus} className="shrink-0" />
-          <span aria-live="polite" className="ml-auto shrink-0 text-body-sm text-muted-foreground">
-            {saving ? t("common.saving") : null}
+          {/* A quiet spinner instead of the «Сохранение…» word, so the check title keeps its width at 1440 px. */}
+          <span aria-live="polite" className="ml-auto flex size-5 shrink-0 items-center justify-center text-muted-foreground">
+            {saving ? (
+              <>
+                <LoaderCircle aria-hidden className="size-4 motion-safe:animate-spin" />
+                <span className="sr-only">{t("common.saving")}</span>
+              </>
+            ) : null}
           </span>
         </div>
         {(guestSlot || comment?.trim()) && (

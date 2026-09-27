@@ -24,14 +24,21 @@ async function scene(label: string, run: () => Promise<void>) {
 // The language link is named in the current interface language: «Язык интерфейса» / «Интерфейс тілі».
 const LANGUAGE_SWITCH = { name: /^(Язык интерфейса|Интерфейс тілі)$/ }
 
+async function openFloor(page: Page) {
+  await page.getByRole("button", { name: /^Зал · \d+ открыто/ }).click()
+  const hall = page.getByRole("dialog", { name: "Зал" })
+  await expect(hall).toBeVisible()
+  await expect(hall.getByText("Загрузка зала")).toBeHidden()
+  return hall
+}
+
 async function addDishes(page: Page, count: number) {
   const dishes = page.getByRole("region", { name: "Меню" }).locator("button:enabled").filter({ hasText: /₸/ })
   for (let index = 0; index < count; index += 1) await dishes.nth(index).click()
 }
 
 async function openCheck(page: Page) {
-  await page.getByRole("button", { name: /^Зал · \d+ открыто/ }).click()
-  const hall = page.getByRole("dialog", { name: "Зал" })
+  const hall = await openFloor(page)
   const free = hall.getByRole("button", { name: /: свободен/ })
   if (await free.count()) await free.first().click()
   else await hall.getByRole("button", { name: /Без стола/ }).click()
@@ -76,8 +83,8 @@ test("video screenshots: cashier and kitchen", async ({ page, surface, theme }) 
   }
 
   await scene("floor", async () => {
-    await hallButton.click()
-    await expect(page.getByRole("dialog", { name: "Зал" })).toBeVisible()
+    await openFloor(page)
+    await page.waitForTimeout(300)
     await shot("04-floor")
     await page.keyboard.press("Escape")
   })
@@ -111,8 +118,8 @@ test("video screenshots: cashier and kitchen", async ({ page, surface, theme }) 
   })
 
   await scene("floor-busy", async () => {
-    await hallButton.click()
-    await expect(page.getByRole("dialog", { name: "Зал" })).toBeVisible()
+    await openFloor(page)
+    await page.waitForTimeout(300)
     await shot("10-floor-busy")
     await page.keyboard.press("Escape")
   })
@@ -129,13 +136,7 @@ test("video screenshots: cashier and kitchen", async ({ page, surface, theme }) 
     await page.keyboard.press("Escape")
   })
 
-  await scene("offline", async () => {
-    await page.context().setOffline(true)
-    await expect(page.getByText(/Нет связи с сервером/)).toBeVisible({ timeout: 20_000 })
-    await shot("12-offline")
-    await page.context().setOffline(false)
-    await expect(page.getByText(/Нет связи с сервером/)).toBeHidden({ timeout: 30_000 })
-  })
+  // No offline shot: Playwright's setOffline keeps an open Convex WebSocket alive, so the strip never shows.
 
   await scene("shift-blind", async () => {
     await page.getByRole("button", { name: "Главное меню" }).click()
