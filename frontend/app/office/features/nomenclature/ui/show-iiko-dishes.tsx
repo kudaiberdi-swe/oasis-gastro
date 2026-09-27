@@ -21,6 +21,7 @@ export function ShowIikoDishesButton() {
   const [busy, setBusy] = useState(false)
   const [count, setCount] = useState<number | null>(null)
   const [pdfCount, setPdfCount] = useState(0)
+  const [pdfPrices, setPdfPrices] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   async function pages(dryRun: boolean) {
@@ -40,14 +41,16 @@ export function ShowIikoDishesButton() {
   // The PDF stand-in menu leaves the POS together with the switch to the iiko menu.
   async function pdfPages(dryRun: boolean) {
     let hidden = 0
+    let prices = 0
     let cursor: string | null = null
     for (;;) {
       const result = await hidePdfMenu({ paginationOpts: { numItems: PAGE, cursor }, dryRun })
       hidden += result.hidden
+      prices += result.pricesDropped
       if (result.isDone) break
       cursor = result.continueCursor
     }
-    return hidden
+    return { hidden, prices }
   }
 
   async function countDishes() {
@@ -57,7 +60,9 @@ export function ShowIikoDishesButton() {
       const found = await pages(true)
       if (found === 0) toast("Скрытых блюд iiko с ценой в ваших филиалах нет", "success")
       else {
-        setPdfCount(await pdfPages(true).catch(() => 0))
+        const pdf = await pdfPages(true).catch(() => ({ hidden: 0, prices: 0 }))
+        setPdfCount(pdf.hidden)
+        setPdfPrices(pdf.prices)
         setCount(found)
       }
     } catch (caught) {
@@ -71,9 +76,9 @@ export function ShowIikoDishesButton() {
     setBusy(true)
     try {
       const shown = await pages(false)
-      const hidden = pdfCount ? await pdfPages(false) : 0
+      const pdf = pdfCount || pdfPrices ? await pdfPages(false) : { hidden: 0, prices: 0 }
       setCount(null)
-      toast(`На кассе показано ${shown} ${plural(shown, DISHES)} iiko${hidden ? `, меню из PDF скрыто (${hidden})` : ""}`, "success")
+      toast(`На кассе показано ${shown} ${plural(shown, DISHES)} iiko${pdf.hidden ? `, меню из PDF скрыто (${pdf.hidden})` : ""}${pdf.prices ? `; цены iiko для блюд, сопоставленных с PDF, появятся после следующего импорта iiko` : ""}`, "success")
     } catch (caught) {
       setError(errorMessage(caught, "Не удалось показать блюда"))
     } finally {
@@ -93,7 +98,7 @@ export function ShowIikoDishesButton() {
           if (!open) setCount(null)
         }}
         title={`Показать на кассе ${count ?? 0} ${plural(count ?? 0, DISHES)} iiko?`}
-        description={`Будут показаны блюда из iiko, у которых в iiko есть действующая цена в ваших филиалах; в каждом филиале — только блюда с его ценой. Блюда, скрытые вручную в карточке товара, останутся скрытыми.${pdfCount ? ` Временное меню из PDF (${pdfCount} ${plural(pdfCount, DISHES)}) будет скрыто с кассы.` : ""} Любое блюдо можно показать или скрыть в его карточке.`}
+        description={`Будут показаны блюда из iiko, у которых в iiko есть действующая цена в ваших филиалах; в каждом филиале — только блюда с его ценой. Служебные позиции (0 ₸, «тест», «стафф») не показываются. Блюда, скрытые вручную в карточке товара, останутся скрытыми.${pdfCount ? ` Временное меню из PDF (${pdfCount} ${plural(pdfCount, DISHES)}) будет скрыто с кассы.` : ""}${pdfPrices ? ` У блюд, сопоставленных с iiko, снимутся цены из PDF (${pdfPrices}) — цены iiko придут со следующим импортом, до него эти блюда на кассе не видны.` : ""} Любое блюдо можно показать или скрыть в его карточке.`}
         confirmLabel="Показать на кассе"
         danger={false}
         submitting={busy}

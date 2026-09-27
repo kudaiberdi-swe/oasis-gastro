@@ -148,6 +148,48 @@ describe("«Показать блюда iiko с ценой» (W1-IIKO-04)", () =
 })
 
 describe("switch to the iiko menu: the PDF stand-in menu leaves the POS", () => {
+  it("never shows iiko service positions (0 ₸, «тест», «стафф») and hides one that was shown", async () => {
+    const { t, admin } = await linked()
+    const free = { ...dish, externalId: "i-free", name: "Баурсак комплимент", payloadHash: "s1" }
+    const test = { ...dish, externalId: "i-test", name: "Тест позиция", payloadHash: "s2" }
+    const staff = { ...dish, externalId: "i-staff", name: "Стафф", payloadHash: "s3" }
+    await t.mutation(internal.domains.iiko.mutations.importBatch, { ...empty, products: [dish, free, test, staff] })
+    await t.mutation(internal.domains.iiko.mutations.importBatch, {
+      ...empty,
+      prices: [
+        { departmentExternalId: "dep-almaty", productExternalId: "i-dish", price: 7990, payloadHash: "q1" },
+        { departmentExternalId: "dep-almaty", productExternalId: "i-free", price: 0, payloadHash: "q2" },
+        { departmentExternalId: "dep-almaty", productExternalId: "i-test", price: 292, payloadHash: "q3" },
+        { departmentExternalId: "dep-almaty", productExternalId: "i-staff", price: 990, payloadHash: "q4" },
+      ],
+    })
+    // «Стафф» was shown by hand before the rule: the switch takes it off the POS again.
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("products").withIndex("by_external_id", (q) => q.eq("externalId", "iiko-product-i-staff")).unique()
+      await ctx.db.patch(row!._id, { enabled: true })
+    })
+    const page = { paginationOpts: { numItems: 100, cursor: null } }
+    expect(await admin.mutation(api.domains.catalog.office.showPricedIikoDishes, page)).toMatchObject({ shown: 1, hiddenService: 1 })
+    expect((await Promise.all(["i-dish", "i-free", "i-test", "i-staff"].map((id) => product(t, id)))).map((row) => row?.enabled)).toEqual([true, false, false, false])
+  })
+
+  it("drops the PDF prices of a PDF dish matched to iiko, keeping its iiko price and the dish on sale", async () => {
+    const { t, admin } = await linked()
+    const base = { nameSort: "x", searchText: "x", description: "", category: "hot", categorySort: 1, basePrice: 1000, popular: false, sku: "X", baseUnit: "порц." as const, enabled: true }
+    const matchedId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("products", { ...base, externalId: "sandyq-kazakh-et", name: "Қазақ ет", nameKk: "Қазақ ет", iikoProductExternalId: "i-dish" })
+      await ctx.db.insert("productPrices", { productId: id, restaurantExternalId: "almaty", priceKzt: 6990 })
+      await ctx.db.insert("productPrices", { productId: id, restaurantExternalId: "shymkent", priceKzt: 4850, sourceSystem: "iiko-server" as const })
+      return id
+    })
+    const page = { paginationOpts: { numItems: 100, cursor: null } }
+    expect(await admin.mutation(api.domains.catalog.office.hidePdfMenu, { ...page, dryRun: true })).toMatchObject({ hidden: 0, pricesDropped: 1 })
+    expect(await admin.mutation(api.domains.catalog.office.hidePdfMenu, page)).toMatchObject({ hidden: 0, pricesDropped: 1 })
+    const rows = await t.run((ctx) => ctx.db.query("productPrices").withIndex("by_product_restaurant", (q) => q.eq("productId", matchedId)).take(10))
+    expect(rows.map((row) => [row.restaurantExternalId, row.priceKzt, row.sourceSystem ?? null])).toEqual([["shymkent", 4850, "iiko-server"]])
+    expect((await t.run((ctx) => ctx.db.get(matchedId)))?.enabled).toBe(true)
+  })
+
   it("hides only the seed's PDF dishes, never an office-made or an iiko dish; the dry run only counts", async () => {
     const { t, admin, stranger } = await linked()
     const base = { nameSort: "x", searchText: "x", description: "", category: "hot", categorySort: 1, basePrice: 1000, popular: false, sku: "X", baseUnit: "порц." as const, enabled: true }

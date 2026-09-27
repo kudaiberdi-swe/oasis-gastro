@@ -42,29 +42,36 @@ function run(fn, args) {
   return text ? JSON.parse(text.slice(text.indexOf("{"))) : null
 }
 
-console.log("1/3 linking the pilot branches to their iiko departments…")
+console.log("1/4 linking the pilot branches to their iiko departments…")
 run("domains/iiko/devMenu:linkDepartments", { links: LINKS })
 
-if (!process.argv.includes("--skip-import")) {
-  console.log("2/3 importing iiko branch prices (read-only from iiko)…")
-  const imported = spawnSync("node", ["--env-file=.env", "scripts/iiko/seed.mjs", "--with-prices"], { stdio: ["inherit", "inherit", "inherit"] })
-  if (imported.status !== 0) fail("iiko price import failed")
-} else console.log("2/3 skipped (--skip-import)")
-
-console.log("3/3 showing the iiko dishes with a branch price, hiding the PDF menu…")
-const restaurantExternalIds = LINKS.map((link) => link.restaurantExternalId)
-let shown = 0
-for (let cursor = null; ; ) {
-  const page = run("domains/iiko/devMenu:showIikoMenuPage", { restaurantExternalIds, cursor })
-  shown += page.shown
-  if (page.isDone) break
-  cursor = page.continueCursor
-}
+// Order matters: PDF prices of dishes matched to iiko go first, so the import writes the iiko ones.
+console.log("2/4 hiding the PDF menu, dropping PDF prices of dishes matched to iiko…")
 let hidden = 0
+let pricesDropped = 0
 for (let cursor = null; ; ) {
   const page = run("domains/iiko/devMenu:hidePdfMenuPageDev", { cursor })
   hidden += page.hidden
+  pricesDropped += page.pricesDropped
   if (page.isDone) break
   cursor = page.continueCursor
 }
-console.log(`✔ iiko dishes shown: ${shown}; PDF dishes hidden: ${hidden}. The POS of the three branches is on the iiko menu.`)
+
+if (!process.argv.includes("--skip-import")) {
+  console.log("3/4 importing iiko branch prices (read-only from iiko)…")
+  const imported = spawnSync("node", ["--env-file=.env", "scripts/iiko/seed.mjs", "--with-prices"], { stdio: ["inherit", "inherit", "inherit"] })
+  if (imported.status !== 0) fail("iiko price import failed")
+} else console.log("3/4 skipped (--skip-import)")
+
+console.log("4/4 showing the iiko dishes with a branch price, hiding service positions…")
+const restaurantExternalIds = LINKS.map((link) => link.restaurantExternalId)
+let shown = 0
+let hiddenService = 0
+for (let cursor = null; ; ) {
+  const page = run("domains/iiko/devMenu:showIikoMenuPage", { restaurantExternalIds, cursor })
+  shown += page.shown
+  hiddenService += page.hiddenService
+  if (page.isDone) break
+  cursor = page.continueCursor
+}
+console.log(`✔ iiko dishes shown: ${shown}; service positions hidden: ${hiddenService}; PDF dishes hidden: ${hidden}; PDF prices dropped: ${pricesDropped}.`)
