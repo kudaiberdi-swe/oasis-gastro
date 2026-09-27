@@ -65,6 +65,8 @@ export async function openSection(page: Page, label: string) {
 export async function loginPos(page: Page, code: string, pin: string) {
   // The POS route is a lazy chunk: keys typed before the pad mounts are lost, so wait for each pad.
   await expect(page.getByRole("status", { name: /^Код сотрудника: введено 0/ })).toBeVisible()
+  // Enter on a focused button presses that button, not the pad's «Далее» (e.g. the language link).
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
   await page.keyboard.type(code)
   await page.keyboard.press("Enter")
   await expect(page.getByRole("status", { name: /^PIN-код: введено 0/ })).toBeVisible()
