@@ -22,6 +22,7 @@
     "e2e:screens": "SCREENS=1 playwright test e2e/screens && node scripts/compare-screens.mjs",
     "seed:e2e": "node scripts/seed-e2e.mjs",
     "test:credentials": "node scripts/test-credentials.mjs",
+    "video:capture": "VIDEO=1 bash scripts/e2e-pos.sh e2e/video --project=pos-1440-day --project=pos-1440-night --workers=1",
     "lint:convex": "node scripts/check-unbounded-queries.mjs"
   },
   "dependencies": {

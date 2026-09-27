@@ -31,3 +31,5 @@ playwright-report/
 # on disk, not committed; see reference/README.md. app-screenshots/ is rewritten by `npm run e2e:screens`.
 reference/*-screenshots/
 reference/site-src/
+# Video footage from `npm run video:capture` (e2e/video/capture.spec.ts)
+reference/video-assets/

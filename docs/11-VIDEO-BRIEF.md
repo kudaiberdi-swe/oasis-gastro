@@ -116,8 +116,14 @@
 - **Размер окна.** Касса — 1440×900 или 1280×800; кухня — 1920×1080; офис — 1440×900. Масштаб браузера 100 %.
 - **Темы.** Каждый ключевой экран — в дневной и ночной (профиль сотрудника → «Тема»).
 - **Чистота кадра.** Отдельный профиль Chrome без закладок и расширений, уведомления системы выключены.
-- **Готовые кадры.** `reference/app-screenshots/W0/` (pos, office, kitchen, день/ночь) — сняты до редизайна
-  кассы (сентябрь 2026) и лежат только локально; для ролика снимите заново.
+- **Кадры кассы и кухни — одной командой:** `npm run video:capture`. Сценарий `e2e/video/capture.spec.ts` сам
+  перевыпускает PIN тестового кассира на dev (как `scripts/e2e-pos.sh`), входит, проходит сюжеты 1–7 и кухню и
+  кладёт в `reference/video-assets/day/` и `…/night/` скриншоты по сценам (`01-login` … `16-kitchen-cooking`)
+  и запись экрана `pos-walkthrough.webm`, `kitchen-walkthrough.webm` (1440×900). Папка в `.gitignore`.
+  Сцену, которая не удалась, сценарий пропускает и пишет об этом в лог — остальные кадры сохраняются.
+- **Кадры офиса:** `SCREENS=1 npx playwright test e2e/screens --project=office-1440-day --project=office-1440-night`
+  → `reference/app-screenshots/W0/office/` (оболочка и все 91 раздел на демо-данных, без входа).
+- **Старые кадры** в `reference/app-screenshots/W0/pos` сняты до редизайна кассы — для ролика не берите.
 
 ## 8. Что нельзя показывать
 
@@ -143,7 +149,47 @@
 | iiko | сторонняя ресторанная платформа, в которой сеть работает сейчас |
 | Офис | бэк-офис для управляющих, бухгалтерии, склада, HR |
 
-## 10. Откуда брать подробности
+## 10. Промпт для Motion (motion.so)
+
+Motion собирает ролик из текста, бренд-гайда и загруженных файлов. Загрузите:
+
+1. Этот файл (`docs/11-VIDEO-BRIEF.md`) и корневой `DESIGN.md` — факты, тон, палитра, шрифты.
+2. Логотипы и орнамент из `frontend/public/branding/` (`sandyq-group-logo.svg`, `sandyq-kz-logo.svg`, `ornament.svg`)
+   и 3–4 фото из `frontend/public/images/` (`hero-block-main-*.jpg`, `about-restaurant-*.jpg`).
+3. Кадры из `reference/video-assets/night/` и `…/day/` (после `npm run video:capture`) и 2–3 кадра офиса.
+4. Сайт для стиля бренда: https://sandyqgroup.com (не адрес кассы — там только экран входа).
+
+Не подключайте к Motion репозиторий и не давайте доступ к кассе или офису: ему хватает файлов выше.
+
+**Промпт** (вставить целиком, поправить длину и язык озвучки):
+
+```
+Make a 75-second product video for "Sandyq" — the in-house POS and back-office system of Sandyq,
+a Kazakh-cuisine restaurant chain in Kazakhstan. Audience: the chain's leadership and partners.
+Tone: calm, confident, crafted — "a quiet tool"; no hype, no fake metrics.
+Brand: follow the attached DESIGN.md — cream #fff7ec, ink #121316, wine #8c2323, gold lines #b28f6f,
+Cormorant for headings and amounts, Golos Text for UI text; the ram-horn ornament (ornament.svg) as a
+recurring divider; logos attached. Use ONLY the attached screenshots and screen recordings for the
+product — do not invent UI.
+Voice-over: Russian, a warm calm voice; on-screen captions in Russian with Kazakh accents where the
+UI shows Kazakh.
+Scenes (use the matching screenshots, file names in brackets):
+1. Logo + ornament on dark ink. VO: «Sandyq — рестораны казахской кухни. И теперь — своя система.»
+2. Cashier login, switching to Kazakh [01-login, 02-login-kk]. VO: «Касса на русском и казахском.»
+3. The hall grid, tapping a free table [04-floor, 10-floor-busy]. VO: «Зал перед глазами: свободный стол — одним касанием.»
+4. Building an order and sending it to the kitchen, then the kitchen board [05-order, 06-order-sent,
+   15-kitchen, 16-kitchen-cooking, kitchen-walkthrough.webm]. VO: «Заказ уходит на кухню мгновенно.»
+5. Payment and the calm "Paid" screen [07-payment, 08-payment-cash, 09-paid]. VO: «Оплата наличными, картой или QR — и спокойное подтверждение.»
+6. Money control: blind shift count, offline guard [13-shift-summary, 14-shift-close-blind, 12-offline].
+   VO: «Пересчёт вслепую, подтверждение менеджера, журнал каждого действия.»
+7. Back office screenshots. VO: «Офис: склад по техкартам, финансы, персонал и 190 отчётов. Данные сети — из iiko, только на чтение.»
+8. Logo end card. VO: «Sandyq. Одна сеть — одна система.»
+Facts you may state: pilot in 3 branches (Almaty, Shymkent, Turkistan); POS in Russian and Kazakh;
+office with 91 sections and 190 reports; real-time kitchen; iiko data read-only.
+Do not claim: that iiko has been replaced, fiscal receipts, company-wide rollout, savings or speed numbers.
+```
+
+## 11. Откуда брать подробности
 
 - Продукт, пользователи, принципы — `PRODUCT.md` (корень).
 - Дизайн-система — `DESIGN.md` (корень), касса — `04-POS-DESIGN.md`, офис — `05-OFFICE-DESIGN.md`.
