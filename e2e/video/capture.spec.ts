@@ -22,6 +22,9 @@ async function scene(label: string, run: () => Promise<void>) {
   }
 }
 
+// The language link is named in the current interface language: «Язык интерфейса» / «Интерфейс тілі».
+const LANGUAGE_SWITCH = { name: /^(Язык интерфейса|Интерфейс тілі)$/ }
+
 async function addDishes(page: Page, count: number) {
   const dishes = page.getByRole("region", { name: "Меню" }).locator("button:enabled").filter({ hasText: /₸/ })
   for (let index = 0; index < count; index += 1) await dishes.nth(index).click()
@@ -47,16 +50,21 @@ test("video footage: cashier and kitchen", async ({ page, surface, theme }) => {
     await page.screenshot({ path: path.join(out, `${name}.png`), animations: "disabled" })
   }
 
+  // A failed step gives up after 15 s instead of eating the whole test timeout.
+  page.setDefaultTimeout(15_000)
   await page.goto(`/pos?terminal=${credentials!.terminal}`)
   await expect(page.getByRole("status", { name: /^Код сотрудника: введено 0/ })).toBeVisible()
   await scene("login", () => shot("01-login"))
   await scene("login-kk", async () => {
-    await page.getByRole("button", { name: "Язык интерфейса" }).click()
+    await page.getByRole("button", LANGUAGE_SWITCH).click()
     await expect(page.getByRole("heading", { name: "Кассаға кіру" })).toBeVisible()
     await shot("02-login-kk")
-    await page.getByRole("button", { name: "Язык интерфейса" }).click()
+    await page.getByRole("button", LANGUAGE_SWITCH).click()
     await expect(page.getByRole("heading", { name: "Вход в кассу" })).toBeVisible()
   })
+  // Sign in in Russian whatever the scene above left behind (loginPos waits for the Russian pad label).
+  if (await page.getByRole("heading", { name: "Кассаға кіру" }).isVisible()) await page.getByRole("button", LANGUAGE_SWITCH).click()
+  await expect(page.getByRole("heading", { name: "Вход в кассу" })).toBeVisible()
 
   await loginPos(page, credentials!.code, credentials!.pin)
   const openShift = page.getByRole("dialog", { name: /Открытие смены/ })
@@ -144,6 +152,7 @@ test("video footage: cashier and kitchen", async ({ page, surface, theme }) => {
   // The kitchen board in a second window, with table 1's ticket on it.
   await scene("kitchen", async () => {
     const kitchen = await page.context().newPage()
+    kitchen.setDefaultTimeout(15_000)
     await kitchen.setViewportSize({ width: 1440, height: 900 })
     await kitchen.goto(`/kitchen?terminal=${credentials!.terminal}`)
     await loginPos(kitchen, credentials!.code, credentials!.pin)
