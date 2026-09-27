@@ -116,13 +116,12 @@
 - **Размер окна.** Касса — 1440×900 или 1280×800; кухня — 1920×1080; офис — 1440×900. Масштаб браузера 100 %.
 - **Темы.** Каждый ключевой экран — в дневной и ночной (профиль сотрудника → «Тема»).
 - **Чистота кадра.** Отдельный профиль Chrome без закладок и расширений, уведомления системы выключены.
-- **Кадры кассы и кухни — одной командой:** `npm run video:capture`. Сценарий `e2e/video/capture.spec.ts` сам
+- **Все кадры — одной командой:** `npm run video:capture`. Сценарий `e2e/video/capture.spec.ts` сам
   перевыпускает PIN тестового кассира на dev (как `scripts/e2e-pos.sh`), входит, проходит сюжеты 1–7 и кухню и
-  кладёт в `reference/video-assets/day/` и `…/night/` скриншоты по сценам (`01-login` … `16-kitchen-cooking`)
-  и запись экрана `pos-walkthrough.webm`, `kitchen-walkthrough.webm` (1440×900). Папка в `.gitignore`.
-  Сцену, которая не удалась, сценарий пропускает и пишет об этом в лог — остальные кадры сохраняются.
-- **Кадры офиса:** `SCREENS=1 npx playwright test e2e/screens --project=office-1440-day --project=office-1440-night`
-  → `reference/app-screenshots/W0/office/` (оболочка и все 91 раздел на демо-данных, без входа).
+  кладёт в `reference/video-assets/day/` и `…/night/` скриншоты по шагам (`01-login` … `16-kitchen-cooking`,
+  1440×900). Затем та же команда снимает офис без входа → `reference/app-screenshots/W0/office/` (оболочка
+  и все 91 раздел на демо-данных). Обе папки в `.gitignore`. Шаг, который не удался, сценарий пропускает и
+  пишет об этом в лог — остальные кадры сохраняются.
 - **Старые кадры** в `reference/app-screenshots/W0/pos` сняты до редизайна кассы — для ролика не берите.
 
 ## 8. Что нельзя показывать
@@ -156,7 +155,7 @@ Motion собирает ролик из текста, бренд-гайда и �
 1. Этот файл (`docs/11-VIDEO-BRIEF.md`) и корневой `DESIGN.md` — факты, тон, палитра, шрифты.
 2. Логотипы и орнамент из `frontend/public/branding/` (`sandyq-group-logo.svg`, `sandyq-kz-logo.svg`, `ornament.svg`)
    и 3–4 фото из `frontend/public/images/` (`hero-block-main-*.jpg`, `about-restaurant-*.jpg`).
-3. Кадры из `reference/video-assets/night/` и `…/day/` (после `npm run video:capture`) и 2–3 кадра офиса.
+3. Кадры из `reference/video-assets/night/` и `…/day/` и 2–3 кадра офиса из `reference/app-screenshots/W0/office/` (после `npm run video:capture`).
 4. Сайт для стиля бренда: https://sandyqgroup.com (не адрес кассы — там только экран входа).
 
 Не подключайте к Motion репозиторий и не давайте доступ к кассе или офису: ему хватает файлов выше.
@@ -169,8 +168,8 @@ a Kazakh-cuisine restaurant chain in Kazakhstan. Audience: the chain's leadershi
 Tone: calm, confident, crafted — "a quiet tool"; no hype, no fake metrics.
 Brand: follow the attached DESIGN.md — cream #fff7ec, ink #121316, wine #8c2323, gold lines #b28f6f,
 Cormorant for headings and amounts, Golos Text for UI text; the ram-horn ornament (ornament.svg) as a
-recurring divider; logos attached. Use ONLY the attached screenshots and screen recordings for the
-product — do not invent UI.
+recurring divider; logos attached. Use ONLY the attached screenshots for the product (animate them: pans,
+zooms, highlights of the tapped control) — do not invent UI.
 Voice-over: Russian, a warm calm voice; on-screen captions in Russian with Kazakh accents where the
 UI shows Kazakh.
 Scenes (use the matching screenshots, file names in brackets):
@@ -178,7 +177,7 @@ Scenes (use the matching screenshots, file names in brackets):
 2. Cashier login, switching to Kazakh [01-login, 02-login-kk]. VO: «Касса на русском и казахском.»
 3. The hall grid, tapping a free table [04-floor, 10-floor-busy]. VO: «Зал перед глазами: свободный стол — одним касанием.»
 4. Building an order and sending it to the kitchen, then the kitchen board [05-order, 06-order-sent,
-   15-kitchen, 16-kitchen-cooking, kitchen-walkthrough.webm]. VO: «Заказ уходит на кухню мгновенно.»
+   15-kitchen, 16-kitchen-cooking]. VO: «Заказ уходит на кухню мгновенно.»
 5. Payment and the calm "Paid" screen [07-payment, 08-payment-cash, 09-paid]. VO: «Оплата наличными, картой или QR — и спокойное подтверждение.»
 6. Money control: blind shift count, offline guard [13-shift-summary, 14-shift-close-blind, 12-offline].
    VO: «Пересчёт вслепую, подтверждение менеджера, журнал каждого действия.»

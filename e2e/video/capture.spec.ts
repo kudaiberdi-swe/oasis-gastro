@@ -5,14 +5,13 @@ import type { Page } from "@playwright/test"
 
 import { expect, loginPos, posCredentials, test } from "../fixtures"
 
-// Footage for the project video (docs/11-VIDEO-BRIEF.md §5): walks the real cashier and kitchen screens on
-// the seeded dev deployment under the e2e cashier and writes one screenshot per scene plus a screen
-// recording of the whole walk to reference/video-assets/<theme>/ (gitignored). Run: npm run video:capture.
+// Step-by-step screenshots for the project video (docs/11-VIDEO-BRIEF.md §5): walks the real cashier and
+// kitchen screens on the seeded dev deployment under the e2e cashier and writes one screenshot per step to
+// reference/video-assets/<theme>/ (gitignored). Run: npm run video:capture.
 // Scenes that fail are logged and skipped, so one missing element never loses the rest of the footage.
 test.skip(!process.env.VIDEO, "run with npm run video:capture")
 
 const OUT_ROOT = path.resolve("reference/video-assets")
-test.use({ video: { mode: "on", size: { width: 1440, height: 900 } } })
 
 async function scene(label: string, run: () => Promise<void>) {
   try {
@@ -38,7 +37,7 @@ async function openCheck(page: Page) {
   else await hall.getByRole("button", { name: /Без стола/ }).click()
 }
 
-test("video footage: cashier and kitchen", async ({ page, surface, theme }) => {
+test("video screenshots: cashier and kitchen", async ({ page, surface, theme }) => {
   const credentials = posCredentials()
   test.skip(!credentials, "set E2E_POS_TERMINAL, E2E_POS_CODE and E2E_POS_PIN (bash scripts/e2e-pos.sh)")
   test.skip(surface !== "pos", "pos surface only")
@@ -165,12 +164,6 @@ test("video footage: cashier and kitchen", async ({ page, surface, theme }) => {
       await kitchen.waitForTimeout(600)
       await kitchen.screenshot({ path: path.join(out, "16-kitchen-cooking.png"), animations: "disabled" })
     }
-    const video = kitchen.video()
     await kitchen.close()
-    await video?.saveAs(path.join(out, "kitchen-walkthrough.webm"))
   })
-
-  const video = page.video()
-  await page.close()
-  await video?.saveAs(path.join(out, "pos-walkthrough.webm"))
 })
