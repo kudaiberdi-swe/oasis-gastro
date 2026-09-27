@@ -11,8 +11,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
-    "images": "node scripts/optimize-images.mjs",
-    "shots": "node scripts/screenshots.mjs"
+    "images": "node scripts/optimize-images.mjs"
   },
   "dependencies": {
     "framer-motion": "^12.43.0",

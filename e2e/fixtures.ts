@@ -1,16 +1,9 @@
-import { mkdirSync } from "node:fs"
-import path from "node:path"
-
 import AxeBuilder from "@axe-core/playwright"
 import { test as base, expect, type Page } from "@playwright/test"
 
 export type E2EOptions = { theme: "day" | "night"; surface: "pos" | "office" | "kitchen" }
 
-const SCREENS_DIR = path.resolve("reference/app-screenshots/W0")
-
 type Fixtures = {
-  /** reference/app-screenshots/W0/<surface>/<name>-<theme>.png */
-  snap: (name: string) => Promise<void>
   /** Serious and critical axe violations on the current page (color contrast included). */
   axeViolations: () => Promise<{ id: string; impact: string | null | undefined; targets: string[] }[]>
 }
@@ -28,13 +21,6 @@ export const test = base.extend<E2EOptions & Fixtures>({
       }
     }, theme)
     await use(page)
-  },
-  snap: async ({ page, theme, surface }, use) => {
-    await use(async (name) => {
-      const dir = path.join(SCREENS_DIR, surface)
-      mkdirSync(dir, { recursive: true })
-      await page.screenshot({ path: path.join(dir, `${name}-${theme}.png`), fullPage: true, animations: "disabled" })
-    })
   },
   axeViolations: async ({ page }, use) => {
     await use(async () => {

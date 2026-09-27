@@ -11,10 +11,14 @@ async function upsertByExternalId<T extends { externalId: string }>(
   ctx: any,
   table: "organizations" | "restaurants" | "posTerminals" | "categories" | "products",
   value: T,
+  /** Fields the office owns once the row exists (a re-seed never switches a dish back on). */
+  keepOnUpdate: string[] = [],
 ) {
   const existing = await ctx.db.query(table).withIndex("by_external_id", (q: any) => q.eq("externalId", value.externalId)).unique()
   if (existing) {
-    await ctx.db.patch(existing._id, value)
+    const patch: Record<string, unknown> = { ...value }
+    for (const key of keepOnUpdate) delete patch[key]
+    await ctx.db.patch(existing._id, patch)
     return existing._id
   }
   return ctx.db.insert(table, value)
@@ -99,7 +103,7 @@ export const seedAll = internalMutation({
         writeOffMethod: "ingredients" as const,
         prepArea: categoryPrepArea(args.categories.find((category) => category.externalId === product.category)?.label),
         customizable: false,
-      })
+      }, ["enabled"])
       productIds.set(product.externalId, id)
     }
 

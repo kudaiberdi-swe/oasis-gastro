@@ -41,7 +41,7 @@ cash registers are the points of sale of `corporation/groups`. `v2/*` endpoints 
 sandyq / sandyk / сандык), plus whatever lies in Sandyq stores, plus everything their assembly charts use
 (transitively). Chart lines excluded for every Sandyq department by their store specification are dropped.
 A seed dish (from the menu PDFs) with the same normalized name is linked instead of duplicated; every other
-iiko dish arrives **hidden from the POS** — show it in the product card, or show all the ones priced in your branches at once with «Показать блюда iiko с ценой» in «Номенклатура» (a dry run counts them first; a dish hidden on purpose stays hidden, and a shown one stays shown after a re-import).
+iiko dish arrives **hidden from the POS** — show it in the product card, or show all the ones priced in your branches at once with «Показать блюда iiko с ценой» in «Номенклатура» (a dry run counts them first; a dish hidden on purpose stays hidden, and a shown one stays shown after a re-import). The same action hides the PDF stand-in menu (the seed's `sandyq-…` dishes without an iiko link; needs access to all branches). On the POS a dish shows in a branch only when it has that branch's own price — an iiko price, an office price or a price order; with only the base price it is not on that branch's menu. On **dev**, `npm run dev:iiko-menu` does the whole switch the way prod is set up: links the three pilot branches to their iiko departments, re-imports the branch prices (GET only) and runs the same show/hide code (`convex/domains/iiko/devMenu.ts`, internal).
 
 ## Brand scoping
 

@@ -39,6 +39,7 @@ import type * as domains_finance_seed from "../domains/finance/seed.js";
 import type * as domains_finance_shiftAcceptance from "../domains/finance/shiftAcceptance.js";
 import type * as domains_finance_validators from "../domains/finance/validators.js";
 import type * as domains_iiko_catalog from "../domains/iiko/catalog.js";
+import type * as domains_iiko_devMenu from "../domains/iiko/devMenu.js";
 import type * as domains_iiko_internal from "../domains/iiko/internal.js";
 import type * as domains_iiko_mutations from "../domains/iiko/mutations.js";
 import type * as domains_iiko_office from "../domains/iiko/office.js";
@@ -259,6 +260,7 @@ declare const fullApi: ApiFromModules<{
   "domains/finance/shiftAcceptance": typeof domains_finance_shiftAcceptance;
   "domains/finance/validators": typeof domains_finance_validators;
   "domains/iiko/catalog": typeof domains_iiko_catalog;
+  "domains/iiko/devMenu": typeof domains_iiko_devMenu;
   "domains/iiko/internal": typeof domains_iiko_internal;
   "domains/iiko/mutations": typeof domains_iiko_mutations;
   "domains/iiko/office": typeof domains_iiko_office;

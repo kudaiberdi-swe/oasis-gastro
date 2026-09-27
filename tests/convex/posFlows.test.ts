@@ -426,6 +426,10 @@ describe("public function access (W0-BUG-01)", () => {
       await ctx.db.insert("productPrices", { productId: fixture.productId, restaurantExternalId: "other-branch", priceKzt: 9999 })
       // iiko groups with nothing on sale (dishware, a group whose only product is disabled) stay off the POS.
       await ctx.db.insert("categories", { externalId: "iiko-group-dishware", label: "Посуда гостевая", shortLabel: "Посуда", sortOrder: 2 })
+      // A dish priced only in another branch is not on this branch's menu: neither it nor its category shows.
+      await ctx.db.insert("categories", { externalId: "cold", label: "Холодное", shortLabel: "Холодное", sortOrder: 4, active: true })
+      const elsewhereId = await ctx.db.insert("products", { externalId: "elsewhere", name: "Блюдо другого филиала", nameKk: "Басқа", nameSort: "блюдо другого филиала", searchText: "блюдо другого филиала", description: "", category: "cold", categorySort: 4, basePrice: 700, popular: false, sku: "EL-1", baseUnit: "порц." as const, enabled: true })
+      await ctx.db.insert("productPrices", { productId: elsewhereId, restaurantExternalId: "other-branch", priceKzt: 800 })
       await ctx.db.insert("categories", { externalId: "iiko-group-prep", label: "Кухня ПФ", shortLabel: "Кухня ПФ", sortOrder: 3 })
       await ctx.db.insert("products", { externalId: "prep-1", name: "Бульон ПФ", nameKk: "Сорпа ЖФ", nameSort: "бульон пф", searchText: "бульон пф", description: "", category: "iiko-group-prep", categorySort: 3, basePrice: 0, popular: false, sku: "PF-1", baseUnit: "порц." as const, enabled: false })
     })

@@ -3,7 +3,7 @@ import { ConvexError, v } from "convex/values"
 
 import { mutation, query, type MutationCtx, type QueryCtx } from "../../_generated/server"
 import type { Doc, Id } from "../../_generated/dataModel"
-import { getOfficeAuthEmail, requireOfficeCapability, restaurantScopeFilter, scopedRestaurants, writeOfficeAudit } from "../../lib/officeAccess"
+import { getOfficeAuthEmail, hasNetworkScope, requireOfficeCapability, restaurantScopeFilter, scopedRestaurants, writeOfficeAudit } from "../../lib/officeAccess"
 import { stopListActive, stopListRow } from "../../lib/availability"
 import { resolvePrice } from "../../lib/pricing"
 import { categoryColorToken, unit } from "../../lib/validators"
@@ -344,36 +344,72 @@ export const saveProductCard = mutation({
  * sells there. A dish the office hid on purpose (overlay «В продаже» off) and one deleted in iiko stay hidden.
  * Paged over productPrices; `dryRun` only counts.
  */
+/** One page of «Показать блюда iiko с ценой»; `inScope` limits it to the caller's branches. */
+export async function showPricedIikoDishesPage(ctx: MutationCtx, args: { inScope: (restaurantExternalId: string) => boolean; email: string; paginationOpts: { numItems: number; cursor: string | null }; dryRun?: boolean; auditRestaurantExternalId?: string }) {
+  const page = await ctx.db.query("productPrices").withIndex("by_restaurant").paginate(args.paginationOpts)
+  const seen = new Set<string>()
+  const ids: Id<"products">[] = []
+  let shown = 0
+  for (const price of page.page) {
+    if (price.sourceSystem !== "iiko-server" || !args.inScope(price.restaurantExternalId) || seen.has(price.productId)) continue
+    seen.add(price.productId)
+    const product = await ctx.db.get(price.productId)
+    if (!product || product.sourceSystem !== "iiko-server" || product.itemType !== "dish" || product.enabled || product.sourceDeleted) continue
+    const overlay = await overlayOf(ctx, product)
+    if (overlay?.visibleInPos === false) continue
+    shown += 1
+    ids.push(product._id)
+    if (args.dryRun) continue
+    await ctx.db.patch(product._id, { enabled: true })
+    const value = { visibleInPos: true, sourceSystem: "iiko-server" as const, updatedBy: args.email, updatedAt: Date.now() }
+    if (overlay) await ctx.db.patch(overlay._id, value)
+    else await ctx.db.insert("iikoEntityOverlays", { overlayKey: `product:${product.externalId}`, entityType: "product", sourceExternalId: product.externalId, ...value })
+  }
+  if (shown && !args.dryRun) {
+    await writeOfficeAudit(ctx, args.email, { action: "catalog.product.update", summary: `Показано на кассе блюд iiko с ценой: ${shown}`, resourceType: "product", resourceExternalId: "iiko-priced-dishes", restaurantExternalId: args.auditRestaurantExternalId, capability: "office.nomenclature.edit", details: { shown } })
+  }
+  // The dry run's ids let the office count each dish once across pages (a dish is priced in several branches).
+  return { shown, productIds: args.dryRun ? ids : [], isDone: page.isDone, continueCursor: page.continueCursor, dryRun: args.dryRun ?? false }
+}
+
 export const showPricedIikoDishes = mutation({
   args: { paginationOpts: paginationOptsValidator, dryRun: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     const { user } = await requireOfficeCapability(ctx, "office.nomenclature.edit")
     const email = (await getOfficeAuthEmail(ctx))!
-    const inScope = restaurantScopeFilter(user)
-    const page = await ctx.db.query("productPrices").withIndex("by_restaurant").paginate(args.paginationOpts)
-    const seen = new Set<string>()
-    const ids: Id<"products">[] = []
-    let shown = 0
-    for (const price of page.page) {
-      if (price.sourceSystem !== "iiko-server" || !inScope(price.restaurantExternalId) || seen.has(price.productId)) continue
-      seen.add(price.productId)
-      const product = await ctx.db.get(price.productId)
-      if (!product || product.sourceSystem !== "iiko-server" || product.itemType !== "dish" || product.enabled || product.sourceDeleted) continue
-      const overlay = await overlayOf(ctx, product)
-      if (overlay?.visibleInPos === false) continue
-      shown += 1
-      ids.push(product._id)
-      if (args.dryRun) continue
-      await ctx.db.patch(product._id, { enabled: true })
-      const value = { visibleInPos: true, sourceSystem: "iiko-server" as const, updatedBy: email, updatedAt: Date.now() }
-      if (overlay) await ctx.db.patch(overlay._id, value)
-      else await ctx.db.insert("iikoEntityOverlays", { overlayKey: `product:${product.externalId}`, entityType: "product", sourceExternalId: product.externalId, ...value })
-    }
-    if (shown && !args.dryRun) {
-      await writeOfficeAudit(ctx, email, { action: "catalog.product.update", summary: `Показано на кассе блюд iiko с ценой: ${shown}`, resourceType: "product", resourceExternalId: "iiko-priced-dishes", capability: "office.nomenclature.edit", details: { shown } })
-    }
-    // The dry run's ids let the office count each dish once across pages (a dish is priced in several branches).
-    return { shown, productIds: args.dryRun ? ids : [], isDone: page.isDone, continueCursor: page.continueCursor, dryRun: args.dryRun ?? false }
+    return showPricedIikoDishesPage(ctx, { inScope: restaurantScopeFilter(user), email, paginationOpts: args.paginationOpts, dryRun: args.dryRun })
+  },
+})
+
+/**
+ * The stand-in menu parsed from the PDF menus (the seed's `sandyq-…` dishes, no iiko source) leaves the POS once
+ * the iiko menu is on: «Показать блюда iiko с ценой» calls this after showing the iiko dishes. Products are
+ * shared by every branch, so it needs the whole network in scope. Paged over the seed's external ids; `dryRun`
+ * only counts. A dish can be shown again from its card.
+ */
+/** One page of hiding the PDF stand-in menu (see hidePdfMenu). */
+export async function hidePdfMenuPage(ctx: MutationCtx, args: { email: string; paginationOpts: { numItems: number; cursor: string | null }; dryRun?: boolean; auditRestaurantExternalId?: string }) {
+  // "sandyq-" … "sandyq." — every external id with the seed's prefix ('.' sorts right after '-').
+  const page = await ctx.db.query("products").withIndex("by_external_id", (q) => q.gte("externalId", "sandyq-").lt("externalId", "sandyq.")).paginate(args.paginationOpts)
+  let hidden = 0
+  for (const product of page.page) {
+    if (product.sourceSystem || product.iikoProductExternalId || !product.enabled) continue
+    hidden += 1
+    if (!args.dryRun) await ctx.db.patch(product._id, { enabled: false })
+  }
+  if (hidden && !args.dryRun) {
+    await writeOfficeAudit(ctx, args.email, { action: "catalog.product.update", summary: `Скрыто с кассы блюд меню из PDF: ${hidden}`, resourceType: "product", resourceExternalId: "pdf-menu", restaurantExternalId: args.auditRestaurantExternalId, capability: "office.nomenclature.edit" })
+  }
+  return { hidden, isDone: page.isDone, continueCursor: page.continueCursor, dryRun: args.dryRun ?? false }
+}
+
+export const hidePdfMenu = mutation({
+  args: { paginationOpts: paginationOptsValidator, dryRun: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    const { user } = await requireOfficeCapability(ctx, "office.nomenclature.edit")
+    if (!hasNetworkScope(user)) throw new ConvexError("Скрыть меню из PDF может только пользователь с доступом ко всем филиалам")
+    const email = (await getOfficeAuthEmail(ctx))!
+    return hidePdfMenuPage(ctx, { email, paginationOpts: args.paginationOpts, dryRun: args.dryRun })
   },
 })
 

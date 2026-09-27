@@ -147,6 +147,25 @@ describe("«Показать блюда iiko с ценой» (W1-IIKO-04)", () =
   })
 })
 
+describe("switch to the iiko menu: the PDF stand-in menu leaves the POS", () => {
+  it("hides only the seed's PDF dishes, never an office-made or an iiko dish; the dry run only counts", async () => {
+    const { t, admin, stranger } = await linked()
+    const base = { nameSort: "x", searchText: "x", description: "", category: "hot", categorySort: 1, basePrice: 1000, popular: false, sku: "X", baseUnit: "порц." as const, enabled: true }
+    await t.run(async (ctx) => {
+      await ctx.db.insert("products", { ...base, externalId: "sandyq-beshbarmak", name: "Бешбармак (PDF)", nameKk: "Бешбармақ" })
+      await ctx.db.insert("products", { ...base, externalId: "sandyq-shubat", name: "Шұбат (PDF, скрыт)", nameKk: "Шұбат", enabled: false })
+      await ctx.db.insert("products", { ...base, externalId: "4f7c2a9e-office", name: "Блюдо из офиса", nameKk: "Кеңсе" })
+      await ctx.db.insert("products", { ...base, externalId: "sandyq-iiko-like", name: "С источником iiko", nameKk: "iiko", sourceSystem: "iiko-server" as const })
+    })
+    const page = { paginationOpts: { numItems: 100, cursor: null } }
+    expect(await admin.mutation(api.domains.catalog.office.hidePdfMenu, { ...page, dryRun: true })).toMatchObject({ hidden: 1, isDone: true })
+    await expect(stranger.mutation(api.domains.catalog.office.hidePdfMenu, page)).rejects.toThrow()
+    expect((await admin.mutation(api.domains.catalog.office.hidePdfMenu, page)).hidden).toBe(1)
+    const rows = await t.run((ctx) => ctx.db.query("products").take(20))
+    expect(Object.fromEntries(rows.map((row) => [row.externalId, row.enabled]))).toMatchObject({ "sandyq-beshbarmak": false, "sandyq-shubat": false, "4f7c2a9e-office": true, "sandyq-iiko-like": true })
+  })
+})
+
 describe("iiko import run totals", () => {
   it("the endpoint shows the run's total, not the size of its last chunk", async () => {
     const { t } = await linked()

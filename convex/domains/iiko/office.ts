@@ -1,7 +1,7 @@
 import { paginationOptsValidator } from "convex/server"
 import { ConvexError, v } from "convex/values"
 
-import { mutation, query } from "../../_generated/server"
+import { mutation, query, type MutationCtx } from "../../_generated/server"
 import { getOfficeAuthEmail, requireOfficeCapability, requireRestaurantScope, writeOfficeAudit } from "../../lib/officeAccess"
 
 // Office view of the iiko mirror (W1-IIKO-06) and branch mapping (W1-IIKO-02). Read-only towards
@@ -68,6 +68,15 @@ export const restaurantLinkOptions = query({
 })
 
 /** One iiko department ↔ one Sandyq restaurant; relinking replaces the previous link of either side. */
+export async function linkDepartment(ctx: MutationCtx, args: { restaurantExternalId: string; iikoDepartmentExternalId?: string; confirmedBy: string }) {
+  for (const link of await ctx.db.query("restaurantSourceLinks").withIndex("by_restaurant", (q) => q.eq("restaurantExternalId", args.restaurantExternalId)).take(10)) await ctx.db.delete(link._id)
+  if (!args.iikoDepartmentExternalId) return
+  const department = await ctx.db.query("iikoDepartments").withIndex("by_external_id", (q) => q.eq("externalId", args.iikoDepartmentExternalId!)).unique()
+  if (!department || department.type !== "DEPARTMENT") throw new ConvexError("Подразделение iiko не найдено")
+  for (const link of await ctx.db.query("restaurantSourceLinks").withIndex("by_department", (q) => q.eq("iikoDepartmentExternalId", args.iikoDepartmentExternalId!)).take(10)) await ctx.db.delete(link._id)
+  await ctx.db.insert("restaurantSourceLinks", { restaurantExternalId: args.restaurantExternalId, iikoDepartmentExternalId: args.iikoDepartmentExternalId, confirmedBy: args.confirmedBy, confirmedAt: Date.now() })
+}
+
 export const linkRestaurantToIikoDepartment = mutation({
   args: { restaurantExternalId: v.string(), iikoDepartmentExternalId: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -76,13 +85,7 @@ export const linkRestaurantToIikoDepartment = mutation({
     const email = (await getOfficeAuthEmail(ctx))!
     const restaurant = await ctx.db.query("restaurants").withIndex("by_external_id", (q) => q.eq("externalId", args.restaurantExternalId)).unique()
     if (!restaurant) throw new ConvexError("Ресторан не найден")
-    for (const link of await ctx.db.query("restaurantSourceLinks").withIndex("by_restaurant", (q) => q.eq("restaurantExternalId", args.restaurantExternalId)).take(10)) await ctx.db.delete(link._id)
-    if (args.iikoDepartmentExternalId) {
-      const department = await ctx.db.query("iikoDepartments").withIndex("by_external_id", (q) => q.eq("externalId", args.iikoDepartmentExternalId!)).unique()
-      if (!department || department.type !== "DEPARTMENT") throw new ConvexError("Подразделение iiko не найдено")
-      for (const link of await ctx.db.query("restaurantSourceLinks").withIndex("by_department", (q) => q.eq("iikoDepartmentExternalId", args.iikoDepartmentExternalId!)).take(10)) await ctx.db.delete(link._id)
-      await ctx.db.insert("restaurantSourceLinks", { restaurantExternalId: args.restaurantExternalId, iikoDepartmentExternalId: args.iikoDepartmentExternalId, confirmedBy: email, confirmedAt: Date.now() })
-    }
+    await linkDepartment(ctx, { restaurantExternalId: args.restaurantExternalId, iikoDepartmentExternalId: args.iikoDepartmentExternalId, confirmedBy: email })
     await writeOfficeAudit(ctx, email, {
       action: "iiko.restaurant.link",
       summary: args.iikoDepartmentExternalId ? `«${restaurant.name}» сопоставлен с подразделением iiko ${args.iikoDepartmentExternalId}` : `Снято сопоставление «${restaurant.name}» с iiko`,

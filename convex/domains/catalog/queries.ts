@@ -6,7 +6,7 @@ import { query } from "../../_generated/server"
 import { isAvailable } from "../../lib/availability"
 import type { Doc, Id } from "../../_generated/dataModel"
 import { requireOperator } from "../../lib/auth"
-import { resolvePrice } from "../../lib/pricing"
+import { resolvePrice, resolvePrices } from "../../lib/pricing"
 import { requireOfficeCapability } from "../../lib/officeAccess"
 import { listOperationalRestaurants } from "../../lib/restaurants"
 import type { PosProduct } from "./types"
@@ -21,22 +21,40 @@ async function withResolvedPrice(ctx: QueryCtx, product: Doc<"products">, restau
   return { ...rest, price: await resolveProductPrice(ctx, product, restaurantExternalId), available: await isAvailable(ctx, product._id, restaurantExternalId, Date.now()), ...(imageUrl ? { imageUrl } : {}) }
 }
 
+/**
+ * The dish as the POS sells it at this branch, or null when the branch has no price of its own — then the dish
+ * is not on the branch's menu (an iiko dish priced only elsewhere, a PDF dish of another city) and the POS
+ * leaves it out instead of selling it at the base price.
+ */
+async function onBranchMenu(ctx: QueryCtx, product: Doc<"products">, restaurantExternalId: string): Promise<PosProduct | null> {
+  const at = Date.now()
+  const resolved = await resolvePrice(ctx, { product, restaurantExternalId, at })
+  if (resolved.source === "base") return null
+  const { basePrice: _basePrice, ...rest } = product
+  const imageUrl = product.imageStorageId ? ((await ctx.storage.getUrl(product.imageStorageId)) ?? undefined) : product.imagePath
+  return { ...rest, price: resolved.price, available: await isAvailable(ctx, product._id, restaurantExternalId, at), ...(imageUrl ? { imageUrl } : {}) }
+}
+
 export const listCategories = query({
   args: { sessionToken: v.string() },
   handler: async (ctx, args) => {
-    await requireOperator(ctx, args.sessionToken)
+    const access = await requireOperator(ctx, args.sessionToken)
+    const restaurantExternalId = access.restaurant.externalId
+    const at = Date.now()
     const categories = await ctx.db.query("categories").withIndex("by_sort_order").collect()
     // iiko brings every product group (dishware, semi-finished goods, other brands) as a category; the POS
-    // shows only the ones that hold at least one dish on sale — one index read per category.
+    // shows only the ones with a dish on this branch's menu (enabled and priced here).
     const withDishes = await Promise.all(
       categories
         .filter((category) => category.active !== false)
         .map(async (category) => {
-          const dish = await ctx.db
+          const dishes = await ctx.db
             .query("products")
             .withIndex("by_enabled_and_category_and_name", (q) => q.eq("enabled", true).eq("category", category.externalId))
-            .first()
-          return dish ? category : null
+            .take(50)
+          if (!dishes.length) return null
+          const prices = await resolvePrices(ctx, dishes, restaurantExternalId, at)
+          return prices.some((price) => price.source !== "base") ? category : null
         }),
     )
     return withDishes.filter((category) => category !== null)
@@ -73,7 +91,8 @@ export const listProducts = query({
             .withIndex("by_enabled_and_name", (q) => q.eq("enabled", true))
             .paginate(args.paginationOpts)
 
-    const items = await Promise.all(page.page.map((product) => withResolvedPrice(ctx, product, restaurantExternalId)))
+    // Dishes off this branch's menu are left out (a page may come back shorter; the cursor goes on).
+    const items = (await Promise.all(page.page.map((product) => onBranchMenu(ctx, product, restaurantExternalId)))).filter((item): item is PosProduct => item !== null)
     return { ...page, page: items }
   },
 })
@@ -96,7 +115,7 @@ export const findByBarcode = query({
     // A code is unique per product when saved in the office; `first` tolerates a duplicate from an import.
     const product = await ctx.db.query("products").withIndex("by_barcode", (q) => q.eq("barcode", barcode)).first()
     if (!product?.enabled) return null
-    return withResolvedPrice(ctx, product, access.restaurant.externalId)
+    return onBranchMenu(ctx, product, access.restaurant.externalId)
   },
 })
 

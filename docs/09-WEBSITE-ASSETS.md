@@ -1,6 +1,6 @@
 # Sandyq website — asset map
 
-> Status (2026-09-27): the marketing-site rebuild this map describes is reference material in `reference/site-rebuild/` — unfinished (no pages), not deployed, not part of the product. The real guest site sandyq.kz is separate and uses the Cloud API (`07-CLOUD-API.md`). The photo and logo inventory below is still accurate for `frontend/public/` and is useful for any brand material (e.g. the video brief, `11-VIDEO-BRIEF.md`).
+> Status (2026-09-27): the marketing-site rebuild this map describes is reference material in `reference/site-rebuild/` — unfinished (no pages), not deployed, not part of the product. The real guest site sandyq.kz is separate and uses the Cloud API (`07-CLOUD-API.md`). The photo and logo inventory below is still accurate for `frontend/public/` and is useful for any brand material.
 
 Every image on the site comes from the repo's `frontend/public/` folder (the same folder the POS uses). Nothing is hotlinked from sandyqgroup.com. `reference/site-rebuild/scripts/optimize-images.mjs` (runs before `dev`/`build`) converts rasters to WebP at 480 / 768 / 1080 / 1440 / 1920 px (only widths smaller than the original, skipping ones within 15% of it), copies SVGs with their XML comments stripped, copies the menu PDFs, and writes `reference/site-rebuild/src/config/images.gen.json` with intrinsic width/height. The `<Picture>` component reads that manifest so every `<img>` has `width`/`height`, a `srcset` and `sizes`; everything except the first screen is `loading="lazy"`.
 

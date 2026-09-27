@@ -47,7 +47,6 @@ npm run iiko:seed       # extract → import → reconcile, scoped to Sandyq onl
 | `npm run contrast` | WCAG contrast of the day/night theme tokens in `frontend/app/shared/styles/theme.css` |
 | `npm run guards` | Static checks for the hard rules (auth on public functions, `ConvexError`, office restaurant scope, design tokens) — ratchet against `scripts/guards/baseline.json` (now empty, so any violation fails); public functions without a session must be listed in `scripts/guards/public-allowlist.json` |
 | `npm run e2e` | Playwright e2e (`e2e/`), local only: starts its own Vite dev server on :5198 against the dev deployment, installed Chrome, 4 surfaces × day/night. The sale smoke test needs the `seed:e2e` env loaded — or use `bash scripts/e2e-pos.sh` |
-| `npm run e2e:screens` | Screenshot run → `reference/app-screenshots/W0/…`, then `scripts/compare-screens.mjs` builds the bahandi-vs-sandyq parity page `reference/app-screenshots/W0/compare.html` |
 | `npm run seed:e2e` | Seeds the dev deployment for e2e and writes the cashier login for the sale smoke test to a gitignored local env file (never printed). Refuses any non-dev deployment |
 | `bash scripts/e2e-pos.sh` | `seed:e2e`, loads that env file and runs every e2e suite in one go (extra args go to `playwright test`) |
 | `npm run lint:convex` | `scripts/check-unbounded-queries.mjs` — no full-table scans or unbounded `take` in `convex/` |
@@ -111,7 +110,7 @@ All unit/integration tests live in `tests/` (vitest picks up only `tests/**/*.te
 
 Static checks: `npm run guards`, `npm run contrast` and `npm run lint:convex` (see [Common commands](#common-commands)); `bash scripts/verify.sh` runs them with typecheck and tests, like CI.
 
-End-to-end, local only (not in CI): `bash scripts/e2e-pos.sh` — it runs `npm run seed:e2e` against the dev deployment, loads the env file that writes (the cashier PIN is never printed) and runs `npx playwright test` (smoke sale POS → hall → kitchen, the kitchen board, every office section, axe accessibility checks, dialog regressions). By hand: `npm run seed:e2e`, then `set -a; . .sandyq-seed/e2e.env; set +a; npm run e2e`. `npm run e2e:screens` captures screenshots and builds the parity report. Details: [docs/03-ARCHITECTURE.md § Quality gates](docs/03-ARCHITECTURE.md#quality-gates).
+End-to-end, local only (not in CI): `bash scripts/e2e-pos.sh` — it runs `npm run seed:e2e` against the dev deployment, loads the env file that writes (the cashier PIN is never printed) and runs `npx playwright test` (smoke sale POS → hall → kitchen, the kitchen board, every office section, axe accessibility checks, dialog regressions). By hand: `npm run seed:e2e`, then `set -a; . .sandyq-seed/e2e.env; set +a; npm run e2e`. Details: [docs/03-ARCHITECTURE.md § Quality gates](docs/03-ARCHITECTURE.md#quality-gates).
 
 ## Known gaps
 

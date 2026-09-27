@@ -135,8 +135,6 @@ bash scripts/e2e-pos.sh     # e2e локально: сид dev для e2e + ве
 - По отдельности: `npm run typecheck`, `npm test`, `npm run guards`, `npm run contrast`, `npm run lint:convex`.
 - `npm run e2e` — Playwright сам поднимает Vite на порту 5198 против dev-деплоя. Для теста продажи сначала
   нужен `npm run seed:e2e`, поэтому проще `bash scripts/e2e-pos.sh`. В CI e2e нет, только локально.
-- `npm run e2e:screens` — скриншоты в `reference/app-screenshots/W0/` и страница сверки с bahandi
-  `reference/app-screenshots/W0/compare.html`.
 - `npm run guards` проверяет правила кода: авторизация в публичных функциях, `ConvexError`, ограничение офиса
   по ресторанам, только токены дизайна во фронтенде. Список — `03-ARCHITECTURE.md` § Quality gates.
 
@@ -178,8 +176,7 @@ bash scripts/e2e-pos.sh     # e2e локально: сид dev для e2e + ве
 8. `08-IMPLEMENTATION-PLAN.md` — выполненный план W0–W3: статус (§0), решения владельца (§2), задачи по волнам.
 9. `09-WEBSITE-ASSETS.md` — карта изображений недоделанной копии маркетингового сайта (`reference/site-rebuild/`, справочный материал).
 10. `10-TESTING-GUIDE.md` — ручное тестирование dev и prod по ролям (кассир, менеджер, кухня, офис); доступы — в локальном `test-credentials.local.md` (`npm run test:credentials`).
-11. `11-VIDEO-BRIEF.md` — бриф для видео о проекте: суть, проверенные факты, сюжеты, структура ролика, закадровый текст, бренд, что нельзя показывать.
 
 Архив (история, для работы не нужен): `reference/archive/PLAN.md` — исходный план переноса из bahandi-pos
-(решения D1–D9, матрица паритета §13, её читает `scripts/compare-screens.mjs`),
+(решения D1–D9, матрица паритета §13),
 `reference/archive/AGENT-PROMPT.md` — промпт, по которому писался план реализации.

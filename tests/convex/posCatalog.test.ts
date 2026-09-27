@@ -65,7 +65,7 @@ describe("product configuration (W1-CAT-12)", () => {
 })
 
 describe("barcode lookup (W3-POS-01)", () => {
-  it("finds a product by its barcode at the session's branch price; unknown, hidden or no session", async () => {
+  it("finds a product by its barcode at the session's branch price; unknown, hidden, off the branch menu or no session", async () => {
     const { t, shubatId, mishuzhykId } = await setup()
     await t.run(async (ctx) => {
       await ctx.db.patch(shubatId, { barcode: "4870200012345" })
@@ -73,7 +73,8 @@ describe("barcode lookup (W3-POS-01)", () => {
     })
     const found = await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "almaty-cashier", barcode: " 4870200012345\n" })
     expect(found).toMatchObject({ externalId: "shubat", price: 850, available: true })
-    expect((await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "shymkent-cashier", barcode: "4870200012345" }))?.price).toBe(1000)
+    // Shymkent has no price of its own for this dish: it is not on that branch's menu, so the scan finds nothing.
+    expect(await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "shymkent-cashier", barcode: "4870200012345" })).toBeNull()
     expect(await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "almaty-cashier", barcode: "0000000000000" })).toBeNull()
     expect(await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "almaty-cashier", barcode: "SQ-0002" })).toBeNull()
     expect(await t.query(api.domains.catalog.queries.findByBarcode, { sessionToken: "almaty-cashier", barcode: "   " })).toBeNull()

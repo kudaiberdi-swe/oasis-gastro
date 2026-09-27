@@ -8,8 +8,10 @@ describe("POS notifications and upsell (W1-POS-09)", () => {
     const { t, productId } = await setup()
     await t.run(async (ctx) => {
       await ctx.db.insert("categories", { externalId: "drinks", label: "Напитки", shortLabel: "Напитки", sortOrder: 2, active: true })
-      await ctx.db.insert("products", { externalId: "shubat", name: "Шұбат", nameKk: "Шұбат", nameSort: "шұбат", searchText: "шұбат", description: "", category: "drinks", categorySort: 2, basePrice: 850, popular: true, sku: "S", baseUnit: "порц.", enabled: true })
+      const shubatId = await ctx.db.insert("products", { externalId: "shubat", name: "Шұбат", nameKk: "Шұбат", nameSort: "шұбат", searchText: "шұбат", description: "", category: "drinks", categorySort: 2, basePrice: 850, popular: true, sku: "S", baseUnit: "порц.", enabled: true })
       await ctx.db.patch(productId, { popular: true })
+      // Only a dish on the branch's menu (priced here) is suggested.
+      await ctx.db.insert("productPrices", { productId: shubatId, restaurantExternalId: "almaty", priceKzt: 850 })
     })
     const check = await draft(t, productId)
     expect(await t.query(api.domains.pos.queries.suggestion, { sessionToken: cashier, orderId: check._id })).toMatchObject({ externalId: "shubat", price: 850 })

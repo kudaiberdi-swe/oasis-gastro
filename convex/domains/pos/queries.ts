@@ -40,7 +40,8 @@ export const suggestion = query({
     for (const product of popular) {
       if (inCheck.has(product.category) || product.sizeScaleId) continue
       if (!(await isAvailable(ctx, product._id, access.restaurant.externalId, now))) continue
-      const { price } = await resolvePrice(ctx, { product, restaurantExternalId: access.restaurant.externalId, at: now })
+      const { price, source } = await resolvePrice(ctx, { product, restaurantExternalId: access.restaurant.externalId, at: now })
+      if (source === "base") continue // not on this branch's menu
       return { productId: product._id, externalId: product.externalId, name: product.name, nameKk: product.nameKk, category: product.category, price }
     }
     return null
