@@ -2,7 +2,7 @@
 
 A cashier POS + back office for **Sandyq**, a Kazakhstan ethno-restaurant chain (3 branches: Алматы, Шымкент, Түркістан). Built on Convex (backend + realtime database) and React/Vite (frontend), with a read-only sync from the chain's existing iiko Server account for real branch/staff data.
 
-**New here? Start with [docs/01-ONBOARDING.md](docs/01-ONBOARDING.md)** (in Russian) — the project map and the numbered reading order of every document in `docs/`.
+**New here? Start with [docs/01-ONBOARDING.md](docs/01-ONBOARDING.md)** (in Russian) — the project map and the numbered reading order of every document in `docs/`. To test dev and prod by hand, role by role: [docs/10-TESTING-GUIDE.md](docs/10-TESTING-GUIDE.md) (logins and PINs go to the local, gitignored `test-credentials.local.md` via `npm run test:credentials`).
 
 Two people can read this repo cold from here: this file gets you running locally and orients you to what exists; **[docs/03-ARCHITECTURE.md](docs/03-ARCHITECTURE.md)** is the technical reference — the POS core table by table and function by function, a map of the domains added in W1–W3, the cross-domain side effects. **[docs/02-BRD.md](docs/02-BRD.md)** has the original business framing and open questions. **[docs/06-IIKO-RUNBOOK.md](docs/06-IIKO-RUNBOOK.md)** covers the iiko side specifically. **[docs/08-IMPLEMENTATION-PLAN.md](docs/08-IMPLEMENTATION-PLAN.md)** is the task plan (W0–W3) with its status, **[TODO.md](TODO.md)** what people still have to do (keys, questions, prod launch), **[PRODUCT.md](PRODUCT.md)** and **[DESIGN.md](DESIGN.md)** the product record and the design system.
 

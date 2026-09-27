@@ -13,6 +13,8 @@ iiko-credentials.md
 
 # Generated POS employee PINs — plaintext, local only, never commit
 .sandyq-seed/
+# Manual-testing sheet with logins and PINs (scripts/test-credentials.mjs, docs/10-TESTING-GUIDE.md)
+test-credentials.local.md
 
 # Transient deploy-key file from scripts/rotate-ci-deploy-key.sh — deleted by the script,
 # ignored here as a safety net in case it's ever interrupted mid-run
