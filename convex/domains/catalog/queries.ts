@@ -26,7 +26,20 @@ export const listCategories = query({
   handler: async (ctx, args) => {
     await requireOperator(ctx, args.sessionToken)
     const categories = await ctx.db.query("categories").withIndex("by_sort_order").collect()
-    return categories.filter((category) => category.active !== false)
+    // iiko brings every product group (dishware, semi-finished goods, other brands) as a category; the POS
+    // shows only the ones that hold at least one dish on sale — one index read per category.
+    const withDishes = await Promise.all(
+      categories
+        .filter((category) => category.active !== false)
+        .map(async (category) => {
+          const dish = await ctx.db
+            .query("products")
+            .withIndex("by_enabled_and_category_and_name", (q) => q.eq("enabled", true).eq("category", category.externalId))
+            .first()
+          return dish ? category : null
+        }),
+    )
+    return withDishes.filter((category) => category !== null)
   },
 })
 

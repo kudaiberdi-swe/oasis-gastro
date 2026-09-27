@@ -51,6 +51,23 @@ const CANONICAL_CATEGORIES = [
 ]
 const FALLBACK_CATEGORY = "Прочее"
 
+// Almaty-only dishes (their menu uses legend sections, not the bilingual taxonomy): canonical category by
+// dish name, from the dish itself and its Almaty section. The large sharing platters of «Дала аңызын
+// жаңғырту» go to «Меню на компанию» — hence their prices (89 990 ₸, 95 990 ₸).
+const ALMATY_ONLY_CATEGORY = new Map(
+  Object.entries({
+    "Саламтар / Салаты": ["Салат «Қостұра» с подкопченой", "Хрустящие баклажаны в соусе", "Ассорти из сезонных овощей"],
+    "Тіскебасарлар / Деликатесы": ["Подкопченый «Құйрық май»", "«Sheke»", "«Ұйқы ашар» копченая конина", "«Кұйрык бауыр»", "«Үлпершек» сердце барашка,", "Осетровая икра"],
+    "Сұйық тағамдар / Супы": ["Суп «Жібек жолы» с", "«Жарма көже»", "«Қол кеспе»"],
+    "Негізгі тағамдар / Основные блюда": ["«Қазақ ет»", "«Борша ет» (шоу-программа", "«Ши қуырдақ»", "«Бұкпа» из говядины с овощами", "«Қымыз қабырға»", "«Борша ет»", "Томленая баранья шея", "«Қақталган қазы»", "Горная форель", "«Нан салма»"],
+    "Ұжымдық мәзір / Меню на компанию (5-6 персон)": ["«Сый табақ»", "«Хан сырбаз»", "«Қарын көмбе» из запеченной", "«Бекіре» с овощами"],
+    "Гарнирлер / Гарниры": ["Овощи на гриле"],
+    "Нан-тоқаш өнімдері / Выпечка": ["Бауырсаки со сладким вареньем", "Бауырсаки с начинкой", "«Таба нан» с горным мёдом и"],
+    "Тәттілер / Десерты": ["Фаршированный финик с обжа-", "Степной десерт «Сүмесүт»", "Хрустящий домашний пирог", "«Төңкерме» из обжаренной пщеницы", "«Майсөк» с муссом", "Десерт «Алматинский апорт»", "Финики", "Варенье", "Мед"],
+    "Дәстүрлі сусындар / Традиционные напитки": ["Чайный сет", "Лимон", "Молоко", "Мята"],
+  }).flatMap(([category, names]) => names.map((name) => [name, category])),
+)
+
 function slug(text) {
   return text
     .toLocaleLowerCase("ru")
@@ -100,7 +117,7 @@ for (const restaurant of RESTAURANTS) {
   for (const item of items) {
     const category = item.category
       ? restaurant.key === "almaty"
-        ? (categoryByName.get(item.name_ru) ?? logUnmapped(item.name_ru))
+        ? (categoryByName.get(item.name_ru) ?? ALMATY_ONLY_CATEGORY.get(item.name_ru) ?? logUnmapped(item.name_ru))
         : item.category
       : logUnmapped(item.name_ru)
     for (const variant of resolveVolumeVariants(item)) {

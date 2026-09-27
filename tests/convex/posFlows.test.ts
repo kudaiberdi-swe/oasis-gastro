@@ -424,6 +424,10 @@ describe("public function access (W0-BUG-01)", () => {
     await t.run(async (ctx) => {
       await ctx.db.insert("productPrices", { productId: fixture.productId, restaurantExternalId: "sandyq-test", priceKzt: 1500 })
       await ctx.db.insert("productPrices", { productId: fixture.productId, restaurantExternalId: "other-branch", priceKzt: 9999 })
+      // iiko groups with nothing on sale (dishware, a group whose only product is disabled) stay off the POS.
+      await ctx.db.insert("categories", { externalId: "iiko-group-dishware", label: "Посуда гостевая", shortLabel: "Посуда", sortOrder: 2 })
+      await ctx.db.insert("categories", { externalId: "iiko-group-prep", label: "Кухня ПФ", shortLabel: "Кухня ПФ", sortOrder: 3 })
+      await ctx.db.insert("products", { externalId: "prep-1", name: "Бульон ПФ", nameKk: "Сорпа ЖФ", nameSort: "бульон пф", searchText: "бульон пф", description: "", category: "iiko-group-prep", categorySort: 3, basePrice: 0, popular: false, sku: "PF-1", baseUnit: "порц." as const, enabled: false })
     })
 
     await expect(t.query(api.domains.catalog.queries.listCategories, { sessionToken: "not-a-session" })).rejects.toThrow()
