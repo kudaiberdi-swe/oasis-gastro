@@ -290,6 +290,8 @@ export default defineSchema({
     .index("by_external_id", ["externalId"])
     .index("by_iiko_product", ["iikoProductExternalId"])
     .index("by_barcode", ["barcode"])
+    // The switch to the iiko menu walks iiko dishes only (not every price row): «Показать блюда iiko с ценой».
+    .index("by_source_and_type", ["sourceSystem", "itemType", "externalId"])
     .index("by_enabled_and_category_and_name", ["enabled", "category", "nameSort"])
     .index("by_enabled_and_name", ["enabled", "nameSort"])
     .index("by_enabled_and_popular_and_name", ["enabled", "popular", "nameSort"])

@@ -7,7 +7,8 @@ import { plural, type PluralForms } from "@/shared/lib/plural"
 
 import { useNomenclatureMutations } from "../data/use-nomenclature"
 
-const PAGE = 100
+// Pages of the change over iiko dishes (hundreds, not thousands of price rows): one call on a typical account.
+const PAGE = 500
 const DISHES: PluralForms = ["блюдо", "блюда", "блюд"]
 
 /**
@@ -16,7 +17,7 @@ const DISHES: PluralForms = ["блюдо", "блюда", "блюд"]
  * confirmation applies it. Dishes hidden on purpose in the product card stay hidden.
  */
 export function ShowIikoDishesButton() {
-  const { showPricedIikoDishes, hidePdfMenu } = useNomenclatureMutations()
+  const { showPricedIikoDishes, hidePdfMenu, previewIikoMenuSwitch } = useNomenclatureMutations()
   const toast = useToast()
   const [busy, setBusy] = useState(false)
   const [count, setCount] = useState<number | null>(null)
@@ -24,27 +25,25 @@ export function ShowIikoDishesButton() {
   const [pdfPrices, setPdfPrices] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
-  async function pages(dryRun: boolean) {
-    const ids = new Set<string>()
+  async function showPages() {
     let shown = 0
     let cursor: string | null = null
     for (;;) {
-      const result = await showPricedIikoDishes({ paginationOpts: { numItems: PAGE, cursor }, dryRun })
-      for (const id of result.productIds) ids.add(id)
+      const result = await showPricedIikoDishes({ paginationOpts: { numItems: PAGE, cursor }, dryRun: false })
       shown += result.shown
       if (result.isDone) break
       cursor = result.continueCursor
     }
-    return dryRun ? ids.size : shown
+    return shown
   }
 
   // The PDF stand-in menu leaves the POS together with the switch to the iiko menu.
-  async function pdfPages(dryRun: boolean) {
+  async function pdfPages() {
     let hidden = 0
     let prices = 0
     let cursor: string | null = null
     for (;;) {
-      const result = await hidePdfMenu({ paginationOpts: { numItems: PAGE, cursor }, dryRun })
+      const result = await hidePdfMenu({ paginationOpts: { numItems: PAGE, cursor }, dryRun: false })
       hidden += result.hidden
       prices += result.pricesDropped
       if (result.isDone) break
@@ -57,13 +56,12 @@ export function ShowIikoDishesButton() {
     setBusy(true)
     try {
       setError(null)
-      const found = await pages(true)
-      if (found === 0) toast("Скрытых блюд iiko с ценой в ваших филиалах нет", "success")
+      const preview = await previewIikoMenuSwitch()
+      if (preview.toShow === 0 && preview.hiddenService === 0 && preview.pdfHidden === 0 && preview.pdfPrices === 0) toast("Скрытых блюд iiko с ценой в ваших филиалах нет", "success")
       else {
-        const pdf = await pdfPages(true).catch(() => ({ hidden: 0, prices: 0 }))
-        setPdfCount(pdf.hidden)
-        setPdfPrices(pdf.prices)
-        setCount(found)
+        setPdfCount(preview.pdfHidden)
+        setPdfPrices(preview.pdfPrices)
+        setCount(preview.toShow)
       }
     } catch (caught) {
       toast(errorMessage(caught, "Не удалось посчитать блюда iiko"), "error")
@@ -75,8 +73,8 @@ export function ShowIikoDishesButton() {
   async function apply() {
     setBusy(true)
     try {
-      const shown = await pages(false)
-      const pdf = pdfCount || pdfPrices ? await pdfPages(false) : { hidden: 0, prices: 0 }
+      const shown = await showPages()
+      const pdf = pdfCount || pdfPrices ? await pdfPages() : { hidden: 0, prices: 0 }
       setCount(null)
       toast(`На кассе показано ${shown} ${plural(shown, DISHES)} iiko${pdf.hidden ? `, меню из PDF скрыто (${pdf.hidden})` : ""}${pdf.prices ? `; цены iiko для блюд, сопоставленных с PDF, появятся после следующего импорта iiko` : ""}`, "success")
     } catch (caught) {

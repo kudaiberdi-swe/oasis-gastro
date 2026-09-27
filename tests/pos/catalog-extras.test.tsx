@@ -27,6 +27,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("convex/react", () => ({
+  // One-shot reads (the iiko menu switch preview) are not exercised here.
+  useConvex: () => ({ query: async () => null }),
   useQuery: (reference: FunctionReference<"query">, args: unknown) => (args === "skip" ? undefined : mocks.queries[getFunctionName(reference)]),
   usePaginatedQuery: (reference: FunctionReference<"query">, args: unknown) =>
     args === "skip"

@@ -1,4 +1,4 @@
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react"
+import { useConvex, useMutation, usePaginatedQuery, useQuery } from "convex/react"
 import type { FunctionArgs, FunctionReturnType } from "convex/server"
 
 import { api } from "@convex/_generated/api"
@@ -96,7 +96,10 @@ export function useNomenclatureMutations() {
   const createProduct = useMutation(catalog.createProduct)
   const showPricedIikoDishes = useMutation(office.showPricedIikoDishes)
   const hidePdfMenu = useMutation(office.hidePdfMenu)
-  return { saveProductCard, attachProductImage, setProductPrice, createProduct, showPricedIikoDishes, hidePdfMenu }
+  // A one-shot read for the confirmation (not a subscription: it walks every iiko dish).
+  const convex = useConvex()
+  const previewIikoMenuSwitch = () => convex.query(office.previewIikoMenuSwitch, {})
+  return { saveProductCard, attachProductImage, setProductPrice, createProduct, showPricedIikoDishes, hidePdfMenu, previewIikoMenuSwitch }
 }
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = { dish: "Блюдо", good: "Товар", preparation: "Заготовка" }

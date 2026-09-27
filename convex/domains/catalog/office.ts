@@ -352,35 +352,109 @@ export function isServiceIikoItem(name: string) {
   return /(^|[^а-яёa-z])(тест|стафф?|staff|test|комплимент)/i.test(name)
 }
 
+/** Whether the dish has an iiko price above 0 ₸ in one of the caller's branches — one index read per dish. */
+async function pricedInScope(ctx: QueryCtx, productId: Id<"products">, inScope: (restaurantExternalId: string) => boolean) {
+  const rows = await ctx.db.query("productPrices").withIndex("by_product_restaurant", (q) => q.eq("productId", productId)).take(100)
+  return rows.some((row) => row.sourceSystem === "iiko-server" && row.priceKzt > 0 && inScope(row.restaurantExternalId))
+}
+
 /**
- * One page of «Показать блюда iiko с ценой»; `inScope` limits it to the caller's branches. Service positions
- * («тест», «стафф», «комплимент») are never shown, and one shown earlier is hidden again; a 0 ₸ row decides nothing.
+ * What «Показать блюда iiko с ценой» does with one iiko dish: show it (hidden, priced in the caller's branches, not
+ * hidden on purpose), hide it (a service position — «тест», «стафф», «комплимент» — that is on sale) or nothing.
+ * The same decision drives the count in the confirmation and the change itself.
+ */
+async function iikoDishDecision(ctx: QueryCtx, product: Doc<"products">, inScope: (restaurantExternalId: string) => boolean): Promise<"show" | "hide-service" | null> {
+  if (product.sourceDeleted) return null
+  if (isServiceIikoItem(product.name)) return product.enabled ? "hide-service" : null
+  if (product.enabled) return null
+  if (!(await pricedInScope(ctx, product._id, inScope))) return null
+  const overlay = await overlayOf(ctx, product)
+  return overlay?.visibleInPos === false ? null : "show"
+}
+
+/**
+ * What the switch does with one seed dish of the PDF stand-in menu: hide it, or — for one matched to an iiko dish —
+ * keep it on sale and drop its PDF prices (the next iiko import writes the iiko ones; it never overwrites a price
+ * that exists).
+ */
+async function pdfDishDecision(ctx: QueryCtx, product: Doc<"products">): Promise<{ hide: boolean; pdfPriceIds: Id<"productPrices">[] }> {
+  if (product.sourceSystem) return { hide: false, pdfPriceIds: [] }
+  if (product.iikoProductExternalId) {
+    const rows = await ctx.db.query("productPrices").withIndex("by_product_restaurant", (q) => q.eq("productId", product._id)).take(50)
+    return { hide: false, pdfPriceIds: rows.filter((row) => !row.sourceSystem).map((row) => row._id) }
+  }
+  return { hide: product.enabled, pdfPriceIds: [] }
+}
+
+const iikoDishes = (ctx: QueryCtx) => ctx.db.query("products").withIndex("by_source_and_type", (q) => q.eq("sourceSystem", "iiko-server").eq("itemType", "dish"))
+// "sandyq-" … "sandyq." — every external id with the seed's prefix ('.' sorts right after '-').
+const pdfDishes = (ctx: QueryCtx) => ctx.db.query("products").withIndex("by_external_id", (q) => q.gte("externalId", "sandyq-").lt("externalId", "sandyq."))
+
+/** Every iiko dish (or PDF dish) in bounded reads of 200, continuing by external id — for the one-read preview. */
+async function forEachBatch(read: (after: string) => Promise<Doc<"products">[]>, visit: (product: Doc<"products">) => Promise<void>) {
+  let after = ""
+  for (let round = 0; round < 50; round += 1) {
+    const batch = await read(after)
+    for (const product of batch) await visit(product)
+    if (batch.length < 200) return
+    after = batch[batch.length - 1].externalId
+  }
+}
+
+/**
+ * The confirmation of «Показать блюда iiko с ценой» in one read: how many iiko dishes will be shown, service positions
+ * hidden, PDF dishes hidden and PDF prices dropped. The PDF part only for a user with every branch in scope.
+ */
+export const previewIikoMenuSwitch = query({
+  args: {},
+  handler: async (ctx) => {
+    const { user } = await requireOfficeCapability(ctx, "office.nomenclature.edit")
+    const inScope = restaurantScopeFilter(user)
+    let toShow = 0
+    let hiddenService = 0
+    const iikoBatch = (after: string) => ctx.db.query("products").withIndex("by_source_and_type", (q) => q.eq("sourceSystem", "iiko-server").eq("itemType", "dish").gt("externalId", after)).take(200)
+    await forEachBatch(iikoBatch, async (product) => {
+      const decision = await iikoDishDecision(ctx, product, inScope)
+      if (decision === "show") toShow += 1
+      else if (decision === "hide-service") hiddenService += 1
+    })
+    let pdfHidden = 0
+    let pdfPrices = 0
+    if (hasNetworkScope(user)) {
+      const pdfBatch = (after: string) => ctx.db.query("products").withIndex("by_external_id", (q) => q.gt("externalId", after || "sandyq-").lt("externalId", "sandyq.")).take(200)
+      await forEachBatch(pdfBatch, async (product) => {
+        const decision = await pdfDishDecision(ctx, product)
+        if (decision.hide) pdfHidden += 1
+        pdfPrices += decision.pdfPriceIds.length
+      })
+    }
+    return { toShow, hiddenService, pdfHidden, pdfPrices }
+  },
+})
+
+/**
+ * One page (over iiko dishes) of «Показать блюда iiko с ценой»; `inScope` limits it to the caller's branches.
+ * Service positions («тест», «стафф», «комплимент») are never shown and one on sale is hidden again; a dish free
+ * (0 ₸) in a branch is left to the POS, which keeps it off that branch's menu.
  */
 export async function showPricedIikoDishesPage(ctx: MutationCtx, args: { inScope: (restaurantExternalId: string) => boolean; email: string; paginationOpts: { numItems: number; cursor: string | null }; dryRun?: boolean; auditRestaurantExternalId?: string }) {
-  const page = await ctx.db.query("productPrices").withIndex("by_restaurant").paginate(args.paginationOpts)
-  const seen = new Set<string>()
+  const page = await iikoDishes(ctx).paginate(args.paginationOpts)
   const ids: Id<"products">[] = []
   let shown = 0
   let hiddenService = 0
-  for (const price of page.page) {
-    if (price.sourceSystem !== "iiko-server" || price.priceKzt <= 0 || !args.inScope(price.restaurantExternalId) || seen.has(price.productId)) continue
-    seen.add(price.productId)
-    const product = await ctx.db.get(price.productId)
-    if (!product || product.sourceSystem !== "iiko-server" || product.itemType !== "dish" || product.sourceDeleted) continue
-    if (isServiceIikoItem(product.name)) {
-      if (product.enabled) {
-        hiddenService += 1
-        if (!args.dryRun) await ctx.db.patch(product._id, { enabled: false })
-      }
+  for (const product of page.page) {
+    const decision = await iikoDishDecision(ctx, product, args.inScope)
+    if (decision === "hide-service") {
+      hiddenService += 1
+      if (!args.dryRun) await ctx.db.patch(product._id, { enabled: false })
       continue
     }
-    if (product.enabled) continue
-    const overlay = await overlayOf(ctx, product)
-    if (overlay?.visibleInPos === false) continue
+    if (decision !== "show") continue
     shown += 1
     ids.push(product._id)
     if (args.dryRun) continue
     await ctx.db.patch(product._id, { enabled: true })
+    const overlay = await overlayOf(ctx, product)
     const value = { visibleInPos: true, sourceSystem: "iiko-server" as const, updatedBy: args.email, updatedAt: Date.now() }
     if (overlay) await ctx.db.patch(overlay._id, value)
     else await ctx.db.insert("iikoEntityOverlays", { overlayKey: `product:${product.externalId}`, entityType: "product", sourceExternalId: product.externalId, ...value })
@@ -388,7 +462,6 @@ export async function showPricedIikoDishesPage(ctx: MutationCtx, args: { inScope
   if ((shown || hiddenService) && !args.dryRun) {
     await writeOfficeAudit(ctx, args.email, { action: "catalog.product.update", summary: `Показано на кассе блюд iiko с ценой: ${shown}${hiddenService ? `, скрыто служебных позиций: ${hiddenService}` : ""}`, resourceType: "product", resourceExternalId: "iiko-priced-dishes", restaurantExternalId: args.auditRestaurantExternalId, capability: "office.nomenclature.edit", details: { shown } })
   }
-  // The dry run's ids let the office count each dish once across pages (a dish is priced in several branches).
   return { shown, hiddenService, productIds: args.dryRun ? ids : [], isDone: page.isDone, continueCursor: page.continueCursor, dryRun: args.dryRun ?? false }
 }
 
@@ -404,31 +477,19 @@ export const showPricedIikoDishes = mutation({
 /**
  * The stand-in menu parsed from the PDF menus (the seed's `sandyq-…` dishes, no iiko source) leaves the POS once
  * the iiko menu is on: «Показать блюда iiko с ценой» calls this after showing the iiko dishes. Products are
- * shared by every branch, so it needs the whole network in scope. Paged over the seed's external ids; `dryRun`
- * only counts. A dish can be shown again from its card.
+ * shared by every branch, so it needs the whole network in scope. A dish can be shown again from its card.
  */
-/** One page of hiding the PDF stand-in menu (see hidePdfMenu). */
 export async function hidePdfMenuPage(ctx: MutationCtx, args: { email: string; paginationOpts: { numItems: number; cursor: string | null }; dryRun?: boolean; auditRestaurantExternalId?: string }) {
-  // "sandyq-" … "sandyq." — every external id with the seed's prefix ('.' sorts right after '-').
-  const page = await ctx.db.query("products").withIndex("by_external_id", (q) => q.gte("externalId", "sandyq-").lt("externalId", "sandyq.")).paginate(args.paginationOpts)
+  const page = await pdfDishes(ctx).paginate(args.paginationOpts)
   let hidden = 0
   let pricesDropped = 0
   for (const product of page.page) {
-    if (product.sourceSystem) continue
-    if (product.iikoProductExternalId) {
-      // A PDF dish matched to an iiko one stays on sale but gives up its PDF prices: the next iiko import
-      // writes the iiko ones (it never overwrites a Sandyq price that exists).
-      const rows = await ctx.db.query("productPrices").withIndex("by_product_restaurant", (q) => q.eq("productId", product._id)).take(50)
-      for (const row of rows) {
-        if (row.sourceSystem) continue
-        pricesDropped += 1
-        if (!args.dryRun) await ctx.db.delete(row._id)
-      }
-      continue
-    }
-    if (!product.enabled) continue
-    hidden += 1
-    if (!args.dryRun) await ctx.db.patch(product._id, { enabled: false })
+    const decision = await pdfDishDecision(ctx, product)
+    pricesDropped += decision.pdfPriceIds.length
+    if (decision.hide) hidden += 1
+    if (args.dryRun) continue
+    for (const id of decision.pdfPriceIds) await ctx.db.delete(id)
+    if (decision.hide) await ctx.db.patch(product._id, { enabled: false })
   }
   if ((hidden || pricesDropped) && !args.dryRun) {
     await writeOfficeAudit(ctx, args.email, { action: "catalog.product.update", summary: `Скрыто с кассы блюд меню из PDF: ${hidden}; цен из PDF у блюд, сопоставленных с iiko, снято: ${pricesDropped}`, resourceType: "product", resourceExternalId: "pdf-menu", restaurantExternalId: args.auditRestaurantExternalId, capability: "office.nomenclature.edit" })

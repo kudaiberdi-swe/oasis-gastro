@@ -169,7 +169,10 @@ describe("switch to the iiko menu: the PDF stand-in menu leaves the POS", () => 
       await ctx.db.patch(row!._id, { enabled: true })
     })
     const page = { paginationOpts: { numItems: 100, cursor: null } }
+    // The confirmation's one-read count is exactly what the change then does.
+    expect(await admin.query(api.domains.catalog.office.previewIikoMenuSwitch, {})).toMatchObject({ toShow: 1, hiddenService: 1 })
     expect(await admin.mutation(api.domains.catalog.office.showPricedIikoDishes, page)).toMatchObject({ shown: 1, hiddenService: 1 })
+    expect(await admin.query(api.domains.catalog.office.previewIikoMenuSwitch, {})).toMatchObject({ toShow: 0, hiddenService: 0 })
     expect((await Promise.all(["i-dish", "i-free", "i-test", "i-staff"].map((id) => product(t, id)))).map((row) => row?.enabled)).toEqual([true, false, false, false])
   })
 
@@ -183,6 +186,7 @@ describe("switch to the iiko menu: the PDF stand-in menu leaves the POS", () => 
       return id
     })
     const page = { paginationOpts: { numItems: 100, cursor: null } }
+    expect(await admin.query(api.domains.catalog.office.previewIikoMenuSwitch, {})).toMatchObject({ pdfHidden: 0, pdfPrices: 1 })
     expect(await admin.mutation(api.domains.catalog.office.hidePdfMenu, { ...page, dryRun: true })).toMatchObject({ hidden: 0, pricesDropped: 1 })
     expect(await admin.mutation(api.domains.catalog.office.hidePdfMenu, page)).toMatchObject({ hidden: 0, pricesDropped: 1 })
     const rows = await t.run((ctx) => ctx.db.query("productPrices").withIndex("by_product_restaurant", (q) => q.eq("productId", matchedId)).take(10))

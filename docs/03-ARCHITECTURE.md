@@ -218,6 +218,7 @@ Every exported `query`/`mutation`/`action` by domain. "Office" or "POS" in the A
 | `office.listProductGroups` / `saveProductGroup` | query / mutation | office | Product groups, including the POS colour (`colorToken`, «Цвет в кассе») |
 | `office.listNomenclature` / `getProductCard` / `saveProductCard` | query / mutation | office | The nomenclature register and the product card (W1-CAT-04/05); edits of an iiko product go to its overlay |
 | `office.showPricedIikoDishes` | mutation | office | «Показать блюда iiko с ценой»: dry run counts first, then shows the hidden iiko dishes priced in the user's branches; a dish hidden on purpose in its card stays hidden |
+| `office.previewIikoMenuSwitch` | query | office | The confirmation's count in one read (bounded batches of 200 over the `products.by_source_and_type` index): iiko dishes to show, service positions to hide, PDF dishes to hide, PDF prices to drop — the same per-dish decision the mutations then apply in pages of 500 |
 | `office.hidePdfMenu` | mutation | office | The same button then hides the PDF stand-in menu (seed `sandyq-…` dishes with no iiko link); needs access to all branches. `iiko/devMenu.ts` (internal) runs link + show + hide on dev (`npm run dev:iiko-menu`) |
 | `office.generateImageUploadUrl` / `attachProductImage` | mutation | office | Product images (W1-CAT-06) |
 | `queries.resolveProductPrice` / `resolveProductPrices` | plain functions | — | Shared price-resolution logic (also used by `orders/mutations.ts`) |
