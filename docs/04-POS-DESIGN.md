@@ -397,9 +397,9 @@ Tailwind: добавить в `S:frontend/app/shared/styles/index.css` стро�
 - `S:frontend/app/shared/components/ui/dialog.tsx:35,44,55`: радиус 12, зелёная тень, круглая кнопка «Close», заголовок Golos 800;
 - `S:frontend/app/shared/components/ui/button.tsx:12,14,21-24`: свечение, slate-тень, радиусы 8/12;
 - `S:frontend/app/pos/features/catalog/ui/catalog-panel.tsx:27,37`: красные круглые чипы;
-- `S:frontend/app/pos/features/order-taking/ui/open-checks-list.tsx:20,31`: красная рамка активного чека и «Новый стол»;
+- `S:src/pos/features/order-taking/ui/open-checks-list.tsx:20,31` (удалён): красная рамка активного чека и «Новый стол»;
 - `S:frontend/app/pos/features/checkout/ui/payment-dialog.tsx:78,112,126`: красные круглые чипы, красная ссылка «Разделить»;
-- `S:frontend/app/office/components/office-layout.tsx:8-15,53`: светлый сайдбар без бренда, красный активный пункт и иконка `UtensilsCrossed`;
+- `S:src/office/components/office-layout.tsx:8-15,53` (удалён): светлый сайдбар без бренда, красный активный пункт и иконка `UtensilsCrossed`;
 - `S:frontend/app/pos/components/app-header.tsx:39,45`: `hover:bg-white/10`;
 - во всех офисных таблицах: заголовки `text-xs font-extrabold uppercase tracking-wide`;
 - `S:frontend/app/shared/styles/theme.css`: неиспользуемые `--product-*`, `--tracking-tight`, `--space-*`, `--control-height`, `.panel-shadow`; night без destructive, success и warning;
