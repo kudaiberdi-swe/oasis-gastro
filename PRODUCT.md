@@ -3,7 +3,7 @@
 <!-- impeccable:product-schema 1 -->
 
 Scope: the internal restaurant system in this repo — the cashier (`/pos`), the kitchen screen (`/kitchen`)
-and the back office (`/office`). The marketing site in `frontend/site/` is a separate product. The root `DESIGN.md`
+and the back office (`/office`). The unfinished rebuild of the marketing site in `reference/site-rebuild/` is reference material, not a product; the real guest site sandyq.kz is separate and talks to this system through the Cloud API (`docs/07-CLOUD-API.md`). The root `DESIGN.md`
 holds the app's design system (its first eight sections) and, in its last section **Website**, the spec of
 that site; detailed screen rules for this app live in `docs/04-POS-DESIGN.md` and `docs/05-OFFICE-DESIGN.md`.
 

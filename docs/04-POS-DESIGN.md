@@ -1,7 +1,7 @@
 # POS-DESIGN — дизайн Sandyq для кассы, офиса, кухни и курьера
 
 > Статус: спецификация от 2026-09-24; по ней построены касса, кухня и офис (волны W0–W3), касса переделана ещё раз 2026-09-26 (редизайн «деньги и контроль», зал, касание, казахский язык). Где реализация ушла от текста, раздел помечен **«Сейчас»** — это описание кода, а не план. Источник правды для токенов — `S:frontend/app/shared/styles/theme.css` и корневой `DESIGN.md`; таблицы §2 оставлены как история решения D2 и обновлены там, где значения поменялись.
-> Связанные документы: `05-OFFICE-DESIGN.md` (детальная спецификация офиса), `reference/archive/PLAN.md` (что переносим из bahandi-pos), корневой `DESIGN.md` (дизайн-система приложения «The Carved Chest» и, в разделе «Website», спецификация маркетингового сайта `frontend/site/`), `09-WEBSITE-ASSETS.md` (картинки), дизайн-система Sandyq `/Users/beket/Desktop/echo/.claude/sandyq-design.skill` (`SKILL.md`, `references/tokens.css`, `references/patterns.md`, `assets/ornament.svg`).
+> Связанные документы: `05-OFFICE-DESIGN.md` (детальная спецификация офиса), `reference/archive/PLAN.md` (что переносим из bahandi-pos), корневой `DESIGN.md` (дизайн-система приложения «The Carved Chest» и, в разделе «Website», спецификация маркетингового сайта `reference/site-rebuild/`), `09-WEBSITE-ASSETS.md` (картинки), дизайн-система Sandyq `/Users/beket/Desktop/echo/.claude/sandyq-design.skill` (`SKILL.md`, `references/tokens.css`, `references/patterns.md`, `assets/ornament.svg`).
 
 Задача документа — описать, как функционал bahandi-pos (91 раздел офиса, POS, кухня, курьер) должен выглядеть в стиле Sandyq. Как в шаблоне bahandi не делаем:
 

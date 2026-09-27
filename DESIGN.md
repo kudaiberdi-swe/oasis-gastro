@@ -144,7 +144,7 @@ components:
 This file holds two things. The first eight sections are the design system of the app in this repo — the
 cashier (`/pos`), the kitchen screen (`/kitchen`) and the office (`/office`); its source of truth is
 `frontend/app/shared/styles/theme.css`. The last section, **Website**, is the spec of the marketing site in
-`frontend/site/`, read from the reference pages of sandyqgroup.com; the app derives its palette from it.
+`reference/site-rebuild/`, read from the reference pages of sandyqgroup.com; the app derives its palette from it.
 Detailed screen rules live in `docs/04-POS-DESIGN.md` and `docs/05-OFFICE-DESIGN.md`.
 
 ## Overview
@@ -338,9 +338,9 @@ Cormorant tabular figures in brass, and availability shown in text, not only in 
 
 ## Website
 
-Spec of the marketing site in `frontend/site/` (moved here from the former `docs/DESIGN.md` unchanged, headings one level down).
+Spec of the marketing site in `reference/site-rebuild/` (moved here from the former `docs/DESIGN.md` unchanged, headings one level down).
 
-Source of truth for the marketing site in `frontend/site/`. For the POS / office / kitchen / courier app see the sections above and `docs/04-POS-DESIGN.md` (it derives its palette from §1 here) and the migration plan in `reference/archive/PLAN.md`. Everything here was read from the raw HTML/CSS of the two reference pages (saved under `reference/site-src/`) and checked against full-page screenshots in `reference/site-screenshots/` (1440 / 768 / 375 px).
+Source of truth for the marketing site in `reference/site-rebuild/`. For the POS / office / kitchen / courier app see the sections above and `docs/04-POS-DESIGN.md` (it derives its palette from §1 here) and the migration plan in `reference/archive/PLAN.md`. Everything here was read from the raw HTML/CSS of the two reference pages (saved under `reference/site-src/`) and checked against full-page screenshots in `reference/site-screenshots/` (1440 / 768 / 375 px).
 
 - Group landing — https://sandyqgroup.com/ → our `/`
 - Restaurant page — https://sandyqgroup.com/sandyq/ → our `/restaurant`
@@ -579,7 +579,7 @@ No scroll-triggered reveal animations exist on the reference. The build adds a s
 
 ### 7. Implementation tokens
 
-These live in `frontend/site/src/styles/index.css` as CSS variables and are exposed to Tailwind v4 through `@theme` (Tailwind v4 is CSS-first; there is no `tailwind.config.js` — see NOTES.md).
+These live in `reference/site-rebuild/src/styles/index.css` as CSS variables and are exposed to Tailwind v4 through `@theme` (Tailwind v4 is CSS-first; there is no `tailwind.config.js` — see NOTES.md).
 
 ```css
 --color-ink: #121316;        --color-ink-soft: #1e1e1e;
@@ -606,7 +606,7 @@ These live in `frontend/site/src/styles/index.css` as CSS variables and are expo
 
 ### 8. Content tone
 
-Russian, formal but warm, "мы" voice. Headlines are short declaratives ("Возрождение степной легенды", "Почему мы начали?"); body copy is one to three long sentences about heritage, expeditions, recipes, hospitality. Numbers are presented as big figures with a short noun suffix. All copy in the build is new placeholder text written in this tone and at similar length; it lives in `frontend/site/src/config/site.ts`.
+Russian, formal but warm, "мы" voice. Headlines are short declaratives ("Возрождение степной легенды", "Почему мы начали?"); body copy is one to three long sentences about heritage, expeditions, recipes, hospitality. Numbers are presented as big figures with a short noun suffix. All copy in the build is new placeholder text written in this tone and at similar length; it lives in `reference/site-rebuild/src/config/site.ts`.
 
 ### 9. Accessibility adjustments vs. reference
 

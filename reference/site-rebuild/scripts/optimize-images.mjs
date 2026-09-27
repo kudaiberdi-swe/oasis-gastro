@@ -1,6 +1,6 @@
-// Turns the raster images in ../public = frontend/public (the repo's single source of brand/photo assets)
-// into responsive WebP variants under frontend/site/public/img, copies the SVGs to
-// frontend/site/public/svg, copies the menu PDFs to frontend/site/public/menu, and writes src/config/images.gen.json with intrinsic sizes
+// Turns the raster images in ../../frontend/public (the repo's single source of brand/photo assets)
+// into responsive WebP variants under reference/site-rebuild/public/img, copies the SVGs to
+// reference/site-rebuild/public/svg, copies the menu PDFs to reference/site-rebuild/public/menu, and writes src/config/images.gen.json with intrinsic sizes
 // so every <img> can reserve its box and carry a srcset.
 //
 // Runs automatically before `dev` and `build`; unchanged sources are skipped.
@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url"
 import sharp from "sharp"
 
 const here = fileURLToPath(new URL(".", import.meta.url))
-const sourceRoot = join(here, "../../public")
+const sourceRoot = join(here, "../../../frontend/public")
 const outImg = join(here, "../public/img")
 const outSvg = join(here, "../public/svg")
 const manifestPath = join(here, "../src/config/images.gen.json")

@@ -1,6 +1,6 @@
 # Sandyq website — asset map
 
-Every image on the site comes from the repo's `frontend/public/` folder (the same folder the POS uses). Nothing is hotlinked from sandyqgroup.com. `frontend/site/scripts/optimize-images.mjs` (runs before `dev`/`build`) converts rasters to WebP at 480 / 768 / 1080 / 1440 / 1920 px (only widths smaller than the original, skipping ones within 15% of it), copies SVGs with their XML comments stripped, copies the menu PDFs, and writes `frontend/site/src/config/images.gen.json` with intrinsic width/height. The `<Picture>` component reads that manifest so every `<img>` has `width`/`height`, a `srcset` and `sizes`; everything except the first screen is `loading="lazy"`.
+Every image on the site comes from the repo's `frontend/public/` folder (the same folder the POS uses). Nothing is hotlinked from sandyqgroup.com. `reference/site-rebuild/scripts/optimize-images.mjs` (runs before `dev`/`build`) converts rasters to WebP at 480 / 768 / 1080 / 1440 / 1920 px (only widths smaller than the original, skipping ones within 15% of it), copies SVGs with their XML comments stripped, copies the menu PDFs, and writes `reference/site-rebuild/src/config/images.gen.json` with intrinsic width/height. The `<Picture>` component reads that manifest so every `<img>` has `width`/`height`, a `srcset` and `sizes`; everything except the first screen is `loading="lazy"`.
 
 The "Reference role" column names the image that plays the same role on the reference page, so the substitution is traceable.
 
@@ -44,7 +44,7 @@ The "Reference role" column names the image that plays the same role on the refe
 
 | File | Used on |
 |---|---|
-| `menu-almaty.pdf`, `menu-shymkent.pdf`, `menu-turkistan.pdf` | `/restaurant` location cards ("Меню" links), footer "Sandyq → Меню". Copied to `frontend/site/public/menu/` by the asset script |
+| `menu-almaty.pdf`, `menu-shymkent.pdf`, `menu-turkistan.pdf` | `/restaurant` location cards ("Меню" links), footer "Sandyq → Меню". Copied to `reference/site-rebuild/public/menu/` by the asset script |
 
 ## Missing vs. reference
 
