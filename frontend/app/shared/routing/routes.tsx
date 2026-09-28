@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useEffect, type ReactNode } from "react"
 import { Navigate, useLocation, type RouteObject } from "react-router"
 
 import { DEFAULT_OFFICE_DESTINATION } from "@/office/model/navigation"
@@ -8,6 +8,14 @@ import { NotFound } from "@/shared/routing/not-found"
 const PosRouter = lazy(() => import("@/pos/router").then((module) => ({ default: module.PosRouter })))
 const KitchenRouter = lazy(() => import("@/kitchen/router").then((module) => ({ default: module.KitchenRouter })))
 const OfficeRouter = lazy(() => import("@/office/router").then((module) => ({ default: module.OfficeRouter })))
+
+/** The browser tab names the surface: «Sandyq POS», «Sandyq Kitchen», «Sandyq Office» — three open tabs stay apart. */
+function SurfaceTitle({ title, children }: { title: string; children: ReactNode }) {
+  useEffect(() => {
+    document.title = title
+  }, [title])
+  return children
+}
 
 /** While a surface's chunk loads: the same quiet line the office shows while its session loads. */
 function SurfaceLoading() {
@@ -46,13 +54,13 @@ const devRoutes: RouteObject[] =
 // The POS is a fixed-size touch surface; the office scrolls its own content (no page-level scroll).
 export const appRoutes: RouteObject[] = [
   { path: "/", element: <RootRedirect /> },
-  { path: "/pos", element: <div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><PosRouter /></Suspense></div> },
-  { path: "/kitchen", element: <div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><KitchenRouter /></Suspense></div> },
+  { path: "/pos", element: <SurfaceTitle title="Sandyq POS"><div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><PosRouter /></Suspense></div></SurfaceTitle> },
+  { path: "/kitchen", element: <SurfaceTitle title="Sandyq Kitchen"><div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><KitchenRouter /></Suspense></div></SurfaceTitle> },
   { path: "/pos/kitchen", element: <KitchenRedirect /> },
   { path: "/office", element: <Navigate to={`/office/${DEFAULT_OFFICE_DESTINATION}`} replace /> },
-  { path: "/office/:section/:id?", element: <div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div> },
+  { path: "/office/:section/:id?", element: <SurfaceTitle title="Sandyq Office"><div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div></SurfaceTitle> },
   // A card nested in a section: /office/production/preparations/:productId (W2-PRD-01).
-  { path: "/office/:section/:id/:subId", element: <div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div> },
+  { path: "/office/:section/:id/:subId", element: <SurfaceTitle title="Sandyq Office"><div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div></SurfaceTitle> },
   ...devRoutes,
   { path: "*", element: <NotFound /> },
 ]
