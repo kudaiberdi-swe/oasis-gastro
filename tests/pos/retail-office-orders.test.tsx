@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { CapabilitiesProvider } from "@/office/components/can"
 import type { OrderDetail, OrderRow } from "@/office/features/retail/data/use-retail-office"
-import { receiptFromDetail } from "@/office/features/retail/model/retail-office"
+import { receiptFromDetail, tableText } from "@/office/features/retail/model/retail-office"
 import { OrdersWorkspace } from "@/office/features/retail/ui/orders-workspace"
 import { ToastProvider } from "@/shared/components/ui"
 import { formatTenge } from "@/shared/lib/format"
@@ -237,5 +237,14 @@ describe("receiptFromDetail", () => {
     expect(receipt.lines).toEqual([{ name: "Бешбармак", quantity: 1, amount: 2000, details: "БЕЗ ЛУКА" }])
     expect(receipt).toMatchObject({ kind: "receipt", orderNumber: 100001, statusLabel: "Оплачен", serviceChargeAmount: 300, total: 2300, comment: "Без лука" })
     expect(receipt.payments).toEqual([{ name: "Наличные", amount: 2300, tendered: 3000, change: 700, refund: false }])
+  })
+})
+
+describe("tableText", () => {
+  it("adds «стол» to a bare number and keeps a label that already names the table", () => {
+    expect(tableText("5")).toBe("стол 5")
+    expect(tableText("Стол 2")).toBe("Стол 2")
+    expect(tableText(" стол 7 ")).toBe("стол 7")
+    expect(tableText("Столовая")).toBe("стол Столовая")
   })
 })

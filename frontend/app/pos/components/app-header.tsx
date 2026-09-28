@@ -28,9 +28,18 @@ export function syncStateFrom(connection: { isWebSocketConnected: boolean; hasEv
   return slow ? "syncing" : "synced"
 }
 
-/** «24 сентября» / «24 қыркүйек» in Almaty time — the date under the employee's role. */
+const KK_MONTHS = ["қаңтар", "ақпан", "наурыз", "сәуір", "мамыр", "маусым", "шілде", "тамыз", "қыркүйек", "қазан", "қараша", "желтоқсан"]
+
+/**
+ * «24 сентября» / «24 қыркүйек» in Almaty time — the date under the employee's role. Chrome ships no Kazakh
+ * month names («М09 27»), so the kk month comes from our own table; only the numeric day and month come from Intl.
+ */
 export function headerDate(value: number, t: Translator = ruT) {
-  return new Date(value).toLocaleDateString(t.intl, { timeZone: "Asia/Almaty", day: "numeric", month: "long" })
+  if (t.locale !== "kk") return new Date(value).toLocaleDateString(t.intl, { timeZone: "Asia/Almaty", day: "numeric", month: "long" })
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Almaty", day: "numeric", month: "numeric" }).formatToParts(new Date(value))
+  const day = parts.find((part) => part.type === "day")?.value ?? ""
+  const month = Number(parts.find((part) => part.type === "month")?.value)
+  return `${day} ${KK_MONTHS[month - 1] ?? ""}`.trim()
 }
 
 /** «Касса / Офис» (manager and administrator only). The office has its own sign-in (L-7). */

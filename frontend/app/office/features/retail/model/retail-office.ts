@@ -68,6 +68,12 @@ export function shiftCandidate(shift: ShiftCard): ShiftCandidate {
   }
 }
 
+/** «стол 5»; a label that already names the table («Стол 2» from the POS hall) stays as is, not «стол Стол 2». */
+export function tableText(label: string) {
+  const trimmed = label.trim()
+  return /^стол(\s|$)/iu.test(trimmed) ? trimmed : `стол ${trimmed}`
+}
+
 /** Only a closed shift without an active acceptance can be accepted. */
 export const canAcceptShift = (shift: ShiftCard) => shift.status === "closed" && !shift.acceptance
 

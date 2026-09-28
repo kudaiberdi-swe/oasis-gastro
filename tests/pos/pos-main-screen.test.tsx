@@ -8,6 +8,7 @@ import { ProductCard } from "@/pos/components/product-card"
 import { goBack, openView, parseRecent, pushRecent, RECENT_LIMIT, sortProducts, type CatalogNavigation, type CatalogProduct } from "@/pos/features/catalog/model/catalog-view"
 import { CatalogPanel, categoryToneOf } from "@/pos/features/catalog/ui/catalog-panel"
 import { ChecksSwitcher } from "@/pos/features/order-taking/ui/checks-switcher"
+import { createTranslator } from "@/pos/i18n"
 import { ThemeProvider } from "@/shared/components/theme-provider"
 import { ToastProvider } from "@/shared/components/ui"
 
@@ -297,6 +298,8 @@ describe("AppHeader (W1-POS-10)", () => {
     expect(screen.getByRole("button", { name: "Профиль: Айгерим" }).textContent).toContain("Менеджер · 24 сентября")
     expect(screen.getByRole("banner").className).toContain("h-16")
     expect(headerDate(Date.UTC(2026, 8, 24, 20))).toBe("25 сентября")
+    expect(headerDate(Date.UTC(2026, 8, 24, 20), createTranslator("kk"))).toBe("25 қыркүйек")
+    expect(headerDate(Date.UTC(2026, 11, 31, 20), createTranslator("kk"))).toBe("1 қаңтар")
   })
 
   it("«Синхронизировано»: text from 1440px, a dot below; offline and slow requests", () => {

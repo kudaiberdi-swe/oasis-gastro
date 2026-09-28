@@ -13,7 +13,7 @@ import { formatPercent, formatTenge } from "@/shared/lib/format"
 import { cn } from "@/shared/lib/utils"
 
 import { useOrderDetail, type OrderDetail } from "../data/use-retail-office"
-import { receiptFromDetail } from "../model/retail-office"
+import { receiptFromDetail, tableText } from "../model/retail-office"
 
 export interface OrderDetailPanelProps {
   orderId: string
@@ -94,7 +94,7 @@ function Row({ label, children, strong = false }: { label: ReactNode; children: 
 
 export function OrderReceipt({ detail }: { detail: OrderDetail }) {
   const { order, lines, totals, payments, deletions, audit } = detail
-  const meta = [order.orderTypeName, order.tableLabel ? `стол ${order.tableLabel}` : null, order.guestCount ? `гостей: ${order.guestCount}` : null].filter(Boolean).join(" · ")
+  const meta = [order.orderTypeName, order.tableLabel ? tableText(order.tableLabel) : null, order.guestCount ? `гостей: ${order.guestCount}` : null].filter(Boolean).join(" · ")
   const configVersions = order.retailConfigVersion ? order.retailConfigVersion.split(/[,;]\s*/).filter(Boolean) : []
 
   return (

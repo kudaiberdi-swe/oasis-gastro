@@ -12,7 +12,7 @@ import { formatAlmatyDateTime } from "@/shared/lib/almaty-time"
 import { formatTenge } from "@/shared/lib/format"
 
 import { RETAIL_OFFICE_PAGE_SIZE, useIikoOrders, useOfficeOrders, type IikoOrderRow, type OrderRow, type OrderStatusTab, type SalesSource } from "../data/use-retail-office"
-import { ORDER_TABS, SOURCE_OPTIONS } from "../model/retail-office"
+import { ORDER_TABS, SOURCE_OPTIONS, tableText } from "../model/retail-office"
 import { OrderDetailPanel } from "./order-detail-panel"
 
 const SECTION = "/office/orders"
@@ -54,7 +54,7 @@ const columns: Column<OrderRow>[] = [
     key: "restaurant",
     header: "Ресторан / кассир",
     cell: (row) => {
-      const second = [row.terminalName, row.cashierName, row.tableLabel ? `стол ${row.tableLabel}` : null].filter(Boolean).join(" · ")
+      const second = [row.terminalName, row.cashierName, row.tableLabel ? tableText(row.tableLabel) : null].filter(Boolean).join(" · ")
       return (
         <div className="flex min-w-0 flex-col">
           <span className="truncate font-semibold">{row.restaurantName || "—"}</span>
