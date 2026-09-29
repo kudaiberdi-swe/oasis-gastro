@@ -66,6 +66,7 @@ sandyq/
 | `docs/` | Эта документация — только `.md`, по порядку чтения |
 | `reference/` | Справочные материалы, в работе не участвуют: скриншоты bahandi и сайтов, исходники сайтов-образцов, недоделанная копия маркетингового сайта (`site-rebuild/`), архив старых планов (см. `reference/README.md`) |
 | `.github/workflows/` | CI/CD: `deploy-frontend.yml`, `deploy-backend.yml` |
+| `scripts/deploy-frontend-prod.sh` | Ручной деплой фронтенда на прод, когда CI не запускается: `bash scripts/deploy-frontend-prod.sh` (нужны `az login`; на Apple Silicon — Rosetta) |
 
 ## 5. Как запустить локально
 
