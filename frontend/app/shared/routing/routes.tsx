@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, type ReactNode } from "react"
 import { Navigate, useLocation, type RouteObject } from "react-router"
 
 import { DEFAULT_OFFICE_DESTINATION } from "@/office/model/navigation"
+import { DemoFrame } from "@/shared/demo/demo-mode"
 import { NotFound } from "@/shared/routing/not-found"
 
 // Each surface is its own chunk: a cash register never downloads the office or the kitchen screen.
@@ -9,12 +10,15 @@ const PosRouter = lazy(() => import("@/pos/router").then((module) => ({ default:
 const KitchenRouter = lazy(() => import("@/kitchen/router").then((module) => ({ default: module.KitchenRouter })))
 const OfficeRouter = lazy(() => import("@/office/router").then((module) => ({ default: module.OfficeRouter })))
 
-/** The browser tab names the surface: «Sandyq POS», «Sandyq Kitchen», «Sandyq Office» — three open tabs stay apart. */
+/**
+ * The browser tab names the surface: «Sandyq POS», «Sandyq Kitchen», «Sandyq Office» — three open tabs stay apart.
+ * Every surface passes through here, so a demo build puts its «Демо-версия» line on top of all three.
+ */
 function SurfaceTitle({ title, children }: { title: string; children: ReactNode }) {
   useEffect(() => {
     document.title = title
   }, [title])
-  return children
+  return <DemoFrame>{children}</DemoFrame>
 }
 
 /** While a surface's chunk loads: the same quiet line the office shows while its session loads. */

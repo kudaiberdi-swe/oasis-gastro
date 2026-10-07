@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@convex/_generated/api"
 import { IDLE_LOCK_MS_CLIENT } from "./policy"
 import { useT } from "@/pos/i18n"
+import { DEMO_TERMINAL_ID, isDemoMode } from "@/shared/demo/demo-mode"
 import type { PosAccessSession } from "@/shared/types/pos"
 
 const STORAGE_KEY = "sandyq-pos-session"
@@ -18,7 +19,7 @@ function rememberTerminal(externalId: string | null) {
   }
 }
 
-/** `?terminal=` wins, then the remembered choice, then the build-time default. */
+/** `?terminal=` wins, then the remembered choice, then the build-time default (a demo build: the Almaty register). */
 function resolveTerminalExternalId(): string | null {
   const fromQuery = new URLSearchParams(window.location.search).get("terminal")
   if (fromQuery) {
@@ -31,7 +32,7 @@ function resolveTerminalExternalId(): string | null {
   } catch {
     /* blocked storage */
   }
-  return import.meta.env.VITE_POS_TERMINAL_ID || null
+  return isDemoMode() ? DEMO_TERMINAL_ID : import.meta.env.VITE_POS_TERMINAL_ID || null
 }
 
 function readStoredAccess(): PosAccessSession | null {

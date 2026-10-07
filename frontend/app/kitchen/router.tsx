@@ -48,7 +48,7 @@ export function KitchenRouter() {
     const terminal = branch?.terminals.find((candidate) => candidate.externalId === session.terminalExternalId)
     return (
       <div className="relative h-full">
-        <LoginScreen onLogin={session.signIn} terminalLabel={kitchenTerminalLabel(branch?.restaurantName, terminal?.name)} onChangeTerminal={() => session.chooseTerminal(null)} />
+        <LoginScreen surface="kitchen" onLogin={session.signIn} terminalLabel={kitchenTerminalLabel(branch?.restaurantName, terminal?.name)} onChangeTerminal={() => session.chooseTerminal(null)} />
         {session.endedReason ? (
           <div className="absolute inset-x-0 top-6 mx-auto w-full max-w-sm px-4">
             <Banner tone="warning" title={session.endedReason} className="bg-card" />

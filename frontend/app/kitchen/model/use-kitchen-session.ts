@@ -2,6 +2,7 @@ import { useAction, useMutation } from "convex/react"
 import { useCallback, useEffect, useState } from "react"
 
 import { api } from "@convex/_generated/api"
+import { DEMO_TERMINAL_ID, isDemoMode } from "@/shared/demo/demo-mode"
 import type { PosAccessSession } from "@/shared/types/pos"
 
 // The kitchen signs in with the same PIN session as the cashier (purpose "operator"), but keeps its
@@ -19,17 +20,18 @@ function rememberTerminal(externalId: string | null) {
   }
 }
 
-/** `?terminal=` (the office link opens the restaurant's kitchen terminal) wins, then the remembered one. */
+/** `?terminal=` (the office link opens the restaurant's kitchen terminal) wins, then the remembered one (a demo build: the Almaty register). */
 function resolveTerminalExternalId(): string | null {
   const fromQuery = new URLSearchParams(window.location.search).get("terminal")
   if (fromQuery) {
     rememberTerminal(fromQuery)
     return fromQuery
   }
+  const fallback = isDemoMode() ? DEMO_TERMINAL_ID : null
   try {
-    return window.localStorage.getItem(TERMINAL_KEY)
+    return window.localStorage.getItem(TERMINAL_KEY) ?? fallback
   } catch {
-    return null
+    return fallback
   }
 }
 

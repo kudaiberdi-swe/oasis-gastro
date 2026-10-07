@@ -3,6 +3,7 @@ import { useState } from "react"
 import { ConvexError } from "convex/values"
 
 import { Banner, Button, EmptyState, Field, Input, OrnamentPair, SegmentedControl } from "@/shared/components/ui"
+import { DemoLoginButtons, isDemoMode, useDemoLogins } from "@/shared/demo/demo-mode"
 
 import { OfficePasswordReset } from "./office-password-reset"
 
@@ -16,6 +17,7 @@ export function OfficeSignIn() {
   const [submitting, setSubmitting] = useState(false)
   // «Забыли пароль?» (W2-ACL-08) replaces the form with the two recovery steps.
   const [resetting, setResetting] = useState(false)
+  const demoLogins = useDemoLogins()
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -42,7 +44,15 @@ export function OfficeSignIn() {
         <p className="text-body-sm text-nav-muted">Офис</p>
       </div>
 
-      {resetting ? (
+      {isDemoMode() ? (
+        // A demo build: no form, no sign-up, no recovery — one button per demo role, the same signIn call.
+        <div className="w-full max-w-sm rounded-panel bg-card p-8 shadow-float">
+          <DemoLoginButtons
+            logins={demoLogins?.DEMO_OFFICE_LOGINS ?? []}
+            onPick={(login) => signIn("password", { email: login.email, password: demoLogins!.DEMO_OFFICE_PASSWORD, flow: "signIn" })}
+          />
+        </div>
+      ) : resetting ? (
         <OfficePasswordReset
           initialEmail={email}
           onBack={() => {

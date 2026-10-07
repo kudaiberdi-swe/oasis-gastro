@@ -4,6 +4,7 @@ import { useState } from "react"
 import { posErrorMessage, useT } from "@/pos/i18n"
 import { LanguageLink } from "@/pos/i18n/language-switch"
 import { Banner, Button, OrnamentPair, PinPad } from "@/shared/components/ui"
+import { DemoLoginButtons, isDemoMode, useDemoLogins } from "@/shared/demo/demo-mode"
 
 // The server rule (convex/lib/policy.ts): employee codes up to 12 digits, PINs 4–6.
 const CODE_MAX = 12
@@ -17,11 +18,15 @@ export interface LoginScreenProps {
   /** After an idle lock: same screen, «Касса заблокирована». */
   locked?: boolean
   onChangeTerminal?: () => void
+  /** Which demo roles a demo build offers instead of the pad: the cashier's three or the kitchen. */
+  surface?: "pos" | "kitchen"
 }
 
 /** Employee code, then PIN; both from the pad or the physical keyboard, Enter submits (S-14, L-15). */
-export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTerminal }: LoginScreenProps) {
+export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTerminal, surface = "pos" }: LoginScreenProps) {
   const t = useT()
+  const demo = isDemoMode()
+  const demoLogins = useDemoLogins()
   const [code, setCode] = useState("")
   const [pin, setPin] = useState("")
   const [stage, setStage] = useState<"code" | "pin">("code")
@@ -70,40 +75,49 @@ export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTe
           <h1 className="font-display text-title font-semibold">{locked ? t("login.locked") : t("login.title")}</h1>
           {terminalLabel ? <p className="text-body text-muted-foreground">{terminalLabel}</p> : null}
         </div>
-        <p className="text-center text-body-sm font-medium text-muted-foreground">{stage === "code" ? t("login.code") : t("login.pin")}</p>
-        <PinPad
-          key={stage}
-          label={stage === "code" ? t("login.code") : t("login.pin")}
-          value={active}
-          onValueChange={handleChange}
-          maxLength={stage === "code" ? CODE_MAX : PIN_MAX}
-          secret={stage === "pin"}
-          onSubmit={() => void handleSubmit()}
-          disabled={submitting}
-        />
-        {error && <Banner tone="danger" title={error} />}
-        <div className="mt-1 flex gap-2">
-          {stage === "pin" && (
-            <Button
-              variant="secondary"
-              size="lg"
-              className="flex-1"
-              onClick={() => {
-                setStage("code")
-                setPin("")
-                setError(null)
-              }}
+        {demo ? (
+          <DemoLoginButtons
+            logins={demoLogins ? (surface === "kitchen" ? [demoLogins.DEMO_KITCHEN_LOGIN] : demoLogins.DEMO_POS_LOGINS) : []}
+            onPick={(login) => onLogin(login.code, login.pin)}
+          />
+        ) : (
+          <>
+            <p className="text-center text-body-sm font-medium text-muted-foreground">{stage === "code" ? t("login.code") : t("login.pin")}</p>
+            <PinPad
+              key={stage}
+              label={stage === "code" ? t("login.code") : t("login.pin")}
+              value={active}
+              onValueChange={handleChange}
+              maxLength={stage === "code" ? CODE_MAX : PIN_MAX}
+              secret={stage === "pin"}
+              onSubmit={() => void handleSubmit()}
               disabled={submitting}
-            >
-              {t("common.back")}
-            </Button>
-          )}
-          <Button size="lg" className="flex-1" onClick={() => void handleSubmit()} disabled={submitting || !canSubmit}>
-            {stage === "code" ? t("common.next") : submitting ? t("login.signingIn") : t("login.signIn")}
-          </Button>
-        </div>
-        <p className="text-center text-body-sm text-muted-foreground">{t("login.hint")}</p>
-        {onChangeTerminal && !locked ? (
+            />
+            {error && <Banner tone="danger" title={error} />}
+            <div className="mt-1 flex gap-2">
+              {stage === "pin" && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="flex-1"
+                  onClick={() => {
+                    setStage("code")
+                    setPin("")
+                    setError(null)
+                  }}
+                  disabled={submitting}
+                >
+                  {t("common.back")}
+                </Button>
+              )}
+              <Button size="lg" className="flex-1" onClick={() => void handleSubmit()} disabled={submitting || !canSubmit}>
+                {stage === "code" ? t("common.next") : submitting ? t("login.signingIn") : t("login.signIn")}
+              </Button>
+            </div>
+            <p className="text-center text-body-sm text-muted-foreground">{t("login.hint")}</p>
+          </>
+        )}
+        {onChangeTerminal && !locked && !demo ? (
           <Button variant="link" className="self-center" onClick={onChangeTerminal}>
             {t("login.changeTerminal")}
           </Button>
