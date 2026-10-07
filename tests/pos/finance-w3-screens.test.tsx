@@ -232,6 +232,13 @@ describe("«Банковские выписки» (W3-FIN-11)", () => {
 })
 
 describe("«Платёжный календарь» (W3-FIN-12)", () => {
+  // The screen opens on the current Almaty month; the fixture is September 2026.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-09-20T06:00:00Z"))
+  })
+  afterEach(() => vi.useRealTimers())
+
   it("KPI of the calendar (not the journal's), the month grid with a destructive gap day, config columns", () => {
     renderAt("/office/payment-calendar")
     expect(screen.getByText("Поступления", { selector: "p" })).toBeTruthy()
