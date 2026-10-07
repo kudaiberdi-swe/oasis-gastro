@@ -1,0 +1,59 @@
+name: Deploy demo frontend
+
+# The client demo: the same app with VITE_DEMO_MODE=true against the DEV Convex deployment, on the
+# Azure Static Web App sandyq-demo (RG sandyq-dev). Never prod. Manual twin: scripts/deploy-demo-frontend.sh.
+# The checks (typecheck, tests, guards) run in deploy-frontend.yml on the same pushes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/app/**"
+      - "frontend/public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "tsconfig*.json"
+      - "package.json"
+      - "package-lock.json"
+      - "staticwebapp.config.json"
+      - ".github/workflows/deploy-demo-frontend.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-demo-frontend-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build (demo mode, dev Convex)
+        env:
+          VITE_CONVEX_URL: https://dapper-lobster-404.convex.cloud
+          VITE_DEMO_MODE: "true"
+          VITE_POS_TERMINAL_ID: sandyq-almaty-01
+        run: npm run build
+
+      - name: Copy SWA config and check the target
+        run: |
+          cp staticwebapp.config.json dist/staticwebapp.config.json
+          grep -rqs "dapper-lobster-404" dist/assets
+          ! grep -rqs "clear-flamingo-97" dist
+
+      - name: Deploy to Azure Static Web Apps (sandyq-demo)
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_DEMO }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: dist
+          skip_app_build: true

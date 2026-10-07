@@ -65,8 +65,9 @@ sandyq/
 | `frontend/public/` | Меню (`menu-pdfs/`, разобранные `menu-data/*.json`), логотипы и орнаменты (`branding/`), фото (`images/`) |
 | `docs/` | Эта документация — только `.md`, по порядку чтения |
 | `reference/` | Справочные материалы, в работе не участвуют: скриншоты bahandi и сайтов, исходники сайтов-образцов, недоделанная копия маркетингового сайта (`site-rebuild/`), архив старых планов (см. `reference/README.md`) |
-| `.github/workflows/` | CI/CD: `deploy-frontend.yml`, `deploy-backend.yml` |
+| `.github/workflows/` | CI/CD: `deploy-frontend.yml`, `deploy-backend.yml`, `deploy-demo-frontend.yml` (демо) |
 | `scripts/deploy-frontend-prod.sh` | Ручной деплой фронтенда на прод, когда CI не запускается: `bash scripts/deploy-frontend-prod.sh` (нужны `az login`; на Apple Silicon — Rosetta) |
+| `scripts/deploy-demo-frontend.sh`, `scripts/seed-demo-logins.mjs` | Демо-фронтенд для клиентов (на dev): деплой и демо-входы — см. §6 «Демо-фронтенд» |
 
 ## 5. Как запустить локально
 
@@ -110,6 +111,25 @@ npm run dev       # http://localhost:5173
   офиса. Владелец решил запускать prod (`TODO.md` §5) и выдаёт доступы сам: регистрирует офис на
   `OFFICE_BOOTSTRAP_EMAIL`, выдаёт PIN в «Обмен данными с iiko → Доступ сотрудников к Sandyq POS».
   Разработчики и агенты PIN на prod не заводят и офис там не инициализируют без явного решения владельца.
+
+### Демо-фронтенд
+
+Показ клиентам: тот же фронтенд, собранный с `VITE_DEMO_MODE=true` и `VITE_CONVEX_URL` на **dev**
+(`dapper-lobster-404`), в отдельном Azure Static Web App `sandyq-demo` (RG `sandyq-dev`, Free, East US 2).
+Адрес: https://jolly-pebble-06ed4d30f.1.azurestaticapps.net (`/pos`, `/kitchen`, `/office`).
+
+- На экранах входа вместо ручного ввода — кнопки ролей (касса: Кассир / Менеджер / Администратор, кухня: Кухня,
+  офис: Администратор / Управляющий рестораном). Клик входит обычным путём (`login` по коду и PIN, офис —
+  `signIn("password")`). Касса и кухня сразу открывают терминал `sandyq-almaty-01` (только филиал Алматы).
+  Сверху на всех поверхностях полоса «Демо-версия · данные тестовые».
+- Демо-учётки фиксированные: коды, PIN, e-mail и общий пароль — в `frontend/app/shared/demo/demo-logins.ts`
+  (подгружается только в демо-сборке; обычная и prod-сборка их не содержат). Создать или восстановить их
+  на dev: `npm run demo:logins` — только dev, prod скрипт отказывается трогать; повторный запуск безопасен.
+- Деплой вручную: `bash scripts/deploy-demo-frontend.sh` (нужны `az login`; на Apple Silicon — Rosetta).
+  CI: `deploy-demo-frontend.yml` на push в `main` (секрет `AZURE_STATIC_WEB_APPS_API_TOKEN_DEMO`) и вручную.
+- Демо смотрит в dev как есть: там зеркало iiko с реальными именами (сотрудники, филиалы, юрлица). Владелец
+  выбрал это осознанно; данные dev не чистим и не подменяем. Пароль демо открыт в бандле — демо-доступ
+  к dev есть у любого, кто знает адрес.
 
 ## 7. Жёсткие правила
 
