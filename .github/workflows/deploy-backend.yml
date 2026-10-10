@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: azure-linux
     steps:
       - uses: actions/checkout@v4
 
@@ -61,7 +61,7 @@ jobs:
   deploy:
     needs: verify
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: azure-linux
     environment: production
     steps:
       - uses: actions/checkout@v4
