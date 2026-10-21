@@ -20,13 +20,13 @@ function write(key: string, value: unknown) {
   }
 }
 
-/** Which groups are open (remembered per browser) — the active group is always open. */
+/** Which groups are open (remembered per browser) — the active group opens when the user enters it. */
 export function useExpandedGroups(activeGroupId: string | undefined) {
   const [expanded, setExpanded] = useState<string[]>(() => read<string[]>(STORAGE_KEY, []))
 
   useEffect(() => {
-    if (activeGroupId && !expanded.includes(activeGroupId)) setExpanded((current) => [...current, activeGroupId])
-  }, [activeGroupId, expanded])
+    if (activeGroupId) setExpanded((current) => (current.includes(activeGroupId) ? current : [...current, activeGroupId]))
+  }, [activeGroupId])
 
   useEffect(() => write(STORAGE_KEY, expanded), [expanded])
 

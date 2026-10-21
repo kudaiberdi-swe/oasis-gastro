@@ -1,0 +1,59 @@
+schema: spec-driven
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
+
+# echo-sdlc: appended to openspec/config.yaml by /echo-sdlc:init.
+# Keep context short: only constraints an agent cannot infer from the code.
+# The `architecture` stage replaces the TODO lines with the confirmed decisions
+# (decisions/ARCHITECTURE.md and ADRs).
+context: |
+  Product: sandyq for Sandyq Group. Executor: Echo Brain.
+  Requirements: docs/SoW.md (10 sections) and docs/client/.
+  Convex mode: cloud (Convex Cloud). Azure: hosting on Azure.
+  Data residency: no rule given. Confirm with the client before the first production deploy.
+  Development and test use synthetic or anonymized data only.
+  UI language: Russian. UI strings come verbatim from the SoW, from one shared strings module.
+  Architecture: TODO(architecture): apps, repo layout, auth, integrations, notifications.
+  Missing client data is a labeled placeholder `TODO(client): <question>`, never an invented value.
+  Permissions are enforced server-side in Convex functions; UI hiding is never the control.
+
+rules:
+  proposal:
+    - State what is out of scope
+  specs:
+    - Write every requirement as WHEN/THEN scenarios that a test can check
+    - Quote domain terms, status names and UI strings verbatim
+  design:
+    - List every Convex function signature (name, args validator, return type, allowed roles) the front calls
+  tasks:
+    - List explicit dependencies on other changes (by change id) at the top
+    - Mark each task backend, frontend or both
