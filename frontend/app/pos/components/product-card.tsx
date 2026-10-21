@@ -1,13 +1,13 @@
-import { useState } from "react"
-import { Star } from "lucide-react"
+import { Plus, Star } from "lucide-react"
 
 import { bilingualName, useT } from "@/pos/i18n"
 import type { CategoryTone } from "@/shared/components/ui/chip"
+import { DishPhoto } from "@/shared/components/ui/dish-photo"
 import { Money } from "@/shared/components/ui/money"
 import { TonePill } from "@/shared/components/ui/status-pill"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
-const toneStrip: Record<CategoryTone, string> = {
+const toneDot: Record<CategoryTone, string> = {
   meat: "bg-cat-meat",
   dairy: "bg-cat-dairy",
   bread: "bg-cat-bread",
@@ -21,9 +21,9 @@ export interface ProductCardProps {
   nameKk: string
   price: number
   onClick: () => void
-  /** Category color strip (POS-DESIGN §2.3). */
+  /** Category color dot before the name (POS-DESIGN §2.3). */
   tone?: CategoryTone
-  /** Dish photo, 4:3 on --muted with object-fit: cover in both themes (L-3); a broken one falls back to the placeholder. */
+  /** Dish photo, 4:3, object-fit: cover (L-3); missing or broken — the DishPhoto placeholder. */
   imageUrl?: string
   /** «Комбо», «Хит» — an info pill over the photo, sentence case. */
   badge?: string
@@ -35,15 +35,13 @@ export interface ProductCardProps {
 }
 
 /**
- * Dish card (W1-POS-11, POS-DESIGN §6.2): the whole card is the add button (no «+»); the ☆ is a
- * separate button over it so the two never nest. Every card has the same 4:3 media area — the photo, or
- * a quiet placeholder with the dish's initial when there is none or it fails to load — so cards in a row
- * line up. The interface language's name leads — Russian in ru, Kazakh in kk — and the other one is the
- * quiet second line (up to two lines, each with its own lang); a dish without a Kazakh name shows only Russian.
+ * Dish card (W1-POS-11, redesign 2026-10): a large 4:3 photo on top (DishPhoto: the product's image, else a
+ * violet placeholder with a utensils icon), the name, the price in bold and a round violet «+» bottom-right.
+ * The whole card is the add button — the «+» is its visual cue, not a second control; the ☆ is a separate
+ * button over the photo so the two never nest. The interface language's name leads — Russian in ru, Kazakh
+ * in kk — and the other one is the quiet second line; a dish without a Kazakh name shows only Russian.
  */
 export function ProductCard({ name, nameKk, price, onClick, tone, imageUrl, badge, available = true, favorite, onToggleFavorite }: ProductCardProps) {
-  const [failedUrl, setFailedUrl] = useState<string | null>(null)
-  const showImage = Boolean(imageUrl) && failedUrl !== imageUrl
   const t = useT()
   const title = bilingualName(t.locale, { name, nameKk })
 
@@ -55,43 +53,40 @@ export function ProductCard({ name, nameKk, price, onClick, tone, imageUrl, badg
         disabled={!available}
         aria-label={available ? undefined : t("product.unavailableAria", { name: title.primary.text })}
         className={cn(
-          "relative flex w-full min-w-0 flex-col overflow-hidden rounded-card border border-border bg-card text-left transition-colors duration-150 hover:bg-muted active:bg-muted disabled:cursor-not-allowed disabled:hover:bg-card",
+          "group relative flex w-full min-w-0 flex-col gap-3 rounded-panel bg-card p-2 text-left shadow-panel transition-[box-shadow,translate] duration-150 hover:shadow-float active:translate-y-px disabled:cursor-not-allowed disabled:hover:shadow-panel motion-reduce:active:translate-y-0",
           focusRingClass,
         )}
       >
-        <div data-testid="product-media" className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-muted">
-          {showImage ? (
-            <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedUrl(imageUrl ?? null)} className="h-full w-full object-cover" />
-          ) : (
-            // The initial is drawn by CSS (attr()), so it never joins the card's text or accessible name.
-            <span
-              aria-hidden
-              data-testid="product-placeholder"
-              data-initial={initial(title.primary.text)}
-              className="grid h-full w-full place-items-center font-display text-display font-semibold text-muted-foreground select-none before:content-[attr(data-initial)]"
-            />
-          )}
-        </div>
-        {tone ? <span aria-hidden className={cn("absolute inset-y-0 left-0 w-[3px]", toneStrip[tone])} /> : null}
+        <DishPhoto src={imageUrl} className="aspect-[4/3] w-full rounded-card" />
         {badge ? (
-          <TonePill tone="info" className="absolute top-2 left-3 bg-card">
+          <TonePill tone="info" className="absolute top-4 left-4">
             {badge}
           </TonePill>
         ) : null}
-        <div className="flex flex-1 flex-col justify-between gap-2 py-3 pr-3 pl-4">
-          <div className="min-w-0">
-            <p lang={title.primary.lang} className="line-clamp-2 text-body leading-snug font-semibold text-foreground">
-              {title.primary.text}
-            </p>
-            {title.secondary && (
-              <p lang={title.secondary.lang} className="mt-1 line-clamp-2 text-body-sm text-muted-foreground">
-                {title.secondary.text}
+        <div className="flex flex-1 flex-col justify-between gap-2 px-1.5 pb-1">
+          <div className="flex min-w-0 items-start gap-2">
+            {tone ? <span aria-hidden className={cn("mt-2 size-2 shrink-0 rounded-round", toneDot[tone])} /> : null}
+            <div className="min-w-0">
+              <p lang={title.primary.lang} className="line-clamp-2 text-body leading-snug font-semibold text-foreground">
+                {title.primary.text}
               </p>
-            )}
+              {title.secondary && (
+                <p lang={title.secondary.lang} className="mt-0.5 line-clamp-2 text-body-sm text-muted-foreground">
+                  {title.secondary.text}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex items-baseline justify-between gap-2">
-            <Money value={price} size="md" />
-            {!available && <span className="text-body-sm font-semibold text-muted-foreground">{t("product.unavailable")}</span>}
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex min-w-0 flex-col">
+              <Money value={price} size="md" className="font-bold text-foreground" />
+              {!available && <span className="text-body-sm font-semibold text-muted-foreground">{t("product.unavailable")}</span>}
+            </span>
+            {available ? (
+              <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-round bg-primary text-primary-foreground transition-colors group-hover:bg-primary-hover">
+                <Plus className="size-5" />
+              </span>
+            ) : null}
           </div>
         </div>
       </button>
@@ -101,18 +96,13 @@ export function ProductCard({ name, nameKk, price, onClick, tone, imageUrl, badg
           onClick={onToggleFavorite}
           aria-pressed={Boolean(favorite)}
           aria-label={favorite ? t("product.unfavorite", { name: title.primary.text }) : t("product.favorite", { name: title.primary.text })}
-          className={cn("absolute top-0 right-0 grid size-12 place-items-center rounded-control", focusRingClass)}
+          className={cn("absolute top-2 right-2 grid size-12 place-items-center rounded-round", focusRingClass)}
         >
-          <span className={cn("grid size-8 place-items-center rounded-control border border-border bg-card", favorite ? "text-accent" : "text-muted-foreground")}>
+          <span className={cn("grid size-8 place-items-center rounded-round bg-card shadow-panel", favorite ? "text-accent" : "text-muted-foreground")}>
             <Star aria-hidden className={cn("size-[18px]", favorite && "fill-current")} />
           </span>
         </button>
       ) : null}
     </div>
   )
-}
-
-/** The first letter of the dish name (as shown first), for the photo-less placeholder. */
-function initial(name: string) {
-  return (name.trim().match(/\p{L}/u)?.[0] ?? "·").toLocaleUpperCase("ru")
 }

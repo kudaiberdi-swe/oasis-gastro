@@ -1,8 +1,7 @@
 import { useRef, useState } from "react"
-import { ChefHat } from "lucide-react"
 
 import type { Id } from "@convex/_generated/dataModel"
-import { AppHeader } from "@/pos/components/app-header"
+import { PosRail } from "@/pos/components/pos-rail"
 import { LiveSyncIndicator } from "@/pos/components/live-sync-indicator"
 import { CatalogPanel, type CatalogPanelControl } from "@/pos/features/catalog/ui/catalog-panel"
 import { useBarcodeLookup } from "@/pos/features/hotkeys/data/use-barcode-lookup"
@@ -56,7 +55,7 @@ import { useToast } from "@/shared/components/ui/toast"
 import { formatTenge } from "@/shared/lib/format"
 import type { OrderType } from "@/shared/types/pos"
 
-// «Касса / Офис» in the header (POS-DESIGN §10): only for roles that also work in the office.
+// «Офис» in the rail (POS-DESIGN §10): only for roles that also work in the office.
 const OFFICE_ROLES = new Set(["manager", "administrator"])
 
 const LEGACY_ORDER_TYPES: OrderType[] = ["dine-in", "takeaway", "delivery"]
@@ -205,6 +204,9 @@ function AuthenticatedPos({
   // W3-POS-01: F2 search, F4 payment, F8 hold, Esc close; the scanner adds a dish by its barcode. Each
   // key does what its button does and only when the button is enabled (OrderPanel: active lines, not saving).
   const catalogRef = useRef<CatalogPanelControl>(null)
+  // Photos of dishes added on this screen, for the order lines' thumbnails; a check opened later shows the
+  // placeholder (its lines carry no image). ponytail: per screen, a productId → image lookup if that matters.
+  const lineImages = useRef(new Map<string, string>())
   const findByBarcode = useBarcodeLookup(sessionToken)
   const orderReady = draft.lines.some((line) => !line.voidedAt) && !draft.saving
   usePosHotkeys(
@@ -392,16 +394,17 @@ function AuthenticatedPos({
   const voidableLines = draft.lines.filter((line) => !line.voidedAt && line.serverLineId)
   const blocks = orderActionBlocks({ orderId: draft.orderId, lines: draft.lines, transferTargets }, t)
   const guestLabel = guest ? [guest.name || t("common.guest"), t("guest.points", { points: loyaltyQuote?.balance ?? guest.points }), plannedRedemption ? `−${plannedRedemption}` : ""].filter(Boolean).join(" · ") : undefined
-  // The header is shown over the kitchen board too; its dialogs live on the cashier screen.
+  // The rail stays beside the kitchen board too; its dialogs live on the cashier screen.
   const fromHeader = (open: () => void) => {
     setShowKitchen(false)
     open()
   }
   const header = (
-    <AppHeader
+    <PosRail
       restaurantName={access.restaurant.name}
       terminalName={access.terminal.name}
       city={access.restaurant.city}
+      view={showKitchen ? "kitchen" : "pos"}
       showOfficeSwitch={OFFICE_ROLES.has(access.employee.role)}
       syncIndicator={<LiveSyncIndicator />}
       employeeName={access.employee.displayName}
@@ -410,6 +413,10 @@ function AuthenticatedPos({
       shiftOpenedAt={shift.openedAt}
       shiftWarning={shift.openedOver24h}
       unreadNotifications={notifications.unread}
+      kitchenCount={kitchenTickets.length}
+      onPos={() => setShowKitchen(false)}
+      onFloor={() => fromHeader(() => setDialog("floor"))}
+      onKitchen={() => setShowKitchen(true)}
       onMenu={() => fromHeader(() => setDialog("menu"))}
       onOpenShiftInfo={() => fromHeader(() => openShiftDialog())}
       onNotifications={() => fromHeader(() => setDialog("notifications"))}
@@ -420,14 +427,16 @@ function AuthenticatedPos({
 
   if (showKitchen) {
     return (
-      <div className="flex h-full flex-col gap-2 p-2">
+      <div className="flex h-full gap-2 p-2">
         {header}
-        <div className="min-h-0 flex-1">
-          <KitchenBoard sessionToken={sessionToken} />
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-panel">
+            <KitchenBoard sessionToken={sessionToken} />
+          </div>
+          <Button variant="secondary" size="lg" onClick={() => setShowKitchen(false)}>
+            {t("pos.backToPos")}
+          </Button>
         </div>
-        <Button variant="secondary" size="lg" onClick={() => setShowKitchen(false)}>
-          {t("pos.backToPos")}
-        </Button>
       </div>
     )
   }
@@ -435,77 +444,78 @@ function AuthenticatedPos({
   const closeDialog = (open: boolean) => !open && setDialog(null)
 
   return (
-    <div className="flex h-full flex-col gap-2 p-2">
+    <div className="flex h-full gap-2 p-2">
       {header}
-      {offline && (
-        <p role="status" className="shrink-0 rounded-card border border-destructive/30 bg-destructive-surface px-4 py-2 text-body-sm font-semibold text-foreground">
-          {t("error.offline")}
-        </p>
-      )}
-      <div className="flex min-h-0 flex-1 gap-2 overflow-x-clip">
-        <OrderPanel
-          tableLabel={draft.tableLabel}
-          orderNumber={draft.orderNumber}
-          orderStatus={openChecks.find((check) => check.orderId === draft.orderId)?.status ?? "draft"}
-          titleSlot={
-            <ChecksSwitcher tableLabel={draft.tableLabel} orderNumber={draft.orderNumber} openCount={openChecks.length} onOpenFloor={() => setDialog("floor")} />
-          }
-          guestSlot={
-            draft.orderType.mode === "dine-in" ? <GuestCountControl value={draft.guestCount} onChange={(count) => void draft.setGuestCount(count).catch(() => undefined)} /> : undefined
-          }
-          lines={draft.lines}
-          itemCount={draft.itemCount}
-          orderTypeOptions={typeOptions}
-          orderTypeValue={draft.orderType.externalId ?? draft.orderType.mode}
-          onOrderTypeChange={(value) => {
-            const option = typeOptions.find((candidate) => candidate.value === value)
-            if (option) draft.changeOrderType({ externalId: retail.orderTypes.length ? option.value : undefined, mode: option.mode })
-          }}
-          subtotal={draft.subtotal}
-          discountPercent={draft.discountPercent}
-          discountAmount={draft.discountAmount}
-          serviceChargePercent={draft.serviceChargePercent}
-          serviceChargeAmount={draft.serviceChargeAmount}
-          total={draft.total}
-          saving={draft.saving}
-          error={draft.error}
-          canSendToKitchen={draft.hasUnsentLines}
-          sendingToKitchen={sendingToKitchen}
-          offlineReason={offline ? t("error.offline") : null}
-          onIncrement={(id) => {
-            const line = draft.lines.find((candidate) => candidate.clientLineId === id)
-            if (!line) return
-            // A sent line is fixed; another portion of it goes to a new line.
-            if (line.sentToKitchenAt)
-              draft.addItem({ productId: line.productId, name: line.name, nameKk: line.nameKk, price: line.unitPrice, sizeExternalId: line.sizeExternalId, sizeLabel: line.sizeLabel, modifierSelections: line.modifierSelections, modifierLabels: line.modifierLabels, modifierLabelsKk: line.modifierLabelsKk })
-            else draft.setQuantity(id, line.quantity + 1)
-          }}
-          onDecrement={(id) => draft.setQuantity(id, (draft.lines.find((l) => l.clientLineId === id)?.quantity ?? 0) - 1)}
-          onRemove={(id) => draft.setQuantity(id, 0)}
-          onVoid={setVoidingLineId}
-          onSendToKitchen={handleSendToKitchen}
-          onHold={() => void handleHold().catch((caught) => toast(posErrorMessage(t, caught, t("pos.holdFailed")), "error"))}
-          onCheckout={() => setPaymentOpen(true)}
-          onDiscount={() => setDiscountOpen(true)}
-          guestLabel={guestLabel}
-          loyaltyRedemption={plannedRedemption}
-          onGuest={() => (draft.orderId ? setGuestOpen(true) : toast(t("pos.orderSaving")))}
-          onMore={() => setDialog("actions")}
-          comment={draft.comment}
-          suggestion={suggestion}
-          onAddSuggestion={suggestion ? () => draft.addItem({ productId: suggestion.productId, name: suggestion.name, nameKk: suggestion.nameKk, price: suggestion.price }) : undefined}
-        />
-        <CatalogPanel
-          controlRef={catalogRef}
-          sessionToken={sessionToken}
-          onAddProduct={draft.addItem}
-          recentStorageKey={`sandyq-pos-recent:${terminalExternalId}:${access.employee.id}`}
-          toolbarAction={
-            <Button variant="ghost" className="h-12 px-3" onClick={() => setShowKitchen(true)}>
-              <ChefHat /> {t("pos.kitchenScreen")}{kitchenTickets.length > 0 ? ` · ${kitchenTickets.length}` : ""}
-            </Button>
-          }
-        />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        {offline && (
+          <p role="status" className="shrink-0 rounded-card border border-destructive/30 bg-destructive-surface px-4 py-2 text-body-sm font-semibold text-foreground">
+            {t("error.offline")}
+          </p>
+        )}
+        <div className="flex min-h-0 flex-1 gap-3 overflow-x-clip">
+          <OrderPanel
+            tableLabel={draft.tableLabel}
+            orderNumber={draft.orderNumber}
+            orderStatus={openChecks.find((check) => check.orderId === draft.orderId)?.status ?? "draft"}
+            titleSlot={
+              <ChecksSwitcher tableLabel={draft.tableLabel} orderNumber={draft.orderNumber} openCount={openChecks.length} onOpenFloor={() => setDialog("floor")} />
+            }
+            guestSlot={
+              draft.orderType.mode === "dine-in" ? <GuestCountControl value={draft.guestCount} onChange={(count) => void draft.setGuestCount(count).catch(() => undefined)} /> : undefined
+            }
+            lines={draft.lines}
+            itemCount={draft.itemCount}
+            orderTypeOptions={typeOptions}
+            orderTypeValue={draft.orderType.externalId ?? draft.orderType.mode}
+            onOrderTypeChange={(value) => {
+              const option = typeOptions.find((candidate) => candidate.value === value)
+              if (option) draft.changeOrderType({ externalId: retail.orderTypes.length ? option.value : undefined, mode: option.mode })
+            }}
+            subtotal={draft.subtotal}
+            discountPercent={draft.discountPercent}
+            discountAmount={draft.discountAmount}
+            serviceChargePercent={draft.serviceChargePercent}
+            serviceChargeAmount={draft.serviceChargeAmount}
+            total={draft.total}
+            saving={draft.saving}
+            error={draft.error}
+            canSendToKitchen={draft.hasUnsentLines}
+            sendingToKitchen={sendingToKitchen}
+            offlineReason={offline ? t("error.offline") : null}
+            onIncrement={(id) => {
+              const line = draft.lines.find((candidate) => candidate.clientLineId === id)
+              if (!line) return
+              // A sent line is fixed; another portion of it goes to a new line.
+              if (line.sentToKitchenAt)
+                draft.addItem({ productId: line.productId, name: line.name, nameKk: line.nameKk, price: line.unitPrice, sizeExternalId: line.sizeExternalId, sizeLabel: line.sizeLabel, modifierSelections: line.modifierSelections, modifierLabels: line.modifierLabels, modifierLabelsKk: line.modifierLabelsKk })
+              else draft.setQuantity(id, line.quantity + 1)
+            }}
+            onDecrement={(id) => draft.setQuantity(id, (draft.lines.find((l) => l.clientLineId === id)?.quantity ?? 0) - 1)}
+            onRemove={(id) => draft.setQuantity(id, 0)}
+            onVoid={setVoidingLineId}
+            onSendToKitchen={handleSendToKitchen}
+            onHold={() => void handleHold().catch((caught) => toast(posErrorMessage(t, caught, t("pos.holdFailed")), "error"))}
+            onCheckout={() => setPaymentOpen(true)}
+            onDiscount={() => setDiscountOpen(true)}
+            guestLabel={guestLabel}
+            loyaltyRedemption={plannedRedemption}
+            onGuest={() => (draft.orderId ? setGuestOpen(true) : toast(t("pos.orderSaving")))}
+            onMore={() => setDialog("actions")}
+            imageOf={(productId) => lineImages.current.get(productId)}
+            comment={draft.comment}
+            suggestion={suggestion}
+            onAddSuggestion={suggestion ? () => draft.addItem({ productId: suggestion.productId, name: suggestion.name, nameKk: suggestion.nameKk, price: suggestion.price }) : undefined}
+          />
+          <CatalogPanel
+            controlRef={catalogRef}
+            sessionToken={sessionToken}
+            onAddProduct={(item) => {
+              if (item.imageUrl) lineImages.current.set(item.productId, item.imageUrl)
+              draft.addItem(item)
+            }}
+            recentStorageKey={`sandyq-pos-recent:${terminalExternalId}:${access.employee.id}`}
+          />
+        </div>
       </div>
 
       <PaymentDialog

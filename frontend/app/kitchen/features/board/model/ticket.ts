@@ -2,9 +2,11 @@ import type { KitchenStatus } from "@/shared/types/pos"
 
 export type BoardStatus = Extract<KitchenStatus, "queued" | "preparing" | "ready">
 
+// The board's three columns are the three active statuses (validators.ts kitchenStatus): queued → «Новые»,
+// preparing → «Готовятся», ready → «Готово». completed lives in the journal «Выданные», cancelled fades out.
 export const BOARD_COLUMNS: Array<{ status: BoardStatus; title: string }> = [
-  { status: "queued", title: "В очереди" },
-  { status: "preparing", title: "Готовится" },
+  { status: "queued", title: "Новые" },
+  { status: "preparing", title: "Готовятся" },
   { status: "ready", title: "Готово" },
 ]
 
@@ -17,8 +19,8 @@ export const NEXT_STEP: Record<BoardStatus, { status: KitchenStatus; label: stri
 
 /** Bump-back: one step back, for a tap made too early. */
 export const PREVIOUS_STEP: Partial<Record<KitchenStatus, { status: KitchenStatus; label: string }>> = {
-  preparing: { status: "queued", label: "В очереди" },
-  ready: { status: "preparing", label: "Готовится" },
+  preparing: { status: "queued", label: "Новые" },
+  ready: { status: "preparing", label: "Готовятся" },
   completed: { status: "ready", label: "Готово" },
 }
 

@@ -12,7 +12,7 @@ test("the kitchen signs in with a PIN and sees the three-column board", async ({
   await loginPos(page, credentials!.code, credentials!.pin)
 
   await expect(page.getByRole("heading", { level: 1, name: "Заказы кухни" })).toBeVisible()
-  for (const column of ["В очереди", "Готовится", "Готово"]) {
+  for (const column of ["Новые", "Готовятся", "Готово"]) {
     await expect(page.getByRole("region", { name: new RegExp(`^${column}`) })).toBeVisible()
   }
 })

@@ -22,7 +22,7 @@ import { cashMovementProblem, cashNeedsManager, toCashMovement } from "@/pos/fea
 import { buildXReportHtml, type ShiftReportSnapshot, type XReportData } from "@/pos/features/shifts/model/x-report"
 import { buildZReportHtml } from "@/pos/features/shifts/model/z-report"
 import { CashMovementForm } from "@/pos/features/shifts/ui/shift-dialog"
-import { AppHeader } from "@/pos/components/app-header"
+import { PosRail } from "@/pos/components/pos-rail"
 import { ThemeProvider } from "@/shared/components/theme-provider"
 import { formatTenge } from "@/shared/lib/format"
 
@@ -378,7 +378,7 @@ describe("main menu, profile, notifications (W1-POS-14)", () => {
   it("counts unread notifications and marks one read", async () => {
     render(
       <ThemeProvider>
-        <AppHeader restaurantName="Sandyq Алматы" employeeName="Айгерим" shiftNumber={3} unreadNotifications={12} onOpenShiftInfo={() => {}} onNotifications={() => {}} onLock={() => {}} />
+        <PosRail restaurantName="Sandyq Алматы" employeeName="Айгерим" shiftNumber={3} unreadNotifications={12} onOpenShiftInfo={() => {}} onNotifications={() => {}} onLock={() => {}} />
       </ThemeProvider>,
     )
     expect(screen.getByRole("button", { name: "Уведомления: 12 новых" })).toBeTruthy()

@@ -35,7 +35,10 @@
   --rust: #6d4aff; /* violet icon tint on light tiles */
   --ring: #6d4aff; /* focus ring, 4.8 on the background */
   --success: #177a4a; /* paid, posted, ready, «+12 %» */
+  --success-foreground: #ffffff; /* text on a --success fill (KDS «Готово» header) */
   --success-surface: #e6f7ee;
+  --info: #2563eb; /* blue: KDS «Новые» column header */
+  --info-foreground: #ffffff;
   --warning: #8f5d0b; /* held, below minimum, «В пути» */
   --warning-foreground: #8f5d0b;
   --warning-surface: #fff3dc;
@@ -117,7 +120,10 @@
   --rust: #ab9bff;
   --ring: #ab9bff;
   --success: #4fc98e;
+  --success-foreground: #100c24; /* ink on light green: white would fail */
   --success-surface: #12291f;
+  --info: #2563eb;
+  --info-foreground: #ffffff;
   --warning: #f2b54d;
   --warning-foreground: #f2b54d;
   --warning-surface: #2d2412;
