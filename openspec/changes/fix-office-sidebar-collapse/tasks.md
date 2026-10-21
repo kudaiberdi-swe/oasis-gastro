@@ -21,4 +21,4 @@ Reason: one-line effect dependency fix in a client-side sidebar hook, no backend
 
 ## 4. Checks
 
-- [ ] 4.1 (frontend) `npm run typecheck`, `npm test`, `npx playwright test e2e/regressions/office-sidebar-collapse.spec.ts` pass.
+- [x] 4.1 (frontend) `npm run typecheck`, `npm test`, `npx playwright test e2e/regressions/office-sidebar-collapse.spec.ts` pass.
