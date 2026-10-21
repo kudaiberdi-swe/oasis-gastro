@@ -48,6 +48,9 @@ export const PAIRS = [
   ["ring", "muted", 3],
   ["ring", "card", 3],
   ["input", "card", 3],
+  // Graphics: chart bars and the on switch (violet on white), share bars and icon tiles (violet on the muted tint).
+  ["primary", "card", 3],
+  ["accent", "muted", 3],
 ]
 
 /** Reads the hex tokens of one selector block (`:root,\n[data-theme="day"]` or `[data-theme="night"]`). */

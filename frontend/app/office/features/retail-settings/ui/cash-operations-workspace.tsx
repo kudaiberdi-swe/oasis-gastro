@@ -27,7 +27,7 @@ export function CashOperationsWorkspace() {
 
   return (
     <Tabs value={active} onValueChange={change} className="flex min-h-0 flex-1 flex-col">
-      <TabsList aria-label="Внесения и изъятия" className="shrink-0 px-6 xl:px-8">
+      <TabsList aria-label="Внесения и изъятия" className="mx-6 mt-5 shrink-0 xl:mx-8">
         <TabsTrigger value="journal">Журнал операций</TabsTrigger>
         <TabsTrigger value="types">Типы операций</TabsTrigger>
       </TabsList>

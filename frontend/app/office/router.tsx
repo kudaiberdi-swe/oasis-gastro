@@ -121,6 +121,9 @@ const CARD_WORKSPACES: Record<CardModuleId, ComponentType> = {
   "integration-maps": cardsWorkspace("integration-maps"),
 }
 
+// Workspaces made of their own cards (KPI, chart, tables) sit on the lavender background, not in one white card.
+const BARE_SECTIONS = ["dashboard"]
+
 const WORKSPACES: Record<string, ComponentType & { preload?: () => Promise<unknown> }> = {
   ...CARD_WORKSPACES,
   "integration-egais": EgaisUnavailable,
@@ -250,7 +253,7 @@ export function OfficeRouter() {
             <OfficeStatePage state={{ kind: "denied" }} />
           </OfficePage>
         ) : Workspace ? (
-          <OfficePage group={group} title={item.label} description={item.description} layout="fill" favorite={favorite}>
+          <OfficePage group={group} title={item.label} description={item.description} layout={BARE_SECTIONS.includes(item.id) ? "bare" : "fill"} favorite={favorite}>
             <Suspense fallback={<OfficeStatePage state={{ kind: "loading" }} />}>
               <Workspace />
             </Suspense>
