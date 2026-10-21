@@ -1,0 +1,23 @@
+{
+  "enabledPlugins": {
+    "echo-sdlc@echo": true,
+    "convex@claude-plugins-official": true,
+    "azure@azure-skills": true,
+    "impeccable@impeccable": true,
+    "mattpocock-skills@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "echo": {
+      "source": {
+        "source": "github",
+        "repo": "goecho-ai/ai-sdlc"
+      },
+      "autoUpdate": true
+    }
+  },
+  "permissions": {
+    "allow": [
+      "mcp__plugin_echo-sdlc_linear__*"
+    ]
+  }
+}

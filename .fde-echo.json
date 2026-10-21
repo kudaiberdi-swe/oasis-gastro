@@ -1,0 +1,121 @@
+{
+  "brief": {
+    "record": "docs/blueprint/BRIEF.md",
+    "minQuestions": 6
+  },
+  "phases": {
+    "ledger": "GATES.md"
+  },
+  "specParity": {
+    "registry": "docs/blueprint/SPEC.md",
+    "source": "spec",
+    "min": 0
+  },
+  "authz": {
+    "dir": "convex",
+    "guards": [
+      "requireActor",
+      "requireTenant",
+      "requireCapability"
+    ],
+    "wrappers": [
+      "query",
+      "mutation",
+      "action",
+      "httpAction"
+    ]
+  },
+  "deadControls": {
+    "dir": "src",
+    "buttons": [
+      "button",
+      "Button",
+      "IconButton",
+      "MenuItem",
+      "Tab",
+      "Chip"
+    ],
+    "links": [
+      "a",
+      "Link",
+      "NavLink"
+    ]
+  },
+  "wiring": {
+    "dir": "src",
+    "writers": [
+      "useMutation",
+      "useAction"
+    ],
+    "readers": [
+      "useQuery"
+    ],
+    "allowLocal": []
+  },
+  "qa": {
+    "record": "docs/blueprint/QA.md",
+    "liveRecord": "docs/blueprint/QA-PROD.md",
+    "access": "docs/ACCESS.md",
+    "minRoles": 2,
+    "minAgents": 1
+  },
+  "parity": {
+    "record": "docs/blueprint/PARITY.md",
+    "access": "docs/ACCESS.md"
+  },
+  "tokens": {
+    "registry": "TOKENS.md",
+    "dirs": [
+      "src",
+      "convex",
+      "apps",
+      "packages",
+      "scripts"
+    ],
+    "ignore": []
+  },
+  "referenceAssets": {
+    "denyStrings": [],
+    "denyGlobs": [],
+    "allow": [
+      "docs/**",
+      "*.md",
+      "GATES.md",
+      ".fde-echo.json",
+      ".claude/**"
+    ]
+  },
+  "azure": {
+    "resourceName": "<azure-resource-name>",
+    "deployment": "<deployment-name>",
+    "apiVersion": "v1"
+  },
+  "ci": {
+    "workflows": ".github/workflows",
+    "requireOracles": [
+      "spec-parity",
+      "check-authz",
+      "check-dead-controls",
+      "check-tokens"
+    ],
+    "deployPatterns": [
+      "convex deploy"
+    ]
+  },
+  "deployed": {
+    "workflow": ".github/workflows/deploy-production.yml",
+    "access": "docs/ACCESS.md",
+    "budgetMs": 15000
+  },
+  "skillsLock": {
+    "lock": ".claude/skills-lock.json",
+    "dir": ".claude/skills"
+  },
+  "handover": {
+    "docs": "docs"
+  },
+  "roast": {
+    "record": "docs/ROAST.md",
+    "minCritics": 3
+  }
+}

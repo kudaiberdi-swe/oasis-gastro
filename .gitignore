@@ -29,3 +29,31 @@ playwright-report/
 
 # Saved sources of the reference sites — kept on disk, not committed; see reference/README.md.
 reference/site-src/
+
+# --- echo-sdlc (added by /echo-sdlc:init) ---
+node_modules/
+dist/
+coverage/
+.env*
+!.env.example
+!**/.env.example
+deploy/**/.env*
+!deploy/**/.env.example
+.convex/
+backups/
+.playwright-mcp/
+.playwright-cli/
+**/e2e/.auth/
+.impeccable/live/
+.impeccable/questions/
+.agents/
+AGENTS.md
+.claude/settings.local.json
+.claude/worktrees/
+docs/client/
+*.jks
+*.keystore
+*.p12
+*.pem
+*.apk
+*.aab
