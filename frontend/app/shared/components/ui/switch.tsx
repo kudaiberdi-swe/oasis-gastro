@@ -3,13 +3,20 @@ import * as SwitchPrimitive from "@radix-ui/react-switch"
 
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
-/** On/off flags in reference-data forms (POS-DESIGN §5). */
-const Switch = React.forwardRef<React.ElementRef<typeof SwitchPrimitive.Root>, React.ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>>(
-  ({ className, ...props }, ref) => (
+/**
+ * On/off flags in reference-data forms (POS-DESIGN §5): violet when on. `offTone="danger"` turns the off
+ * track red where off means a stop (the «В продаже» switch of the stop-list).
+ */
+const Switch = React.forwardRef<
+  React.ElementRef<typeof SwitchPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof SwitchPrimitive.Root> & { offTone?: "neutral" | "danger" }
+>(
+  ({ className, offTone = "neutral", ...props }, ref) => (
     <SwitchPrimitive.Root
       ref={ref}
       className={cn(
-        "inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-round border-2 border-transparent bg-input transition-colors disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary",
+        "inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-round border-2 border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary",
+        offTone === "danger" ? "bg-destructive" : "bg-input",
         focusRingClass,
         className,
       )}

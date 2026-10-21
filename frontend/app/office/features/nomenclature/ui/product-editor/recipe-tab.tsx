@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react"
+import type { ReactNode } from "react"
 
-import { Banner, Button, Field, Input, KpiCard, Select, SkeletonRows } from "@/shared/components/ui"
+import { Banner, Button, Field, Input, Select, SkeletonRows, TonePill } from "@/shared/components/ui"
 import { formatPercent, formatQuantity, formatTenge } from "@/shared/lib/format"
 import type { StatusTone } from "@/shared/lib/status-dictionary"
 import { cn } from "@/shared/lib/utils"
@@ -8,6 +9,7 @@ import { cn } from "@/shared/lib/utils"
 import { PREP_AREA_LABELS, WRITE_OFF_LABELS, type ProductCard } from "../../data/use-nomenclature"
 import type { ProductDraft } from "../../model/use-product-draft"
 import { FOOD_COST_THRESHOLDS, foodCostTone, NETWORK, RECIPE_STATUS, type RecipeDraftController } from "../../model/use-recipe-draft"
+import { ProductThumb } from "./product-thumb"
 import { RecipeChecks, RecipeStatusIndicator } from "./recipe-checks"
 import { RecipeLinesTable } from "./recipe-lines-table"
 import { RecipePanel } from "./recipe-panel"
@@ -69,20 +71,29 @@ export function RecipeTab({ card, product, recipe, canEdit, canActivate, activat
         </Banner>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Цена продажи" value={formatTenge(computed.price)} hint={branchName ?? "Базовая цена"} />
-        <KpiCard
-          label="Себестоимость порции"
-          value={<span className="text-accent">{formatTenge(summary.costPerPortion)}</span>}
-          hint={`${formatTenge(summary.costPerBatch)} на всю закладку${computed.costsPending ? " · без новых ингредиентов" : ""}`}
-        />
-        <KpiCard
-          label="Фудкост"
-          value={<span className={TONE_TEXT[tone]}>{computed.foodCost === null ? "—" : formatPercent(computed.foodCost)}</span>}
-          hint={`Норма до ${FOOD_COST_THRESHOLDS.warningFrom} %, выше ${FOOD_COST_THRESHOLDS.dangerAbove} % — пересмотреть`}
-        />
-        <KpiCard label="Выход одной порции" value={`${formatQuantity(summary.portionOutputG)} г`} hint={`${formatQuantity(summary.outputKg)} кг из ${formatQuantity(computed.batchYield > 0 ? computed.batchYield : 1)} порц.`} />
-      </div>
+      {/* The dish at a glance: its photo, then price, cost, food cost with the margin chip and the portion output. */}
+      <section aria-label="Итоги техкарты" className="flex flex-col gap-5 rounded-card border border-border bg-card p-5 sm:flex-row sm:items-center">
+        <ProductThumb imageUrl={card.imageUrl} size={96} />
+        <div className="grid flex-1 gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric label="Цена продажи" value={formatTenge(computed.price)} hint={branchName ?? "Базовая цена"} />
+          <Metric
+            label="Себестоимость порции"
+            value={<span className="text-accent">{formatTenge(summary.costPerPortion)}</span>}
+            hint={`${formatTenge(summary.costPerBatch)} на всю закладку${computed.costsPending ? " · без новых ингредиентов" : ""}`}
+          />
+          <Metric
+            label="Фудкост"
+            value={
+              <>
+                <span className={TONE_TEXT[tone]}>{computed.foodCost === null ? "—" : formatPercent(computed.foodCost)}</span>
+                {computed.foodCost === null ? null : <TonePill tone={tone}>Маржинальность {formatPercent(100 - computed.foodCost)}</TonePill>}
+              </>
+            }
+            hint={`Норма до ${FOOD_COST_THRESHOLDS.warningFrom} %, выше ${FOOD_COST_THRESHOLDS.dangerAbove} % — пересмотреть`}
+          />
+          <Metric label="Выход одной порции" value={`${formatQuantity(summary.portionOutputG)} г`} hint={`${formatQuantity(summary.outputKg)} кг из ${formatQuantity(computed.batchYield > 0 ? computed.batchYield : 1)} порц.`} />
+        </div>
+      </section>
 
       <RecipePanel
         title="Технологическая карта"
@@ -178,6 +189,16 @@ export function RecipeTab({ card, product, recipe, canEdit, canActivate, activat
         onNew={recipe.startNewVersion}
         onActivate={onActivate}
       />
+    </div>
+  )
+}
+
+function Metric({ label, value, hint }: { label: string; value: ReactNode; hint: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <p className="text-caption font-medium text-muted-foreground">{label}</p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-title font-bold tracking-tight text-foreground tabular-nums">{value}</div>
+      <p className="text-caption text-muted-foreground">{hint}</p>
     </div>
   )
 }

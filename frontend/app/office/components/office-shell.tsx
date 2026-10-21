@@ -98,8 +98,12 @@ export interface OfficePageProps {
   actions?: ReactNode
   /** Right side of the breadcrumb row, e.g. «● Все изменения сохранены». */
   status?: ReactNode
-  /** "fill": the body owns its scrolling (existing workspaces with side panes); "scroll": the page scrolls. */
-  layout?: "fill" | "scroll"
+  /**
+   * "fill": the body owns its scrolling (existing workspaces with side panes) inside one white card;
+   * "bare": the same, but its own cards sit straight on the lavender background (the start page);
+   * "scroll": the page scrolls.
+   */
+  layout?: "fill" | "bare" | "scroll"
   /** The «В избранное» star next to the title (W3-ADM-13), e.g. <FavoriteStar /> of the section. */
   favorite?: ReactNode
   children: ReactNode
@@ -117,12 +121,12 @@ export function OfficePage({ group, title, description, actions, status, layout 
     </div>
   )
 
-  if (layout === "fill") {
+  if (layout === "fill" || layout === "bare") {
     return (
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col">
         {header}
         {/* The workspace is one white card on the lavender background; it still owns its scrolling. */}
-        <div className="relative mx-6 mb-6 flex min-h-0 flex-1 flex-col overflow-clip rounded-card border border-border bg-card shadow-panel xl:mx-8">{children}</div>
+        <div className={cn("relative flex min-h-0 flex-1 flex-col overflow-clip", layout === "fill" && "mx-6 mb-6 rounded-card border border-border bg-card shadow-panel xl:mx-8")}>{children}</div>
       </div>
     )
   }

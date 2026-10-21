@@ -6,13 +6,17 @@ import { cn, focusRingClass } from "@/shared/lib/utils"
 const Tabs = TabsPrimitive.Root
 
 const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>>(
-  ({ className, ...props }, ref) => <TabsPrimitive.List ref={ref} className={cn("flex gap-1", className)} {...props} />,
+  ({ className, ...props }, ref) => <TabsPrimitive.List ref={ref} className={cn("flex gap-1", "data-[orientation=horizontal]:w-fit data-[orientation=horizontal]:max-w-full data-[orientation=horizontal]:rounded-round data-[orientation=horizontal]:bg-muted data-[orientation=horizontal]:p-1", className)} {...props} />,
 )
 TabsList.displayName = "TabsList"
 
-/** Round pill tabs: the active one is the violet tint (--accent-surface) with violet text; the count stays muted. */
+/**
+ * Segmented pill tabs: a round muted track, the active tab a raised white pill with violet text; the count
+ * stays muted. Vertical lists (card sections) have no track: the active tab is the violet tint there.
+ */
 const tabClass =
-  "inline-flex h-9 items-center gap-2 rounded-round px-4 text-body-sm font-medium text-muted-foreground transition-colors disabled:opacity-50"
+  "inline-flex h-9 items-center gap-2 rounded-round px-4 text-body-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] disabled:opacity-50"
+const trackClass = "flex w-fit max-w-full gap-1 rounded-round bg-muted p-1"
 
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
@@ -22,7 +26,7 @@ const TabsTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       tabClass,
-      "data-[state=active]:bg-accent-surface data-[state=active]:font-semibold data-[state=active]:text-accent data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground",
+      "data-[state=active]:font-semibold data-[state=active]:text-accent data-[state=inactive]:hover:text-foreground data-[orientation=horizontal]:data-[state=active]:bg-card data-[orientation=horizontal]:data-[state=active]:shadow-panel data-[orientation=vertical]:data-[state=active]:bg-accent-surface data-[orientation=vertical]:data-[state=inactive]:hover:bg-muted",
       focusRingClass,
       className,
     )}
@@ -71,7 +75,7 @@ export function FilterTabs({ value, onValueChange, items, panelId, className, ..
     onValueChange(items[next].value)
   }
   return (
-    <div role="tablist" {...aria} className={cn("flex gap-1", className)}>
+    <div role="tablist" {...aria} className={cn(trackClass, className)}>
       {items.map((item, index) => {
         const selected = item.value === value
         return (
@@ -97,7 +101,7 @@ export function FilterTabs({ value, onValueChange, items, panelId, className, ..
             }}
             className={cn(
               tabClass,
-              "aria-selected:bg-accent-surface aria-selected:font-semibold aria-selected:text-accent aria-[selected=false]:hover:bg-muted aria-[selected=false]:hover:text-foreground",
+              "aria-selected:bg-card aria-selected:font-semibold aria-selected:text-accent aria-selected:shadow-panel aria-[selected=false]:hover:text-foreground",
               focusRingClass,
             )}
           >

@@ -119,7 +119,8 @@ describe("start page screen (W1-ADM-05)", () => {
     expect(mocks.calls.at(-1)).toEqual({ name: "domains/platform/queries:dashboard", args: { from: "2026-09-30", to: "2026-09-30" } })
     const revenue = screen.getByText("Выручка").parentElement!
     expect(text(revenue.textContent ?? "")).toContain("72 128 169 ₸")
-    expect(screen.getByText("+12,5 % к прошлому периоду").className).toContain("text-success")
+    expect(screen.getByText("+12,5 %").className).toContain("text-success")
+    expect(screen.getByText("+20,3 %").className).toContain("text-success")
     expect(screen.getByText("481")).toBeTruthy()
     expect(text(screen.getByText(/Средний чек/).textContent ?? "")).toBe("Средний чек 2 462 ₸")
     expect(screen.getByText("Проведено документов")).toBeTruthy()
