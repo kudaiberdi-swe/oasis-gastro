@@ -1,10 +1,11 @@
+import { UserRound } from "lucide-react"
 import { useState } from "react"
 
 import { useCan } from "@/office/components/can"
 import { PlatformErrorBoundary, usePlatformScope } from "@/office/features/platform/data/use-platform"
 import { useDebounced } from "@/office/features/stock/data/use-stock-master"
 import { useMasterSelection } from "@/office/features/stock/ui/master-panel"
-import { loadMoreFromPaginated, Select, StatusPill, type Column } from "@/shared/components/ui"
+import { Avatar, loadMoreFromPaginated, Select, StatusPill, type Column } from "@/shared/components/ui"
 import { formatAlmatyDate } from "@/shared/lib/almaty-time"
 import { formatQuantity } from "@/shared/lib/format"
 import { cn } from "@/shared/lib/utils"
@@ -31,11 +32,11 @@ export function LoyaltyWorkspace() {
 export function CategoryMarks({ ids, categories }: { ids: string[] | undefined; categories: GuestCategory[] | undefined }) {
   if (!ids?.length) return <span className="text-muted-foreground">—</span>
   return (
-    <span className="flex flex-wrap gap-x-3 gap-y-1">
+    <span className="flex flex-wrap gap-1.5">
       {ids.map((id) => {
         const category = categories?.find((candidate) => candidate.externalId === id)
         return (
-          <span key={id} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <span key={id} className="inline-flex h-6 items-center gap-1.5 rounded-round bg-muted px-2.5 text-caption font-medium whitespace-nowrap text-foreground">
             <span aria-hidden className={cn("size-2 shrink-0 rounded-round", categoryColorClass(category?.color))} />
             {category?.name ?? id}
           </span>
@@ -65,7 +66,12 @@ function Guests() {
     {
       key: "name",
       header: "Имя",
-      cell: (guest) => <span className="font-semibold">{guest.name || "Без имени"}</span>,
+      cell: (guest) => (
+        <span className="flex min-w-0 items-center gap-3">
+          <Avatar name={guest.name} fallback={UserRound} />
+          <span className="truncate font-semibold">{guest.name || "Без имени"}</span>
+        </span>
+      ),
     },
     {
       key: "phone",

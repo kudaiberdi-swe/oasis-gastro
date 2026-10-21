@@ -41,7 +41,7 @@ export function ReceiptsRegister() {
     { key: "supplier", header: "Поставщик", cell: supplierName },
     { key: "warehouse", header: "Склад", cell: warehouseName },
     { key: "invoice", header: "Счёт-фактура", cell: (row) => row.invoiceNumber || "—" },
-    { key: "amount", header: "Сумма, ₸", numeric: true, cell: (row) => formatAmount(row.totalGross) },
+    { key: "amount", header: "Сумма, ₸", numeric: true, cell: (row) => <span className="font-semibold">{formatAmount(row.totalGross)}</span> },
     { key: "status", header: "Статус", cell: (row) => <StatusPill domain="document" status={row.status} /> },
   ]
 
