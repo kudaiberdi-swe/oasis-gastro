@@ -121,7 +121,7 @@ describe("Рассылки отчётов", () => {
     expect(daily.getByText("26.09, 08:00")).toBeTruthy()
     expect(daily.getByText("25.09, 08:00")).toBeTruthy()
     expect(daily.getByText("Файл готов · ждёт отправки")).toBeTruthy()
-    expect(daily.getByText("Активна", { selector: "span.rounded-control" })).toBeTruthy()
+    expect(daily.getByText("Активна", { selector: "span.rounded-round" })).toBeTruthy()
     expect(daily.getByRole("link", { name: "Скачать последний: Выручка для управляющих" }).getAttribute("href")).toBe(DAILY.lastFileUrl)
 
     const monthly = within(row("Итоги месяца"))

@@ -16,22 +16,22 @@ const toneClass: Record<CategoryTone, string> = {
 export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean
   size?: "md" | "lg"
-  /** A 3px category-color strip on the left — a mark, never a fill. */
+  /** A small category-color dot before the label — a mark, never a fill. */
   tone?: CategoryTone
   count?: number
 }
 
-/** Filter and category chip, 36/44px. Active is a fill (--chip-active: dark by day, light at night — POS-DESIGN §5). */
+/** Filter and category chip, 36/44px, fully round. Active is the violet --chip-active fill; idle a muted tint. */
 const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(({ active = false, size = "md", tone, count, className, children, type = "button", ...props }, ref) => (
   <button
     ref={ref}
     type={type}
     aria-pressed={active}
     className={cn(
-      "relative inline-flex shrink-0 items-center gap-2 overflow-hidden rounded-control border px-3 text-body-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50",
+      "inline-flex shrink-0 items-center gap-2 rounded-round border px-4 text-body-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50",
       size === "lg" ? "h-11" : "h-9",
-      active ? "border-chip-active bg-chip-active text-chip-active-foreground" : "border-input bg-card text-foreground hover:bg-muted",
-      tone && cn("pl-4 before:absolute before:inset-y-0 before:left-0 before:w-[3px]", toneClass[tone]),
+      active ? "border-chip-active bg-chip-active text-chip-active-foreground" : "border-transparent bg-muted text-foreground hover:bg-accent-surface hover:text-accent",
+      tone && cn("pl-3 before:block before:size-2 before:shrink-0 before:rounded-round", toneClass[tone]),
       focusRingClass,
       className,
     )}

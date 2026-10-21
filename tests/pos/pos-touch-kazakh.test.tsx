@@ -196,7 +196,7 @@ describe("AppHeader — logo, no theme/density toggles, readable shift and badge
   it("draws the Sandyq logo with an explicit height and alt «Sandyq»", () => {
     renderHeader()
     const logo = screen.getByRole("img", { name: "Sandyq" })
-    expect(logo.getAttribute("src")).toBe("/branding/sandyq-group-logo.svg")
+    expect(logo.getAttribute("src")).toBe("/branding/sandyq-kz-reserve-logo.svg")
     expect(logo.getAttribute("height")).toBe("32")
     expect(document.querySelector("header svg path[d^='M20 6']")).toBeNull()
   })

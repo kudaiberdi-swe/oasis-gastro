@@ -6,11 +6,14 @@ import { cn, focusRingClass } from "@/shared/lib/utils"
 const Tabs = TabsPrimitive.Root
 
 const TabsList = React.forwardRef<React.ElementRef<typeof TabsPrimitive.List>, React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>>(
-  ({ className, ...props }, ref) => <TabsPrimitive.List ref={ref} className={cn("flex gap-4 border-b border-border", className)} {...props} />,
+  ({ className, ...props }, ref) => <TabsPrimitive.List ref={ref} className={cn("flex gap-1", className)} {...props} />,
 )
 TabsList.displayName = "TabsList"
 
-/** 2px --accent underline on the active tab; the count stays muted. */
+/** Round pill tabs: the active one is the violet tint (--accent-surface) with violet text; the count stays muted. */
+const tabClass =
+  "inline-flex h-9 items-center gap-2 rounded-round px-4 text-body-sm font-medium text-muted-foreground transition-colors disabled:opacity-50"
+
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & { count?: number }
@@ -18,7 +21,8 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "-mb-px inline-flex h-11 items-center gap-2 border-b-2 border-transparent px-1 text-body-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 data-[state=active]:border-accent data-[state=active]:font-semibold data-[state=active]:text-foreground",
+      tabClass,
+      "data-[state=active]:bg-accent-surface data-[state=active]:font-semibold data-[state=active]:text-accent data-[state=inactive]:hover:bg-muted data-[state=inactive]:hover:text-foreground",
       focusRingClass,
       className,
     )}
@@ -67,7 +71,7 @@ export function FilterTabs({ value, onValueChange, items, panelId, className, ..
     onValueChange(items[next].value)
   }
   return (
-    <div role="tablist" {...aria} className={cn("flex gap-4 border-b border-border", className)}>
+    <div role="tablist" {...aria} className={cn("flex gap-1", className)}>
       {items.map((item, index) => {
         const selected = item.value === value
         return (
@@ -92,7 +96,8 @@ export function FilterTabs({ value, onValueChange, items, panelId, className, ..
               event.preventDefault()
             }}
             className={cn(
-              "-mb-px inline-flex h-11 items-center gap-2 border-b-2 border-transparent px-1 text-body-sm font-medium text-muted-foreground hover:text-foreground aria-selected:border-accent aria-selected:font-semibold aria-selected:text-foreground",
+              tabClass,
+              "aria-selected:bg-accent-surface aria-selected:font-semibold aria-selected:text-accent aria-[selected=false]:hover:bg-muted aria-[selected=false]:hover:text-foreground",
               focusRingClass,
             )}
           >

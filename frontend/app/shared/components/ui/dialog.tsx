@@ -66,13 +66,13 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
   <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:sm:min-w-32", className)} {...props} />
 )
 
-/** Cormorant 600, 22px (POS-DESIGN §5 Dialog). */
+/** Sans 600, 22px. */
 const DialogTitle = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Title>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>>(
   ({ className, ...props }, ref) => <DialogPrimitive.Title ref={ref} className={cn("font-display text-title font-semibold", className)} {...props} />,
 )
 DialogTitle.displayName = DialogPrimitive.Title.displayName
 
-/** The "whisper" line under the title. */
+/** The muted line under the title. */
 const DialogDescription = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Description>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>>(
   ({ className, ...props }, ref) => <DialogPrimitive.Description ref={ref} className={cn("text-body-sm text-muted-foreground", className)} {...props} />,
 )

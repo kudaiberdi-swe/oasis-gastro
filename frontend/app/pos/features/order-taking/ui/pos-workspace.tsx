@@ -438,7 +438,7 @@ function AuthenticatedPos({
     <div className="flex h-full flex-col gap-2 p-2">
       {header}
       {offline && (
-        <p role="status" className="shrink-0 rounded-card border border-destructive/40 bg-destructive/10 px-4 py-2 text-body-sm font-semibold text-foreground">
+        <p role="status" className="shrink-0 rounded-card border border-destructive/30 bg-destructive-surface px-4 py-2 text-body-sm font-semibold text-foreground">
           {t("error.offline")}
         </p>
       )}

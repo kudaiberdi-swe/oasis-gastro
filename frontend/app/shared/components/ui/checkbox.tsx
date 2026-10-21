@@ -4,13 +4,13 @@ import { Check, Minus } from "lucide-react"
 
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
-/** 20px box, 2px radius, primary check mark (POS-DESIGN §5). */
+/** 20px box, --radius-box, violet check mark. */
 const Checkbox = React.forwardRef<React.ElementRef<typeof CheckboxPrimitive.Root>, React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>>(
   ({ className, ...props }, ref) => (
     <CheckboxPrimitive.Root
       ref={ref}
       className={cn(
-        "peer inline-flex size-5 shrink-0 items-center justify-center rounded-control border-2 border-input bg-card text-primary disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=indeterminate]:border-primary",
+        "peer inline-flex size-5 shrink-0 items-center justify-center rounded-box border-2 border-input bg-card text-primary disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=indeterminate]:border-primary",
         focusRingClass,
         className,
       )}

@@ -249,12 +249,12 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
 
         <Tabs value={tab} onValueChange={(value) => setTab(value as TabKey)} orientation={vertical ? "vertical" : "horizontal"} className={cn(vertical && "flex items-start gap-6")}>
           {vertical ? (
-            <TabsList aria-label="Разделы карточки" className="w-60 shrink-0 flex-col gap-0 border-r border-b-0">
+            <TabsList aria-label="Разделы карточки" className="w-60 shrink-0 flex-col border-r border-border pr-3">
               {TABS.map((item) => (
                 <TabsTrigger
                   key={item.key}
                   value={item.key}
-                  className="mb-0 -mr-px h-10 w-full justify-start border-r-2 border-b-0 px-3 text-left data-[state=active]:bg-muted"
+                  className="h-10 w-full justify-start px-3 text-left"
                 >
                   {item.label}
                 </TabsTrigger>

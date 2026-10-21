@@ -15,7 +15,7 @@ export function KpiCard({ label, value, hint, hintTone = "neutral", className }:
   return (
     <div className={cn("flex flex-col gap-1 rounded-card border border-border bg-card p-4 shadow-panel", className)}>
       <p className="text-body-sm text-muted-foreground">{label}</p>
-      <div className="sq-price text-display font-semibold text-foreground">{value}</div>
+      <div className="sq-price text-display font-bold tracking-tight text-foreground">{value}</div>
       {hint ? (
         <p className={cn("text-caption", hintTone === "success" ? "text-success" : hintTone === "danger" ? "text-destructive" : "text-muted-foreground")}>{hint}</p>
       ) : null}

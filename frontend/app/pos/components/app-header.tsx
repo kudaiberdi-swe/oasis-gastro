@@ -7,15 +7,17 @@ import { formatAlmatyTime } from "@/shared/lib/almaty-time"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
 /**
- * The Sandyq mark (frontend/public/branding/sandyq-group-logo.svg, 31×40): carving gold on the dark header,
+ * The Sandyq mark (frontend/public/branding/sandyq-kz-reserve-logo.svg, 23×31): white on the ink-violet header,
  * which is --nav in both themes, so the one variant reads by day and at night.
  */
 function Logo() {
-  return <img src="/branding/sandyq-group-logo.svg" alt="Sandyq" width={25} height={32} className="h-8 w-auto shrink-0" />
+  return <img src="/branding/sandyq-kz-reserve-logo.svg" alt="Sandyq" width={24} height={32} className="h-8 w-auto shrink-0" />
 }
 
-// Icon buttons on the dark header: --nav-raised on hover, never white overlays (POS-DESIGN §6.2).
-const navButton = "text-nav-foreground hover:bg-nav-raised hover:text-nav-foreground"
+// Focus on the dark header is the light violet --nav-accent, not the ring meant for light surfaces.
+const navFocus = "focus-visible:outline-nav-accent"
+// Round icon buttons on the dark header: --nav-raised on hover, never white overlays (POS-DESIGN §6.2).
+const navButton = cn("rounded-round text-nav-foreground hover:bg-nav-raised hover:text-nav-foreground", navFocus)
 
 /** Convex connection as the header shows it: «Синхронизировано», sending changes, or no link. */
 export type SyncState = "synced" | "syncing" | "offline"
@@ -45,14 +47,14 @@ export function headerDate(value: number, t: Translator = ruT) {
 /** «Касса / Офис» (manager and administrator only). The office has its own sign-in (L-7). */
 function SurfaceSwitch({ officeHref }: { officeHref: string }) {
   const t = useT()
-  const item = "inline-flex h-9 items-center gap-2 rounded-control px-3 text-body-sm [&_svg]:size-[18px]"
+  const item = "inline-flex h-9 items-center gap-2 rounded-round px-3 text-body-sm [&_svg]:size-[18px]"
   return (
-    <nav aria-label={t("header.section")} className="flex items-center gap-1 rounded-control bg-nav-raised p-1">
-      <span aria-current="page" className={cn(item, "border border-nav-muted/40 bg-nav font-semibold text-nav-foreground")}>
+    <nav aria-label={t("header.section")} className="flex items-center gap-1 rounded-round bg-nav-raised p-1">
+      <span aria-current="page" className={cn(item, "bg-primary font-semibold text-primary-foreground")}>
         <Store aria-hidden />
         {t("header.pos")}
       </span>
-      <a href={officeHref} className={cn(item, "font-medium text-nav-muted hover:text-nav-foreground", focusRingClass)}>
+      <a href={officeHref} className={cn(item, "font-medium text-nav-muted hover:text-nav-foreground", focusRingClass, navFocus)}>
         <Monitor aria-hidden />
         {t("header.office")}
       </a>
@@ -74,7 +76,7 @@ export function SyncIndicator({ state }: { state: SyncState }) {
 }
 
 /**
- * POS header 64px (W1-POS-10/14, POS-DESIGN §11.2): ☰ main menu, the Sandyq logo, brand and «<касса> ·
+ * POS header 64px, ink-violet like the office sidebar (W1-POS-10/14, POS-DESIGN §11.2): ☰ main menu, the Sandyq logo, brand and «<касса> ·
  * <город>», «Касса / Офис», the shift pill (opens the shift dialog), «Синхронизировано», notifications
  * with the unread count, lock and the profile (name, role · date). Theme and density live in the
  * profile dialog, not here.
@@ -127,7 +129,7 @@ export function AppHeader({
   const brand = restaurantName.startsWith("Sandyq") ? restaurantName : `Sandyq · ${restaurantName}`
   const place = [terminalName, city].filter(Boolean).join(" · ")
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-4 rounded-panel bg-nav px-2 text-nav-foreground">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-4 rounded-panel bg-nav px-3 text-nav-foreground">
       <div className="flex min-w-0 items-center gap-2">
         {onMenu && (
           <Button variant="ghost" size="icon" aria-label={t("header.mainMenu")} className={cn(navButton, "size-12")} onClick={onMenu}>
@@ -137,7 +139,7 @@ export function AppHeader({
         <span className={cn("flex min-w-0 items-center gap-3", !onMenu && "pl-2")}>
           <Logo />
           <span className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate font-display text-body font-semibold">{brand}</span>
+            <span className="truncate text-body font-semibold">{brand}</span>
             {place && <span className="truncate text-body-sm text-nav-muted">{place}</span>}
           </span>
         </span>
@@ -151,7 +153,7 @@ export function AppHeader({
             type="button"
             onClick={onOpenShiftInfo}
             aria-label={[t("header.shift", { number: shiftNumber }), shiftOpenedAt != null ? t("header.shiftOpenedAt", { time: formatAlmatyTime(shiftOpenedAt, t.intl) }) : "", shiftWarning ? t("header.shiftOver24") : ""].filter(Boolean).join(", ")}
-            className={cn("ml-2 inline-flex h-12 shrink-0 items-center gap-2 rounded-control bg-nav-raised px-3 text-body-sm font-semibold text-nav-foreground hover:text-nav-accent", focusRingClass)}
+            className={cn("ml-2 inline-flex h-12 shrink-0 items-center gap-2 rounded-round bg-nav-raised px-4 text-body-sm font-semibold text-nav-foreground hover:text-nav-accent", focusRingClass, navFocus)}
           >
             <span aria-hidden className={cn("size-2 rounded-round", shiftWarning ? "bg-warning" : "bg-success")} />
             {t("header.shift", { number: shiftNumber })}
@@ -178,7 +180,7 @@ export function AppHeader({
           type="button"
           onClick={onProfile ?? onOpenShiftInfo}
           aria-label={t("header.profile", { name: employeeName })}
-          className={cn("ml-1 flex h-12 max-w-56 flex-col items-end justify-center rounded-control px-2 leading-tight hover:bg-nav-raised", focusRingClass)}
+          className={cn("ml-1 flex h-12 max-w-56 flex-col items-end justify-center rounded-control px-3 leading-tight hover:bg-nav-raised", focusRingClass, navFocus)}
         >
           <span className="max-w-full truncate text-body-sm font-semibold text-nav-foreground">{employeeName}</span>
           <span className="max-w-full truncate text-body-sm text-nav-muted">{[employeeRole, headerDate(now ?? Date.now(), t)].filter(Boolean).join(" · ")}</span>

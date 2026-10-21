@@ -2,73 +2,76 @@
  * Sandyq design tokens — the only place in the app with raw color values.
  * Components use semantic tokens only (bg-card, text-accent, …); a design change is one file.
  *
- * Palette (decision D2, docs/04-POS-DESIGN.md §2): colors of the live site sandyqgroup.com
- * (root DESIGN.md, section «Website») — cream, ink, wine, gold, rust. Values marked "derived" are tuned for WCAG
- * contrast (text ≥ 4.5:1, control borders ≥ 3:1; checked by scripts/check-contrast.mjs).
- * The design-skill palette (walnut/felt/kilim/brass) stays available as [data-palette="skill"].
+ * Palette (redesign 2026-10): the violet product-slide style — ink-violet sidebars, a lavender working
+ * area, white cards, one violet accent. Token names are the old ones, so every screen restyles from here.
+ * Values are tuned for WCAG contrast (text ≥ 4.5:1, control borders and focus ≥ 3:1; checked in day and
+ * night by scripts/check-contrast.mjs). Legacy names: --gold is the decorative violet line/mark (selected-row
+ * strip, ornament, pinned star), --rust the violet icon tint on light tiles.
  */
 
 :root,
 [data-theme="day"] {
   color-scheme: light;
 
-  --background: #fff7ec; /* site cream — working area */
-  --foreground: #121316; /* site ink */
+  --background: #f6f5fb; /* lavender-grey working area */
+  --foreground: #16132b; /* ink: headings and body */
   --card: #ffffff; /* cards, panels, tables, dialogs */
-  --card-foreground: #121316;
+  --card-foreground: #16132b;
   --popover: #ffffff;
-  --popover-foreground: #121316;
-  --muted: #f5ecdf; /* derived: row stripes, segmented controls, read-only fields */
-  --muted-foreground: #6b6159; /* derived: 5.68 on cream */
-  --secondary: #f5ecdf;
-  --secondary-foreground: #121316;
-  --border: #e8e3dc; /* site card border — decorative */
-  --input: #8c8173; /* derived: input borders, 3.82 on white (WCAG 1.4.11) */
-  --primary: #8c2323; /* site wine — the one main action per screen */
-  --primary-hover: #6e1b1b;
+  --popover-foreground: #16132b;
+  --muted: #efedf7; /* row hover/stripes, segmented tracks, read-only fields */
+  --muted-foreground: #68647f; /* 4.9 on muted, 5.2 on the background */
+  --secondary: #efedf7;
+  --secondary-foreground: #16132b;
+  --border: #eceaf4; /* hairline — decorative */
+  --input: #8e89a8; /* input and control borders, 3.3 on white (WCAG 1.4.11) */
+  --primary: #6d4aff; /* violet — the one main action per screen, active nav pill */
+  --primary-hover: #5b3bea;
   --primary-foreground: #ffffff;
-  --accent: #8a6526; /* site gold-link — prices, links, active tabs on light (4.98 on cream) */
+  --accent: #5b3bea; /* violet text: links, prices, active tabs (5.9 on the background) */
   --accent-foreground: #ffffff;
-  --gold: #b28f6f; /* site gold — ornament and lines only, never text on light */
-  --rust: #a33009; /* site rust — 4px heading accent, ornament markers */
-  --ring: #7f5c43; /* site clay-strong — focus ring */
-  --success: #44632f; /* derived: paid, posted, ready — steppe green, a step greener so «Оплачен» never reads grey */
-  --success-surface: #e6eed8; /* opaque tint behind success pills */
-  --warning: #8a5a00; /* derived: held, below minimum, 24h shift — amber, apart from rust and danger red */
-  --warning-foreground: #8a5a00;
-  --warning-surface: #fbf0d6; /* opaque amber tint behind warning banners and pills */
-  --destructive: #b42318; /* derived: errors, negative amounts, dangerous actions */
+  --accent-surface: #eeeaff; /* violet tint: active tabs, info pills, selected chips */
+  --gold: #7b5cfa; /* decorative violet: selected-row strip, ornament, pinned star — not body text */
+  --rust: #6d4aff; /* violet icon tint on light tiles */
+  --ring: #6d4aff; /* focus ring, 4.8 on the background */
+  --success: #177a4a; /* paid, posted, ready, «+12 %» */
+  --success-surface: #e6f7ee;
+  --warning: #8f5d0b; /* held, below minimum, «В пути» */
+  --warning-foreground: #8f5d0b;
+  --warning-surface: #fff3dc;
+  --destructive: #cd2f36; /* errors, negative amounts, dangerous actions */
   --destructive-foreground: #ffffff;
-  --destructive-surface: #fbe9e6; /* opaque red tint behind danger banners and pills */
-  --destructive-muted: #8a3b32; /* refunded checks: the danger family without the alarm, on parchment */
-  --chip-active: #121316; /* active filter/category chip: a dark fill on the light surface */
-  --chip-active-foreground: #fff7ec;
-  --chip-active-muted: #bfb5a8;
-  --nav: #121316; /* sidebar, POS header, sign-in */
-  --nav-raised: #1e1e1e;
-  --nav-foreground: #fff7ec;
-  --nav-muted: #bfb5a8;
-  --nav-accent: #b28f6f; /* active menu item, prices and ornament on dark */
-  --overlay: rgb(0 0 0 / 0.4);
+  --destructive-surface: #feefef;
+  --destructive-muted: #9c3f4a; /* refunded checks: the danger family without the alarm */
+  --chip-active: #6d4aff; /* active filter/category chip: violet fill */
+  --chip-active-foreground: #ffffff;
+  --chip-active-muted: #f7f5ff;
+  --nav: #1c1638; /* ink-violet sidebar, POS header, sign-in */
+  --nav-raised: #2b2452; /* hover and raised items on the sidebar */
+  --nav-foreground: #f7f5ff;
+  --nav-muted: #c9c4e8; /* nav labels and icons */
+  --nav-accent: #b3a3ff; /* violet text and focus on dark */
+  --overlay: rgb(22 19 43 / 0.45);
 
   /* Menu category marks — a 3px strip on dish cards and category chips, never a fill */
-  --cat-meat: #8c2323;
-  --cat-dairy: #b28f6f;
-  --cat-bread: #9a4408;
-  --cat-green: #4d5a36;
-  --cat-tea: #6b4a2e;
-  --cat-turkistan: #2e6a6e; /* only dishes marked Туркестан */
+  --cat-meat: #e5484d;
+  --cat-dairy: #e8a33d;
+  --cat-bread: #e6772e;
+  --cat-green: #2e9e62;
+  --cat-tea: #7b5cfa;
+  --cat-turkistan: #1f9bb0; /* only dishes marked Туркестан */
 
-  /* Type (decision D3): Golos Text for UI, Cormorant for display — both self-hosted, both cover
-     Kazakh Cyrillic (Ә Ғ Қ Ң Ө Ұ Ү Һ І). */
-  --font-display: "Cormorant", "PT Serif", Georgia, serif;
+  /* Type: Golos Text for everything — a clean grotesque, self-hosted, covers Kazakh Cyrillic
+     (Ә Ғ Қ Ң Ө Ұ Ү Һ І). --font-display stays as a name for headings and prices; it is the same sans. */
+  --font-display: "Golos Text", "PT Sans", "Segoe UI", Roboto, Arial, sans-serif;
   --font-ui: "Golos Text", "PT Sans", "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, monospace;
 
-  /* Shape — carved, almost square */
-  --radius-control: 2px;
-  --radius-card: 6px;
-  --radius-panel: 8px;
+  /* Shape — generous rounding: controls 12, cards 16, panels and dialogs 20, chips and pills round */
+  --radius-box: 6px; /* checkboxes and small marks */
+  --radius-control: 12px;
+  --radius-card: 16px;
+  --radius-panel: 20px;
   --radius-round: 999px;
 
   /* Space and control size — [data-density="compact"] really changes these */
@@ -82,78 +85,65 @@
   --control-h-pos: 48px;
   --table-row-h: 48px;
 
-  /* Elevation */
-  --shadow-panel: 0 1px 2px rgb(18 19 22 / 0.06), 0 8px 24px rgb(18 19 22 / 0.06);
-  --shadow-float: 0 10px 25px rgb(0 0 0 / 0.1);
-  --hairline: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  /* Elevation — soft, large-radius, low opacity, tinted violet */
+  --shadow-panel: 0 1px 2px rgb(40 24 120 / 0.04), 0 8px 24px rgb(40 24 120 / 0.08);
+  --shadow-float: 0 16px 40px rgb(40 24 120 / 0.16);
+  --hairline: 1px solid var(--border);
 }
 
 /* Night overrides every color token, including success/warning/destructive (S-16). */
 [data-theme="night"] {
   color-scheme: dark;
 
-  --background: #121316;
-  --foreground: #fff7ec;
-  --card: #1e1e1e;
-  --card-foreground: #fff7ec;
-  --popover: #23282d; /* site charcoal */
-  --popover-foreground: #fff7ec;
-  --muted: #2a2724;
-  --muted-foreground: #bfb5a8;
-  --secondary: #2a2724;
-  --secondary-foreground: #fff7ec;
-  --border: #3a3631;
-  --input: #857a6f;
-  --primary: #a83a2c;
-  --primary-hover: #8c2323;
+  --background: #100c24;
+  --foreground: #f4f2ff;
+  --card: #1a1533;
+  --card-foreground: #f4f2ff;
+  --popover: #211b3f;
+  --popover-foreground: #f4f2ff;
+  --muted: #251f47;
+  --muted-foreground: #aca6cf;
+  --secondary: #251f47;
+  --secondary-foreground: #f4f2ff;
+  --border: #2f2856;
+  --input: #756e9c;
+  --primary: #6d4aff;
+  --primary-hover: #5b3bea;
   --primary-foreground: #ffffff;
-  --accent: #b28f6f;
-  --accent-foreground: #121316;
-  --gold: #b28f6f;
-  --rust: #e0685c;
-  --ring: #c9a27e;
-  --success: #9fb07a;
-  --success-surface: #232a1a;
-  --warning: #e2a546; /* amber, apart from the coral danger */
-  --warning-foreground: #e2a546;
-  --warning-surface: #2c2515;
-  --destructive: #e87468; /* 4.9 on a 10% destructive tint over card (status pills) */
-  --destructive-foreground: #121316; /* ink on coral: white would be 3.3 */
-  --destructive-surface: #36201d;
-  --destructive-muted: #d49a8f;
-  --chip-active: #fff7ec; /* at night the active chip is a light fill — a dark one would vanish into the card */
-  --chip-active-foreground: #121316;
-  --chip-active-muted: #6b6159;
-  --nav: #0b0c0e;
-  --nav-raised: #1e1e1e;
-  --nav-foreground: #fff7ec;
-  --nav-muted: #bfb5a8;
-  --nav-accent: #b28f6f;
-  --overlay: rgb(0 0 0 / 0.55);
+  --accent: #ab9bff;
+  --accent-foreground: #100c24;
+  --accent-surface: #2a2257;
+  --gold: #9b85ff;
+  --rust: #ab9bff;
+  --ring: #ab9bff;
+  --success: #4fc98e;
+  --success-surface: #12291f;
+  --warning: #f2b54d;
+  --warning-foreground: #f2b54d;
+  --warning-surface: #2d2412;
+  --destructive: #ff7378;
+  --destructive-foreground: #100c24; /* ink on coral: white would fail */
+  --destructive-surface: #3a1720;
+  --destructive-muted: #e3a3a8;
+  --chip-active: #6d4aff;
+  --chip-active-foreground: #ffffff;
+  --chip-active-muted: #f7f5ff;
+  --nav: #0b0819;
+  --nav-raised: #211a42;
+  --nav-foreground: #f7f5ff;
+  --nav-muted: #b9b3dc;
+  --nav-accent: #ab9bff;
+  --overlay: rgb(0 0 0 / 0.6);
 
-  --cat-meat: #c0463a;
-  --cat-dairy: #c9a27e;
-  --cat-bread: #f09a4c;
-  --cat-green: #9fb07a;
-  --cat-tea: #c9a27e;
-  --cat-turkistan: #6fa8ac;
+  --cat-meat: #ff7378;
+  --cat-dairy: #f2b54d;
+  --cat-bread: #f59a5a;
+  --cat-green: #4fc98e;
+  --cat-tea: #ab9bff;
+  --cat-turkistan: #4cc3d6;
 
-  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 34px rgb(0 0 0 / 0.2);
-  --shadow-float: 0 10px 25px rgb(0 0 0 / 0.4);
-}
-
-/* Alternative palette from the design skill (walnut / felt / kilim / brass) — one attribute away. */
-[data-palette="skill"]:not([data-theme="night"]) {
-  --background: #ede3d1; /* felt */
-  --card: #faf6ee; /* bone */
-  --popover: #faf6ee;
-  --nav: #3a2419; /* walnut */
-  --nav-raised: #53362a;
-  --primary: #8c2b20; /* kilim */
-  --primary-hover: #6e2419;
-  --accent: #8a6530; /* brass-lo */
-  --gold: #b88b45; /* brass */
-  --nav-accent: #b88b45;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.28);
+  --shadow-float: 0 16px 40px rgb(0 0 0 / 0.45);
 }
 
 [data-density="compact"] {

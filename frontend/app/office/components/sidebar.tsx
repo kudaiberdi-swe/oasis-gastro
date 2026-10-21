@@ -38,8 +38,8 @@ function NavItemLink({ item, active, highlight }: { item: OfficeNavigationItem; 
       onPointerEnter={external ? undefined : () => preloadSection(item.id)}
       onFocus={external ? undefined : () => preloadSection(item.id)}
       className={cn(
-        "relative flex min-h-9 items-center gap-2 rounded-control py-1.5 pr-2 pl-9 text-body-sm text-nav-muted transition-colors hover:bg-nav-raised hover:text-nav-foreground",
-        active && "bg-nav-raised font-semibold text-nav-accent before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:bg-gold",
+        "flex min-h-9 items-center gap-2 rounded-control py-1.5 pr-2 pl-10 text-body-sm text-nav-muted transition-colors",
+        active ? "bg-primary font-semibold text-primary-foreground" : "hover:bg-nav-raised hover:text-nav-foreground",
         navFocus,
       )}
     >
@@ -56,13 +56,16 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, index)}
-      <mark className="bg-transparent text-gold underline decoration-gold underline-offset-2">{text.slice(index, index + length)}</mark>
+      <mark className="bg-transparent text-nav-accent underline decoration-nav-accent underline-offset-2">{text.slice(index, index + length)}</mark>
       {text.slice(index + length)}
     </>
   )
 }
 
-/** Dark 264px office sidebar (OFFICE-DESIGN §1); 72px with tooltips and flyouts when collapsed. */
+/**
+ * Ink-violet 264px office sidebar: the white Sandyq wordmark on top, icon + label groups, the open page as a
+ * violet pill; 72px with the Sandyq mark, tooltips and flyouts when collapsed.
+ */
 export function Sidebar({ groups, activeItemId, collapsed, canToggleCollapsed, onToggleCollapsed, userName, footerLine, onSignOut }: SidebarProps) {
   const activeGroupId = groups.find((group) => group.items.some((item) => item.id === activeItemId))?.id
   const { expanded, toggle } = useExpandedGroups(activeGroupId)
@@ -78,12 +81,14 @@ export function Sidebar({ groups, activeItemId, collapsed, canToggleCollapsed, o
         aria-label="Навигация офиса"
         className={cn("flex h-full shrink-0 flex-col bg-nav text-nav-foreground transition-[width] duration-150", collapsed ? "w-[72px]" : "w-[264px]")}
       >
-        <div className={cn("flex h-16 items-center gap-2 border-b border-nav-raised", collapsed ? "justify-center px-2" : "px-4")}>
-          <img src="/branding/sandyq-group-logo.svg" alt="" aria-hidden className="h-7 w-7 shrink-0 object-contain" />
-          {collapsed ? null : (
+        <div className={cn("flex h-16 shrink-0 items-center gap-2", collapsed ? "justify-center px-2" : "px-5")}>
+          {collapsed ? (
+            <img src="/branding/sandyq-kz-reserve-logo.svg" alt="Sandyq" width={23} height={31} className="h-7 w-auto shrink-0" />
+          ) : (
             <>
-              <span className="min-w-0 flex-1 truncate font-display text-title-sm font-semibold">Sandyq Office</span>
-              <span className="rounded-control border border-nav-accent/40 px-1.5 text-caption text-nav-accent">Сеть</span>
+              <img src="/branding/sandyq-kz-logo-footer.svg" alt="Sandyq" width={170} height={43} className="h-5 w-auto shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-body-sm font-medium text-nav-muted">Office</span>
+              <span className="rounded-round bg-nav-raised px-2 py-0.5 text-caption font-medium text-nav-accent">Сеть</span>
             </>
           )}
         </div>
@@ -98,7 +103,7 @@ export function Sidebar({ groups, activeItemId, collapsed, canToggleCollapsed, o
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Раздел, документ или отчёт"
-                className={cn("h-10 w-full rounded-control border border-transparent bg-nav-raised pr-3 pl-9 text-body-sm text-nav-foreground placeholder:text-nav-muted", navFocus)}
+                className={cn("h-10 w-full rounded-control border border-transparent bg-nav-raised pr-3 pl-9 text-body-sm text-nav-foreground caret-nav-accent placeholder:text-nav-muted", navFocus)}
               />
             </label>
           </div>
@@ -120,8 +125,8 @@ export function Sidebar({ groups, activeItemId, collapsed, canToggleCollapsed, o
                           <PopoverPrimitive.Trigger
                             aria-label={group.label}
                             className={cn(
-                              "mx-auto flex size-11 items-center justify-center rounded-control text-nav-muted hover:bg-nav-raised hover:text-nav-foreground",
-                              groupActive && "bg-nav-raised text-nav-accent",
+                              "mx-auto flex size-11 items-center justify-center rounded-control text-nav-muted transition-colors",
+                              groupActive ? "bg-primary text-primary-foreground" : "hover:bg-nav-raised hover:text-nav-foreground",
                               navFocus,
                             )}
                           >
@@ -158,8 +163,8 @@ export function Sidebar({ groups, activeItemId, collapsed, canToggleCollapsed, o
                     onClick={() => toggle(group.id)}
                     disabled={searching}
                     className={cn(
-                      "flex h-10 w-full items-center gap-3 rounded-control px-3 text-left text-body-sm font-medium text-nav-foreground hover:bg-nav-raised",
-                      groupActive && "text-nav-accent",
+                      "flex h-10 w-full items-center gap-3 rounded-control px-3 text-left text-body-sm font-medium text-nav-muted transition-colors hover:bg-nav-raised hover:text-nav-foreground",
+                      groupActive && "text-nav-foreground [&>svg:first-child]:text-nav-accent",
                       navFocus,
                     )}
                   >
@@ -233,7 +238,7 @@ function SidebarIconButton({ label, onClick, pressed, children }: { label: strin
           aria-label={label}
           aria-pressed={pressed}
           onClick={onClick}
-          className={cn("grid size-9 place-items-center rounded-control text-nav-muted hover:bg-nav-raised hover:text-nav-foreground aria-pressed:text-nav-accent", navFocus)}
+          className={cn("grid size-9 place-items-center rounded-round text-nav-muted transition-colors hover:bg-nav-raised hover:text-nav-foreground aria-pressed:bg-nav-raised aria-pressed:text-nav-accent", navFocus)}
         >
           {children}
         </button>

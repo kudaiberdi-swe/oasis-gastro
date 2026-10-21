@@ -25,7 +25,7 @@ function isTypingInField(target: EventTarget | null) {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
 }
 
-/** 3×4 keypad, 72×64 keys, Cormorant digits, gold dots; digits, Backspace and Enter also from the keyboard (S-14). */
+/** 3×4 keypad, 72×64 keys, tabular digits, violet dots; digits, Backspace and Enter also from the keyboard (S-14). */
 export function PinPad({ value, onValueChange, maxLength, onSubmit, secret = false, label, disabled = false, captureKeyboard = true, className }: PinPadProps) {
   const labels = useUiLabels()
   const latest = React.useRef({ value, onValueChange, onSubmit, maxLength, disabled })

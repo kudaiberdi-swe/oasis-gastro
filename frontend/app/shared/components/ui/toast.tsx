@@ -29,11 +29,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={item.id}
             role={item.tone === "error" ? "alert" : "status"}
             className={cn(
-              "pointer-events-auto max-w-md rounded-card bg-nav px-4 py-3 text-body-sm text-nav-foreground shadow-float animate-in fade-in-0 slide-in-from-bottom-2",
-              item.tone === "error" && "border-l-4 border-destructive",
-              item.tone === "success" && "border-l-4 border-success",
+              "pointer-events-auto flex max-w-md items-center gap-3 rounded-card bg-nav px-4 py-3 text-body-sm text-nav-foreground shadow-float animate-in fade-in-0 slide-in-from-bottom-2",
             )}
           >
+            {item.tone === "error" || item.tone === "success" ? (
+              <span aria-hidden className={cn("size-2 shrink-0 rounded-round", item.tone === "error" ? "bg-destructive" : "bg-success")} />
+            ) : null}
             {item.message}
           </div>
         ))}

@@ -40,8 +40,13 @@ export const PAIRS = [
   ["nav-foreground", "nav", 4.5],
   ["nav-muted", "nav", 4.5],
   ["nav-accent", "nav", 4.5],
+  // Violet tint behind active tabs and info pills; hovered sidebar items.
+  ["accent", "accent-surface", 4.5],
+  ["nav-foreground", "nav-raised", 4.5],
+  ["nav-muted", "nav-raised", 4.5],
   ["ring", "background", 3],
   ["ring", "muted", 3],
+  ["ring", "card", 3],
   ["input", "card", 3],
 ]
 
