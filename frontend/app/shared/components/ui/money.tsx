@@ -13,7 +13,7 @@ export interface MoneyProps {
 
 const sizeClass = { sm: "text-body", md: "text-title-sm", lg: "text-title", xl: "text-display" }
 
-/** Cormorant 600 with tabular lining figures. */
+/** Semibold with tabular lining figures, violet by default. */
 export function Money({ value, onDark = false, signed = false, size = "md", className }: MoneyProps) {
   const color = signed ? (value < 0 ? "text-destructive" : value > 0 ? "text-success" : "text-muted-foreground") : onDark ? "text-nav-accent" : "text-accent"
   return <span className={cn("sq-price font-semibold whitespace-nowrap", sizeClass[size], color, className)}>{formatTenge(value, { explicitPlus: signed })}</span>

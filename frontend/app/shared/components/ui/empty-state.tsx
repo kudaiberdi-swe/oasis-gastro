@@ -12,7 +12,7 @@ export interface EmptyStateProps {
   className?: string
 }
 
-/** Gold ornament (96/120px), Cormorant 22px title, one action at most. */
+/** Violet ornament (96/120px), 22px sans title, one action at most. */
 export function EmptyState({ title, description, action, size = "md", className }: EmptyStateProps) {
   return (
     <div className={cn("flex flex-col items-center justify-center gap-3 px-6 py-12 text-center", className)}>

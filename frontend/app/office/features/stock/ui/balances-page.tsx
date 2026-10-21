@@ -1,10 +1,10 @@
-import { Plus } from "lucide-react"
+import { Package, Plus } from "lucide-react"
 import { useId, useMemo, useState } from "react"
 
 import { useCan } from "@/office/components/can"
 import { OfficeStatePage } from "@/office/components/state-page"
 import { PlatformErrorBoundary } from "@/office/features/platform/data/use-platform"
-import { Button, DataTable, FilterTabs, Input, loadMoreFromPaginated, Select, type Column } from "@/shared/components/ui"
+import { Button, DataTable, FilterTabs, IconThumb, Input, loadMoreFromPaginated, Select, type Column } from "@/shared/components/ui"
 import { almatyBusinessDate } from "@/shared/lib/almaty-time"
 import { formatAmount, formatQuantity } from "@/shared/lib/format"
 
@@ -38,9 +38,12 @@ export const BALANCE_COLUMNS: Column<BalanceRow>[] = [
     header: "Номенклатура",
     sortValue: (row) => row.item.name,
     cell: (row) => (
-      <div className="flex min-w-0 flex-col">
-        <span className="truncate font-semibold">{row.item.name}</span>
-        <span className="truncate text-caption text-muted-foreground">{row.item.externalId}</span>
+      <div className="flex min-w-0 items-center gap-3">
+        <IconThumb icon={Package} />
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate font-semibold">{row.item.name}</span>
+          <span className="truncate text-caption text-muted-foreground">{row.item.externalId}</span>
+        </div>
       </div>
     ),
   },
@@ -58,7 +61,7 @@ export const BALANCE_COLUMNS: Column<BalanceRow>[] = [
     ),
   },
   { key: "average", header: "Ср. цена, ₸", numeric: true, sortValue: (row) => row.averageUnitCost, cell: (row) => formatAmount(row.averageUnitCost) },
-  { key: "amount", header: "Стоимость, ₸", numeric: true, sortValue: (row) => row.amount, cell: (row) => formatAmount(row.amount) },
+  { key: "amount", header: "Стоимость, ₸", numeric: true, sortValue: (row) => row.amount, cell: (row) => <span className="font-semibold">{formatAmount(row.amount)}</span> },
 ]
 
 type Panel = { kind: "row"; id: string } | { kind: "new" } | null

@@ -1,13 +1,13 @@
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, TrendingDown, TrendingUp } from "lucide-react"
 import { useMemo } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router"
 
 import { useCan, useCapabilities } from "@/office/components/can"
 import { filterNavigationByCapabilities } from "@/office/model/nav-filter"
 import { officeNavigation } from "@/office/model/navigation"
-import { Banner, Button, DataTable, EmptyState, KpiCard, SegmentedControl, Skeleton, TonePill, type Column } from "@/shared/components/ui"
+import { Banner, Button, DataTable, EmptyState, IconThumb, KpiCard, SegmentedControl, Skeleton, TonePill, type Column } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
-import { formatAmount, formatTenge } from "@/shared/lib/format"
+import { formatAmount, formatPercent, formatTenge } from "@/shared/lib/format"
 import { cn, focusRingClass } from "@/shared/lib/utils"
 
 import { useOfficeFavorites } from "../../favorites/data/use-office-favorites"
@@ -18,9 +18,11 @@ import { ReportChart } from "../../reports/ui/report-chart"
 import { useDashboard, type DashboardData, type DashboardRestaurant } from "../data/use-dashboard"
 import { DASHBOARD_PERIODS, isDashboardPeriod, periodRange, plural, quickAccessTiles, type DashboardPeriod } from "../model/dashboard"
 
-// «Стартовая страница» (W1-ADM-05, OFFICE-DESIGN §3.7, parity office/01-dashboard.jpg): 4 KPI in a row,
-// revenue by day for 30 days, «Рестораны сети» (a row opens «Выручка по дням» filtered by that restaurant —
-// bahandi drops the filter) and «Быстрый доступ». The period lives in ?period= so F5 keeps it; today is the default.
+// «Стартовая страница» (W1-ADM-05, OFFICE-DESIGN §3.7, parity office/01-dashboard.jpg): 4 KPI in a row with
+// delta chips, revenue by day for 30 days as violet bars, «Рестораны сети» ranked by turnover with a share bar
+// (a row opens «Выручка по дням» filtered by that restaurant — bahandi drops the filter) and «Быстрый доступ».
+// The period lives in ?period= so F5 keeps it; today is the default. Cards sit on the lavender background
+// (OfficePage layout "bare").
 
 const DRILL_REPORT = "sales-01"
 const QUICK_ACCESS_LIMIT = 8
@@ -51,15 +53,12 @@ export function DashboardWorkspace() {
     })
   }
 
-  const periodLabel = DASHBOARD_PERIODS.find((preset) => preset.value === period)?.label ?? ""
-
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-5 xl:px-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pb-8 xl:px-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <p className="font-display text-title-sm text-accent italic">{periodLabel.toLocaleLowerCase("ru")}</p>
-          <h2 className="font-display text-title font-semibold text-foreground">Сеть Sandyq</h2>
-          <p className="text-body-sm text-muted-foreground">{formatPeriod(range.from, range.to)}</p>
+          <h2 className="text-title font-semibold text-foreground">Сеть Sandyq</h2>
+          <p className="text-body-sm text-muted-foreground tabular-nums">{formatPeriod(range.from, range.to)}</p>
         </div>
         <SegmentedControl
           aria-label="Период"
@@ -82,14 +81,14 @@ export function DashboardWorkspace() {
           {errorMessage(error)}
         </Banner>
       ) : loading || !data ? (
-        <div role="status" aria-label="Загрузка стартовой страницы" className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div role="status" aria-label="Загрузка стартовой страницы" aria-busy="true" className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[0, 1, 2, 3].map((index) => (
-              <Skeleton key={index} className="h-28" />
+              <Skeleton key={index} className="h-32 rounded-card" />
             ))}
           </div>
-          <Skeleton className="h-56" />
-          <Skeleton className="h-40" />
+          <Skeleton className="h-72 rounded-card" />
+          <Skeleton className="h-40 rounded-card" />
         </div>
       ) : (
         <DashboardContent data={data} onOpenRestaurant={canOpenReports ? openRestaurant : undefined} />
@@ -104,11 +103,51 @@ function hasSales(data: DashboardData) {
   return data.orders > 0 || data.previousOrders > 0 || data.revenue !== 0 || data.series.some((point) => point.value !== 0)
 }
 
+/** The green «+12,5 %» / red «−4 %» chip beside a KPI number; `context` is read out where no caption says it. */
+function DeltaBadge({ delta, context }: { delta: ReturnType<typeof formatDelta>; context?: string }) {
+  if (!delta) return null
+  const Icon = delta.tone === "danger" ? TrendingDown : TrendingUp
+  return (
+    <>
+      <TonePill tone={delta.tone} className="gap-1 tabular-nums">
+        {delta.tone === "neutral" ? null : <Icon aria-hidden className="size-3.5" />}
+        {delta.percent}
+      </TonePill>
+      {context ? <span className="sr-only">{context}</span> : null}
+    </>
+  )
+}
+
 function DashboardContent({ data, onOpenRestaurant }: { data: DashboardData; onOpenRestaurant?: (row: DashboardRestaurant) => void }) {
   const delta = formatDelta(data.revenue, data.previousRevenue)
+  const ordersDelta = formatDelta(data.orders, data.previousOrders)
+  // The server sends the restaurants by turnover, so the rank is that order; the share is of their total.
+  const ranking = useMemo(() => {
+    const total = data.restaurants.reduce((sum, row) => sum + Math.max(0, row.turnover), 0)
+    return new Map(data.restaurants.map((row, index) => [row.restaurantExternalId, { rank: index + 1, share: total > 0 ? Math.max(0, row.turnover) / total : null }]))
+  }, [data.restaurants])
   const columns = useMemo<Column<DashboardRestaurant>[]>(
     () => [
-      { key: "name", header: "Ресторан", cell: (row) => <span className="font-semibold text-foreground">{row.name}</span>, sortValue: (row) => row.name },
+      {
+        key: "name",
+        header: "Ресторан",
+        cell: (row) => (
+          <span className="flex items-center gap-3">
+            <span aria-hidden className="grid size-7 shrink-0 place-items-center rounded-round bg-accent-surface text-caption font-semibold text-accent tabular-nums">
+              {ranking.get(row.restaurantExternalId)?.rank}
+            </span>
+            <span className="font-semibold text-foreground">{row.name}</span>
+          </span>
+        ),
+        sortValue: (row) => row.name,
+      },
+      {
+        key: "share",
+        header: "Доля оборота",
+        cell: (row) => <ShareBar share={ranking.get(row.restaurantExternalId)?.share ?? null} />,
+        sortValue: (row) => ranking.get(row.restaurantExternalId)?.share ?? 0,
+        className: "w-[28%] min-w-48",
+      },
       { key: "documents", header: "Документы", numeric: true, cell: (row) => `${formatAmount(row.documents)} ${plural(row.documents, DOCUMENTS)}`, sortValue: (row) => row.documents },
       { key: "orders", header: "Заказов", numeric: true, cell: (row) => formatAmount(row.orders), sortValue: (row) => row.orders },
       { key: "turnover", header: "Оборот", numeric: true, cell: (row) => <span className="font-semibold">{formatTenge(row.turnover)}</span>, sortValue: (row) => row.turnover },
@@ -119,16 +158,16 @@ function DashboardContent({ data, onOpenRestaurant }: { data: DashboardData; onO
         sortValue: (row) => row.status,
       },
     ],
-    [],
+    [ranking],
   )
 
   return (
     <>
       {hasSales(data) ? (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <KpiCard label="Выручка" value={formatTenge(data.revenue)} hint={delta?.text ?? "Проведённые продажи"} hintTone={delta?.tone ?? "neutral"} />
-            <KpiCard label="Оплачено заказов" value={formatAmount(data.orders)} hint={`Средний чек ${formatTenge(data.averageCheck)}`} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiCard label="Выручка" value={formatTenge(data.revenue)} badge={<DeltaBadge delta={delta} />} hint={delta ? "к прошлому периоду" : "Проведённые продажи"} />
+            <KpiCard label="Оплачено заказов" value={formatAmount(data.orders)} badge={<DeltaBadge delta={ordersDelta} context="к прошлому периоду" />} hint={`Средний чек ${formatTenge(data.averageCheck)}`} />
             <KpiCard label="Проведено документов" value={formatAmount(data.postedDocuments)} hint={`${formatAmount(data.draftDocuments)} ${plural(data.draftDocuments, DRAFTS)}`} />
             <KpiCard
               label="Ошибки обмена"
@@ -137,7 +176,7 @@ function DashboardContent({ data, onOpenRestaurant }: { data: DashboardData; onO
               hintTone={data.exchangeErrors ? "danger" : "success"}
             />
           </div>
-          <ReportChart title="Выручка за 30 дней" points={data.series} format={formatTenge} />
+          <ReportChart title="Выручка за 30 дней" points={data.series} format={formatTenge} className="shadow-panel" />
         </>
       ) : (
         <div className="flex flex-col gap-3">
@@ -146,7 +185,7 @@ function DashboardContent({ data, onOpenRestaurant }: { data: DashboardData; onO
               Проверьте очередь интеграций.
             </Banner>
           ) : null}
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card border border-border bg-card shadow-panel">
             <EmptyState title="Продаж пока нет" description="Выручка, заказы и график появятся после первой продажи на кассе." />
           </div>
         </div>
@@ -160,6 +199,7 @@ function DashboardContent({ data, onOpenRestaurant }: { data: DashboardData; onO
           <p className="text-body-sm text-muted-foreground">Сводка документов и оборота</p>
         </div>
         <DataTable
+          className="shadow-panel"
           caption="Рестораны сети"
           columns={columns}
           rows={data.restaurants}
@@ -209,20 +249,33 @@ function QuickAccess() {
             <li key={tile.id}>
               <Link
                 to={tile.href}
-                className={cn("group flex h-full items-start gap-3 rounded-card border border-border bg-card p-4 transition-colors hover:border-accent/40 hover:bg-muted", focusRingClass)}
+                className={cn("group flex h-full items-start gap-3 rounded-card border border-border bg-card p-4 shadow-panel transition-colors hover:border-accent/40", focusRingClass)}
               >
-                <Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-accent" />
+                <IconThumb icon={Icon} />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="text-caption text-muted-foreground">{tile.caption}</span>
                   <span className="text-body-sm font-semibold text-foreground">{tile.title}</span>
                   {tile.description ? <span className="line-clamp-2 text-caption text-muted-foreground">{tile.description}</span> : null}
                 </span>
-                <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground group-hover:text-accent" />
               </Link>
             </li>
           )
         })}
       </ul>
     </section>
+  )
+}
+
+/** A horizontal violet bar with the percent: the restaurant's share of the network turnover. */
+function ShareBar({ share }: { share: number | null }) {
+  if (share === null) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className="flex items-center gap-3">
+      <span aria-hidden className="h-2 min-w-0 flex-1 overflow-hidden rounded-round bg-muted">
+        <span className="block h-full rounded-round bg-accent" style={{ width: `${Math.round(share * 1000) / 10}%` }} />
+      </span>
+      <span className="w-14 shrink-0 text-right font-medium tabular-nums">{formatPercent(share * 100)}</span>
+    </span>
   )
 }

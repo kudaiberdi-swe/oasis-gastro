@@ -21,7 +21,7 @@ export interface SegmentedControlProps<T extends string> {
   className?: string
 }
 
-/** Muted track; the active segment is card + --input border + foreground text, never primary (POS-DESIGN §5). */
+/** Round muted track; the active segment is a raised white pill with foreground text, never primary. */
 export function SegmentedControl<T extends string>({ value, onValueChange, options, size = "md", className, ...aria }: SegmentedControlProps<T>) {
   const arrows = useArrowSelection((next) => onValueChange(next as T))
   return (
@@ -30,7 +30,7 @@ export function SegmentedControl<T extends string>({ value, onValueChange, optio
       value={value}
       onValueChange={(next) => onValueChange(next as T)}
       orientation="horizontal"
-      className={cn("inline-flex gap-1 rounded-control bg-muted p-1", className)}
+      className={cn("inline-flex gap-1 rounded-round bg-muted p-1", className)}
       {...aria}
     >
       {options.map((option) => (
@@ -40,7 +40,7 @@ export function SegmentedControl<T extends string>({ value, onValueChange, optio
           disabled={option.disabled}
           onFocus={arrows.itemFocus(option.value)}
           className={cn(
-            "inline-flex flex-1 items-center justify-center gap-2 rounded-control border border-transparent px-3 text-body-sm font-medium text-muted-foreground disabled:opacity-50 data-[state=checked]:border-input data-[state=checked]:bg-card data-[state=checked]:font-semibold data-[state=checked]:text-foreground [&_svg]:size-5",
+            "inline-flex flex-1 items-center justify-center gap-2 rounded-round border border-transparent px-4 text-body-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50 data-[state=checked]:border-border data-[state=checked]:bg-card data-[state=checked]:font-semibold data-[state=checked]:text-foreground data-[state=checked]:shadow-panel [&_svg]:size-5",
             size === "pos" ? "h-[calc(var(--control-h-pos)-8px)]" : "h-[calc(var(--control-h)-8px)]",
             focusRingClass,
           )}

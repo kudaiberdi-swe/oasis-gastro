@@ -7,7 +7,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       text: ["caption", "body-sm", "body", "title-sm", "title", "display", "hero"],
-      radius: ["control", "card", "panel", "round"],
+      radius: ["box", "control", "card", "panel", "round"],
     },
   },
 })

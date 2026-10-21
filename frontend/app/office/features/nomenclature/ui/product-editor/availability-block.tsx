@@ -85,6 +85,7 @@ export function AvailabilityBlock({ productExternalId, restaurants, canEdit }: {
         const row = rowOf(restaurant.restaurantExternalId)
         return (
           <Switch
+            offTone="danger"
             checked={row.available}
             onCheckedChange={(checked) => void commit(restaurant, checked)}
             disabled={!canEdit || busy === restaurant.restaurantExternalId}

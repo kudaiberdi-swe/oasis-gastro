@@ -261,7 +261,7 @@ function renderPanel(locale: Locale, props: Partial<Parameters<typeof OrderPanel
 describe("order panel in Kazakh", () => {
   it("buttons, totals and the empty state read in Kazakh; the Kazakh dish name leads", () => {
     renderPanel("kk")
-    expect(screen.getByRole("button", { name: /^Төлеу · 11/ })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /^Төлеу 11/ })).toBeTruthy()
     expect(screen.getByRole("button", { name: "Кейінге қалдыру" })).toBeTruthy()
     expect(screen.getByRole("button", { name: "Ас үйге" })).toBeTruthy()
     expect(screen.getByText("Төлеуге")).toBeTruthy()
@@ -285,7 +285,7 @@ describe("order panel in Kazakh", () => {
 
   it("stays Russian by default", () => {
     renderPanel("ru")
-    expect(screen.getByRole("button", { name: /^Оплатить · 11/ })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /^Оплатить 11/ })).toBeTruthy()
     expect(screen.getByText("2 позиции")).toBeTruthy()
     expect(screen.getByText("Бешбармак").getAttribute("lang")).toBe("ru")
     expect(screen.getByText("Бешбармақ").getAttribute("lang")).toBe("kk")
@@ -333,7 +333,7 @@ describe("dish card: the interface language's name first", () => {
     expect(kkFirst.compareDocumentPosition(kkSecond) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByText("қолда жоқ")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Таңдаулыға қосу: Бешбармақ" })).toBeTruthy()
-    expect(screen.getByTestId("product-placeholder").getAttribute("data-initial")).toBe("Б")
+    expect(screen.getByTestId("dish-placeholder")).toBeTruthy()
   })
 
   it("a dish without a Kazakh name shows only the Russian one in both languages", () => {

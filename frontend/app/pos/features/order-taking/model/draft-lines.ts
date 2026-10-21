@@ -44,6 +44,8 @@ export type CatalogItem = {
   modifierSelections?: ModifierSelectionInput[]
   modifierLabels?: string[]
   modifierLabelsKk?: string[]
+  /** The dish photo, for the order line's thumbnail on this screen only; never saved with the line. */
+  imageUrl?: string
 }
 
 /** A line as getCheck / saveDraft / sendToKitchen / voidLine return it (hydrateOrder). */

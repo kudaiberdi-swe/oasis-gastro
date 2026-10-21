@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useConvexConnectionState } from "convex/react"
 
-import { SyncIndicator, syncStateFrom } from "@/pos/components/app-header"
+import { SyncIndicator, syncStateFrom } from "@/pos/components/pos-rail"
 
 // A request in flight longer than this shows «Синхронизация…»; quicker ones never flash.
 const SLOW_MS = 1500

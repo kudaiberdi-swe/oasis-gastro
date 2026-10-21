@@ -10,7 +10,6 @@ import { useUnsavedChanges } from "@/office/hooks/use-unsaved-changes"
 import { Banner, Button, EmptyState, Tabs, TabsContent, TabsList, TabsTrigger, TonePill, useToast } from "@/shared/components/ui"
 import { useBreakpoint } from "@/shared/hooks/use-breakpoint"
 import { errorMessage } from "@/shared/lib/error-message"
-import type { CategoryTone } from "@/shared/components/ui/chip"
 import { cn } from "@/shared/lib/utils"
 
 import { ITEM_TYPE_LABELS, useNomenclatureMutations, useProductCard, useProductId, type NomenclatureLocationState, type ProductCard, type ProductId } from "../../data/use-nomenclature"
@@ -18,6 +17,7 @@ import { areFieldsDirty, changedBranchPrices, saveArgs, useProductDraft, validat
 import { useRecipeDraft } from "../../model/use-recipe-draft"
 import { ImageTab } from "./image-tab"
 import { MainTab } from "./main-tab"
+import { ProductThumb } from "./product-thumb"
 import { RecipeTab } from "./recipe-tab"
 import { SizeScaleTab } from "./size-scale-tab"
 import { TechnologyTab } from "./technology-tab"
@@ -208,7 +208,7 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-5 xl:px-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">
-            <ProductThumb imageUrl={card.imageUrl} categoryLabel={card.categoryLabel ?? ""} size={56} />
+            <ProductThumb imageUrl={card.imageUrl} size={56} />
             <div className="flex min-w-0 flex-col gap-1">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="font-display text-title font-semibold">{draft.name.trim() || card.name}</h2>
@@ -249,12 +249,12 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
 
         <Tabs value={tab} onValueChange={(value) => setTab(value as TabKey)} orientation={vertical ? "vertical" : "horizontal"} className={cn(vertical && "flex items-start gap-6")}>
           {vertical ? (
-            <TabsList aria-label="Разделы карточки" className="w-60 shrink-0 flex-col gap-0 border-r border-b-0">
+            <TabsList aria-label="Разделы карточки" className="w-60 shrink-0 flex-col border-r border-border pr-3">
               {TABS.map((item) => (
                 <TabsTrigger
                   key={item.key}
                   value={item.key}
-                  className="mb-0 -mr-px h-10 w-full justify-start border-r-2 border-b-0 px-3 text-left data-[state=active]:bg-muted"
+                  className="h-10 w-full justify-start px-3 text-left"
                 >
                   {item.label}
                 </TabsTrigger>
@@ -314,39 +314,8 @@ function ScrollingTabsList() {
           </TabsTrigger>
         ))}
       </TabsList>
-      {edges.left ? <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-linear-to-r from-card to-transparent" /> : null}
-      {edges.right ? <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-linear-to-l from-card to-transparent" /> : null}
+      {edges.left ? <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-8 rounded-l-round bg-linear-to-r from-muted to-transparent" /> : null}
+      {edges.right ? <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-round bg-linear-to-l from-muted to-transparent" /> : null}
     </div>
-  )
-}
-
-// Category strip colour (POS-DESIGN §2.3) for rows without a photo, read from the group label.
-const CATEGORY_TONES: Array<[RegExp, CategoryTone]> = [
-  [/салат/i, "green"],
-  [/выпечк|нан|баурсак/i, "bread"],
-  [/десерт|тәтті|чай/i, "tea"],
-  [/напит|сусын|фреш|лимонад/i, "dairy"],
-  [/основн|втор|деликатес|суп|мяс/i, "meat"],
-]
-const TONE_STRIP: Record<CategoryTone, string> = {
-  meat: "bg-cat-meat",
-  dairy: "bg-cat-dairy",
-  bread: "bg-cat-bread",
-  green: "bg-cat-green",
-  tea: "bg-cat-tea",
-  turkistan: "bg-cat-turkistan",
-}
-
-export function ProductThumb({ imageUrl, categoryLabel, size = 40 }: { imageUrl: string | null; categoryLabel: string; size?: 40 | 56 }) {
-  const [failed, setFailed] = useState(false)
-  const tone = CATEGORY_TONES.find(([pattern]) => pattern.test(categoryLabel))?.[1]
-  const box = size === 56 ? "size-14" : "size-10"
-  if (imageUrl && !failed) {
-    return <img src={imageUrl} alt="" loading="lazy" onError={() => setFailed(true)} className={cn(box, "shrink-0 rounded-control bg-muted object-cover")} />
-  }
-  return (
-    <span aria-hidden data-testid="thumb-placeholder" className={cn(box, "relative shrink-0 overflow-hidden rounded-control bg-muted")}>
-      <span className={cn("absolute inset-y-0 left-0 w-[3px]", tone ? TONE_STRIP[tone] : "bg-border")} />
-    </span>
   )
 }

@@ -57,7 +57,7 @@ function compare(a: string | number | null | undefined, b: string | number | nul
 
 /**
  * The one register table (closes L-23): 12px sentence-case header, 48px rows (40 compact), numbers on the
- * right, 2px gold strip on the selected row, horizontal scroll inside the card, "Загружено N из M" footer.
+ * right, a light header row, the selected row in the violet tint with a 2px violet strip, horizontal scroll inside the card, "Загружено N из M" footer.
  */
 export function DataTable<T>({
   columns,
@@ -125,7 +125,7 @@ export function DataTable<T>({
               </>
             )
             return (
-              <li key={id} className={cn(selectedId === id && "bg-muted shadow-[inset_2px_0_0_var(--gold)]")}>
+              <li key={id} className={cn(selectedId === id && "bg-accent-surface shadow-[inset_2px_0_0_var(--gold)]")}>
                 {onRowClick ? (
                   <button type="button" onClick={() => onRowClick(row)} className={cn("block w-full px-4 py-3 text-left hover:bg-muted", focusRingClass)}>
                     {content}
@@ -143,7 +143,7 @@ export function DataTable<T>({
           <table className="w-full border-collapse text-body-sm">
             {caption ? <caption className="sr-only">{caption}</caption> : null}
             <thead>
-              <tr className="border-b border-border">
+              <tr className="border-b border-border bg-muted/60">
                 {columns.map((column) => {
                   const active = sort?.key === column.key
                   return (
@@ -151,7 +151,7 @@ export function DataTable<T>({
                       key={column.key}
                       scope="col"
                       aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : column.sortValue ? "none" : undefined}
-                      className={cn("h-10 px-4 text-caption font-semibold whitespace-nowrap text-muted-foreground", column.numeric ? "text-right" : "text-left", column.className)}
+                      className={cn("h-11 px-4 text-caption font-semibold whitespace-nowrap text-muted-foreground", column.numeric ? "text-right" : "text-left", column.className)}
                     >
                       {column.sortValue ? (
                         <button
@@ -196,7 +196,7 @@ export function DataTable<T>({
                     className={cn(
                       "h-[var(--table-row-h)] border-b border-border last:border-b-0",
                       onRowClick && cn("cursor-pointer hover:bg-muted", focusRingClass, "focus-visible:-outline-offset-2"),
-                      selected && "bg-muted shadow-[inset_2px_0_0_var(--gold)]",
+                      selected && "bg-accent-surface shadow-[inset_2px_0_0_var(--gold)]",
                     )}
                   >
                     {columns.map((column) => (

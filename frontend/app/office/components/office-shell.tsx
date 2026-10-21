@@ -38,11 +38,12 @@ export function OfficeShell({ groups, activeItemId, userName, footerLine, onSign
             type="button"
             aria-label="Меню"
             onClick={() => setMenuOpen(true)}
-            className={cn("grid size-11 place-items-center rounded-control hover:bg-nav-raised", focusRingClass, "focus-visible:outline-nav-accent")}
+            className={cn("grid size-11 place-items-center rounded-round hover:bg-nav-raised", focusRingClass, "focus-visible:outline-nav-accent")}
           >
             <Menu className="size-5" />
           </button>
-          <span className="font-display text-title-sm font-semibold">Sandyq Office</span>
+          <img src="/branding/sandyq-kz-logo-footer.svg" alt="Sandyq" width={170} height={43} className="h-5 w-auto" />
+          <span className="text-body-sm font-medium text-nav-muted">Office</span>
         </header>
         <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
           <DialogPrimitive.Portal>
@@ -97,33 +98,35 @@ export interface OfficePageProps {
   actions?: ReactNode
   /** Right side of the breadcrumb row, e.g. «● Все изменения сохранены». */
   status?: ReactNode
-  /** "fill": the body owns its scrolling (existing workspaces with side panes); "scroll": the page scrolls. */
-  layout?: "fill" | "scroll"
+  /**
+   * "fill": the body owns its scrolling (existing workspaces with side panes) inside one white card;
+   * "bare": the same, but its own cards sit straight on the lavender background (the start page);
+   * "scroll": the page scrolls.
+   */
+  layout?: "fill" | "bare" | "scroll"
   /** The «В избранное» star next to the title (W3-ADM-13), e.g. <FavoriteStar /> of the section. */
   favorite?: ReactNode
   children: ReactNode
 }
 
-/** Breadcrumb 12px + PageHeader (group whisper, Cormorant title, one primary), up to 1440px wide. */
+/** Breadcrumb 12px + PageHeader (plain sans title, one primary) on the lavender background, up to 1440px wide. */
 export function OfficePage({ group, title, description, actions, status, layout = "scroll", favorite, children }: OfficePageProps) {
   const header = (
-    <div className="flex flex-col gap-3 border-b border-border px-6 pt-5 pb-4 xl:px-8">
+    <div className="flex flex-col gap-3 px-6 pt-5 pb-5 xl:px-8">
       <div className="flex min-h-5 items-center justify-between gap-4 text-caption">
         {group ? <Breadcrumb className="text-caption" items={[{ label: group.label }, { label: title }]} /> : <span />}
         {status}
       </div>
-      <div className="flex flex-col gap-1">
-        {group ? <p className="text-caption font-medium text-accent">{group.whisper}</p> : null}
-        <PageHeader title={title} description={description} actions={actions} titleAddon={favorite} />
-      </div>
+      <PageHeader title={title} description={description} actions={actions} titleAddon={favorite} />
     </div>
   )
 
-  if (layout === "fill") {
+  if (layout === "fill" || layout === "bare") {
     return (
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col">
         {header}
-        <div className="relative flex min-h-0 flex-1 flex-col bg-card">{children}</div>
+        {/* The workspace is one white card on the lavender background; it still owns its scrolling. */}
+        <div className={cn("relative flex min-h-0 flex-1 flex-col overflow-clip", layout === "fill" && "mx-6 mb-6 rounded-card border border-border bg-card shadow-panel xl:mx-8")}>{children}</div>
       </div>
     )
   }
@@ -132,7 +135,7 @@ export function OfficePage({ group, title, description, actions, status, layout 
     <div className="relative min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col">
         {header}
-        <div className="px-6 py-6 xl:px-8">{children}</div>
+        <div className="px-6 pb-8 xl:px-8">{children}</div>
       </div>
     </div>
   )

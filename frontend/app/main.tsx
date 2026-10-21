@@ -10,9 +10,6 @@ import "@fontsource/golos-text/400.css"
 import "@fontsource/golos-text/500.css"
 import "@fontsource/golos-text/600.css"
 import "@fontsource/golos-text/700.css"
-import "@fontsource/cormorant/500.css"
-import "@fontsource/cormorant/600.css"
-import "@fontsource/cormorant/500-italic.css"
 import "@/shared/styles/index.css"
 
 // Sections load as separate chunks: after a deploy an open tab still points at the old ones, which the

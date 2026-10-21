@@ -31,8 +31,6 @@ export type OfficeNavigationItem = {
 export type OfficeNavigationGroup = {
   id: string
   label: string
-  /** The small line above page titles in this group. */
-  whisper: string
   icon: LucideIcon
   items: OfficeNavigationItem[]
 }
@@ -50,7 +48,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "home",
     label: "Главная",
     icon: House,
-    whisper: "Обзор",
     items: [
       item("dashboard", "Стартовая страница", "Оперативное состояние сети Sandyq и задачи на сегодня"),
       item("favorites", "Избранное", "Закреплённые разделы и отчёты"),
@@ -60,7 +57,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "sales",
     label: "Розничные продажи",
     icon: ShoppingBag,
-    whisper: "Продажи",
     items: [
       item("pos", "Касса", "Рабочее место кассира", undefined, "link"),
       item("orders", "Заказы и чеки", "Заказы кассы, платежи, возвраты и снимки кассовых настроек"),
@@ -76,7 +72,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "stock",
     label: "Товары и склады",
     icon: Boxes,
-    whisper: "Учёт",
     items: [
       item("nomenclature", "Номенклатура", "Блюда, товары, рецептуры и правила продажи"),
       item("product-groups", "Группы товаров", "Иерархия номенклатурных групп и категорий"),
@@ -100,7 +95,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "production",
     label: "Производство и логистика",
     icon: ChefHat,
-    whisper: "Кухня",
     items: [
       item("production", "Приготовление", "Акты приготовления и заготовки"),
       item("processing-acts", "Акты переработки", "Преобразование сырья и выход продукции"),
@@ -117,7 +111,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "finance",
     label: "Финансы",
     icon: Wallet,
-    whisper: "Деньги",
     items: [
       item("cashflow-categories", "Статьи ДДС", "Категории движения денежных средств"),
       item("chart-of-accounts", "План счетов", "Финансовые, складские и расчётные счета"),
@@ -136,7 +129,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "employees",
     label: "Сотрудники",
     icon: Users,
-    whisper: "Команда",
     items: [
       item("employees", "Сотрудники", "Карточки, подразделения, ставки и доступ"),
       item("positions", "Должности", "Должности, тарифы и нормативы"),
@@ -152,7 +144,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "guests",
     label: "Гости и лояльность",
     icon: HeartHandshake,
-    whisper: "Гости",
     items: [
       item("guests", "Гости", "Профили, контакты, согласия и история"),
       item("loyalty-programs", "Программы лояльности", "Бонусные и депозитные программы"),
@@ -165,7 +156,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "delivery",
     label: "Доставка и колл-центр",
     icon: Bike,
-    whisper: "Доставка",
     items: [
       item("delivery-orders", "Заказы доставки", "Подтверждение, приготовление, отправка и контроль SLA"),
       item("delivery-zones", "Зоны доставки", "География, тарифы, минимальная сумма и нормативы SLA"),
@@ -179,7 +169,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "corporation",
     label: "Корпорация",
     icon: Building2,
-    whisper: "Структура",
     items: [
       item("organizations", "Организации", "Юридическая и управленческая структура"),
       item("restaurants", "Рестораны", "Торговые предприятия и настройки точек"),
@@ -192,7 +181,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "exchange",
     label: "Обмен и интеграции",
     icon: Plug,
-    whisper: "Обмен",
     items: [
       item("integration-1c", "1С", "Выгрузка документов и справочников", undefined, "integration"),
       item("integration-edi", "EDI", "Заказы и накладные поставщиков", undefined, "integration"),
@@ -210,7 +198,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "admin",
     label: "Администрирование",
     icon: Settings,
-    whisper: "Система",
     items: [
       item("users", "Пользователи", "Роли и области ответственности по ресторанам и складам"),
       item("roles", "Роли и права", "Разрешения на просмотр, изменение и проведение по каждому модулю"),
@@ -226,7 +213,6 @@ export const officeNavigation: OfficeNavigationGroup[] = [
     id: "reports",
     label: "Отчёты",
     icon: ChartColumn,
-    whisper: "Аналитика",
     items: [
       item("reports", "Все отчёты", "Полный каталог iiko и конструктор OLAP", undefined, "report"),
       item("report-favorites", "Избранные отчёты", "Закреплённые представления", undefined, "report"),

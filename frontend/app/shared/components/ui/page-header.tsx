@@ -13,20 +13,20 @@ export interface PageHeaderProps {
   className?: string
 }
 
-/** Cormorant title with the 4px rust heading accent (design skill). */
+/** Plain sans page title, top-left; actions on the right. */
 export function PageHeader({ title, description, breadcrumb, actions, titleAddon, className }: PageHeaderProps) {
   return (
     <header className={cn("flex flex-col gap-2", className)}>
       {breadcrumb}
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1 border-l-4 border-rust pl-3">
+        <div className="flex flex-col gap-1">
           {titleAddon ? (
             <div className="flex items-center gap-1">
-              <h1 className="font-display text-display font-semibold text-foreground">{title}</h1>
+              <h1 className="text-display font-semibold tracking-tight text-foreground">{title}</h1>
               {titleAddon}
             </div>
           ) : (
-            <h1 className="font-display text-display font-semibold text-foreground">{title}</h1>
+            <h1 className="text-display font-semibold tracking-tight text-foreground">{title}</h1>
           )}
           {description ? <p className="text-body-sm text-muted-foreground">{description}</p> : null}
         </div>

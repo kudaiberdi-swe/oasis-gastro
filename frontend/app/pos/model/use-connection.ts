@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react"
 import { useConvex } from "convex/react"
 
-import { syncStateFrom } from "@/pos/components/app-header"
+import { syncStateFrom } from "@/pos/components/pos-rail"
 import { ruT } from "@/pos/i18n"
 
 /** Shown under the header and next to the blocked buttons while the Convex link is down (`t("error.offline")` in the POS). */

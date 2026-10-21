@@ -96,18 +96,33 @@ function useNow(fixed?: number) {
   return fixed ?? now
 }
 
-// Pressed feedback on touch: a 1px drop and a background shift, 150ms (the redesign brief).
+// Pressed feedback on touch: a 1px drop and a shadow, 150ms (the redesign brief).
 const tileClass = cn(
-  "relative flex min-h-28 flex-col items-start justify-between gap-2 overflow-hidden rounded-control border p-3 text-left transition-[background-color,transform] duration-150 active:translate-y-px disabled:cursor-not-allowed disabled:active:translate-y-0",
+  "relative flex min-h-28 flex-col items-start justify-between gap-2 overflow-hidden rounded-card border border-transparent p-3 text-left transition-[box-shadow,transform] duration-150 hover:shadow-panel active:translate-y-px disabled:cursor-not-allowed disabled:hover:shadow-none disabled:active:translate-y-0",
   focusRingClass,
 )
-// The current check: 2px foreground frame and a gold strip on the left — never primary (POS-DESIGN §6.2).
-const activeClass = "border-foreground ring-1 ring-inset ring-foreground pl-4 before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-gold"
+// The current check: a 2px foreground frame — never primary (POS-DESIGN §6.2).
+const activeClass = "border-foreground ring-1 ring-inset ring-foreground"
+
+/** What a table tile shows by colour: free green, taken (a check of this till) red, held amber, taken at another till grey. */
+export type TableKind = "free" | "taken" | "held" | "elsewhere"
+
+export function tableKind(table: Pick<FloorTable, "checks">): TableKind {
+  if (!table.checks.length) return "free"
+  const mine = table.checks.filter((check) => check.mine)
+  if (!mine.length) return "elsewhere"
+  return mine.some((check) => check.status === "held") ? "held" : "taken"
+}
+
+const KIND_TILE: Record<TableKind, string> = { free: "bg-success-surface", taken: "bg-destructive-surface", held: "bg-warning-surface", elsewhere: "bg-muted" }
+const KIND_DOT: Record<TableKind, string> = { free: "bg-success", taken: "bg-destructive", held: "bg-warning", elsewhere: "bg-muted-foreground" }
+const KIND_TONE = { free: "success", taken: "danger", held: "warning", elsewhere: "neutral" } as const satisfies Record<TableKind, string>
 
 function CheckMark({ check }: { check: FloorCheck }) {
   const t = useT()
-  if (check.status === "held") return <TonePill tone="warning">{t("status.order.held")}</TonePill>
-  if (check.kitchenSentAt) return <TonePill tone="info">{t("floor.onKitchen")}</TonePill>
+  // On a tinted tile the pill sits on white, so an amber «Отложен» never melts into an amber tile.
+  if (check.status === "held") return <TonePill tone="warning" className="bg-card">{t("status.order.held")}</TonePill>
+  if (check.kitchenSentAt) return <TonePill tone="info" className="bg-card">{t("floor.onKitchen")}</TonePill>
   return null
 }
 
@@ -212,6 +227,8 @@ function FloorBody({
   const [digits, setDigits] = useState("")
   const [moving, setMoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The table in the side card: the one under the pointer or keyboard focus, else the current check's table.
+  const [previewId, setPreviewId] = useState<string | null>(null)
 
   const halls = useMemo(() => floor?.halls ?? [], [floor])
   const allTables = useMemo<PlacedTable[]>(() => halls.flatMap((hall) => hall.tables.map((table) => ({ table, hall: hall.name }))), [halls])
@@ -225,6 +242,8 @@ function FloorBody({
   const orphans = mode === "open" ? (floor?.orphans ?? []).filter((check) => !needle || checkTitle(check, t).toLocaleLowerCase("ru").includes(needle)) : []
   const noPlan = floor !== undefined && floor.tableCount === 0
   const freeCount = allTables.filter(({ table }) => table.checks.length === 0).length
+  const preview = allTables.find(({ table }) => table.tableId === previewId) ?? allTables.find(({ table }) => table.checks.some((check) => check.orderId === activeOrderId))
+  const showCard = mode === "open" && floor !== undefined && !noPlan
 
   async function moveTo(seat: { tableLabel: string; hallLabel?: string }) {
     if (!onMove || moving) return
@@ -344,7 +363,7 @@ function FloorBody({
                 type="button"
                 aria-current={check.orderId === activeOrderId ? "true" : undefined}
                 onClick={() => onSelectCheck(check.orderId)}
-                className={cn(tileClass, "min-h-16 w-full flex-row items-center bg-card hover:bg-muted active:bg-muted", check.orderId === activeOrderId ? activeClass : "border-input")}
+                className={cn(tileClass, "min-h-16 w-full flex-row items-center border-input bg-card", check.orderId === activeOrderId && activeClass)}
               >
                 <span className="flex flex-wrap items-center gap-2 text-body">
                   <span className="font-semibold">№{check.number}</span>
@@ -403,57 +422,61 @@ function FloorBody({
         </p>
       )}
 
-      <div id={panelId} role={halls.length > 1 && !needle ? "tabpanel" : undefined} aria-label={hall ? t("floor.tablesAria", { name: needle ? t("floor.search") : hall }) : undefined} className="-m-1.5 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-1.5">
-        {floor === undefined ? (
-          <div role="status" aria-label={t("floor.loading")} className="grid grid-cols-[repeat(auto-fill,minmax(144px,1fr))] gap-2">
-            {Array.from({ length: 12 }, (_, index) => (
-              <Skeleton key={index} className="h-28" />
-            ))}
-          </div>
-        ) : (
-          <>
-            {!noPlan &&
-              (sorted.length ? (
-                <ul aria-label={t("floor.tables")} className="grid grid-cols-[repeat(auto-fill,minmax(144px,1fr))] gap-2">
-                  {sorted.map(({ table, hall: hallName }) => (
-                    <li key={table.tableId}>
-                      <TableTile
-                        table={table}
-                        hall={hallName}
-                        showHall={Boolean(needle) && halls.length > 1}
-                        mode={mode}
-                        activeOrderId={activeOrderId}
-                        currentTable={currentTable}
-                        now={now}
-                        busy={moving}
-                        onChoose={() => chooseTable(table, hallName)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="py-6 text-center text-body text-muted-foreground">{needle ? t("floor.noMatch") : t("floor.noTables")}</p>
+      <div className="flex min-h-0 flex-1 gap-4">
+        <div id={panelId} role={halls.length > 1 && !needle ? "tabpanel" : undefined} aria-label={hall ? t("floor.tablesAria", { name: needle ? t("floor.search") : hall }) : undefined} className="-m-1.5 flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-1.5">
+          {floor === undefined ? (
+            <div role="status" aria-label={t("floor.loading")} aria-busy="true" className="grid grid-cols-[repeat(auto-fill,minmax(144px,1fr))] gap-3">
+              {Array.from({ length: 12 }, (_, index) => (
+                <Skeleton key={index} className="aspect-square rounded-card" />
               ))}
+            </div>
+          ) : (
+            <>
+              {!noPlan &&
+                (sorted.length ? (
+                  <ul aria-label={t("floor.tables")} className="grid grid-cols-[repeat(auto-fill,minmax(144px,1fr))] gap-3">
+                    {sorted.map(({ table, hall: hallName }) => (
+                      <li key={table.tableId}>
+                        <TableTile
+                          table={table}
+                          hall={hallName}
+                          showHall={Boolean(needle) && halls.length > 1}
+                          mode={mode}
+                          activeOrderId={activeOrderId}
+                          currentTable={currentTable}
+                          now={now}
+                          busy={moving}
+                          onChoose={() => chooseTable(table, hallName)}
+                          onPreview={() => setPreviewId(table.tableId)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="py-6 text-center text-body text-muted-foreground">{needle ? t("floor.noMatch") : t("floor.noTables")}</p>
+                ))}
 
-            {orphans.length > 0 && (
-              <section aria-label={noPlan ? t("floor.openChecks") : t("floor.outOfPlan")} className="flex flex-col gap-2">
-                <h3 className="text-body font-semibold text-muted-foreground">
-                  {noPlan ? t("floor.openChecks") : t("floor.outOfPlan")} · {orphans.length}
-                </h3>
-                <ul className="grid grid-cols-[repeat(auto-fill,minmax(144px,1fr))] gap-2">
-                  {orphans.map((check) => (
-                    <li key={check.orderId}>
-                      <CheckTile check={check} active={check.orderId === activeOrderId} now={now} onChoose={() => onSelectCheck(check.orderId)} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+              {orphans.length > 0 && (
+                <section aria-label={noPlan ? t("floor.openChecks") : t("floor.outOfPlan")} className="flex flex-col gap-2">
+                  <h3 className="text-body font-semibold text-muted-foreground">
+                    {noPlan ? t("floor.openChecks") : t("floor.outOfPlan")} · {orphans.length}
+                  </h3>
+                  <ul className="grid grid-cols-[repeat(auto-fill,minmax(144px,1fr))] gap-3">
+                    {orphans.map((check) => (
+                      <li key={check.orderId}>
+                        <CheckTile check={check} active={check.orderId === activeOrderId} now={now} onChoose={() => onSelectCheck(check.orderId)} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
-            {noPlan && orphans.length === 0 && <EmptyState title={t("floor.noOpenChecks")} description={t("floor.noOpenChecksHint")} />}
-            {floor.truncated && <p className="text-body-sm text-muted-foreground">{t("floor.truncated")}</p>}
-          </>
-        )}
+              {noPlan && orphans.length === 0 && <EmptyState title={t("floor.noOpenChecks")} description={t("floor.noOpenChecksHint")} />}
+              {floor.truncated && <p className="text-body-sm text-muted-foreground">{t("floor.truncated")}</p>}
+            </>
+          )}
+        </div>
+        {showCard ? <TableCard preview={preview} now={now} busy={moving} onOpen={(row) => chooseTable(row.table, row.hall)} /> : null}
       </div>
 
       <DialogFooter className="shrink-0 sm:justify-start">
@@ -488,6 +511,7 @@ function TableTile({
   now,
   busy,
   onChoose,
+  onPreview,
 }: {
   table: FloorTable
   hall: string
@@ -499,8 +523,11 @@ function TableTile({
   now: number
   busy: boolean
   onChoose: () => void
+  /** Pointer or keyboard focus on the tile: show it in the side card. */
+  onPreview?: () => void
 }) {
   const t = useT()
+  const kind = tableKind(table)
   const mine = table.checks.filter((check) => check.mine)
   const taken = table.checks.length > 0
   const active = table.checks.some((check) => check.orderId === activeOrderId) || (mode === "move" && isCurrentTable(currentTable, table.label, hall))
@@ -520,17 +547,16 @@ function TableTile({
       aria-label={`${table.label}${showHall ? `, ${hall}` : ""}: ${state}${taken && !elsewhere ? `, ${checkAge(oldest, now, t)}` : ""}, ${places}`}
       disabled={disabled}
       onClick={onChoose}
-      className={cn(
-        tileClass,
-        "w-full",
-        !taken ? "border-dashed border-input bg-transparent hover:bg-muted active:bg-muted" : elsewhere ? "border-border bg-muted" : "border-input bg-card hover:bg-muted active:bg-muted",
-        mode === "move" && taken && "opacity-60",
-        active && activeClass,
-      )}
+      onPointerEnter={onPreview}
+      onFocus={onPreview}
+      className={cn(tileClass, "aspect-square w-full", KIND_TILE[kind], mode === "move" && taken && "opacity-60", active && activeClass)}
     >
       <span className="flex w-full items-start justify-between gap-2">
-        <span className="min-w-0 truncate font-display text-title font-semibold">{table.label}</span>
-        {mine.length > 1 && <span className="shrink-0 text-body-sm font-semibold text-muted-foreground tabular-nums">{t("floor.checks", { count: mine.length })}</span>}
+        <span className="min-w-0 truncate text-title font-semibold">{table.label}</span>
+        <span className="flex shrink-0 items-center gap-1.5 pt-1.5">
+          {mine.length > 1 && <span className="text-body-sm font-semibold text-muted-foreground tabular-nums">{t("floor.checks", { count: mine.length })}</span>}
+          <span aria-hidden className={cn("size-2.5 rounded-round", KIND_DOT[kind])} />
+        </span>
       </span>
       {showHall && <span className="-mt-2 text-body-sm text-muted-foreground">{hall}</span>}
       {!taken ? (
@@ -562,9 +588,9 @@ function CheckTile({ check, active, now, onChoose }: { check: FloorCheck; active
       aria-current={active ? "true" : undefined}
       aria-label={t("floor.checkAria", { title: checkTitle(check, t), number: check.number, age: checkAge(check.createdAt, now, t) })}
       onClick={onChoose}
-      className={cn(tileClass, "w-full border-input bg-card hover:bg-muted active:bg-muted", active && activeClass)}
+      className={cn(tileClass, "w-full", KIND_TILE[check.status === "held" ? "held" : "taken"], active && activeClass)}
     >
-      <span className="w-full min-w-0 truncate font-display text-title font-semibold">{checkTitle(check, t)}</span>
+      <span className="w-full min-w-0 truncate text-title font-semibold">{checkTitle(check, t)}</span>
       <span className="flex w-full flex-col items-start gap-1">
         <Money value={check.total} size="lg" />
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-muted-foreground">
@@ -575,5 +601,76 @@ function CheckTile({ check, active, now, onChoose }: { check: FloorCheck; active
         </span>
       </span>
     </button>
+  )
+}
+
+const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase("ru") + text.slice(1)
+
+/**
+ * The side card of «Зал» (redesign 2026-10): the table under the pointer or keyboard focus — else the current
+ * check's table — with its status, places and the check total, and «Открыть стол», which does what a tap on
+ * the tile does. Below, what the tile colours mean. A tap on a tile still opens it at once (no extra step).
+ */
+function TableCard({ preview, now, busy, onOpen }: { preview: PlacedTable | undefined; now: number; busy: boolean; onOpen: (row: PlacedTable) => void }) {
+  const t = useT()
+  const legend: Array<[TableKind, string]> = [
+    ["free", t("floor.free")],
+    ["taken", t("floor.taken")],
+    ["held", t("status.order.held")],
+    ["elsewhere", t("floor.otherTerminal")],
+  ]
+  const kind = preview ? tableKind(preview.table) : undefined
+  const mine = preview?.table.checks.filter((check) => check.mine) ?? []
+  const total = mine.reduce((sum, check) => sum + check.total, 0)
+  const oldest = mine.length ? Math.min(...mine.map((check) => check.createdAt)) : 0
+  const state = !preview || !kind ? "" : kind === "free" ? t("floor.free") : kind === "elsewhere" ? t("floor.takenAt", { terminal: preview.table.checks[0].terminalName ?? t("floor.otherTerminal") }) : kind === "held" ? t("status.order.held") : t("floor.taken")
+
+  return (
+    <aside className="flex w-72 shrink-0 flex-col gap-4 rounded-panel bg-muted p-4">
+      {preview && kind ? (
+        <div className="flex flex-col gap-3 rounded-card bg-card p-4 shadow-panel">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="truncate text-title font-semibold">{preview.table.label}</h3>
+              <p className="truncate text-body-sm text-muted-foreground">{preview.hall}</p>
+            </div>
+            <TonePill tone={KIND_TONE[kind]} className="mt-1 shrink-0">
+              {capitalize(state)}
+            </TonePill>
+          </div>
+          <dl className="flex flex-col gap-2 text-body-sm">
+            <div className="flex items-center justify-between gap-2">
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                <Users aria-hidden className="size-4" />
+                {t("floor.places", { count: preview.table.capacity })}
+              </dt>
+              {mine.length ? <dd className="text-muted-foreground tabular-nums">{checkAge(oldest, now, t)}</dd> : null}
+            </div>
+            {mine.length ? (
+              <div className="flex items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">
+                  {t("floor.orderTotal")}
+                  {mine.length === 1 ? ` №${mine[0].number}` : ` · ${t("floor.checks", { count: mine.length })}`}
+                </dt>
+                <dd>
+                  <Money value={total} size="lg" className="text-foreground" />
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          <Button size="lg" className="w-full" disabled={busy || kind === "elsewhere"} onClick={() => onOpen(preview)}>
+            {t("floor.openTable", { digits: "" }).trim()}
+          </Button>
+        </div>
+      ) : null}
+      <ul aria-label={t("floor.legend")} className="mt-auto flex flex-col gap-2 text-body-sm text-muted-foreground">
+        {legend.map(([key, label]) => (
+          <li key={key} className="flex items-center gap-2">
+            <span aria-hidden className={cn("size-2.5 shrink-0 rounded-round", KIND_DOT[key])} />
+            <span>{capitalize(label)}</span>
+          </li>
+        ))}
+      </ul>
+    </aside>
   )
 }

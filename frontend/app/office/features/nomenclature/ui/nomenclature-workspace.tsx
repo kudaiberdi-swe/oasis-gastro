@@ -23,7 +23,8 @@ import {
   type NomenclatureStatus,
 } from "../data/use-nomenclature"
 import { NewProductDialog } from "./new-product-dialog"
-import { ProductEditor, ProductThumb } from "./product-editor/product-editor"
+import { ProductEditor } from "./product-editor/product-editor"
+import { ProductThumb } from "./product-editor/product-thumb"
 import { ShowIikoDishesButton } from "./show-iiko-dishes"
 
 /** /office/nomenclature — the register; /office/nomenclature/:externalId — the product card. */
@@ -62,7 +63,7 @@ export const NOMENCLATURE_COLUMNS: Column<NomenclatureRow>[] = [
     header: "Наименование",
     cell: (row) => (
       <div className="flex min-w-0 items-center gap-3">
-        <ProductThumb imageUrl={row.imageUrl} categoryLabel={row.category.label} />
+        <ProductThumb imageUrl={row.imageUrl} />
         <div className="flex min-w-0 flex-col">
           <span className="truncate font-semibold text-foreground">{row.name}</span>
           {row.nameKk || row.description ? <span className="truncate text-caption text-muted-foreground">{row.nameKk || row.description}</span> : null}
@@ -71,7 +72,7 @@ export const NOMENCLATURE_COLUMNS: Column<NomenclatureRow>[] = [
     ),
   },
   { key: "category", header: "Категория", cell: (row) => row.category.label },
-  { key: "price", header: "Цена", numeric: true, cell: (row) => formatPriceRange(row.priceRange) },
+  { key: "price", header: "Цена", numeric: true, cell: (row) => <span className="font-semibold">{formatPriceRange(row.priceRange)}</span> },
   {
     key: "settings",
     header: "Настройки",
@@ -118,16 +119,18 @@ function NomenclatureRegister() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5 xl:px-8">
-      {canEdit ? (
-        <div className="flex flex-wrap justify-end gap-2">
-          <ShowIikoDishesButton />
-          <Button onClick={() => setCreating(true)}>
-            <Plus aria-hidden />
-            Новое блюдо
-          </Button>
-        </div>
-      ) : null}
-      <FilterTabs aria-label="Статус номенклатуры" value={filters.status} onValueChange={(value) => update({ status: value as NomenclatureStatus })} items={TABS} panelId={panelId} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FilterTabs aria-label="Статус номенклатуры" value={filters.status} onValueChange={(value) => update({ status: value as NomenclatureStatus })} items={TABS} panelId={panelId} />
+        {canEdit ? (
+          <div className="flex flex-wrap justify-end gap-2">
+            <ShowIikoDishesButton />
+            <Button onClick={() => setCreating(true)}>
+              <Plus aria-hidden />
+              Новое блюдо
+            </Button>
+          </div>
+        ) : null}
+      </div>
       <div id={panelId} role="tabpanel" aria-label={TABS.find((item) => item.value === filters.status)?.label} className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <Input

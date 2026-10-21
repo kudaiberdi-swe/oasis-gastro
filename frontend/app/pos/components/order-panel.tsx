@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react"
-import { Bike, ChefHat, Ellipsis, LoaderCircle, MessageSquareText, Minus, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
+import { Bike, ChefHat, Ellipsis, LoaderCircle, MessageSquareText, Minus, PauseCircle, Percent, Plus, ReceiptText, ShoppingBag, Trash2, UserRound, UtensilsCrossed } from "lucide-react"
 
 import { isLocked, lineDetails, lineDetailsKk, lineTotal, type OrderDraftLine } from "@/pos/features/order-taking/model/draft-lines"
 import { bilingualName, useT } from "@/pos/i18n"
 import { Button } from "@/shared/components/ui/button"
+import { DishPhoto } from "@/shared/components/ui/dish-photo"
 import { Money } from "@/shared/components/ui/money"
 import { SegmentedControl } from "@/shared/components/ui/segmented-control"
 import { StatusPill, TonePill } from "@/shared/components/ui/status-pill"
@@ -30,8 +31,12 @@ export function showServiceCharge(input: { mode: OrderType | undefined; percent:
   return input.mode !== "takeaway" && input.percent > 0
 }
 
-// Order lines: name · quantity stepper (48 + 32 + 48) · total; the bin sits under the total, apart from it.
-const LINE_GRID = "grid grid-cols-[minmax(0,1fr)_128px_96px] gap-x-2"
+// Order lines: thumbnail · name · total; under the name the round quantity stepper (48 + 32 + 48) and, apart from it, the bin.
+const LINE_GRID = "grid grid-cols-[48px_minmax(0,1fr)_auto] gap-x-3"
+// The tool row over the totals: icon over a short label, five in a row.
+// Round − / + of the quantity pill, 48px.
+const stepButton = "size-12 rounded-round hover:bg-accent-surface hover:text-accent"
+const toolButton = "h-16 min-w-0 flex-1 flex-col gap-1 rounded-card px-1 text-body-sm font-medium hover:bg-accent-surface hover:text-accent"
 
 export function OrderPanel({
   tableLabel,
@@ -71,6 +76,7 @@ export function OrderPanel({
   onAddSuggestion,
   disabled,
   offlineReason,
+  imageOf,
 }: {
   tableLabel: string
   orderNumber?: number
@@ -117,6 +123,8 @@ export function OrderPanel({
   disabled?: boolean
   /** No link to the server: «Оплатить» and «На кухню» are blocked and the reason is shown beside them. */
   offlineReason?: string | null
+  /** The dish photo of a line's product, when the screen knows it; otherwise the placeholder. */
+  imageOf?: (productId: string) => string | undefined
 }) {
   const t = useT()
   const hasActive = lines.some((line) => !line.voidedAt)
@@ -126,7 +134,7 @@ export function OrderPanel({
   return (
     <section
       aria-label={t("order.aria")}
-      className="flex h-full w-[420px] shrink-0 flex-col overflow-hidden rounded-panel border border-border bg-card min-[1440px]:w-[440px] min-[1920px]:w-[470px]"
+      className="flex h-full w-[420px] shrink-0 flex-col overflow-hidden rounded-panel bg-card shadow-panel min-[1440px]:w-[440px] min-[1920px]:w-[470px]"
     >
       <div className="flex flex-col gap-3 border-b border-border px-4 py-3">
         <div className="flex min-h-12 min-w-0 items-center gap-2">
@@ -170,25 +178,18 @@ export function OrderPanel({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
         {lines.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 py-10 text-center">
-            <span aria-hidden className="grid size-16 place-items-center rounded-card bg-muted text-muted-foreground">
+            <span aria-hidden className="grid size-16 place-items-center rounded-round bg-accent-surface text-accent">
               <ReceiptText className="size-7" />
             </span>
             <p className="font-display text-title font-semibold">{t("order.empty")}</p>
             <p className="text-body-sm text-muted-foreground">{t("order.emptyHint")}</p>
           </div>
         ) : (
-          <>
-          <div aria-hidden className={cn(LINE_GRID, "border-b border-border pb-2 text-body-sm font-semibold text-muted-foreground")}>
-            <span>{t("order.colName")}</span>
-            <span className="text-center">{t("order.colQty")}</span>
-            <span className="text-right">{t("order.colSum")}</span>
-          </div>
           <ul className="flex flex-col divide-y divide-border">
             {lines.map((line) => (
-              <OrderLineRow key={line.clientLineId} line={line} onIncrement={onIncrement} onDecrement={onDecrement} onRemove={onRemove} onVoid={onVoid} />
+              <OrderLineRow key={line.clientLineId} line={line} imageUrl={imageOf?.(line.productId)} onIncrement={onIncrement} onDecrement={onDecrement} onRemove={onRemove} onVoid={onVoid} />
             ))}
           </ul>
-          </>
         )}
       </div>
       {suggestion && hasActive && onAddSuggestion && (
@@ -210,29 +211,33 @@ export function OrderPanel({
           </button>
         </div>
       )}
-      <div className="flex gap-1 border-t border-border bg-muted p-1">
-        <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onDiscount} disabled={disabled || !hasActive}>
+      <div className="mx-3 flex gap-1 rounded-card bg-muted p-1">
+        <Button variant="ghost" className={toolButton} onClick={onDiscount} disabled={disabled || !hasActive}>
           <Percent />
           {t("order.discount")}
         </Button>
         {onGuest && (
-          <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onGuest} disabled={disabled || !hasActive} title={guestLabel}>
+          <Button variant="ghost" className={toolButton} onClick={onGuest} disabled={disabled || !hasActive} title={guestLabel}>
             <UserRound />
-            <span className="truncate">{guestLabel || t("common.guest")}</span>
+            <span className="max-w-full truncate">{guestLabel || t("common.guest")}</span>
           </Button>
         )}
-        <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen || Boolean(offlineReason)} title={offlineReason ?? undefined}>
+        <Button variant="ghost" className={toolButton} onClick={onSendToKitchen} disabled={disabled || !canSendToKitchen || sendingToKitchen || Boolean(offlineReason)} title={offlineReason ?? undefined}>
           <ChefHat />
-          {sendingToKitchen ? t("order.sending") : t("order.toKitchen")}
+          <span className="max-w-full truncate">{sendingToKitchen ? t("order.sending") : t("order.toKitchen")}</span>
+        </Button>
+        <Button variant="ghost" className={toolButton} onClick={onHold} disabled={disabled || !hasActive || saving}>
+          <PauseCircle />
+          <span className="max-w-full truncate">{t("order.hold")}</span>
         </Button>
         {onMore && (
-          <Button variant="ghost" className="h-12 min-w-0 flex-1 px-2" aria-haspopup="dialog" onClick={onMore} disabled={disabled}>
+          <Button variant="ghost" className={toolButton} aria-haspopup="dialog" onClick={onMore} disabled={disabled}>
             <Ellipsis />
             {t("order.more")}
           </Button>
         )}
       </div>
-      <div className="space-y-1.5 border-t border-border px-4 py-3 text-body-sm">
+      <div className="space-y-1.5 px-4 pt-3 pb-3 text-body-sm">
         <div className="flex justify-between text-muted-foreground">
           <span>{t("order.subtotal")}</span>
           <span className="tabular-nums">{formatTenge(subtotal)}</span>
@@ -259,12 +264,12 @@ export function OrderPanel({
             <span className="tabular-nums">{formatTenge(-loyaltyRedemption)}</span>
           </div>
         )}
-        <div className="flex items-baseline justify-between border-t border-gold/45 pt-2">
+        <div className="flex items-baseline justify-between border-t border-border pt-2">
           <span className="flex flex-col">
             <span className="text-body font-semibold">{t("order.toPay")}</span>
             <span className="text-body-sm text-muted-foreground">{t("order.positions", { count: itemCount })}</span>
           </span>
-          <Money value={payable} size="xl" />
+          <Money value={payable} size="xl" className="text-foreground" />
         </div>
         {error && (
           <p role="alert" className="text-body-sm font-semibold text-destructive">
@@ -277,13 +282,10 @@ export function OrderPanel({
           {offlineReason}
         </p>
       )}
-      <div className="flex gap-2 p-4 pt-0">
-        <Button variant="secondary" size="lg" className="flex-1" onClick={onHold} disabled={disabled || !hasActive || saving}>
-          {t("order.hold")}
-        </Button>
+      <div className="p-3 pt-0">
         <Button
           size="lg"
-          className="flex-[1.6]"
+          className="h-16 w-full rounded-card text-title-sm shadow-panel"
           onClick={onCheckout}
           disabled={disabled || !hasActive || saving || Boolean(offlineReason)}
           title={offlineReason ?? undefined}
@@ -298,12 +300,14 @@ export function OrderPanel({
 
 function OrderLineRow({
   line,
+  imageUrl,
   onIncrement,
   onDecrement,
   onRemove,
   onVoid,
 }: {
   line: OrderDraftLine
+  imageUrl?: string
   onIncrement: (clientLineId: string) => void
   onDecrement: (clientLineId: string) => void
   onRemove: (clientLineId: string) => void
@@ -326,8 +330,9 @@ function OrderLineRow({
   const remove = () => (sent ? onVoid(line.clientLineId) : onRemove(line.clientLineId))
 
   return (
-    <li className={cn(LINE_GRID, "items-start py-3", voided && "text-muted-foreground")} aria-label={voided ? t("line.voided", { name: title.primary.text }) : undefined}>
-      <div className="min-w-0 pt-3">
+    <li className={cn(LINE_GRID, "items-start gap-y-2 py-3", voided && "text-muted-foreground")} aria-label={voided ? t("line.voided", { name: title.primary.text }) : undefined}>
+      <DishPhoto src={imageUrl} className={cn("size-12 rounded-control", voided && "opacity-50")} />
+      <div className="min-w-0">
         <p lang={title.primary.lang} className={cn("text-body font-semibold", voided && "line-through")}>
           {title.primary.text}
         </p>
@@ -355,29 +360,27 @@ function OrderLineRow({
           </TonePill>
         )}
       </div>
+      <Money value={lineTotal(line)} size="sm" className={cn("text-right text-foreground", voided && "text-muted-foreground line-through")} />
       {voided ? (
-        <span className="pt-3 text-center text-body font-semibold tabular-nums line-through">{line.quantity}</span>
+        <span className="col-start-2 text-body font-semibold tabular-nums line-through">× {line.quantity}</span>
       ) : (
-        <div className="flex items-center">
-          <Button variant="secondary" size="icon" className="size-12" aria-label={sent ? t("line.voidAria", { name: title.primary.text }) : t("line.decrementAria", { name: title.primary.text })} onClick={decrement}>
-            <Minus />
-          </Button>
-          <span className="w-8 text-center text-body font-semibold tabular-nums">{line.quantity}</span>
-          <Button variant="secondary" size="icon" className="size-12" aria-label={t("line.incrementAria", { name: title.primary.text })} onClick={() => onIncrement(line.clientLineId)}>
-            <Plus />
+        <div className="col-span-2 col-start-2 flex items-center justify-between gap-2">
+          <div className="flex items-center rounded-round bg-muted">
+            <Button variant="ghost" size="icon" className={stepButton} aria-label={sent ? t("line.voidAria", { name: title.primary.text }) : t("line.decrementAria", { name: title.primary.text })} onClick={decrement}>
+              <Minus />
+            </Button>
+            <span className="w-8 text-center text-body font-semibold tabular-nums">{line.quantity}</span>
+            <Button variant="ghost" size="icon" className={stepButton} aria-label={t("line.incrementAria", { name: title.primary.text })} onClick={() => onIncrement(line.clientLineId)}>
+              <Plus />
+            </Button>
+          </div>
+          <Button variant="ghost" size="icon" aria-label={sent ? t("line.voidKitchenAria", { name: title.primary.text }) : t("line.removeAria", { name: title.primary.text })} onClick={remove} disabled={isLocked(line) && !sent} className="-mr-2 size-12 rounded-round text-muted-foreground hover:bg-destructive-surface hover:text-destructive">
+            <Trash2 />
           </Button>
         </div>
       )}
-      <div className="flex min-w-0 flex-col items-end gap-2">
-        <Money value={lineTotal(line)} size="sm" className={cn("pt-3 text-right", voided && "text-muted-foreground line-through")} />
-        {!voided && (
-          <Button variant="ghost" size="icon" aria-label={sent ? t("line.voidKitchenAria", { name: title.primary.text }) : t("line.removeAria", { name: title.primary.text })} onClick={remove} disabled={isLocked(line) && !sent} className="-mr-3 size-12 text-muted-foreground hover:text-destructive">
-            <Trash2 />
-          </Button>
-        )}
-      </div>
       {confirmRemove && (
-        <div role="group" aria-label={t("line.confirmRemoveAria", { name: title.primary.text })} className="col-span-3 mt-2 flex items-center justify-between gap-2 rounded-control bg-muted px-3 py-2">
+        <div role="group" aria-label={t("line.confirmRemoveAria", { name: title.primary.text })} className="col-span-full flex items-center justify-between gap-2 rounded-control bg-muted px-3 py-2">
           <span className="text-body font-semibold">{t("line.confirmRemove")}</span>
           <span className="flex gap-2">
             <Button variant="secondary" className="h-[var(--control-h-pos)]" onClick={() => setConfirmRemove(false)}>
