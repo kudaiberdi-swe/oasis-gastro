@@ -85,7 +85,7 @@ export function MainTab({ card, draft, errors, set, groupOptions, readOnly, pric
           </Field>
         </div>
         <label className="flex items-center gap-3 text-body-sm font-medium text-foreground">
-          <Switch checked={draft.enabled} onCheckedChange={(checked) => set({ enabled: checked })} disabled={readOnly} />
+          <Switch offTone="danger" checked={draft.enabled} onCheckedChange={(checked) => set({ enabled: checked })} disabled={readOnly} />
           В продаже
           <span className="font-normal text-muted-foreground">— показывается в кассе</span>
         </label>
