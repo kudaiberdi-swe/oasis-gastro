@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { ConvexError } from "convex/values"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { AppHeader } from "@/pos/components/app-header"
+import { PosRail } from "@/pos/components/pos-rail"
 import { OrderPanel, showServiceCharge, type OrderTypeOption } from "@/pos/components/order-panel"
 import { ProductCard } from "@/pos/components/product-card"
 import { groupHint } from "@/pos/features/catalog/model/modifier-selection"
@@ -44,29 +44,29 @@ describe("ProductCard — Kazakh name and the media area", () => {
     expect(document.querySelector('[lang="kk"]')).toBeNull()
   })
 
-  it("a card without a photo keeps the same 4:3 media area with a placeholder, not a taller body", () => {
+  it("a card without a photo keeps the same 4:3 rounded media area with a placeholder, not a taller body", () => {
     render(
       <>
         <ProductCard name="Бешбармак" nameKk="Бешбармақ" price={5990} imageUrl="/images/beshbarmak.jpg" onClick={() => {}} />
         <ProductCard name="Айран" nameKk="Айран" price={700} onClick={() => {}} />
       </>,
     )
-    const media = screen.getAllByTestId("product-media")
+    const media = screen.getAllByTestId("dish-photo")
     expect(media).toHaveLength(2)
     for (const area of media) expect(area.className).toContain("aspect-[4/3]")
-    const placeholder = screen.getByTestId("product-placeholder")
-    expect(placeholder.getAttribute("data-initial")).toBe("А")
-    // The initial is drawn by CSS: it is not part of the card's name.
+    for (const area of media) expect(area.className).toContain("rounded-card")
+    expect(screen.getAllByTestId("dish-placeholder")).toHaveLength(1)
+    // The placeholder is an icon: it is not part of the card's name.
     expect(screen.getByRole("button", { name: /^Айран/ }).textContent?.startsWith("Айран")).toBe(true)
   })
 
   it("a broken photo falls back to the placeholder instead of the browser's broken-image glyph", () => {
     render(<ProductCard name="Шұбат" nameKk="Шұбат" price={850} imageUrl="/images/missing.jpg" onClick={() => {}} />)
     const image = document.querySelector("img")!
-    expect(screen.queryByTestId("product-placeholder")).toBeNull()
+    expect(screen.queryByTestId("dish-placeholder")).toBeNull()
     fireEvent.error(image)
     expect(document.querySelector("img")).toBeNull()
-    expect(screen.getByTestId("product-placeholder").getAttribute("data-initial")).toBe("Ш")
+    expect(screen.getByTestId("dish-placeholder")).toBeTruthy()
   })
 
   it("the ☆ zone is 48px", () => {
@@ -143,9 +143,9 @@ describe("OrderPanel — service charge, Kazakh lines, 48px targets", () => {
   it("steppers, the bin and the action bar are 48px; the bin is apart from the line total", () => {
     renderPanel()
     for (const name of ["Убрать одну порцию: Бешбармак", "Добавить порцию: Бешбармак", "Удалить: Бешбармак"]) expect(screen.getByRole("button", { name }).className).toContain("size-12")
-    for (const name of ["Скидка", "На кухню", "Ещё"]) expect(screen.getByRole("button", { name }).className).toContain("h-12")
+    for (const name of ["Скидка", "На кухню", "Отложить", "Ещё"]) expect(screen.getByRole("button", { name }).className).toContain("h-16")
     const bin = screen.getByRole("button", { name: "Удалить: Бешбармак" })
-    expect(bin.parentElement?.className).toContain("gap-2")
+    expect(bin.parentElement?.className).toContain("justify-between")
   })
 })
 
@@ -186,10 +186,10 @@ describe("ProfileDialog — screen settings moved out of the header", () => {
   })
 })
 
-describe("AppHeader — logo, no theme/density toggles, readable shift and badge", () => {
-  function renderHeader(props: Partial<Parameters<typeof AppHeader>[0]> = {}) {
+describe("PosRail — logo, no theme/density toggles, readable shift and badge", () => {
+  function renderHeader(props: Partial<Parameters<typeof PosRail>[0]> = {}) {
     return render(
-      <AppHeader restaurantName="Алматы" employeeName="Айгерим" shiftNumber={12} shiftOpenedAt={Date.UTC(2026, 8, 26, 4, 41)} onOpenShiftInfo={() => {}} onNotifications={() => {}} onLock={() => {}} {...props} />,
+      <PosRail restaurantName="Алматы" employeeName="Айгерим" shiftNumber={12} shiftOpenedAt={Date.UTC(2026, 8, 26, 4, 41)} onOpenShiftInfo={() => {}} onNotifications={() => {}} onLock={() => {}} {...props} />,
     )
   }
 
@@ -210,7 +210,8 @@ describe("AppHeader — logo, no theme/density toggles, readable shift and badge
   it("labels the time in the shift pill as the opening time", () => {
     renderHeader()
     const pill = screen.getByRole("button", { name: "Смена №12, открыта в 09:41" })
-    expect(pill.textContent).toBe("Смена №12· открыта 09:41")
+    // «Смена №12» on the 96px rail, «№12» on the 72px one, then the opening time.
+    expect(pill.textContent).toBe("Смена №12№1209:41")
   })
 
   it("the unread badge is set at 14px", () => {

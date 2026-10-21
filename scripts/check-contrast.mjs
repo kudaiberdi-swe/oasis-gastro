@@ -36,6 +36,14 @@ export const PAIRS = [
   ["muted-foreground", "destructive-surface", 4.5],
   ["destructive-muted", "muted", 4.5],
   ["chip-active-foreground", "chip-active", 4.5],
+  // POS hall tiles tinted by status: the table name, its places and the check total.
+  ["foreground", "success-surface", 4.5],
+  ["muted-foreground", "success-surface", 4.5],
+  ["accent", "destructive-surface", 4.5],
+  ["accent", "warning-surface", 4.5],
+  // KDS column headers: «Новые» on blue, «Готово» on green.
+  ["info-foreground", "info", 4.5],
+  ["success-foreground", "success", 4.5],
   ["chip-active-muted", "chip-active", 4.5],
   ["nav-foreground", "nav", 4.5],
   ["nav-muted", "nav", 4.5],

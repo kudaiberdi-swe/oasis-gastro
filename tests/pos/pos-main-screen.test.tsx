@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { AppHeader, headerDate, SyncIndicator, syncStateFrom } from "@/pos/components/app-header"
+import { PosRail, headerDate, SyncIndicator, syncStateFrom } from "@/pos/components/pos-rail"
 import { OrderPanel } from "@/pos/components/order-panel"
 import { ProductCard } from "@/pos/components/product-card"
 import { goBack, openView, parseRecent, pushRecent, RECENT_LIMIT, sortProducts, type CatalogNavigation, type CatalogProduct } from "@/pos/features/catalog/model/catalog-view"
@@ -131,7 +131,7 @@ describe("CatalogPanel (W1-POS-11)", () => {
     renderCatalog()
     for (const name of ["Назад", "Все блюда", "Избранное", "Последние"]) expect(screen.getByRole("button", { name }).className).toContain("size-12")
     expect((screen.getByRole("button", { name: "Назад" }) as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByRole("searchbox", { name: "Поиск блюда или напитка" }).className).toContain("h-[var(--control-h-pos)]")
+    expect(screen.getByRole("searchbox", { name: "Поиск по меню…" }).className).toContain("h-[var(--control-h-pos)]")
     expect(screen.queryByText(/загружено/)).toBeNull()
     expect(screen.queryByText("Нажмите на карточку, чтобы добавить позицию")).toBeNull()
     expect(screen.queryByRole("combobox", { name: "Сортировка" })).toBeNull()
@@ -273,40 +273,54 @@ describe("ChecksSwitcher (W1-POS-10, hall grid)", () => {
   })
 })
 
-describe("AppHeader (W1-POS-10)", () => {
-  const renderHeader = (props: Partial<Parameters<typeof AppHeader>[0]> = {}) =>
+describe("PosRail (W1-POS-10, redesign 2026-10)", () => {
+  const renderHeader = (props: Partial<Parameters<typeof PosRail>[0]> = {}) =>
     render(
       <ThemeProvider>
-        <AppHeader restaurantName="Алматы" terminalName="Главная касса" city="Алматы" employeeName="Айгерим" employeeRole="Менеджер" shiftNumber={12} onOpenShiftInfo={() => {}} onLock={() => {}} {...props} />
+        <PosRail restaurantName="Алматы" terminalName="Главная касса" city="Алматы" employeeName="Айгерим" employeeRole="Менеджер" shiftNumber={12} onOpenShiftInfo={() => {}} onLock={() => {}} {...props} />
       </ThemeProvider>,
     )
 
-  it("shows «Касса / Офис» only when asked (manager, administrator)", () => {
-    renderHeader()
-    expect(screen.queryByRole("navigation", { name: "Раздел" })).toBeNull()
-    cleanup()
-    renderHeader({ showOfficeSwitch: true })
+  it("sections «Касса», «Зал», «Экран кухни», «Главное меню»; «Офис» only when asked (manager, administrator)", () => {
+    const onFloor = vi.fn()
+    const onKitchen = vi.fn()
+    const onMenu = vi.fn()
+    renderHeader({ onFloor, onKitchen, onMenu, kitchenCount: 3 })
     const nav = screen.getByRole("navigation", { name: "Раздел" })
-    expect(within(nav).getByText("Касса").closest("[aria-current]")?.getAttribute("aria-current")).toBe("page")
-    expect(within(nav).getByRole("link", { name: "Офис" }).getAttribute("href")).toBe("/office")
+    expect(within(nav).getByRole("button", { name: "Касса" }).getAttribute("aria-current")).toBe("page")
+    expect(within(nav).queryByRole("link", { name: "Офис" })).toBeNull()
+    fireEvent.click(within(nav).getByRole("button", { name: "Зал" }))
+    fireEvent.click(within(nav).getByRole("button", { name: "Экран кухни · 3" }))
+    fireEvent.click(within(nav).getByRole("button", { name: "Главное меню" }))
+    expect([onFloor, onKitchen, onMenu].every((handler) => handler.mock.calls.length === 1)).toBe(true)
+    cleanup()
+    renderHeader({ showOfficeSwitch: true, view: "kitchen", onKitchen })
+    const office = screen.getByRole("navigation", { name: "Раздел" })
+    expect(within(office).getByRole("link", { name: "Офис" }).getAttribute("href")).toBe("/office")
+    expect(within(office).getByRole("button", { name: "Экран кухни" }).getAttribute("aria-current")).toBe("page")
+    expect(within(office).getByRole("button", { name: "Касса" }).getAttribute("aria-current")).toBeNull()
   })
 
-  it("brand, «<касса> · <город>», profile with role and date, 64px", () => {
-    renderHeader({ now: Date.UTC(2026, 8, 24, 6) })
-    expect(screen.getByText("Sandyq · Алматы")).toBeTruthy()
-    expect(screen.getByText("Главная касса · Алматы")).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Профиль: Айгерим" }).textContent).toContain("Менеджер · 24 сентября")
-    expect(screen.getByRole("banner").className).toContain("h-16")
+  it("brand and «<касса> · <город>» in the mark's tooltip, profile with role and date, a 72/96px rail with 48px targets", () => {
+    renderHeader({ now: Date.UTC(2026, 8, 24, 6), onNotifications: () => {} })
+    expect(screen.getByRole("img", { name: "Sandyq" }).getAttribute("title")).toBe("Sandyq · Алматы\nГлавная касса · Алматы")
+    const profile = screen.getByRole("button", { name: "Профиль: Айгерим" })
+    expect(profile.getAttribute("title")).toContain("Менеджер · 24 сентября")
+    expect(profile.textContent).toBe("А")
+    const rail = screen.getByRole("banner")
+    expect(rail.className).toContain("w-[72px]")
+    expect(rail.className).toContain("min-[1280px]:w-24")
+    for (const name of ["Профиль: Айгерим", "Уведомления", "Заблокировать кассу"]) expect(screen.getByRole("button", { name }).className).toContain("size-12")
     expect(headerDate(Date.UTC(2026, 8, 24, 20))).toBe("25 сентября")
     expect(headerDate(Date.UTC(2026, 8, 24, 20), createTranslator("kk"))).toBe("25 қыркүйек")
     expect(headerDate(Date.UTC(2026, 11, 31, 20), createTranslator("kk"))).toBe("1 қаңтар")
   })
 
-  it("«Синхронизировано»: text from 1440px, a dot below; offline and slow requests", () => {
+  it("«Синхронизировано»: an icon with a dot, the word for screen readers; offline and slow requests", () => {
     renderHeader({ syncIndicator: <SyncIndicator state="synced" /> })
     const label = screen.getByText("Синхронизировано")
     expect(label.className).toContain("sr-only")
-    expect(label.className).toContain("min-[1440px]:not-sr-only")
+    expect(label.parentElement?.getAttribute("title")).toBe("Синхронизировано")
     expect(syncStateFrom({ isWebSocketConnected: true })).toBe("synced")
     expect(syncStateFrom({ isWebSocketConnected: true }, true)).toBe("syncing")
     expect(syncStateFrom({ isWebSocketConnected: false, hasEverConnected: true })).toBe("offline")
@@ -359,7 +373,7 @@ describe("OrderPanel header and empty state (W1-POS-10)", () => {
     expect(screen.getAllByText(/0 позиций/)).toHaveLength(1)
     expect(screen.queryByRole("button", { name: "Действия с заказом" })).toBeNull()
     const more = screen.getByRole("button", { name: "Ещё" })
-    expect(more.className).toContain("h-12")
+    expect(more.className).toContain("h-16")
     fireEvent.click(more)
     expect(onMore).toHaveBeenCalled()
     // One primary on the screen: «Оплатить».

@@ -69,7 +69,7 @@ function column(title: string) {
 }
 
 describe("KitchenBoard (W1-KDS-02)", () => {
-  it("lays tickets out in «В очереди / Готовится / Готово» with counters and one primary per ticket", () => {
+  it("lays tickets out in «Новые / Готовятся / Готово» with counters and one primary per ticket", () => {
     convex.tickets = [
       ticket({ _id: "a", orderNumber: 100001, tableLabel: "5", lines: [{ _id: "la", productName: "Бургер говядина", quantity: 1, instructions: ["БЕЗ ЛУКА", "+СЫР ×2"] }] }),
       ticket({ _id: "b", orderNumber: 100002, status: "preparing", fulfillment: "takeaway", source: "kiosk" }),
@@ -80,19 +80,19 @@ describe("KitchenBoard (W1-KDS-02)", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Заказы кухни" })).toBeTruthy()
     expect(screen.getByText("3 активных")).toBeTruthy()
-    expect(within(column("В очереди")).getByRole("heading", { level: 2 }).textContent).toBe("В очереди1")
+    expect(within(column("Новые")).getByRole("heading", { level: 2 }).textContent).toBe("Новые(1)")
 
-    const queued = within(column("В очереди")).getByRole("article", { name: "Заказ №100001" })
+    const queued = within(column("Новые")).getByRole("article", { name: "Заказ №100001" })
     expect(within(queued).getByText("Стол 5 · Касса")).toBeTruthy()
     expect(within(queued).getByText("БЕЗ ЛУКА").className).toContain("text-destructive")
     expect(within(queued).getByText("+СЫР ×2").className).toContain("text-accent")
     expect(within(queued).getByRole("button", { name: "Начать готовить" }).className).not.toContain("bg-primary")
     expect(within(queued).queryByRole("button", { name: /Вернуть/ })).toBeNull()
 
-    const preparing = within(column("Готовится")).getByRole("article", { name: "Заказ №100002" })
+    const preparing = within(column("Готовятся")).getByRole("article", { name: "Заказ №100002" })
     expect(within(preparing).getByText("С собой · Киоск")).toBeTruthy()
     expect(within(preparing).getByRole("button", { name: "Готово" }).className).toContain("bg-primary")
-    expect(within(preparing).getByRole("button", { name: "Вернуть в «В очереди»" })).toBeTruthy()
+    expect(within(preparing).getByRole("button", { name: "Вернуть в «Новые»" })).toBeTruthy()
 
     const ready = within(column("Готово")).getByRole("article", { name: "Заказ №100003" })
     expect(within(ready).getByRole("button", { name: "Выдать" }).className).not.toContain("bg-primary")
@@ -108,7 +108,7 @@ describe("KitchenBoard (W1-KDS-02)", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Начать готовить" }))
     expect(convex.setStatus).toHaveBeenCalledWith({ sessionToken: "s", ticketId: "a", status: "preparing" })
-    await userEvent.click(screen.getByRole("button", { name: "Вернуть в «В очереди»" }))
+    await userEvent.click(screen.getByRole("button", { name: "Вернуть в «Новые»" }))
     expect(convex.setStatus).toHaveBeenCalledWith({ sessionToken: "s", ticketId: "b", status: "queued" })
   })
 
@@ -129,7 +129,7 @@ describe("KitchenBoard (W1-KDS-02)", () => {
     render(<KitchenBoard sessionToken="s" />)
     const tone = (number: number) => screen.getByRole("article", { name: `Заказ №${number}` }).dataset.timer
     expect([tone(1), tone(2), tone(3)]).toEqual(["muted", "warning", "danger"])
-    expect(screen.getByRole("article", { name: "Заказ №3" }).className).toContain("before:bg-destructive")
+    expect(screen.getByRole("article", { name: "Заказ №3" }).className).toContain("ring-destructive")
   })
 
   it("filters by station on the server and remembers the station", async () => {

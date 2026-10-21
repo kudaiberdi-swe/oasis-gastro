@@ -9,10 +9,19 @@ import { CompletedJournal } from "@/kitchen/features/board/ui/completed-journal"
 import { StationFilter } from "@/kitchen/features/board/ui/station-filter"
 import { TicketCard } from "@/kitchen/features/board/ui/ticket-card"
 import { Button, Skeleton } from "@/shared/components/ui"
+import { formatAlmatyTime } from "@/shared/lib/almaty-time"
+import { cn } from "@/shared/lib/utils"
 import type { KitchenStatus } from "@/shared/types/pos"
 
 const STATION_KEY = "sandyq-kitchen-station"
-const ON_DARK = "text-nav-foreground hover:bg-nav-raised hover:text-nav-foreground"
+const ON_DARK = "text-nav-foreground hover:bg-nav-raised hover:text-nav-foreground focus-visible:outline-nav-accent"
+
+// Column headers (redesign 2026-10): «Новые» blue, «Готовятся» dark grey, «Готово» green.
+const COLUMN_HEADER: Record<BoardStatus, string> = {
+  queued: "bg-info text-info-foreground",
+  preparing: "bg-nav-raised text-nav-foreground",
+  ready: "bg-success text-success-foreground",
+}
 
 type BoardTicket = KitchenTicket & { status: BoardStatus }
 
@@ -56,7 +65,7 @@ export interface KitchenBoardProps {
   onLock?: () => void
 }
 
-/** Full-screen kitchen board (POS-DESIGN §6.3, §11.5): «В очереди / Готовится / Готово», live from Convex. */
+/** Full-screen kitchen board (POS-DESIGN §6.3, §11.5): «Новые / Готовятся / Готово» on the dark board, a clock top-right, live from Convex. */
 export function KitchenBoard({ sessionToken, restaurantName, employeeName, onLock }: KitchenBoardProps) {
   const [prepArea, setPrepArea] = useState<string | undefined>(readStation)
   const [journalOpen, setJournalOpen] = useState(false)
@@ -95,16 +104,13 @@ export function KitchenBoard({ sessionToken, restaurantName, employeeName, onLoc
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 bg-nav p-4 text-nav-foreground" onPointerDown={primeChime}>
-      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
-          <div className="flex flex-col">
-            <span className="font-display text-title-sm text-nav-accent italic">kitchen</span>
-            <h1 className="font-display text-[32px] leading-9 font-semibold">Заказы кухни</h1>
-          </div>
-          <span className="mb-0.5 inline-flex h-8 items-center rounded-control border border-nav-muted/50 px-3 text-body-sm font-semibold tabular-nums">
+      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <h1 className="text-display font-semibold">Заказы кухни</h1>
+          <span className="inline-flex h-8 items-center rounded-round bg-nav-raised px-3 text-body-sm font-semibold tabular-nums">
             {board ? activeCountLabel(board.active.length) : "…"}
           </span>
-          {caption ? <span className="mb-1.5 text-body-sm text-nav-muted">{caption}</span> : null}
+          {caption ? <span className="text-body-sm text-nav-muted">{caption}</span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StationFilter value={prepArea} onChange={chooseStation} />
@@ -130,10 +136,13 @@ export function KitchenBoard({ sessionToken, restaurantName, employeeName, onLoc
               Выйти
             </Button>
           ) : null}
+          <time dateTime={new Date(now).toISOString()} className="ml-2 text-display font-semibold tabular-nums">
+            {formatAlmatyTime(now)}
+          </time>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-3 gap-4" {...(board ? {} : { role: "status", "aria-label": "Загрузка" })}>
+      <div className="grid min-h-0 flex-1 grid-cols-3 gap-4" {...(board ? {} : { role: "status", "aria-label": "Загрузка", "aria-busy": true })}>
         {BOARD_COLUMNS.map((column) => {
           const columnTickets = board?.active.filter((ticket) => ticket.status === column.status) ?? []
           const fading = leaving.filter((ticket) => ticket.status === column.status)
@@ -142,16 +151,16 @@ export function KitchenBoard({ sessionToken, restaurantName, employeeName, onLoc
           )
           const headingId = `kitchen-column-${column.status}`
           return (
-            <section key={column.status} aria-labelledby={headingId} className="flex min-h-0 flex-col rounded-panel bg-nav-raised">
-              <h2 id={headingId} className="flex items-baseline justify-between gap-2 px-4 pt-3 pb-2 font-display text-[24px] leading-8 font-semibold">
+            <section key={column.status} aria-labelledby={headingId} className="flex min-h-0 flex-col gap-3 rounded-panel bg-nav-raised/40 p-2">
+              <h2 id={headingId} className={cn("flex h-12 shrink-0 items-center gap-2 rounded-card px-4 text-title font-semibold", COLUMN_HEADER[column.status])}>
                 {column.title}
-                <span className="font-sans text-title-sm text-nav-muted tabular-nums">{board ? columnTickets.length : ""}</span>
+                {board ? <span className="tabular-nums">({columnTickets.length})</span> : null}
               </h2>
-              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3">
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
                 {!board ? (
                   <>
-                    <Skeleton className="h-52 bg-nav" />
-                    <Skeleton className="h-40 bg-nav" />
+                    <Skeleton className="h-52 rounded-card bg-nav-raised" />
+                    <Skeleton className="h-40 rounded-card bg-nav-raised" />
                   </>
                 ) : cards.length === 0 ? (
                   <p className="px-1 py-8 text-center text-body text-nav-muted">Нет заказов</p>

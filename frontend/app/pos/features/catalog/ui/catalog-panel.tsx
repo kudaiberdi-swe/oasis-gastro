@@ -25,6 +25,7 @@ import { Input } from "@/shared/components/ui/input"
 import { Skeleton } from "@/shared/components/ui/skeleton"
 import { useToast } from "@/shared/components/ui/toast"
 import { posErrorMessage, useT } from "@/pos/i18n"
+import { cn } from "@/shared/lib/utils"
 
 // Category strip colour (POS-DESIGN §2.3). The office sets it on the group (categories.colorToken, a
 // cat-* token), so an iiko rename never drops the strip; a group without one falls back to a guess
@@ -61,13 +62,15 @@ export interface CatalogPanelControl {
 // «Популярное» has no server filter yet: it is the popular flag over a larger first page.
 const POPULAR_PAGE = 100
 
-// Toolbar icon buttons: 48px ghost on --card; the pressed one gets the active-chip fill.
-const toolbarButton = "size-12 text-foreground aria-pressed:bg-chip-active aria-pressed:text-chip-active-foreground aria-pressed:hover:bg-chip-active"
+// Toolbar icon buttons: 48px round white buttons on the lavender area; the pressed one gets the active-chip fill.
+const toolbarButton = "size-12 rounded-round bg-card text-foreground shadow-panel hover:bg-accent-surface hover:text-accent aria-pressed:bg-chip-active aria-pressed:text-chip-active-foreground aria-pressed:hover:bg-chip-active"
+// Idle chips are white on the lavender area (the shared Chip is muted, made for white cards).
+const chipClass = (active: boolean) => cn("h-12", !active && "bg-card shadow-panel")
 
 /**
- * POS catalog (W1-POS-11, POS-DESIGN §6.2/§11.2): toolbar ← ⌂ ☆ 🕘 + search (+ the kitchen screen
- * button), category chips that scroll only inside their own strip (L-2), cards by name, «Показать ещё»,
- * empty states. No sort control and no hint row: the grid is the whole panel.
+ * POS catalog (W1-POS-11, POS-DESIGN §6.2/§11.2, redesign 2026-10): no panel of its own — the search
+ * «Поиск по меню…», ← ⌂ ☆ 🕘 and the category chips (active one violet, scrolling only inside their own
+ * strip, L-2) sit on the lavender working area over a grid of white photo cards; «Показать ещё», empty states.
  */
 export function CatalogPanel({
   sessionToken,
@@ -132,7 +135,7 @@ export function CatalogPanel({
     if (product.available === false) return
     if (needsConfiguration(product)) return setConfiguring(product)
     recent.remember(product)
-    onAddProduct({ productId: product._id, name: product.name, nameKk: product.nameKk, price: product.price })
+    onAddProduct({ productId: product._id, name: product.name, nameKk: product.nameKk, price: product.price, imageUrl: product.imageUrl ?? product.imagePath })
   }
 
   const searchRef = useRef<HTMLInputElement>(null)
@@ -162,8 +165,8 @@ export function CatalogPanel({
   const activeCategory = !searching && view.kind === "category" ? view.categoryExternalId : undefined
 
   return (
-    <section aria-label={t("catalog.aria")} className="flex h-full min-w-0 flex-1 flex-col overflow-x-clip rounded-panel border border-border bg-card">
-      <div className="flex items-center gap-1 border-b border-border p-2">
+    <section aria-label={t("catalog.aria")} className="flex h-full min-w-0 flex-1 flex-col gap-3 overflow-x-clip">
+      <div className="flex items-center gap-2 px-1 pt-1">
         <Button variant="ghost" size="icon" aria-label={t("common.back")} className={toolbarButton} disabled={!navigation.back.length} onClick={() => setNavigation(goBack)}>
           <ArrowLeft />
         </Button>
@@ -176,8 +179,8 @@ export function CatalogPanel({
         <Button variant="ghost" size="icon" aria-label={t("catalog.recent")} aria-pressed={!searching && view.kind === "recent"} className={toolbarButton} onClick={() => go({ kind: "recent" })}>
           <Clock3 />
         </Button>
-        <div className="relative ml-1 min-w-0 flex-1">
-          <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-[18px] -translate-y-1/2 text-muted-foreground" />
+        <div className="relative min-w-0 flex-1">
+          <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef}
             {...BARCODE_FIELD_ATTRIBUTE}
@@ -186,22 +189,23 @@ export function CatalogPanel({
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t("catalog.search")}
             aria-label={t("catalog.search")}
-            className="h-[var(--control-h-pos)] pl-10 text-body"
+            className="h-[var(--control-h-pos)] rounded-round border-transparent pl-11 text-body shadow-panel"
           />
         </div>
-        {toolbarAction ? <div className="ml-1 shrink-0">{toolbarAction}</div> : null}
+        {toolbarAction ? <div className="shrink-0">{toolbarAction}</div> : null}
       </div>
 
-      <div className="border-b border-border p-2">
-        <div role="group" aria-label={t("catalog.categories")} className="no-scrollbar flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain">
-          <Chip size="lg" className="h-12" active={!searching && view.kind === "popular"} onClick={(event) => chooseChip(POPULAR_VIEW, event.currentTarget)}>
+      <div className="px-1">
+        {/* py/-my keep the chips' shadow and focus ring inside the scrolling strip. */}
+        <div role="group" aria-label={t("catalog.categories")} className="no-scrollbar -my-2 flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain py-2">
+          <Chip size="lg" className={chipClass(!searching && view.kind === "popular")} active={!searching && view.kind === "popular"} onClick={(event) => chooseChip(POPULAR_VIEW, event.currentTarget)}>
             {t("catalog.popular")}
           </Chip>
           {categories.map((category) => (
             <Chip
               key={category.externalId}
               size="lg"
-              className="h-12"
+              className={chipClass(activeCategory === category.externalId)}
               tone={toneByCategory.get(category.externalId)}
               active={activeCategory === category.externalId}
               onClick={(event) => chooseChip({ kind: "category", categoryExternalId: category.externalId }, event.currentTarget)}
@@ -212,11 +216,11 @@ export function CatalogPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-x-clip overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-x-clip overflow-y-auto px-1 pb-2">
         {source.loading ? (
-          <div role="status" aria-label={t("catalog.loading")} className="grid grid-cols-3 gap-2 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
+          <div role="status" aria-label={t("catalog.loading")} aria-busy="true" className="grid grid-cols-3 gap-3 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
             {Array.from({ length: 8 }, (_, index) => (
-              <Skeleton key={index} className="aspect-[4/5] w-full rounded-card" />
+              <Skeleton key={index} className="aspect-[4/5] w-full rounded-panel" />
             ))}
           </div>
         ) : items.length === 0 ? (
@@ -236,7 +240,7 @@ export function CatalogPanel({
             }
           />
         ) : (
-          <div className="grid grid-cols-3 gap-2 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
+          <div className="grid grid-cols-3 gap-3 min-[1280px]:grid-cols-4 min-[1920px]:grid-cols-5">
             {items.map((product) => (
               <ProductCard
                 key={product._id}
@@ -269,7 +273,7 @@ export function CatalogPanel({
         onOpenChange={(open) => !open && setConfiguring(null)}
         onAdd={(item) => {
           if (configuring) recent.remember(configuring)
-          onAddProduct(item)
+          onAddProduct(configuring ? { ...item, imageUrl: configuring.imageUrl ?? configuring.imagePath } : item)
         }}
       />
     </section>

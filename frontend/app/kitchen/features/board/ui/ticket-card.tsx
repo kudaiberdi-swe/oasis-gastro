@@ -11,10 +11,11 @@ import { formatQuantity } from "@/shared/lib/format"
 import { cn } from "@/shared/lib/utils"
 import type { KitchenStatus } from "@/shared/types/pos"
 
+// The elapsed-time chip in the footer: quiet, then amber, then red (thresholds in timer.ts).
 const TIMER_CLASS: Record<TimerTone, string> = {
-  muted: "text-muted-foreground",
-  warning: "text-warning",
-  danger: "text-destructive",
+  muted: "bg-muted text-muted-foreground",
+  warning: "bg-warning-surface text-warning-foreground",
+  danger: "bg-destructive-surface text-destructive",
 }
 
 const INSTRUCTION_CLASS: Record<InstructionKind, string> = {
@@ -59,53 +60,56 @@ export function TicketCard({ ticket, now, onSetStatus, leaving = false }: Ticket
       inert={leaving || undefined}
       data-timer={timer.tone}
       className={cn(
-        "relative flex shrink-0 flex-col overflow-hidden rounded-card border border-border bg-card text-card-foreground shadow-panel",
-        timer.tone === "danger" && "pl-1.5 before:absolute before:inset-y-0 before:left-0 before:w-1.5 before:bg-destructive",
+        "relative flex shrink-0 flex-col overflow-hidden rounded-card bg-card text-card-foreground shadow-panel",
+        // Overdue: a red frame round the whole ticket (and the red time chip below).
+        timer.tone === "danger" && "ring-2 ring-destructive ring-inset",
         leaving && "pointer-events-none animate-out fade-out zoom-out-95 duration-150 fill-mode-forwards",
       )}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-border px-4 pt-3 pb-3">
-        <div className="flex min-w-0 flex-col">
-          <span className="text-body-sm font-semibold text-muted-foreground">Заказ</span>
-          <span className="font-display text-[40px] leading-none font-semibold tabular-nums">№{ticket.orderNumber}</span>
-          <span className="mt-1.5 truncate text-body text-muted-foreground">{ticketOrigin(ticket)}</span>
-          {badge ? (
-            <span className="mt-2 flex flex-wrap items-center gap-2">
-              <TonePill tone="info" className="h-7 text-body-sm">
-                {badge}
-                {ticket.deliveryNumber ? ` ${ticket.deliveryNumber}` : ""}
-              </TonePill>
-              {ticket.pickupAt ? <span className="text-body-sm font-semibold tabular-nums">К выдаче курьеру {formatAlmatyTime(ticket.pickupAt)}</span> : null}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          <StatusPill domain="kitchen" status={ticket.status} className="h-7 text-body-sm" />
-          <span className={cn("inline-flex items-center gap-1.5 text-title-sm font-semibold tabular-nums", TIMER_CLASS[timer.tone])}>
-            <Clock aria-hidden className="size-[18px]" />
-            <span aria-label={`Прошло ${timer.label}`}>{timer.label}</span>
+      <header className="flex flex-col gap-2 px-4 pt-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 text-title font-bold tabular-nums">№{ticket.orderNumber}</span>
+            <span className="truncate text-body text-muted-foreground">{ticketOrigin(ticket)}</span>
           </span>
+          <time dateTime={new Date(ticket.createdAt).toISOString()} className="shrink-0 text-body font-semibold text-muted-foreground tabular-nums">
+            {formatAlmatyTime(ticket.createdAt)}
+          </time>
         </div>
+        {badge ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <TonePill tone="info" className="h-7 text-body-sm">
+              {badge}
+              {ticket.deliveryNumber ? ` ${ticket.deliveryNumber}` : ""}
+            </TonePill>
+            {ticket.pickupAt ? <span className="text-body-sm font-semibold tabular-nums">К выдаче курьеру {formatAlmatyTime(ticket.pickupAt)}</span> : null}
+          </span>
+        ) : null}
       </header>
 
-      <ul className="flex flex-col gap-2.5 px-4 py-3">
+      <ul className="flex flex-col gap-3 px-4 py-3">
         {ticket.lines.map((line) => (
-          <li key={line._id} className="flex flex-col gap-1.5">
-            <span className="text-[18px] leading-7 font-semibold 2xl:text-[20px]">
-              <span className="tabular-nums">{formatQuantity(line.quantity)}</span> × {line.productName}
-            </span>
-            {line.instructions.length ? (
-              <span className="flex flex-wrap gap-1.5">
-                {line.instructions.map((instruction, index) => (
-                  <span
-                    key={`${instruction}-${index}`}
-                    className={cn("inline-flex min-h-7 items-center rounded-control border px-2 text-body font-semibold", INSTRUCTION_CLASS[instructionKind(instruction)])}
-                  >
-                    {instruction}
-                  </span>
-                ))}
+          <li key={line._id} className="flex items-start gap-3">
+            {/* The quantity in a round violet mark: kitchen lines carry no dish photo in the board query. */}
+            <span aria-hidden className="grid h-9 min-w-9 shrink-0 place-items-center rounded-round bg-accent-surface px-2 text-body font-bold text-accent tabular-nums">{formatQuantity(line.quantity)}</span>
+            <span className="flex min-w-0 flex-col gap-1.5 pt-1">
+              <span className="text-title-sm font-semibold 2xl:text-title">
+                <span className="sr-only">{formatQuantity(line.quantity)} × </span>
+                {line.productName}
               </span>
-            ) : null}
+              {line.instructions.length ? (
+                <span className="flex flex-wrap gap-1.5">
+                  {line.instructions.map((instruction, index) => (
+                    <span
+                      key={`${instruction}-${index}`}
+                      className={cn("inline-flex min-h-7 items-center rounded-control border px-2 text-body font-semibold", INSTRUCTION_CLASS[instructionKind(instruction)])}
+                    >
+                      {instruction}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+            </span>
           </li>
         ))}
       </ul>
@@ -116,7 +120,15 @@ export function TicketCard({ ticket, now, onSetStatus, leaving = false }: Ticket
         </p>
       ) : null}
 
-      <footer className="mt-auto flex gap-2 border-t border-border p-3">
+      <div className="mt-auto flex flex-wrap items-center gap-2 px-4 pb-3">
+        <span className={cn("inline-flex h-8 items-center gap-1.5 rounded-round px-3 text-body font-semibold tabular-nums", TIMER_CLASS[timer.tone])}>
+          <Clock aria-hidden className="size-4" />
+          <span aria-label={`Прошло ${timer.label}`}>{timer.label}</span>
+        </span>
+        <StatusPill domain="kitchen" status={ticket.status} className="h-8 px-3 text-body-sm" />
+      </div>
+
+      <footer className="flex gap-2 border-t border-border p-3">
         {back ? (
           <Button
             variant="ghost"
