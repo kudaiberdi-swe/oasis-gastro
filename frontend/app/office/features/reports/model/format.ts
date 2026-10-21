@@ -48,9 +48,10 @@ export function formatGeneratedAt(value: number) {
   return new Date(value).toLocaleString("ru-RU", { timeZone: "Asia/Almaty", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
-/** Change against the previous period: «+12,5 % к прошлому периоду»; null when there is nothing to compare with. */
+/** Change against the previous period: «+12,5 % к прошлому периоду» (`percent` alone: «+12,5 %»); null when there is nothing to compare with. */
 export function formatDelta(current: number, previous: number) {
   if (!previous) return null
   const percent = ((current - previous) / Math.abs(previous)) * 100
-  return { text: `${formatPercent(percent, { explicitPlus: true })} к прошлому периоду`, tone: percent > 0 ? ("success" as const) : percent < 0 ? ("danger" as const) : ("neutral" as const) }
+  const short = formatPercent(percent, { explicitPlus: true })
+  return { text: `${short} к прошлому периоду`, percent: short, tone: percent > 0 ? ("success" as const) : percent < 0 ? ("danger" as const) : ("neutral" as const) }
 }
