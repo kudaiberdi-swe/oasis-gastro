@@ -73,7 +73,7 @@ function PrintTemplates() {
         selectedId={selection.selectedId}
         onSelect={selection.select}
         emptyTitle="Шаблонов печати пока нет"
-        emptyDescription="Пока шаблон не опубликован, касса печатает встроенные формы Sandyq."
+        emptyDescription="Пока шаблон не опубликован, касса печатает встроенные формы OASIS Gastro."
         scopes={references ? scopeOptions(references) : []}
       />
       {selection.isNew && canEdit && references ? (

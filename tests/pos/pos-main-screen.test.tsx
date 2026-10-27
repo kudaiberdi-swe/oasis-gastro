@@ -303,7 +303,7 @@ describe("PosRail (W1-POS-10, redesign 2026-10)", () => {
 
   it("brand and «<касса> · <город>» in the mark's tooltip, profile with role and date, a 72/96px rail with 48px targets", () => {
     renderHeader({ now: Date.UTC(2026, 8, 24, 6), onNotifications: () => {} })
-    expect(screen.getByRole("img", { name: "Sandyq" }).getAttribute("title")).toBe("Sandyq · Алматы\nГлавная касса · Алматы")
+    expect(screen.getByRole("img", { name: "OASIS Gastro" }).getAttribute("title")).toBe("Sandyq · Алматы\nГлавная касса · Алматы")
     const profile = screen.getByRole("button", { name: "Профиль: Айгерим" })
     expect(profile.getAttribute("title")).toContain("Менеджер · 24 сентября")
     expect(profile.textContent).toBe("А")

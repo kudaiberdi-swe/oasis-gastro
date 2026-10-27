@@ -26,8 +26,8 @@ export function renderMessage(job: AdapterJob): Message | null {
   const payload = (job.payload ?? {}) as Record<string, unknown>
   if (job.operation === PASSWORD_RESET_OPERATION && typeof payload.resetToken === "string") {
     return {
-      subject: "Восстановление пароля Sandyq Office",
-      text: `Код для восстановления пароля Sandyq Office: ${payload.resetToken}\nКод действует 15 минут. Если вы не запрашивали восстановление, просто проигнорируйте это письмо.`,
+      subject: "Восстановление пароля OASIS Gastro",
+      text: `Код для восстановления пароля OASIS Gastro: ${payload.resetToken}\nКод действует 15 минут. Если вы не запрашивали восстановление, просто проигнорируйте это письмо.`,
     }
   }
   if (job.operation === CAMPAIGN_OPERATION && typeof payload.text === "string" && payload.text.trim()) {

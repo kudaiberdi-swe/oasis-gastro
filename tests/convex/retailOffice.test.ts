@@ -24,7 +24,7 @@ describe("office retail views (W1-RTL-04/05/06)", () => {
     await draft(t, productId, 1)
     expect((await almaty.query(api.domains.retail.office.listOrders, { ...page, status: "all" })).page).toHaveLength(2)
     const paidOnly = await almaty.query(api.domains.retail.office.listOrders, { ...page, status: "paid" })
-    expect(paidOnly.page.map((row) => [row.number, row.total, row.source])).toEqual([[paid.number, 2300, "Sandyq POS"]])
+    expect(paidOnly.page.map((row) => [row.number, row.total, row.source])).toEqual([[paid.number, 2300, "OASIS Gastro"]])
     expect((await shymkent.query(api.domains.retail.office.listOrders, { ...page, status: "all" })).page).toEqual([])
     const detail = (await almaty.query(api.domains.retail.office.getOrderDetail, { orderId: paid._id }))!
     expect(detail.totals).toMatchObject({ subtotal: 2000, serviceCharge: 300, total: 2300 })

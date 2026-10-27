@@ -53,7 +53,7 @@ async function iikoByDate(ctx: QueryCtx, restaurant: string, from: string, to: s
 
 const sumTotals = (byDate: Map<string, Totals>) => [...byDate.values()].reduce((sum, row) => ({ orders: sum.orders + row.orders, guests: sum.guests + row.guests, revenue: sum.revenue + row.revenue, cost: sum.cost + row.cost }), zero())
 const averageCheck = (totals: Totals) => (totals.orders ? Math.round(totals.revenue / totals.orders) : 0)
-const SOURCE_LABEL = "Касса Sandyq (предагрегат за день) и iiko (только чтение, заказы W2-RTL-01) — отдельными колонками"
+const SOURCE_LABEL = "Касса OASIS Gastro (предагрегат за день) и iiko (только чтение, заказы W2-RTL-01) — отдельными колонками"
 
 // ── 01: comparison of restaurants ──────────────────────────────────────────────
 
@@ -220,7 +220,7 @@ const likeForLike: Calculator = async (ctx, config, restaurants) => {
     rows.push({ key: restaurant, cells: { group: names.get(restaurant) ?? restaurant, baseRevenue: before.revenue, revenue: now.revenue, growth: before.revenue ? percent(now.revenue - before.revenue, before.revenue) : 0, baseOrders: before.orders, orders: now.orders, ordersGrowth: before.orders ? percent(now.orders - before.orders, before.orders) : 0 } })
   }
   rows.sort((a, b) => Number(b.cells.revenue) - Number(a.cells.revenue))
-  const label = source === "iiko" ? "заказы iiko (только чтение)" : "касса Sandyq (предагрегат)"
+  const label = source === "iiko" ? "заказы iiko (только чтение)" : "касса OASIS Gastro (предагрегат)"
   return {
     sourceLabel: `Сопоставимые рестораны год к году, ${label}${excluded.length ? `; не сопоставимы (открылись позже начала базы): ${excluded.join(", ")}` : ""}`,
     columns,
@@ -266,7 +266,7 @@ const rating: Calculator = async (ctx, config, restaurants) => {
   const rows = data
     .map((row, index) => ({ key: row.restaurant, cells: { place: overall[index], group: names.get(row.restaurant) ?? row.restaurant, revenue: row.now.revenue, revenueRank: revenueRank[index], averageCheck: averageCheck(row.now), checkRank: checkRank[index], orders: row.now.orders, ordersRank: ordersRank[index], foodCost: row.foodCost, foodCostRank: foodCostRank[index], growth: row.growth, growthRank: growthRank[index], score: Math.round(scores[index] * 10) / 10 } }))
     .sort((a, b) => a.cells.place - b.cells.place)
-  return { sourceLabel: `Касса Sandyq (предагрегат); рост к ${previous.dateFrom} — ${previous.dateTo}; фудкост: чем ниже, тем выше место`, columns, rows, totals: {}, kpis: [{ key: "restaurants", label: "Ресторанов в рейтинге", value: rows.length, unit: "count" }], truncated: budget.truncated }
+  return { sourceLabel: `Касса OASIS Gastro (предагрегат); рост к ${previous.dateFrom} — ${previous.dateTo}; фудкост: чем ниже, тем выше место`, columns, rows, totals: {}, kpis: [{ key: "restaurants", label: "Ресторанов в рейтинге", value: rows.length, unit: "count" }], truncated: budget.truncated }
 }
 
 // ── 06: replication (outbox) ──────────────────────────────────────────────────
@@ -488,7 +488,7 @@ const referenceState: Calculator = async (ctx, _config, restaurants) => {
     rows.push({ key: `endpoint:${state.endpointKey}`, cells: { group: state.path ?? state.endpointKey, domain: state.domain ?? "—", mode: CLASSIFICATION[state.classification ?? ""] ?? "—", status: `${ENDPOINT_STATUS[state.lastStatus]}${state.message && state.lastStatus !== "ok" ? `: ${state.message}` : ""}`, syncedAt: localDateTime(state.lastRunAt), iiko: state.recordCount ?? 0, local: 0, difference: 0 } })
   }
   return {
-    sourceLabel: `Зеркало iiko (только чтение) против справочников Sandyq; последний импорт: ${lastImport ? `${localDateTime(lastImport.startedAt)} (${lastImport.status === "completed" ? "успешно" : lastImport.status === "failed" ? "ошибка" : "идёт"})` : "не запускался"}`,
+    sourceLabel: `Зеркало iiko (только чтение) против справочников OASIS Gastro; последний импорт: ${lastImport ? `${localDateTime(lastImport.startedAt)} (${lastImport.status === "completed" ? "успешно" : lastImport.status === "failed" ? "ошибка" : "идёт"})` : "не запускался"}`,
     columns,
     rows,
     totals: {},

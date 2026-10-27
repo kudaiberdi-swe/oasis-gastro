@@ -277,7 +277,7 @@ export async function applyPrice(ctx: MutationCtx, args: { departmentExternalId:
   if (!(price >= 0)) return { changed: false }
   const existing = await ctx.db.query("productPrices").withIndex("by_product_restaurant", (q) => q.eq("productId", product._id).eq("restaurantExternalId", restaurant.externalId)).unique()
   if (existing && !existing.sourceSystem) {
-    return existing.priceKzt === price ? { changed: false } : { changed: false, skipped: `«${product.name}» в «${restaurant.name}»: цена Sandyq ${existing.priceKzt} ₸, в iiko ${price} ₸` }
+    return existing.priceKzt === price ? { changed: false } : { changed: false, skipped: `«${product.name}» в «${restaurant.name}»: цена OASIS Gastro ${existing.priceKzt} ₸, в iiko ${price} ₸` }
   }
   if (existing?.sourceHash === args.payloadHash) return { changed: false }
   const value = { priceKzt: price, sourceSystem: SOURCE, sourceHash: args.payloadHash, importedAt: Date.now() }

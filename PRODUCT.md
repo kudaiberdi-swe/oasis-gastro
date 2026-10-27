@@ -58,8 +58,13 @@ reading everything that already exists in iiko instead of re-entering it.
 
 ## Brand Commitments
 
-- Name: Sandyq (Сандық). Logos and ornaments in `frontend/public/branding/` (`sandyq-kz-logo.svg`,
-  `sandyq-kz-hidden-menu-logo.svg`, `ornament.svg`, …).
+- Product name: OASIS Gastro (restaurant operating system). Logo in `frontend/public/branding/`:
+  `oasis-gastro-mark.svg` (mark, favicon), `oasis-gastro-logo-on-dark.svg` (sidebar, sign-in screens),
+  `oasis-gastro-logo.svg` (light screens, with the tagline). The browser tab, the logo and texts that mean
+  the system say «OASIS Gastro».
+- First client: Sandyq (Сандық). Restaurant and organization names, printed receipts and X/Z reports, the
+  guest site sandyq.kz and the iiko brand scope stay Sandyq. Sandyq's own logos and ornaments stay in
+  `frontend/public/branding/` (`sandyq-kz-logo.svg`, `sandyq-kz-hidden-menu-logo.svg`, `ornament.svg`, …).
 - Brand design reference: `../.claude/sandyq-design.skill` (real tokens and patterns), taken from the
   public sites sandyq.kz / sandyqgroup.com.
 - Printed receipts carry the service-charge line «Қызмет ақысы 15 % / Обслуживание 15 %».

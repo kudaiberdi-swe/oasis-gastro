@@ -115,7 +115,7 @@ export const listOrders = query({
           return {
             _id: order._id,
             number: order.number,
-            source: "Sandyq POS",
+            source: "OASIS Gastro",
             status: order.status,
             createdAt: order.createdAt,
             paidAt: order.paidAt ?? null,

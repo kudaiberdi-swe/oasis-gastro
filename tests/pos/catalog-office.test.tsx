@@ -240,7 +240,7 @@ describe("product card (W1-CAT-05)", () => {
   it("marks an iiko product: local edits live on top of iiko data", () => {
     mocks.queries.getProductCard = card({ source: "iiko-server" })
     renderAt("/office/nomenclature/beshbarmak", <NomenclatureWorkspace />, { productId: "id-beshbarmak" })
-    expect(screen.getByText("Товар из iiko: изменения хранятся в Sandyq поверх данных iiko")).toBeTruthy()
+    expect(screen.getByText("Товар из iiko: изменения хранятся в OASIS Gastro поверх данных iiko")).toBeTruthy()
     expect((screen.getByLabelText("Артикул") as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByLabelText("Атауы (қаз)") as HTMLInputElement).disabled).toBe(false)
 

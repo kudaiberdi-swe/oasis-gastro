@@ -193,11 +193,11 @@ describe("PosRail — logo, no theme/density toggles, readable shift and badge",
     )
   }
 
-  it("draws the Sandyq logo with an explicit height and alt «Sandyq»", () => {
+  it("draws the OASIS Gastro mark with an explicit height and alt «OASIS Gastro»", () => {
     renderHeader()
-    const logo = screen.getByRole("img", { name: "Sandyq" })
-    expect(logo.getAttribute("src")).toBe("/branding/sandyq-kz-reserve-logo.svg")
-    expect(logo.getAttribute("height")).toBe("32")
+    const logo = screen.getByRole("img", { name: "OASIS Gastro" })
+    expect(logo.getAttribute("src")).toBe("/branding/oasis-gastro-mark.svg")
+    expect(logo.getAttribute("height")).toBe("64")
     expect(document.querySelector("header svg path[d^='M20 6']")).toBeNull()
   })
 

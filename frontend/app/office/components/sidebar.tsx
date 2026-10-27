@@ -63,8 +63,8 @@ function Highlight({ text, query }: { text: string; query: string }) {
 }
 
 /**
- * Ink-violet 264px office sidebar: the white Sandyq wordmark on top, icon + label groups, the open page as a
- * violet pill; 72px with the Sandyq mark, tooltips and flyouts when collapsed.
+ * Ink-violet 264px office sidebar: the light OASIS Gastro logo on top, icon + label groups, the open page as a
+ * violet pill; 72px with the OASIS Gastro mark, tooltips and flyouts when collapsed.
  */
 export function Sidebar({ groups, activeItemId, collapsed, canToggleCollapsed, onToggleCollapsed, userName, footerLine, onSignOut }: SidebarProps) {
   const activeGroupId = groups.find((group) => group.items.some((item) => item.id === activeItemId))?.id
@@ -83,10 +83,10 @@ export function Sidebar({ groups, activeItemId, collapsed, canToggleCollapsed, o
       >
         <div className={cn("flex h-16 shrink-0 items-center gap-2", collapsed ? "justify-center px-2" : "px-5")}>
           {collapsed ? (
-            <img src="/branding/sandyq-kz-reserve-logo.svg" alt="Sandyq" width={23} height={31} className="h-7 w-auto shrink-0" />
+            <img src="/branding/oasis-gastro-mark.svg" alt="OASIS Gastro" width={64} height={64} className="size-8 shrink-0" />
           ) : (
             <>
-              <img src="/branding/sandyq-kz-logo-footer.svg" alt="Sandyq" width={170} height={43} className="h-5 w-auto shrink-0" />
+              <img src="/branding/oasis-gastro-logo-on-dark.svg" alt="OASIS Gastro" width={185} height={64} className="h-8 w-auto shrink-0" />
               <span className="min-w-0 flex-1 truncate text-body-sm font-medium text-nav-muted">Office</span>
               <span className="rounded-round bg-nav-raised px-2 py-0.5 text-caption font-medium text-nav-accent">Сеть</span>
             </>

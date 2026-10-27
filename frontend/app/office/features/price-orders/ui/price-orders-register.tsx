@@ -81,7 +81,7 @@ export function PriceOrdersRegister() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5 xl:px-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-body-sm text-muted-foreground">Базовые, размерные и временные цены для касс Sandyq.</p>
+        <p className="text-body-sm text-muted-foreground">Базовые, размерные и временные цены для касс OASIS Gastro.</p>
         {canEdit ? (
           <Button onClick={() => void create()} disabled={creating}>
             <Plus aria-hidden />

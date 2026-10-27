@@ -292,7 +292,7 @@ function PriceOrderForm({ order, onBack }: { order: PriceOrder; onBack: () => vo
       </div>
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card px-6 py-3 shadow-panel xl:px-8">
-        <p className="text-caption text-muted-foreground">Sandyq активирует и завершает приказ автоматически по датам.</p>
+        <p className="text-caption text-muted-foreground">OASIS Gastro активирует и завершает приказ автоматически по датам.</p>
         {!readOnly ? (
           <div className="flex gap-2">
             <Button variant="secondary" onClick={reset} disabled={!dirty || busy !== null}>
