@@ -51,7 +51,7 @@ const DETAIL = "domains/retail/office:getOrderDetail"
 const ORDER: OrderRow = {
   _id: "o1" as OrderRow["_id"],
   number: 100001,
-  source: "Sandyq POS",
+  source: "OASIS Gastro",
   status: "paid",
   createdAt: Date.parse("2026-09-04T11:56:27+05:00"),
   paidAt: Date.parse("2026-09-04T11:58:00+05:00"),
@@ -133,7 +133,7 @@ describe("«Заказы и чеки» register (W1-RTL-05)", () => {
     for (const header of ["Заказ", "Дата / смена", "Ресторан / кассир", "Статус", "Сумма"]) expect(within(table).getByRole("columnheader", { name: header })).toBeTruthy()
     const [, row] = within(table).getAllByRole("row")
     expect(within(row).getByText("№100001")).toBeTruthy()
-    expect(within(row).getByText("Sandyq POS")).toBeTruthy()
+    expect(within(row).getByText("OASIS Gastro")).toBeTruthy()
     expect(within(row).getByText("смена №181")).toBeTruthy()
     expect(within(row).getByText("Главная касса · Айгерім · стол 5")).toBeTruthy()
     expect(within(row).getByText("Оплачен")).toBeTruthy()

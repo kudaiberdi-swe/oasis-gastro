@@ -290,7 +290,7 @@ export function OrganizationEditor({ organization, canEdit, onCreated }: { organ
         <EditorBlock title="Проведение и аудит">
           <Facts
             items={[
-              ["Источник", fromIiko ? "iiko" : "Sandyq"],
+              ["Источник", fromIiko ? "iiko" : "OASIS Gastro"],
               ["Ресторанов", `${organization.activeRestaurantCount} активных из ${organization.restaurantCount}`],
               ["Версия записи", <span className="tabular-nums">{organization.version ?? 0}</span>],
             ]}

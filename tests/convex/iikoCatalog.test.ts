@@ -116,7 +116,7 @@ describe("iiko recipes and prices (W2-IIKO-08/09)", () => {
         { departmentExternalId: "dep-other", productExternalId: "i-dish", price: 5000, payloadHash: "x3" },
       ],
     })
-    expect(result.skipped["v2/price"]).toEqual([expect.stringMatching(/цена Sandyq 2000 ₸, в iiko 2150 ₸/), expect.stringMatching(/не сопоставлено/)])
+    expect(result.skipped["v2/price"]).toEqual([expect.stringMatching(/цена OASIS Gastro 2000 ₸, в iiko 2150 ₸/), expect.stringMatching(/не сопоставлено/)])
     const prices = await t.run((ctx) => ctx.db.query("productPrices").take(10))
     expect(prices.map((row) => [row.priceKzt, row.sourceSystem ?? null])).toEqual([
       [2000, null],
@@ -239,7 +239,7 @@ describe("iiko opening balances (W1-IIKO-05)", () => {
     const again = await t.mutation(internal.domains.iiko.mutations.importBatch, { ...empty, openingBalances: [balance] })
     expect(again.changed["v2/reports/balance/stores"]).toBe(0)
     const differs = await t.mutation(internal.domains.iiko.mutations.importBatch, { ...empty, openingBalances: [{ ...balance, amount: 10 }] })
-    expect(differs.skipped["v2/reports/balance/stores"]?.[0]).toMatch(/в Sandyq 12\.5, в iiko 10/)
+    expect(differs.skipped["v2/reports/balance/stores"]?.[0]).toMatch(/в OASIS Gastro 12\.5, в iiko 10/)
     expect(await t.run((ctx) => ctx.db.query("stockMovements").take(10))).toHaveLength(1)
   })
 })

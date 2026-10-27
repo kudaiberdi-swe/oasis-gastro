@@ -57,7 +57,7 @@ export function PosAccessPanel() {
 
   return (
     <Panel
-      title="Доступ сотрудников к Sandyq POS"
+      title="Доступ сотрудников к кассе OASIS Gastro"
       description="Профиль связывает сотрудника iiko с локальным кодом, PIN и ресторанами; пароль iiko в POS не используется"
       actions={
         <Button asChild variant="link" size="sm">

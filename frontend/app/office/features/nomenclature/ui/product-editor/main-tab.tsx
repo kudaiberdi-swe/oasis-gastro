@@ -102,7 +102,7 @@ export function MainTab({ card, draft, errors, set, groupOptions, readOnly, pric
       <Block title="Публикация">
         <div className="grid gap-3 sm:grid-cols-3">
           <Tile label="Статус" value={draft.enabled ? "Активна" : "Скрыта"} />
-          <Tile label="Источник" value={iiko ? "iiko" : "Sandyq"} />
+          <Tile label="Источник" value={iiko ? "iiko" : "OASIS Gastro"} />
           <Tile
             label="Модификаторы"
             value={card.modifierGroupCount > 0 ? `${card.modifierGroupCount} ${plural(card.modifierGroupCount, ["группа", "группы", "групп"])}` : "Не настроены"}

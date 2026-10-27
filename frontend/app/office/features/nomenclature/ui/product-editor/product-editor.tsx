@@ -237,7 +237,7 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
         </header>
 
         {iiko ? (
-          <Banner tone="info" title="Товар из iiko: изменения хранятся в Sandyq поверх данных iiko">
+          <Banner tone="info" title="Товар из iiko: изменения хранятся в OASIS Gastro поверх данных iiko">
             Название, цена, место приготовления, способ списания, вес единицы и видимость в кассе меняются здесь; остальное приходит из iiko.
           </Banner>
         ) : null}
@@ -270,7 +270,7 @@ function ProductEditorForm({ card, onBack, productIdFromState }: { card: Product
       {canSave ? (
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card px-6 py-3 shadow-panel xl:px-8">
           <p className="text-caption text-muted-foreground">
-            Источник: {iiko ? "iiko" : "Sandyq"} · статус: {draft.enabled ? "активна" : "скрыта"}
+            Источник: {iiko ? "iiko" : "OASIS Gastro"} · статус: {draft.enabled ? "активна" : "скрыта"}
           </p>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={reset} disabled={!dirty || saving}>

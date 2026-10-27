@@ -116,7 +116,7 @@ export function OfficeAccessDenied({ onSignOut }: { onSignOut: () => void }) {
       <EmptyState
         size="lg"
         title="Доступ не настроен"
-        description="Эта учётная запись не привязана к офису Sandyq. Обратитесь к администратору."
+        description="Эта учётная запись не привязана к офису OASIS Gastro. Обратитесь к администратору."
         action={
           <Button variant="secondary" onClick={onSignOut}>
             Выйти

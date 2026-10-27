@@ -310,7 +310,7 @@ export function DepartmentEditor({
     <form id="department-editor" aria-label="Подразделение" noValidate onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-6">
       {fromIiko ? (
         <Banner tone="info" title="Создано из iiko">
-          Подразделение скопировано из зеркала iiko один раз; дальнейшие импорты его не меняют, а Sandyq ничего не пишет в iiko.
+          Подразделение скопировано из зеркала iiko один раз; дальнейшие импорты его не меняют, а OASIS Gastro ничего не пишет в iiko.
         </Banner>
       ) : null}
       {error ? (
@@ -387,7 +387,7 @@ export function DepartmentEditor({
         <EditorBlock title="Проведение и аудит">
           <Facts
             items={[
-              ["Источник", fromIiko ? "iiko" : "Sandyq"],
+              ["Источник", fromIiko ? "iiko" : "OASIS Gastro"],
               ["Уровень", <span className="tabular-nums">{department.level + 1}</span>],
               ["Версия записи", <span className="tabular-nums">{department.version}</span>],
             ]}

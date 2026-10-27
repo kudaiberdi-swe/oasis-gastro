@@ -67,7 +67,7 @@ export async function applyOpeningBalance(ctx: MutationCtx, args: { storeExterna
   if (existing) {
     const balance = await ctx.db.query("stockBalances").withIndex("by_warehouse_item", (q) => q.eq("warehouseId", warehouse._id).eq("inventoryItemId", item._id)).unique()
     const own = balance?.quantity ?? 0
-    return Math.abs(own - quantity) < 0.001 ? { changed: false } : { changed: false, skipped: `«${item.name}» на «${warehouse.name}»: в Sandyq ${own}, в iiko ${quantity}` }
+    return Math.abs(own - quantity) < 0.001 ? { changed: false } : { changed: false, skipped: `«${item.name}» на «${warehouse.name}»: в OASIS Gastro ${own}, в iiko ${quantity}` }
   }
   if (!(quantity > 0)) return { changed: false, skipped: quantity < 0 ? `«${item.name}» на «${warehouse.name}»: отрицательный остаток в iiko (${quantity}) не переносится` : undefined }
 

@@ -325,7 +325,7 @@ export function RestaurantEditor({
         <EditorBlock title="Проведение и аудит">
           <Facts
             items={[
-              ["Источник", fromIiko ? "iiko" : "Sandyq"],
+              ["Источник", fromIiko ? "iiko" : "OASIS Gastro"],
               ["Терминалов", <span className="tabular-nums">{restaurant.terminalCount}</span>],
               ["Складов", <span className="tabular-nums">{restaurant.warehouseCount}</span>],
               ["Версия записи", <span className="tabular-nums">{restaurant.version ?? 0}</span>],
@@ -357,7 +357,7 @@ export function RestaurantEditor({
       </TabsContent>
       <TabsContent value="iiko" className="flex flex-col gap-4">
         <p className="text-body-sm text-foreground">
-          Связь ресторана с подразделением iiko задаётся в разделе «Корпорация → Обмен данными с iiko». Данные iiko только читаются — Sandyq ничего не записывает в iiko.
+          Связь ресторана с подразделением iiko задаётся в разделе «Корпорация → Обмен данными с iiko». Данные iiko только читаются — OASIS Gastro ничего не записывает в iiko.
         </p>
         {canViewExchange ? (
           <Link to="/office/data-exchange" className={buttonVariants({ variant: "secondary" })}>

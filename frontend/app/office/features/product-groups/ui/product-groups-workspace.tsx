@@ -214,7 +214,7 @@ function GroupForm({
     <form aria-label="Группа товаров" noValidate onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <h2 className="font-display text-title font-semibold">{group ? group.label : "Новая группа"}</h2>
-        <p className="text-caption text-muted-foreground">Все изменения сохраняются в Sandyq и записываются в журнал аудита.</p>
+        <p className="text-caption text-muted-foreground">Все изменения сохраняются в OASIS Gastro и записываются в журнал аудита.</p>
       </div>
       {error ? (
         <Banner tone="danger" title="Не удалось сохранить">

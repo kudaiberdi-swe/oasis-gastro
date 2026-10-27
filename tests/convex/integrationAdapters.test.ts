@@ -89,7 +89,7 @@ describe("provider adapters and dead-letter (W3-INT-06)", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe("https://api.resend.com/emails")
     expect((init.headers as Record<string, string>)["Idempotency-Key"]).toBe("reset:1")
-    expect(JSON.parse(String(init.body))).toMatchObject({ from: "Sandyq <office@sandyq.test>", to: ["admin@sandyq.test"], subject: "Восстановление пароля Sandyq Office" })
+    expect(JSON.parse(String(init.body))).toMatchObject({ from: "Sandyq <office@sandyq.test>", to: ["admin@sandyq.test"], subject: "Восстановление пароля OASIS Gastro" })
   })
 
   it("a temporary error retries with a growing nextAttemptAt up to the card's maxAttempts, then dead-letter", async () => {
