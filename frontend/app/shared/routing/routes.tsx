@@ -11,7 +11,7 @@ const KitchenRouter = lazy(() => import("@/kitchen/router").then((module) => ({ 
 const OfficeRouter = lazy(() => import("@/office/router").then((module) => ({ default: module.OfficeRouter })))
 
 /**
- * The browser tab names the surface: «Sandyq POS», «Sandyq Kitchen», «Sandyq Office» — three open tabs stay apart.
+ * The browser tab names the product and the surface: «OASIS Gastro · Касса», «… · Кухня», «… · Офис» — three open tabs stay apart.
  * Every surface passes through here, so a demo build puts its «Демо-версия» line on top of all three.
  */
 function SurfaceTitle({ title, children }: { title: string; children: ReactNode }) {
@@ -58,13 +58,13 @@ const devRoutes: RouteObject[] =
 // The POS is a fixed-size touch surface; the office scrolls its own content (no page-level scroll).
 export const appRoutes: RouteObject[] = [
   { path: "/", element: <RootRedirect /> },
-  { path: "/pos", element: <SurfaceTitle title="Sandyq POS"><div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><PosRouter /></Suspense></div></SurfaceTitle> },
-  { path: "/kitchen", element: <SurfaceTitle title="Sandyq Kitchen"><div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><KitchenRouter /></Suspense></div></SurfaceTitle> },
+  { path: "/pos", element: <SurfaceTitle title="OASIS Gastro · Касса"><div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><PosRouter /></Suspense></div></SurfaceTitle> },
+  { path: "/kitchen", element: <SurfaceTitle title="OASIS Gastro · Кухня"><div className="pos-surface h-full w-full"><Suspense fallback={<SurfaceLoading />}><KitchenRouter /></Suspense></div></SurfaceTitle> },
   { path: "/pos/kitchen", element: <KitchenRedirect /> },
   { path: "/office", element: <Navigate to={`/office/${DEFAULT_OFFICE_DESTINATION}`} replace /> },
-  { path: "/office/:section/:id?", element: <SurfaceTitle title="Sandyq Office"><div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div></SurfaceTitle> },
+  { path: "/office/:section/:id?", element: <SurfaceTitle title="OASIS Gastro · Офис"><div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div></SurfaceTitle> },
   // A card nested in a section: /office/production/preparations/:productId (W2-PRD-01).
-  { path: "/office/:section/:id/:subId", element: <SurfaceTitle title="Sandyq Office"><div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div></SurfaceTitle> },
+  { path: "/office/:section/:id/:subId", element: <SurfaceTitle title="OASIS Gastro · Офис"><div className="h-full w-full"><Suspense fallback={<SurfaceLoading />}><OfficeRouter /></Suspense></div></SurfaceTitle> },
   ...devRoutes,
   { path: "*", element: <NotFound /> },
 ]

@@ -61,7 +61,7 @@ function initials(name: string) {
 
 /**
  * POS rail (redesign 2026-10, replaces the 64px header): a dark ink-violet column on the left like the office
- * sidebar. Top: the Sandyq mark. Sections: «Касса» (the cashier screen), «Зал» (the hall grid), «Экран кухни»
+ * sidebar. Top: the OASIS Gastro mark (its tooltip names the restaurant and the till). Sections: «Касса» (the cashier screen), «Зал» (the hall grid), «Экран кухни»
  * with the active ticket count, «Офис» (manager and administrator only; the office has its own sign-in, L-7),
  * «Главное меню». Below: the shift (opens the shift dialog), the connection, notifications with the unread
  * count, lock, and the profile (initials; name, role, date and the till in its tooltip). Theme, density and
@@ -131,12 +131,12 @@ export function PosRail({
   return (
     <header className="no-scrollbar flex h-full w-[72px] shrink-0 flex-col items-center gap-3 overflow-y-auto rounded-panel bg-nav px-2 py-3 text-nav-foreground min-[1280px]:w-24">
       <img
-        src="/branding/sandyq-kz-reserve-logo.svg"
-        alt="Sandyq"
+        src="/branding/oasis-gastro-mark.svg"
+        alt="OASIS Gastro"
         title={[brand, place].filter(Boolean).join("\n")}
-        width={24}
-        height={32}
-        className="mt-1 mb-2 h-8 w-auto shrink-0"
+        width={64}
+        height={64}
+        className="mt-1 mb-2 size-9 shrink-0"
       />
       <nav aria-label={t("header.section")} className="flex w-full flex-col gap-1">
         <button type="button" aria-current={view === "pos" ? "page" : undefined} onClick={onPos} className={railItem}>

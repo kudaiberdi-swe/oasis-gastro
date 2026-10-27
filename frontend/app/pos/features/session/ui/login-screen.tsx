@@ -65,7 +65,7 @@ export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTe
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 bg-nav px-6">
       <div className="flex flex-col items-center gap-3 text-nav-foreground">
-        <img src="/branding/sandyq-kz-logo.svg" alt="Sandyq" className="h-12" />
+        <img src="/branding/oasis-gastro-logo-on-dark.svg" alt="OASIS Gastro" width={185} height={64} className="h-12 w-auto" />
         <OrnamentPair className="text-nav-accent" />
       </div>
 

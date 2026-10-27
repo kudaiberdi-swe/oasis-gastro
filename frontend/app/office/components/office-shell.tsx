@@ -42,7 +42,7 @@ export function OfficeShell({ groups, activeItemId, userName, footerLine, onSign
           >
             <Menu className="size-5" />
           </button>
-          <img src="/branding/sandyq-kz-logo-footer.svg" alt="Sandyq" width={170} height={43} className="h-5 w-auto" />
+          <img src="/branding/oasis-gastro-logo-on-dark.svg" alt="OASIS Gastro" width={185} height={64} className="h-8 w-auto" />
           <span className="text-body-sm font-medium text-nav-muted">Office</span>
         </header>
         <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>

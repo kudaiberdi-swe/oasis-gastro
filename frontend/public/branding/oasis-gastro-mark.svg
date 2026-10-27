@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="OASIS Gastro">
+  <title>OASIS Gastro</title>
+  <defs>
+    <linearGradient id="og-ring" x1="8" y1="6" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1E6FE0"/>
+      <stop offset="0.55" stop-color="#35B8F0"/>
+      <stop offset="1" stop-color="#6D4AFF"/>
+    </linearGradient>
+    <linearGradient id="og-glow" x1="20" y1="18" x2="50" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F8BFF"/>
+      <stop offset="1" stop-color="#8F7BFF"/>
+    </linearGradient>
+    <radialGradient id="og-shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(44 15) rotate(35) scale(13 7)">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#og-ring)"/>
+  <circle cx="33.5" cy="33.5" r="19.5" fill="url(#og-glow)" fill-opacity="0.9"/>
+  <circle cx="30.5" cy="30.5" r="15.5" fill="#0F2A6B"/>
+  <ellipse cx="44" cy="15" rx="13" ry="7" transform="rotate(35 44 15)" fill="url(#og-shine)"/>
+  <path d="M38.2 4.65A28 28 0 0 1 59.35 25.8" fill="none" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="2.6" stroke-linecap="round"/>
+</svg>

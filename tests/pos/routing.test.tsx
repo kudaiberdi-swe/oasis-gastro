@@ -40,14 +40,14 @@ function renderAt(url: string) {
 }
 
 describe("app routes (W0-FND-01)", () => {
-  it("names each surface in the browser tab: Sandyq POS, Sandyq Kitchen, Sandyq Office", async () => {
+  it("names the product and the surface in the browser tab: OASIS Gastro · Касса / Кухня / Офис", async () => {
     renderAt("/pos")
     expect(await screen.findByText("POS screen")).toBeTruthy()
-    expect(document.title).toBe("Sandyq POS")
+    expect(document.title).toBe("OASIS Gastro · Касса")
     cleanup()
     renderAt("/office/stock")
     expect(await screen.findByText("BalancesPage")).toBeTruthy()
-    expect(document.title).toBe("Sandyq Office")
+    expect(document.title).toBe("OASIS Gastro · Офис")
   })
 
   it("opens an office section straight from its URL, so a reload keeps it", async () => {
