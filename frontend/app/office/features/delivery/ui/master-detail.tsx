@@ -23,7 +23,7 @@ export function MasterDetail({
   card: ReactNode | null
   cardTitle: string
   cardCaption?: string
-  /** «Сохранить» in the card's header (the Sandyq move of bahandi's full-width button). */
+  /** «Сохранить» in the card's header (our take on bahandi's full-width button). */
   cardActions?: ReactNode
   editing: boolean
   onClose: () => void

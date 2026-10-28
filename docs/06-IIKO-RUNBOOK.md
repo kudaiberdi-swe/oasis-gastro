@@ -1,6 +1,6 @@
 # iiko connection runbook
 
-How to pull real Sandyq data (branches, staff, and behind flags stock master data, products, charts, balances, prices, shifts and orders) from the chain's iiko Server account. For the code that implements this, see `scripts/iiko/` and `convex/domains/iiko/`; for how it fits the rest of the system, see [03-ARCHITECTURE.md § iiko integration](03-ARCHITECTURE.md#iiko-integration).
+How to pull a restaurant chain's real data (branches, staff, and behind flags stock master data, products, charts, balances, prices, shifts and orders) from the chain's iiko Server account. For the code that implements this, see `scripts/iiko/` and `convex/domains/iiko/`; for how it fits the rest of the system, see [03-ARCHITECTURE.md § iiko integration](03-ARCHITECTURE.md#iiko-integration).
 
 ## The one rule
 
@@ -37,17 +37,20 @@ staff; the rest behind flags (decisions Б-B4 and D7 of 2026-09-26, `docs/08-IMP
 `corporation/terminals` is not used: on this account it lists only anonymous back-office machines; the POS
 cash registers are the points of sale of `corporation/groups`. `v2/*` endpoints answer JSON (406 for XML).
 
-**Sandyq scope of the shared nomenclature.** Products of the Sandyq top-level groups (names with
-sandyq / sandyk / сандык), plus whatever lies in Sandyq stores, plus everything their assembly charts use
-(transitively). Chart lines excluded for every Sandyq department by their store specification are dropped.
+**Brand scope of the shared nomenclature.** Products of the brand's top-level groups (names matching the
+brand from the `IIKO_BRAND_ALIASES` setting), plus whatever lies in the brand's stores, plus everything their
+assembly charts use (transitively). Chart lines excluded for every department of the brand by their store
+specification are dropped.
 A seed dish (from the menu PDFs) with the same normalized name is linked instead of duplicated; every other
 iiko dish arrives **hidden from the POS** — show it in the product card, or show all the ones priced in your branches at once with «Показать блюда iiko с ценой» in «Номенклатура» (a dry run counts them first; a dish hidden on purpose stays hidden, and a shown one stays shown after a re-import). The same action hides the PDF stand-in menu (the seed's `sandyq-…` dishes without an iiko link; needs access to all branches). On the POS a dish shows in a branch only when it has that branch's own price — an iiko price, an office price or a price order; with only the base price it is not on that branch's menu. On **dev**, `npm run dev:iiko-menu` does the whole switch the way prod is set up: links the three pilot branches to their iiko departments, re-imports the branch prices (GET only) and runs the same show/hide code (`convex/domains/iiko/devMenu.ts`, internal).
 
 ## Brand scoping
 
-The account is a holding of 8 brands (`Sandyq`, `Tary`, `Shopan`, `Salam Bro`, `Cinotti`, `Anor Korday`, `Kainar`, `BURABAY SKY`) sharing one corporate structure — roughly 30 branches, 2,700+ employees total. `extract.mjs` filters every department by name (`["sandyq", "сандык"]`, case-insensitive substring match — the Cyrillic alias exists specifically because one real department, "Сандык Кайнар", has no Latin spelling) **before** anything reaches the local staging file. An employee is kept only if their `departmentCodes`/`responsibilityDepartmentCodes` intersect a matched department's code. Verified against the real account: 12 Sandyq departments, 363 Sandyq employees, correctly excluding the other 7 brands.
+An iiko account may hold several brands sharing one corporate structure. The brand is a setting, never a code default: `IIKO_BRAND_ALIASES` in the local `.env` (or `--brand=<alias,alias>` for one run) is a comma list of the spellings of the brand name. `extract.mjs` filters every department by name (case-insensitive substring match on any alias) **before** anything reaches the local staging file, and refuses to run without the setting. List every spelling the account uses, Latin and Cyrillic — a department named only in Cyrillic is missed otherwise. An employee is kept only if their `departmentCodes`/`responsibilityDepartmentCodes` intersect a matched department's code.
 
-If the business ever confirms a wider scope, pass `--brand <term>` to match a single different term instead of the default alias list — don't just delete the filter.
+First deployment (for reference): its account holds 8 brands, about 30 branches and 2,700+ employees; its aliases are the Latin and Cyrillic spellings of its brand (one real department has only a Cyrillic name), which matched 12 departments and 363 employees and excluded the other 7 brands.
+
+If the business ever confirms a wider scope, add the aliases to the setting — don't just delete the filter.
 
 ## PII handling
 

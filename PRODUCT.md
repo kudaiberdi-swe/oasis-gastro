@@ -2,8 +2,8 @@
 
 <!-- impeccable:product-schema 1 -->
 
-Scope: the internal restaurant system in this repo — the cashier (`/pos`), the kitchen screen (`/kitchen`)
-and the back office (`/office`). The unfinished rebuild of the marketing site in `reference/site-rebuild/` is reference material, not a product; the real guest site sandyq.kz is separate and talks to this system through the Cloud API (`docs/07-CLOUD-API.md`). The root `DESIGN.md`
+Scope: OASIS Gastro, the restaurant system in this repo — the cashier (`/pos`), the kitchen screen (`/kitchen`)
+and the back office (`/office`). A restaurant chain's guest website is separate and talks to this system through the Cloud API (`docs/07-CLOUD-API.md`). The unfinished rebuild of the first client's marketing site in `reference/site-rebuild/` is reference material, not a product. The root `DESIGN.md`
 holds the app's design system (its first eight sections) and, in its last section **Website**, the spec of
 that site; detailed screen rules for this app live in `docs/04-POS-DESIGN.md` and `docs/05-OFFICE-DESIGN.md`.
 
@@ -13,7 +13,7 @@ web
 
 ## Users
 
-- **Primary: cashiers and waiters** of Sandyq restaurants, on touch terminals in the dining room, taking
+- **Primary: cashiers and waiters** of the chain's restaurants, on touch terminals in the dining room, taking
   and paying orders for several open tables at once during peak hours. The interface is optimized for them first.
 - Kitchen staff on the kitchen screen (tickets by station, statuses).
 - Branch managers, accountants, stock keepers, HR and payroll, CRM/loyalty staff in the office, at a
@@ -21,17 +21,18 @@ web
 
 ## Product Purpose
 
-Sandyq's own cashier and back-office system, built to replace iiko (a third-party restaurant platform)
-over time. Today it runs as a pilot alongside iiko on three Sandyq branches (Алматы, Шымкент, Түркістан):
-iiko stays the source of real data (catalog, recipes, prices, stock, staff, sales) and is only ever read.
-Success means the branches can run sales, kitchen, stock, finance and payroll in Sandyq without iiko.
+A cashier and back-office system for restaurant chains, built to replace iiko (a third-party restaurant
+platform) over time. A chain starts with a pilot alongside iiko: iiko stays the source of real data (catalog,
+recipes, prices, stock, staff, sales) and is only ever read. Success means the branches can run sales,
+kitchen, stock, finance and payroll in OASIS Gastro without iiko. Each client chain is a deployment with its
+own organization, restaurants and data; the first one runs a pilot on three branches.
 
 ## Positioning
 
-An owned system for one Kazakhstan ethno-restaurant brand rather than a generic product: bilingual
+A system for Kazakhstan full-service restaurant chains rather than a generic POS: bilingual
 Kazakh/Russian menu, Kazakhstan accounting (chart of accounts, VAT, payroll 2026 rules), full-service
-dining (many open table checks, 15 % service charge in the hall), and Sandyq's own identity — while
-reading everything that already exists in iiko instead of re-entering it.
+dining (many open table checks, a service charge in the hall) — while reading everything that already
+exists in iiko instead of re-entering it.
 
 ## Operating Context
 
@@ -41,12 +42,12 @@ reading everything that already exists in iiko instead of re-entering it.
   restaurant/warehouse scopes.
 - Money in whole tenge (KZT), time zone Asia/Almaty, business day with a cutoff.
 - Receipts are non-fiscal during the pilot; fiscal receipts are still printed by iiko.
-- iiko account `sandy-co-co` hosts 8 brands; this product covers the Sandyq brand only.
+- One iiko account may host several brands; a deployment covers one brand, set by `IIKO_BRAND_ALIASES`.
 
 ## Capabilities and Constraints
 
 - Never write to iiko: every call is a read (GET). Imports are manual, idempotent, and never overwrite
-  edits made in Sandyq.
+  edits made in OASIS Gastro.
 - Personal data of guests and employees is masked without a dedicated right; iiko sales come in without
   guest personal data.
 - Interface language: the POS has a Russian / Kazakh interface switch («Язык интерфейса» in the staff
@@ -60,18 +61,15 @@ reading everything that already exists in iiko instead of re-entering it.
 
 - Product name: OASIS Gastro (restaurant operating system). Logo in `frontend/public/branding/`:
   `oasis-gastro-mark.svg` (mark, favicon), `oasis-gastro-logo-on-dark.svg` (sidebar, sign-in screens),
-  `oasis-gastro-logo.svg` (light screens, with the tagline). The browser tab, the logo and texts that mean
-  the system say «OASIS Gastro».
-- First client: Sandyq (Сандық). Restaurant and organization names, printed receipts and X/Z reports, the
-  guest site sandyq.kz and the iiko brand scope stay Sandyq. Sandyq's own logos and ornaments stay in
-  `frontend/public/branding/` (`sandyq-kz-logo.svg`, `sandyq-kz-hidden-menu-logo.svg`, `ornament.svg`, …).
-- Brand design reference: `../.claude/sandyq-design.skill` (real tokens and patterns), taken from the
-  public sites sandyq.kz / sandyqgroup.com.
-- Printed receipts carry the service-charge line «Қызмет ақысы 15 % / Обслуживание 15 %».
+  `oasis-gastro-logo.svg` (on light). The mark is a restaurant cloche in a violet gradient; the browser tab,
+  the logo and texts that mean the system say «OASIS Gastro».
+- No client is named in the product. Restaurant and organization names come from the data: printed receipts
+  and X/Z reports head with the restaurant's name (no client logo), the office says «сеть» / «ресторан».
+- Printed receipts carry the service-charge line «Қызмет ақысы N % / Обслуживание N %».
 
 ## Evidence on Hand
 
-- Real menus: `frontend/public/menu-pdfs/`, parsed per city in `frontend/public/menu-data/{almaty,shymkent,turkistan}.json`.
+- The first deployment's real menus: `frontend/public/menu-pdfs/`, parsed per city in `frontend/public/menu-data/{almaty,shymkent,turkistan}.json` (dev seed input).
 - Real operational data mirrored read-only from iiko (products, recipes, prices, stock, staff, shifts, orders).
 - Site imagery in `frontend/public/images/`.
 - No customer testimonials, benchmarks or metrics to cite — do not invent any.
@@ -80,9 +78,9 @@ reading everything that already exists in iiko instead of re-entering it.
 
 1. The cashier's speed at the table comes first: a check in a few touches, nothing that slows peak hours.
 2. Honest states: a missing provider, key, recipe or report says so — never a fake success or a zero.
-3. iiko is read, never written; Sandyq's own edits always survive a re-import.
+3. iiko is read, never written; edits made in OASIS Gastro always survive a re-import.
 4. Kazakhstan first: tenge, KZ accounting and payroll, Kazakh and Russian side by side.
-5. One brand, one system: Sandyq's identity in every surface, not a generic POS skin.
+5. One product, many chains: the chain's own names and data in every surface, OASIS Gastro's identity in the frame.
 
 ## Accessibility & Inclusion
 

@@ -1,6 +1,6 @@
-# Sandyq
+# OASIS Gastro
 
-A cashier POS + back office for **Sandyq**, a Kazakhstan ethno-restaurant chain (3 branches: Алматы, Шымкент, Түркістан). Built on Convex (backend + realtime database) and React/Vite (frontend), with a read-only sync from the chain's existing iiko Server account for real branch/staff data.
+**OASIS Gastro** is a cashier POS + kitchen screen + back office for Kazakhstan restaurant chains. Each client chain is a deployment with its own data; the first one (repo, Convex and Azure resource names below still carry its name) is a pilot on 3 branches. Built on Convex (backend + realtime database) and React/Vite (frontend), with a read-only sync from the chain's existing iiko Server account for real branch/staff data.
 
 **New here? Start with [docs/01-ONBOARDING.md](docs/01-ONBOARDING.md)** (in Russian) — the project map and the numbered reading order of every document in `docs/`. To test dev and prod by hand, role by role: [docs/10-TESTING-GUIDE.md](docs/10-TESTING-GUIDE.md) (logins and PINs go to the local, gitignored `test-credentials.local.md` via `npm run test:credentials`).
 
@@ -28,11 +28,11 @@ npm run dev             # http://localhost:5173
 
 `npm run seed` prints (and saves to gitignored `.sandyq-seed/credentials-*.json`) a cashier/manager/administrator PIN to log into `/pos` with. For `/office`, sign up with any email/password at `/office`, then set that email as `OFFICE_BOOTSTRAP_EMAIL` (`npx convex env set OFFICE_BOOTSTRAP_EMAIL you@example.com`) and click "Инициализировать офис" on first sign-in — see [Two auth models](docs/03-ARCHITECTURE.md#two-application-surfaces-two-auth-models) for why POS and office are separate.
 
-Pulling real branch/staff data from iiko (optional, needs `.env` with `IIKO_BASE_URL`/`IIKO_LOGIN`/`IIKO_PASSWORD` — see the runbook):
+Pulling real branch/staff data from iiko (optional, needs `.env` with `IIKO_BASE_URL`/`IIKO_LOGIN`/`IIKO_PASSWORD` and the brand scope `IIKO_BRAND_ALIASES` — see the runbook):
 
 ```bash
 npm run iiko:discover   # maps the API surface, pulls no data
-npm run iiko:seed       # extract → import → reconcile, scoped to Sandyq only
+npm run iiko:seed       # extract → import → reconcile, scoped to the brand in IIKO_BRAND_ALIASES
 ```
 
 ## Common commands

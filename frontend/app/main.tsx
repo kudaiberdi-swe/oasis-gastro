@@ -16,7 +16,7 @@ import "@/shared/styles/index.css"
 // host no longer serves. Reload once to pick up the new build instead of failing the section; the
 // timestamp stops a reload loop when the chunk is missing for another reason.
 window.addEventListener("vite:preloadError", (event) => {
-  const key = "sandyq-chunk-reload"
+  const key = "oasis-chunk-reload"
   let last = 0
   try {
     last = Number(sessionStorage.getItem(key) ?? 0)

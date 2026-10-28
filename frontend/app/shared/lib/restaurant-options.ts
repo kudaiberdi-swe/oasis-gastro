@@ -1,4 +1,4 @@
-// Restaurant pickers: two restaurants may share a name (a seeded «Sandyq Алматы» next to the one imported
+// Restaurant pickers: two restaurants may share a name (a seeded «Ресторан Алматы» next to the one imported
 // from iiko, or names differing only in spaces). Such options get a caption — the city when it tells them
 // apart, otherwise the restaurant code — so the choice is never a guess.
 

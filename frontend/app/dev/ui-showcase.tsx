@@ -41,9 +41,9 @@ import {
 } from "@/shared/components/ui"
 
 const RESTAURANTS = [
-  { value: "almaty", label: "Sandyq Алматы" },
-  { value: "shymkent", label: "Sandyq Шымкент" },
-  { value: "turkistan", label: "Sandyq Түркістан", hint: "Туркестан" },
+  { value: "almaty", label: "Ресторан Алматы" },
+  { value: "shymkent", label: "Ресторан Шымкент" },
+  { value: "turkistan", label: "Ресторан Түркістан", hint: "Туркестан" },
 ]
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

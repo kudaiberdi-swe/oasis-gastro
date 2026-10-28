@@ -31,7 +31,8 @@ export function renderMessage(job: AdapterJob): Message | null {
     }
   }
   if (job.operation === CAMPAIGN_OPERATION && typeof payload.text === "string" && payload.text.trim()) {
-    return { subject: typeof payload.subject === "string" && payload.subject.trim() ? payload.subject : "Sandyq", text: payload.text }
+    const subject = typeof payload.subject === "string" && payload.subject.trim() ? payload.subject : typeof payload.campaignName === "string" ? payload.campaignName : ""
+    return { subject, text: payload.text }
   }
   return null
 }

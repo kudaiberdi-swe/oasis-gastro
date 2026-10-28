@@ -104,9 +104,9 @@ export function PosWorkspace() {
   )
 }
 
-/** «Sandyq · <филиал> · <касса>» without repeating the brand or branch already in the names. */
+/** «<ресторан> · <касса>» without repeating the restaurant already in the terminal's name. */
 export function terminalLabel(restaurantName: string, terminalName: string) {
-  const branch = restaurantName.startsWith("Sandyq") ? restaurantName : `Sandyq · ${restaurantName}`
+  const branch = restaurantName
   const terminal = terminalName.startsWith(restaurantName) ? terminalName.slice(restaurantName.length).replace(/^\s*[·—-]\s*/, "") : terminalName
   return terminal ? `${branch} · ${terminal}` : branch
 }

@@ -16,7 +16,7 @@ export function OfficeShowcase() {
   const item = findOfficeItem(section) ?? findOfficeItem("receipts")!
   const group = findOfficeGroup(item.id)
   return (
-    <OfficeShell groups={officeNavigation} activeItemId={item.id} userName="Администратор" footerLine="Sandyq Group · Asia/Almaty · KZT" onSignOut={() => {}}>
+    <OfficeShell groups={officeNavigation} activeItemId={item.id} userName="Администратор" footerLine="Ресторанная сеть · Asia/Almaty · KZT" onSignOut={() => {}}>
       <OfficePage
         group={group}
         title={item.label}

@@ -131,7 +131,7 @@ if (payloadsOf("product").length) {
       payloadHash: row.payloadHash,
     }
   })
-  console.log(`  Products: ${products.length} in the Sandyq scope, ${matched} matched to seed dishes by name`)
+  console.log(`  Products: ${products.length} in the brand scope, ${matched} matched to seed dishes by name`)
 }
 
 const chunk = (array, size) => Array.from({ length: Math.ceil(array.length / size) }, (_, index) => array.slice(index * size, index * size + size))

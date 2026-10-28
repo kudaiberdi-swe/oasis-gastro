@@ -11,7 +11,7 @@ import { useCloudApiStatus, type CloudApiStatus } from "../data/use-integrations
 import { CLOUD_API_ENDPOINTS, signedCurlExample } from "../model/cloud-api"
 
 // «Cloud API» (/office/integration-cloud-api, W3-INT-03, decision Г-9): the state of the signed API for
-// sandyq.kz — whether the secret and the webhook address are set (never their values), the routes,
+// the restaurant's website — whether the secret and the webhook address are set (never their values), the routes,
 // the «Проверка подписи» example and the last orders that came through the API.
 
 export function CloudApiWorkspace() {
@@ -50,7 +50,7 @@ function CloudApiContent() {
 
         <section aria-label="Подключение" className="flex flex-col gap-4 rounded-card border border-border bg-card p-5">
           <div className="flex flex-col gap-0.5">
-            <h3 className="text-title-sm font-semibold">Подключение сайта sandyq.kz</h3>
+            <h3 className="text-title-sm font-semibold">Подключение сайта ресторана</h3>
             <p className="text-caption text-muted-foreground">Подпись HMAC-SHA256, окно ±5 минут, каждая подпись принимается один раз.</p>
           </div>
           <dl className="grid gap-3 md:grid-cols-3">

@@ -17,11 +17,11 @@
 #  12. M-5 loyalty              migrations/m5Loyalty: ensureBaseProgram, migrateGuests (paged; reports mismatches)
 #  13. M-8 sales facts          domains/reports/internal:backfillDailySalesFacts (paged; after M-2 business dates)
 #  14. KZ payroll rules 2026    domains/workforce/payroll:seedRules2026 (draft; the accountant activates it)
-#  15. Delivery sources          domains/delivery/internal:seedSources («Телефон», «Сайт sandyq.kz», 0 %)
+#  15. Delivery sources          domains/delivery/internal:seedSources («Телефон», «Сайт», 0 %)
 #  16. M-9 daily stock facts    migrations/m9DailyStockFacts:backfill (paged; after M-3)
 #  17. M-8b sales facts rebuild  domains/reports/internal:rebuildDailySalesFactsRange 2026-01-01…yesterday
 #                               (after M-8; one day per scheduled run, adds the W2 station/channel facts)
-#  18. Print templates (W3)     domains/platform/printTemplates:seedSandyqTemplates (check, pre-check, X, Z —
+#  18. Print templates (W3)     domains/platform/printTemplates:seedDefaultTemplates (check, pre-check, X, Z —
 #                               published per organization; the POS prints by them instead of the built-in forms)
 # Each step runs as a dry run first and prints what it would change; then asks before writing.
 #
@@ -87,7 +87,7 @@ paged migrations/m4LedgerToJournal:migrateLedgerToJournal true
 run migrations/m5Loyalty:ensureBaseProgram '{"dryRun":true}'
 paged migrations/m5Loyalty:migrateGuests true
 paged domains/reports/internal:backfillDailySalesFacts true
-run domains/platform/printTemplates:seedSandyqTemplates '{"dryRun":true}'
+run domains/platform/printTemplates:seedDefaultTemplates '{"dryRun":true}'
 
 if $APPLY_WITHOUT_ASKING; then
   ANSWER=y
@@ -121,7 +121,7 @@ paged domains/reports/internal:backfillDailySalesFacts false
 run domains/workforce/payroll:seedRules2026 '{}'
 run domains/delivery/internal:seedSources '{}'
 run domains/reports/internal:rebuildDailySalesFactsRange "{\"dateFrom\":\"2026-01-01\",\"dateTo\":\"$YESTERDAY\"}"
-run domains/platform/printTemplates:seedSandyqTemplates '{}'
+run domains/platform/printTemplates:seedDefaultTemplates '{}'
 echo "── M-3 verify (expect no mismatches) ──"
 run migrations/m3StockWarehouses:verify '{"paginationOpts":{"numItems":200,"cursor":null}}'
 echo "Done."

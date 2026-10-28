@@ -22,7 +22,7 @@ export const SHIFT_TABS: { value: ShiftStatusTab; label: string }[] = [
 ]
 
 export const SOURCE_OPTIONS: { value: SalesSource; label: string }[] = [
-  { value: "sandyq", label: "OASIS Gastro" },
+  { value: "own", label: "OASIS Gastro" },
   { value: "iiko", label: "iiko" },
 ]
 

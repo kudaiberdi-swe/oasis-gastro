@@ -6,7 +6,7 @@ import type { ReactNode } from "react"
 import { createMemoryRouter, RouterProvider } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { SANDYQ_PRINT_TEMPLATES } from "../../convex/lib/printTemplate"
+import { DEFAULT_PRINT_TEMPLATES } from "../../convex/lib/printTemplate"
 import { CapabilitiesProvider } from "@/office/components/can"
 import type { PlatformRecord } from "@/office/features/platform/data/use-platform-records"
 import { EquipmentWorkspace } from "@/office/features/platform/ui/equipment-workspace"
@@ -67,7 +67,7 @@ function record(overrides: Partial<PlatformRecord> & Pick<PlatformRecord, "exter
   }
 }
 
-const receiptSeed = SANDYQ_PRINT_TEMPLATES.find((seed) => seed.documentType === "receipt")!
+const receiptSeed = DEFAULT_PRINT_TEMPLATES.find((seed) => seed.documentType === "receipt")!
 const RECEIPT = record({ externalId: "pt-receipt", moduleId: "print-templates", name: "Чек продажи Sandyq", data: { documentType: "receipt", language: "ru", copies: 1, widthMm: 80, template: receiptSeed.template } })
 const PRINTER = record({ externalId: "eq-hot", moduleId: "equipment", number: "ОБР-2026-00001", status: "active", restaurantExternalId: "r1", name: "Принтер горячего цеха", data: { type: "kitchen-printer", endpoint: "192.168.1.50:9100", terminalExternalId: "t1" }, routing: [{ station: "hot", printerExternalId: "self" }] })
 const IDLE = record({ externalId: "ss-idle", moduleId: "system-settings", number: "НС-2026-00001", status: "draft", restaurantExternalId: "r1", name: "Автоблокировка кассы", data: { key: "security.posIdleLockMinutes", scope: "restaurant", scopeExternalId: "r1", value: 10, category: "security", valueType: "number" } })
@@ -129,7 +129,8 @@ describe("«Шаблоны печати» (W3-ADM-10)", () => {
     expect((within(panel).getByLabelText("Шаблон") as HTMLTextAreaElement).disabled).toBe(true)
     const preview = within(panel).getByRole("img", { name: "Превью печати, лента 80 мм" })
     expect(within(preview).getByText("Қызмет ақысы 15 % / Обслуживание 15 %")).toBeTruthy()
-    expect(within(preview).getByText("DALA AŊYZYN JAŊĞYRTU")).toBeTruthy()
+    expect(within(preview).getByText("Ресторан Алматы")).toBeTruthy()
+    expect(within(preview).queryByText(/DALA|Sandyq/i)).toBeNull()
     fireEvent.click(within(panel).getByRole("button", { name: "Снять с публикации" }))
     const confirm = await screen.findByRole("alertdialog")
     fireEvent.click(within(confirm).getByRole("button", { name: "Снять с публикации" }))
@@ -225,7 +226,7 @@ describe("POS printing by a published template (W3-ADM-10)", () => {
   }
 
   it("prints the pre-check by the published template, escaped, with copies", () => {
-    const html = templateHtml({ externalId: "pt", number: "ШП-1", name: "Предчек", template: "[center][bold]ПРЕДЧЕК ПО ШАБЛОНУ\n{{#lines}}\n{{quantity}} × {{name}} || {{amount}}\n{{/lines}}\n[total]К ОПЛАТЕ || {{totals.total}}", widthMm: 58, copies: 2, language: "ru" }, "precheck", "Предчек", orderTemplateData(receipt), "https://pos.test")
+    const html = templateHtml({ externalId: "pt", number: "ШП-1", name: "Предчек", template: "[center][bold]ПРЕДЧЕК ПО ШАБЛОНУ\n{{#lines}}\n{{quantity}} × {{name}} || {{amount}}\n{{/lines}}\n[total]К ОПЛАТЕ || {{totals.total}}", widthMm: 58, copies: 2, language: "ru" }, "precheck", "Предчек", orderTemplateData(receipt))
     expect(html).toContain("ПРЕДЧЕК ПО ШАБЛОНУ")
     expect(html).toContain("Бешбармак &lt;b&gt;")
     expect(html).toContain("size: 58mm auto")

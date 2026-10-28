@@ -14,13 +14,13 @@ export async function markDeliveryCooked(ctx: MutationCtx, orderId: Id<"orders">
   return true
 }
 
-/** «Телефон» and «Сайт sandyq.kz», no commission; aggregators wait for the business decision. */
+/** «Телефон» and «Сайт», no commission; aggregators wait for the business decision. */
 export const seedSources = internalMutation({
   args: {},
   handler: async (ctx) => {
     const defaults = [
       { externalId: "source-phone", name: "Телефон", kind: "phone" as const },
-      { externalId: "source-website", name: "Сайт sandyq.kz", kind: "website" as const },
+      { externalId: "source-website", name: "Сайт", kind: "website" as const },
     ]
     let created = 0
     for (const source of defaults) {

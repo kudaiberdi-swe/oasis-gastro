@@ -76,7 +76,7 @@ export const CARD_SECTIONS: Record<CardModuleId, { label: string; provider: stri
     provider: "resend-mobizon",
     secretHint: "RESEND_API_KEY или MOBIZON_API_KEY",
     fields: [
-      { key: "sender", label: "Отправитель", kind: "text", placeholder: "Sandyq <office@sandyq.kz> или имя SMS" },
+      { key: "sender", label: "Отправитель", kind: "text", placeholder: "Ресторан <office@company.kz> или имя SMS" },
       { key: "channel", label: "Канал", kind: "select", options: [{ value: "both", label: "SMS и email" }, { value: "email", label: "Только email" }, { value: "sms", label: "Только SMS" }] },
     ],
   },

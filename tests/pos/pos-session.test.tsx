@@ -71,6 +71,6 @@ describe("terminal caption (L-6)", () => {
   it("does not repeat the brand or the branch", async () => {
     const { terminalLabel } = await import("@/pos/features/order-taking/ui/pos-workspace")
     expect(terminalLabel("Sandyq Шымкент", "Sandyq Шымкент · Касса 1")).toBe("Sandyq Шымкент · Касса 1")
-    expect(terminalLabel("Алматы", "Главная касса")).toBe("Sandyq · Алматы · Главная касса")
+    expect(terminalLabel("Алматы", "Главная касса")).toBe("Алматы · Главная касса")
   })
 })

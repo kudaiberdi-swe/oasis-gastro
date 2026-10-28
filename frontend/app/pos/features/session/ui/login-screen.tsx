@@ -13,7 +13,7 @@ const PIN_MAX = 6
 
 export interface LoginScreenProps {
   onLogin: (code: string, pin: string) => Promise<unknown>
-  /** «Sandyq · <филиал> · <касса>», from the terminal record — never a constant (L-6). */
+  /** «<ресторан> · <касса>», from the terminal record — never a constant (L-6). */
   terminalLabel?: string
   /** After an idle lock: same screen, «Касса заблокирована». */
   locked?: boolean
@@ -65,7 +65,7 @@ export function LoginScreen({ onLogin, terminalLabel, locked = false, onChangeTe
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 bg-nav px-6">
       <div className="flex flex-col items-center gap-3 text-nav-foreground">
-        <img src="/branding/oasis-gastro-logo-on-dark.svg" alt="OASIS Gastro" width={185} height={64} className="h-12 w-auto" />
+        <img src="/branding/oasis-gastro-logo-on-dark.svg" alt="OASIS Gastro" width={272} height={64} className="h-12 w-auto" />
         <OrnamentPair className="text-nav-accent" />
       </div>
 

@@ -23,7 +23,7 @@ export type OfficeZReport = NonNullable<FunctionReturnType<typeof office.getZRep
 export type IikoOrderRow = FunctionReturnType<typeof office.listIikoOrders>["page"][number]
 export type IikoShiftRow = FunctionReturnType<typeof office.listIikoShifts>["page"][number]
 /** Where the rows of «Заказы и чеки» / «Кассовые смены» come from (W2-RTL-01). */
-export type SalesSource = "sandyq" | "iiko"
+export type SalesSource = "own" | "iiko"
 
 const withRestaurant = (restaurantExternalId: string | undefined) => (restaurantExternalId ? { restaurantExternalId } : {})
 

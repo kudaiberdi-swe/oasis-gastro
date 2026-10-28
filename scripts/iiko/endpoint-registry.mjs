@@ -3,9 +3,9 @@
 // what PII rules apply): update lib.mjs's sanitizeRecord allowlist for its domain first. `flag` endpoints
 // run only when the extract is asked for them; v2 endpoints answer JSON (they return 406 for XML).
 //   withStockMaster — stores, POS cash registers (points of sale of corporation/groups), units, suppliers (W1-IIKO-03)
-//   withProducts    — Sandyq product groups, products and their assembly charts (W1-IIKO-04, W2-IIKO-08; Б-B4)
-//   withBalances    — opening stock balances of Sandyq stores (W1-IIKO-05)
-//   withPrices      — prices of the Sandyq departments (W2-IIKO-09)
+//   withProducts    — the brand's product groups, products and their assembly charts (W1-IIKO-04, W2-IIKO-08; Б-B4)
+//   withBalances    — opening stock balances of the brand's stores (W1-IIKO-05)
+//   withPrices      — prices of the brand's departments (W2-IIKO-09)
 //   withSales       — cash shifts and orders without personal data (W2-RTL-01; D7)
 export const ENDPOINTS = [
   { key: "corporation/departments", path: "corporation/departments", domain: "organization", classification: "mirrored" },

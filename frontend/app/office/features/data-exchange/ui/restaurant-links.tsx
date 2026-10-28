@@ -9,7 +9,7 @@ import { errorMessage } from "@/shared/lib/error-message"
 import { useLinkRestaurant, useRestaurantLinkOptions, type IikoDepartmentOption, type RestaurantLinkRow } from "../data/use-iiko"
 import { Panel } from "./panel"
 
-// «Сопоставление филиалов» (W1-IIKO-02): which iiko department a Sandyq restaurant is. Without a link the
+// «Сопоставление филиалов» (W1-IIKO-02): which iiko department a restaurant is. Without a link the
 // import skips that department's stores and terminals instead of attaching them to a random restaurant (B-24).
 
 type Pending = { restaurant: RestaurantLinkRow; department: IikoDepartmentOption | null; takenFrom?: RestaurantLinkRow }
@@ -55,7 +55,7 @@ export function RestaurantLinks() {
   const columns: Column<RestaurantLinkRow>[] = [
     {
       key: "restaurant",
-      header: "Ресторан Sandyq",
+      header: "Ресторан",
       // Names repeat (a seed branch and the same branch from iiko): the code and the source tell them apart.
       cell: (row) => (
         <span className="flex flex-col">
@@ -131,7 +131,7 @@ export function RestaurantLinks() {
   return (
     <Panel
       title="Сопоставление филиалов"
-      description="Ресторан Sandyq ↔ подразделение iiko. Склады и кассы подразделения без сопоставления импорт пропускает"
+      description="Ресторан ↔ подразделение iiko. Склады и кассы подразделения без сопоставления импорт пропускает"
       actions={options && restaurants.length ? <TonePill tone={unlinked ? "warning" : "success"}>{unlinked ? `Не сопоставлено: ${unlinked}` : "Все сопоставлены"}</TonePill> : undefined}
     >
       {options === undefined ? (

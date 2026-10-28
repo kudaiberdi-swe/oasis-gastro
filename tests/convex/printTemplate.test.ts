@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { PRINT_DOCUMENT_TYPES, PRINT_SAMPLES, printLinesHtml, renderPrintTemplate, SANDYQ_PRINT_TEMPLATES, validatePrintTemplate, type PrintTextLine } from "../../convex/lib/printTemplate"
+import { PRINT_DOCUMENT_TYPES, PRINT_SAMPLES, printLinesHtml, renderPrintTemplate, DEFAULT_PRINT_TEMPLATES, validatePrintTemplate, type PrintTextLine } from "../../convex/lib/printTemplate"
 
 const text = (lines: ReturnType<typeof renderPrintTemplate>["lines"]) => lines.map((line) => (line.kind === "text" ? (line.right !== undefined ? `${line.left} | ${line.right}` : line.left) : line.kind === "logo" ? "[logo]" : "---"))
 
@@ -62,15 +62,19 @@ describe("print template renderer (W3-ADM-10)", () => {
     expect(lines[0]).toMatchObject({ kind: "text", left: "[box]А || Б В", align: "center", bold: true, box: false })
     expect(lines[0]).not.toHaveProperty("right")
     expect(lines.slice(1).map((line) => line.kind)).toEqual(["divider", "logo"])
+    expect(printLinesHtml(renderPrintTemplate("[logo]", "receipt", { restaurant: { name: "Шафран <Алматы>" }, organization: { name: "ТОО" } }).lines)).toBe('<h1 class="brand">Шафран &lt;Алматы&gt;</h1>')
+    expect(printLinesHtml(renderPrintTemplate("[logo]", "receipt", { organization: { name: "ТОО «Сеть»" } }).lines)).toContain("ТОО «Сеть»")
+    expect(printLinesHtml(lines.slice(2))).toBe("")
   })
 
-  it("seeds valid Sandyq templates with the bilingual service charge line", () => {
-    for (const seed of SANDYQ_PRINT_TEMPLATES) expect(validatePrintTemplate(seed.template, seed.documentType), seed.name).toEqual([])
-    const receipt = SANDYQ_PRINT_TEMPLATES.find((seed) => seed.documentType === "receipt")!
+  it("seeds valid default templates with the bilingual service charge line and no client branding", () => {
+    for (const seed of DEFAULT_PRINT_TEMPLATES) expect(validatePrintTemplate(seed.template, seed.documentType), seed.name).toEqual([])
+    const receipt = DEFAULT_PRINT_TEMPLATES.find((seed) => seed.documentType === "receipt")!
     const rendered = text(renderPrintTemplate(receipt.template, "receipt", PRINT_SAMPLES.receipt).lines)
     expect(rendered).toContain("Қызмет ақысы 15 % / Обслуживание 15 % | 2 385 ₸")
-    expect(rendered).toContain("DALA AŊYZYN JAŊĞYRTU")
     expect(rendered[0]).toBe("[logo]")
+    expect(renderPrintTemplate(receipt.template, "receipt", PRINT_SAMPLES.receipt).lines[0]).toEqual({ kind: "logo", name: "Ресторан Алматы" })
+    for (const seed of DEFAULT_PRINT_TEMPLATES) expect(seed.template + seed.name).not.toMatch(/sandyq|DALA/i)
     for (const type of PRINT_DOCUMENT_TYPES) expect(PRINT_SAMPLES[type]).toBeTruthy()
   })
 })

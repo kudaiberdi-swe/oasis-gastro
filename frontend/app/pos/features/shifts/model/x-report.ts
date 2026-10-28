@@ -98,11 +98,11 @@ export function buildXReportHtml(report: XReportData) {
   return printPage(
     `${report.reportNumber} · X-отчёт`,
     `<header>
-  <h1 class="brand">SANDYQ</h1>
+  <h1 class="brand">${escapeHtml(report.restaurantName)}</h1>
   <p class="kind">X-ОТЧЁТ</p>
   <p class="center muted">Отчёт без гашения</p>
   <p class="box">НЕФИСКАЛЬНЫЙ ДОКУМЕНТ</p>
-  <p class="center">${escapeHtml(report.restaurantName)}<br><span class="muted">${[report.restaurantAddress, report.terminalName].filter(Boolean).map(escapeHtml).join(" · ")}</span></p>
+  <p class="center muted">${[report.restaurantAddress, report.terminalName].filter(Boolean).map(escapeHtml).join(" · ")}</p>
   <p class="center strong">${escapeHtml(report.reportNumber)}</p>
 </header>
 <hr class="divider">

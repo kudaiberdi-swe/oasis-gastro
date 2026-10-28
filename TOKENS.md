@@ -52,6 +52,7 @@ Read-only access to the client's iiko account for `scripts/iiko/*` (`scripts/iik
 | `IIKO_BASE_URL` | iiko server address | local `.env`, or the gitignored `iiko-credentials.md` | unknown |
 | `IIKO_LOGIN` | iiko API user | local `.env`, or `iiko-credentials.md` | unknown |
 | `IIKO_PASSWORD` | iiko API password | local `.env`, or `iiko-credentials.md` | unknown |
+| `IIKO_BRAND_ALIASES` | brand scope of the extract (`scripts/iiko/extract.mjs`): comma list of spellings of the brand name in iiko department and product group names; the extract refuses to run without it (or `--brand`) | local `.env` | not set (new; the existing deployment needs its brand's spellings) |
 
 ## Not issued yet
 

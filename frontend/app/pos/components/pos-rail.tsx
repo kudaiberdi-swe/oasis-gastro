@@ -124,7 +124,6 @@ export function PosRail({
   onLock: () => void
 }) {
   const t = useT()
-  const brand = restaurantName.startsWith("Sandyq") ? restaurantName : `Sandyq · ${restaurantName}`
   const place = [terminalName, city].filter(Boolean).join(" · ")
   const profileLine = [employeeRole, headerDate(now ?? Date.now(), t)].filter(Boolean).join(" · ")
   const kitchenLabel = t("pos.kitchenScreen")
@@ -133,7 +132,7 @@ export function PosRail({
       <img
         src="/branding/oasis-gastro-mark.svg"
         alt="OASIS Gastro"
-        title={[brand, place].filter(Boolean).join("\n")}
+        title={[restaurantName, place].filter(Boolean).join("\n")}
         width={64}
         height={64}
         className="mt-1 mb-2 size-9 shrink-0"
@@ -214,7 +213,7 @@ export function PosRail({
           type="button"
           onClick={onProfile ?? onOpenShiftInfo}
           aria-label={t("header.profile", { name: employeeName })}
-          title={[employeeName, profileLine, brand, place].filter(Boolean).join("\n")}
+          title={[employeeName, profileLine, restaurantName, place].filter(Boolean).join("\n")}
           className={cn("mt-1 grid size-12 place-items-center rounded-round border border-nav-muted/40 bg-nav-raised text-body font-semibold text-nav-foreground hover:border-nav-accent", navFocus)}
         >
           <span aria-hidden>{initials(employeeName)}</span>

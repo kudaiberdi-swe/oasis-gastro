@@ -1,6 +1,6 @@
 import { almatyBusinessDate } from "@/shared/lib/almaty-time"
 
-import { MAX_COPIES, PRINT_DOCUMENT_LABELS, PRINT_DOCUMENT_TYPES, PRINT_LANGUAGES, SANDYQ_PRINT_TEMPLATES, validatePrintTemplate, type PrintDocumentType, type PrintLanguage } from "@convex/lib/printTemplate"
+import { MAX_COPIES, PRINT_DOCUMENT_LABELS, PRINT_DOCUMENT_TYPES, PRINT_LANGUAGES, DEFAULT_PRINT_TEMPLATES, validatePrintTemplate, type PrintDocumentType, type PrintLanguage } from "@convex/lib/printTemplate"
 import type { PlatformRecord, SavePlatformRecordArgs } from "../data/use-platform-records"
 
 // The «Шаблон печати» card (W3-ADM-10): draft ⇄ record, the office-side checks (the same renderer as the
@@ -17,7 +17,7 @@ export interface PrintTemplateDraft {
 }
 
 const STARTERS: Record<PrintDocumentType, string> = {
-  ...(Object.fromEntries(SANDYQ_PRINT_TEMPLATES.map((seed) => [seed.documentType, seed.template])) as Partial<Record<PrintDocumentType, string>>),
+  ...(Object.fromEntries(DEFAULT_PRINT_TEMPLATES.map((seed) => [seed.documentType, seed.template])) as Partial<Record<PrintDocumentType, string>>),
   kitchen: `[center][bold]{{station.name}}
 [center][large]Заказ №{{order.number}}
 [center]{{order.table}} · {{order.type}}
