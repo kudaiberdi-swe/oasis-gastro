@@ -86,7 +86,7 @@ export function Sidebar({ groups, activeItemId, collapsed, canToggleCollapsed, o
             <img src="/branding/oasis-gastro-mark.svg" alt="OASIS Gastro" width={64} height={64} className="size-8 shrink-0" />
           ) : (
             <>
-              <img src="/branding/oasis-gastro-logo-on-dark.svg" alt="OASIS Gastro" width={185} height={64} className="h-8 w-auto shrink-0" />
+              <img src="/branding/oasis-gastro-logo-on-dark.svg" alt="OASIS Gastro" width={272} height={64} className="h-7 w-auto shrink-0" />
               <span className="min-w-0 flex-1 truncate text-body-sm font-medium text-nav-muted">Office</span>
               <span className="rounded-round bg-nav-raised px-2 py-0.5 text-caption font-medium text-nav-accent">Сеть</span>
             </>

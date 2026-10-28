@@ -1,23 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="OASIS Gastro">
   <title>OASIS Gastro</title>
   <defs>
-    <linearGradient id="og-ring" x1="8" y1="6" x2="58" y2="60" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1E6FE0"/>
-      <stop offset="0.55" stop-color="#35B8F0"/>
-      <stop offset="1" stop-color="#6D4AFF"/>
-    </linearGradient>
-    <linearGradient id="og-glow" x1="20" y1="18" x2="50" y2="52" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#4F8BFF"/>
-      <stop offset="1" stop-color="#8F7BFF"/>
-    </linearGradient>
-    <radialGradient id="og-shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(44 15) rotate(35) scale(13 7)">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.75"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
+    <linearGradient id="ogm-v" x1="4" y1="60" x2="60" y2="8" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#8B4CF0"/><stop offset="1" stop-color="#A472F8"/></linearGradient>
+    <linearGradient id="ogm-dome" x1="6.2" y1="0" x2="59" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#8B4CF0"/><stop offset="0.5" stop-color="#A472F8"/><stop offset="0.8" stop-color="#A472F8"/><stop offset="1" stop-color="#A472F8"/></linearGradient>
   </defs>
-  <circle cx="32" cy="32" r="30" fill="url(#og-ring)"/>
-  <circle cx="33.5" cy="33.5" r="19.5" fill="url(#og-glow)" fill-opacity="0.9"/>
-  <circle cx="30.5" cy="30.5" r="15.5" fill="#0F2A6B"/>
-  <ellipse cx="44" cy="15" rx="13" ry="7" transform="rotate(35 44 15)" fill="url(#og-shine)"/>
-  <path d="M38.2 4.65A28 28 0 0 1 59.35 25.8" fill="none" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="2.6" stroke-linecap="round"/>
+  <g fill="none" stroke="url(#ogm-v)" stroke-linecap="round" stroke-width="3.4"><path d="M35.4 20.4C32.4 17 32.9 14.2 35.8 11.8C38.3 9.7 38.5 7.6 36.9 5.8"/><path d="M40.6 18.6C38 14.8 38.8 11.6 42.2 8.8C45 6.4 45.3 4.4 43.6 2.4"/></g>
+  <circle cx="30.4" cy="21.9" r="3.4" fill="url(#ogm-v)"/>
+  <path d="M6.2 51.6A26.4 26.4 0 0 1 59 51.6L54.8 51.6A21.2 21.2 0 0 0 12.4 51.6Z" fill="url(#ogm-dome)"/>
+    <path d="M12.4 54.2C24 53.2 40 51.4 54.2 49.6C58.6 49.1 61.8 51 61.9 53.9C62 56.4 60.4 58.2 58.2 58.9C59 57.4 58.8 55.6 57 55.2C54.6 54.7 51 55 46.4 55.1C35 55.3 22.8 55 12.4 54.2Z" fill="url(#ogm-v)"/>
+  <path d="M3 58.6H49.4A2.3 2.3 0 0 1 49.4 63.2H3A2.3 2.3 0 0 1 3 58.6Z" fill="#8B4CF0"/>
 </svg>
