@@ -1,12 +1,12 @@
 # Sandyq website — asset map
 
-> Status (2026-09-27): the marketing-site rebuild this map describes is reference material in `reference/site-rebuild/` — unfinished (no pages), not deployed, not part of the product. The real guest site sandyq.kz is separate and uses the Cloud API (`07-CLOUD-API.md`). The photo and logo inventory below is still accurate for `frontend/public/` and is useful for any brand material.
+> Status (2026-09-27): the marketing-site rebuild this map describes is reference material in `reference/site-rebuild/` — unfinished (no pages), not deployed, not part of the product. The real guest site sandyq.kz is separate and uses the Cloud API (`07-CLOUD-API.md`). The photos and menus below now live in `scripts/legacy-sandyq/` (moved out of `frontend/public/`, not served); the old client logos were deleted when the product became OASIS Gastro.
 
 Every image on the site comes from the repo's `frontend/public/` folder (the same folder the POS uses). Nothing is hotlinked from sandyqgroup.com. `reference/site-rebuild/scripts/optimize-images.mjs` (runs before `dev`/`build`) converts rasters to WebP at 480 / 768 / 1080 / 1440 / 1920 px (only widths smaller than the original, skipping ones within 15% of it), copies SVGs with their XML comments stripped, copies the menu PDFs, and writes `reference/site-rebuild/src/config/images.gen.json` with intrinsic width/height. The `<Picture>` component reads that manifest so every `<img>` has `width`/`height`, a `srcset` and `sizes`; everything except the first screen is `loading="lazy"`.
 
 The "Reference role" column names the image that plays the same role on the reference page, so the substitution is traceable.
 
-## Photos (`frontend/public/images/`)
+## Photos (`scripts/legacy-sandyq/images/`, not served by the frontend)
 
 | File | Size | What it shows | Used on | Role (reference equivalent) |
 |---|---|---|---|---|
@@ -25,7 +25,7 @@ The "Reference role" column names the image that plays the same role on the refe
 | `hero-block-main-3.jpg` | 720×720 | Cushion + carved chest | `/restaurant` uniqueness "Интерьер" | Reference `san-uniq-004` (carpets and chests) |
 | `bright-bulbs.png` | 303×544 | Coloured glass lamps (portrait) | `/restaurant` rotated signature card; uniqueness "Свет" | Reference signature video in the rotated card (portrait) |
 
-## Brand and decor (`frontend/public/branding/`, `frontend/public/images/*.svg`)
+## Brand and decor (historical: client logos deleted; decor SVGs in `scripts/legacy-sandyq/images/`)
 
 | File | Used on | Notes |
 |---|---|---|

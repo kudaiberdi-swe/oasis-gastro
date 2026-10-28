@@ -90,9 +90,9 @@ export function UiShowcase() {
 
         <Section title="Карточки блюд (касса)">
           <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-            <ProductCard name="Бешбармак" nameKk="Бешбармақ" price={7990} tone="meat" imageUrl="/images/cymbal-3.jpg" onClick={() => {}} />
-            <ProductCard name="Сорпа" nameKk="Сорпа" price={2450} tone="meat" imageUrl="/images/hero-block-main-2.jpg" onClick={() => {}} />
-            <ProductCard name="Баурсаки" nameKk="Бауырсақ" price={900} tone="bread" imageUrl="/images/no-such-photo.jpg" onClick={() => {}} />
+            <ProductCard name="Бешбармак" nameKk="Бешбармақ" price={7990} tone="meat" onClick={() => {}} />
+            <ProductCard name="Сорпа" nameKk="Сорпа" price={2450} tone="meat" onClick={() => {}} />
+            <ProductCard name="Баурсаки" nameKk="Бауырсақ" price={900} tone="bread" onClick={() => {}} />
             <ProductCard name="Шұбат 0,2 л" nameKk="Шұбат" price={850} tone="dairy" onClick={() => {}} />
           </div>
         </Section>

@@ -84,7 +84,7 @@ Against production, use `bash scripts/prod-iiko-import.sh` (`--from <date>` for 
 
 ## Connecting an entity back to the operational side of the system
 
-An imported `iikoEmployees` row is not a POS login by itself. `domains/workforce/mutations.ts:provisionPosAccess` (surfaced in `/office` → «Сотрудники» → «Из iiko», and in «Корпорация → Обмен данными с iiko → Доступ сотрудников к Sandyq POS») bridges one to a real `employees` row — the code and PIN are always generated locally there, never derived from anything iiko returns.
+An imported `iikoEmployees` row is not a POS login by itself. `domains/workforce/mutations.ts:provisionPosAccess` (surfaced in `/office` → «Сотрудники» → «Из iiko», and in «Корпорация → Обмен данными с iiko → Доступ сотрудников к кассе OASIS Gastro») bridges one to a real `employees` row — the code and PIN are always generated locally there, never derived from anything iiko returns.
 
 ## Stock master data (W1-IIKO-01..03) — still GET only
 

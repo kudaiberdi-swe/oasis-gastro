@@ -13,7 +13,8 @@ Two people can read this repo cold from here: this file gets you running locally
 - **`/office`** — the back office. Email/password login (separate from POS PINs). A dark-sidebar shell with 12 groups / 91 sections (the bahandi-pos structure), filtered by the user's rights. Every section has a working screen except «План счетов» (placeholder) and «Касса» (a link to `/pos`) — nomenclature, recipes, stock and production documents, finance (double-entry journal, cash flow, bank statements, budgets), staff and payroll, guests and loyalty, delivery, 190 reports, integrations, and «Обмен данными с iiko». Every office query and change is limited to the user's restaurants. Each surface and each office section loads as its own chunk.
 - **`convex/`** — the backend: schema, one folder per business domain (`domains/<name>/{queries,mutations}.ts`), shared helpers in `lib/`.
 - **`scripts/iiko/`** — a read-only sync toolkit against the real iiko Server API (GET only, enforced by design — see the rule below): org tree and staff, plus (behind flags) stores, registers, units, suppliers, products, assembly charts, opening balances, prices, cash shifts and orders without personal data. `scripts/prod-iiko-import.sh` runs the whole import against prod.
-- **`scripts/seed-sandyq.mjs`** — seeds the real menu (parsed from `frontend/public/menu-data/*.json`) plus org/restaurants/terminals.
+- **`scripts/seed-sandyq.mjs`** — seeds the first deployment's real menu (parsed from `scripts/legacy-sandyq/menu-data/*.json`, not served by the frontend) plus org/restaurants/terminals.
+- **`scripts/seed-shafran.mjs`** (`npm run seed:shafran`) — dev only: wipes dev and seeds the synthetic demo chain «Шафран» (`convex/domains/seed/shafran*.ts`); the demo POS and kitchen open terminal `shafran-09-01`.
 
 **Hard rule: never write to iiko.** Every script, action, and ad-hoc call against the iiko API must be GET-only. This is a live production account for a real, currently-operating business — not a sandbox. See `convex/domains/iiko/` and `scripts/iiko/lib.mjs`'s `IikoClient` (which only ever exposes `.get()`).
 
@@ -73,11 +74,8 @@ Frontend is hosted on an Azure Static Web App (`sandyq-frontend`, resource group
 
 - Office (sign-in/sign-up): https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/office
 - POS (terminal picker): https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/pos
-- POS — Алматы: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-almaty-01
-- POS — Шымкент: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-shymkent-01
-- POS — Түркістан: https://thankful-moss-04c3d4a0f.4.azurestaticapps.net/?terminal=sandyq-turkistan-01
 
-The bare root URL `/` redirects to `/pos` and keeps the query string, so the `?terminal=` links above still pick their register directly. Without `?terminal=` (and no remembered choice in the browser) `/pos` shows a terminal picker fed by the public query `domains/auth/queries:posTerminalOptions` — active branches and registers only, no ids or staff. `.github/workflows/deploy-frontend.yml` and `deploy-backend.yml` redeploy frontend/backend independently on pushes to `main` that touch their respective paths; see [CI/CD](#cicd) below.
+The bare root URL `/` redirects to `/pos` and keeps the query string, so `/?terminal=<terminal id>` picks a register directly (terminal ids: `docs/ACCESS.md`). Without `?terminal=` (and no remembered choice in the browser) `/pos` shows a terminal picker fed by the public query `domains/auth/queries:posTerminalOptions` — active branches and registers only, no ids or staff. `.github/workflows/deploy-frontend.yml` and `deploy-backend.yml` redeploy frontend/backend independently on pushes to `main` that touch their respective paths; see [CI/CD](#cicd) below.
 
 **Test accounts.** A synthetic office account (created via the real sign-up flow, then bootstrapped as administrator) and a test POS login provisioned through the real `provisionPosAccess` flow against the `iikosup` iiko account (a technical/support identity, not a real staff member) were used while building this. Their passwords and PINs are not recorded in the repo — ask the owner; rotate or delete both before any real handoff (the POS login: «Сотрудники → Сотрудники» in the office).
 

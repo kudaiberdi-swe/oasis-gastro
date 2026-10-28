@@ -69,9 +69,9 @@ exists in iiko instead of re-entering it.
 
 ## Evidence on Hand
 
-- The first deployment's real menus: `frontend/public/menu-pdfs/`, parsed per city in `frontend/public/menu-data/{almaty,shymkent,turkistan}.json` (dev seed input).
+- The first deployment's real menus: `scripts/legacy-sandyq/menu-pdfs/`, parsed per city in `scripts/legacy-sandyq/menu-data/{almaty,shymkent,turkistan}.json` (seed input, not served by the frontend).
 - Real operational data mirrored read-only from iiko (products, recipes, prices, stock, staff, shifts, orders).
-- Site imagery in `frontend/public/images/`.
+- The first client's website photos in `scripts/legacy-sandyq/images/` (not served, not used by the product; dish cards without a photo show the DishPhoto placeholder).
 - No customer testimonials, benchmarks or metrics to cite — do not invent any.
 
 ## Product Principles
