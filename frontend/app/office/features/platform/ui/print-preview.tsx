@@ -10,7 +10,7 @@ export function PrintPreview({ lines, widthMm, className }: { lines: PrintLine[]
     <div role="img" aria-label={`Превью печати, лента ${widthMm} мм`} className={cn("mx-auto max-w-full overflow-hidden rounded-control border border-border bg-card px-3 py-4 font-mono text-body-sm text-foreground shadow-panel", className)} style={{ width: `${widthMm}mm` }}>
       {lines.length === 0 ? <p className="text-center text-caption text-muted-foreground">Пустой шаблон</p> : null}
       {lines.map((line, index) => {
-        if (line.kind === "logo") return <img key={index} src="/branding/sandyq-kz-hidden-menu-logo.svg" alt="Sandyq" className="mx-auto my-1 h-14 dark:invert" />
+        if (line.kind === "logo") return line.name ? <p key={index} className="my-1 text-center text-title-sm font-semibold">{line.name}</p> : null
         if (line.kind === "divider") return <hr key={index} className={cn("my-2 border-0 border-t border-foreground", line.style === "dashed" && "border-dashed")} />
         const classes = cn(
           "min-h-5 break-words",

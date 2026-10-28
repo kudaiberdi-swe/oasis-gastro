@@ -36,11 +36,11 @@ export function bankLineOf(record: FinanceRecord) {
   }
 }
 
-/** Short bank name for the register: «Kaspi Business», «Halyk», «Sandyq CSV», «Другой банк». */
+/** Short bank name for the register: «Kaspi Business», «Halyk», «CSV по умолчанию», «Другой банк». */
 export function bankName(id: string) {
   if (id === "kaspi-business") return "Kaspi Business"
   if (id === "halyk") return "Halyk"
-  if (id === "sandyq") return "Sandyq CSV"
+  if (id === "sandyq") return "CSV по умолчанию" // the default preset keeps its stored id
   return presetById(id) && id !== "manual" ? id : "Другой банк"
 }
 

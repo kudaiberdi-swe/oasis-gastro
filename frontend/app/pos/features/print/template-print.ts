@@ -19,7 +19,6 @@ export type TerminalSettings = FunctionReturnType<typeof api.domains.pos.queries
 type ActiveTemplate = NonNullable<TerminalSettings["printTemplates"]["receipt"]>
 type Place = { organizationName?: string; restaurantAddress?: string }
 
-const LOGO_SRC = "/branding/sandyq-kz-hidden-menu-logo.svg"
 const money = (value: number) => formatTenge(value)
 
 export function orderTemplateData(receipt: OrderReceiptData, place: Place = {}): PrintData {
@@ -137,11 +136,11 @@ export function zReportTemplateData(report: ZReportData, place: { restaurantName
 }
 
 /** The print form of a published template, or null when there is none or it does not validate. */
-export function templateHtml(template: ActiveTemplate | null | undefined, type: PrintDocumentType, title: string, data: PrintData, origin = typeof window === "undefined" ? "" : window.location.origin) {
+export function templateHtml(template: ActiveTemplate | null | undefined, type: PrintDocumentType, title: string, data: PrintData) {
   if (!template) return null
   const { lines, errors } = renderPrintTemplate(template.template, type, data)
   if (errors.length) return null
-  return printPage(title, printLinesHtml(lines, { logoSrc: `${origin}${LOGO_SRC}` }), { widthMm: template.widthMm, copies: template.copies })
+  return printPage(title, printLinesHtml(lines), { widthMm: template.widthMm, copies: template.copies })
 }
 
 /**

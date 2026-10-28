@@ -16,7 +16,7 @@ import { CHANNEL_LABELS, EXTERNAL_MENU_TABS, MODE_LABELS, type ExternalMenuTab }
 import { ExternalMenuVersions } from "./external-menu-versions"
 
 // «Внешнее меню» (/office/external-menu, W3-INT-04, office/73): publication channels of the menu for
-// sandyq.kz (decision Г-9) — the Register with lifecycle tabs, the card in the side panel with
+// the restaurant's website (decision Г-9) — the Register with lifecycle tabs, the card in the side panel with
 // «Опубликовать меню», the version history and a preview of what the website receives.
 
 const FORM_ID = "external-menu-editor"
@@ -204,7 +204,7 @@ function ExternalMenuEditor({ card, readOnly, onCreated }: { card: ExternalMenuC
   const scope = usePlatformScope()
   const { saveExternalMenu } = useExternalMenuMutations()
   const toast = useToast()
-  const [name, setName] = useState(card?.name ?? "Публикация sandyq.kz")
+  const [name, setName] = useState(card?.name ?? "Публикация на сайте")
   const [channel, setChannel] = useState<ExternalMenuChannel>(card?.channel ?? "website")
   const [mode, setMode] = useState<ExternalMenuMode>(card?.mode ?? "published")
   const [restaurants, setRestaurants] = useState<string[]>(card?.restaurantExternalIds ?? (scope.network ? [ALL_RESTAURANTS] : []))
@@ -248,7 +248,7 @@ function ExternalMenuEditor({ card, readOnly, onCreated }: { card: ExternalMenuC
         {(control) => <Input {...control} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} disabled={readOnly} />}
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Канал" hint="Первый потребитель — сайт sandyq.kz">
+        <Field label="Канал" hint="Например, сайт ресторана">
           {(control) => <Select {...control} value={channel} onValueChange={(value) => setChannel(value as ExternalMenuChannel)} options={CHANNEL_OPTIONS} disabled={readOnly} />}
         </Field>
         <Field label="Режим" hint={mode === "live" ? "Сайт получает текущий каталог и цены" : "Сайт получает последнюю опубликованную версию"}>

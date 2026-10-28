@@ -13,7 +13,7 @@ const PIN_MAX = 6
 
 export interface LoginScreenProps {
   onLogin: (code: string, pin: string) => Promise<unknown>
-  /** «Sandyq · <филиал> · <касса>», from the terminal record — never a constant (L-6). */
+  /** «<ресторан> · <касса>», from the terminal record — never a constant (L-6). */
   terminalLabel?: string
   /** After an idle lock: same screen, «Касса заблокирована». */
   locked?: boolean

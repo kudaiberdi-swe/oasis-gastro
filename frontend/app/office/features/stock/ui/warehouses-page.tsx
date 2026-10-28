@@ -143,7 +143,7 @@ function WarehouseForm({ warehouse, canEdit, onClose, onSaved }: { warehouse: Wa
   return (
     <MasterPanel title={warehouse ? warehouse.name : "Новый склад"} formLabel="Склад" dirty={dirty} saving={saving} canEdit={canEdit} isNew={!warehouse} error={error} onSubmit={() => void submit()} onClose={onClose}>
       <Field label="Название" error={errors.name}>
-        {(control) => <Input {...control} value={draft.name} onChange={(event) => set({ name: event.target.value })} disabled={readOnly} autoComplete="off" placeholder="Sandyq Абая · основной склад" />}
+        {(control) => <Input {...control} value={draft.name} onChange={(event) => set({ name: event.target.value })} disabled={readOnly} autoComplete="off" placeholder="Абая · основной склад" />}
       </Field>
       <Field label="Короткое название" hint="Пусто — как название">
         {(control) => <Input {...control} value={draft.shortName} onChange={(event) => set({ shortName: event.target.value })} disabled={readOnly} autoComplete="off" />}

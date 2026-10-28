@@ -23,7 +23,7 @@ export function EngineShowcase() {
   const record = transactionsApi.useGet(module === "transactions" && id ? id : null)
 
   return (
-    <OfficeShell groups={officeNavigation} activeItemId={module} userName="Администратор" footerLine="Sandyq Group · Asia/Almaty · KZT">
+    <OfficeShell groups={officeNavigation} activeItemId={module} userName="Администратор" footerLine="Ресторанная сеть · Asia/Almaty · KZT">
       <OfficePage group={group} title={record ? `${item.label} · ${record.number}` : item.label} description={item.description}>
         {module === "cashflow-categories" ? (
           <MasterPage config={cashflowCategoriesConfig} api={cashflowCategoriesApi} getRowId={(row) => row.id} toValues={cashflowCategoryValues} />

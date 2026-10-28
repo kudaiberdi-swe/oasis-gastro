@@ -20,11 +20,11 @@ export function buildZReportHtml(report: ZReportData, place: { restaurantName: s
   return printPage(
     `${report.number} · Z-отчёт`,
     `<header>
-  <h1 class="brand">SANDYQ</h1>
+  <h1 class="brand">${escapeHtml(place.restaurantName)}</h1>
   <p class="kind">Z-ОТЧЁТ</p>
   <p class="center muted">Отчёт с закрытием смены</p>
   <p class="box">НЕФИСКАЛЬНЫЙ ДОКУМЕНТ</p>
-  <p class="center">${escapeHtml(place.restaurantName)}<br><span class="muted">${escapeHtml(place.terminalName)}</span></p>
+  <p class="center muted">${escapeHtml(place.terminalName)}</p>
   <p class="center strong">${escapeHtml(report.number)}</p>
 </header>
 <hr class="divider">

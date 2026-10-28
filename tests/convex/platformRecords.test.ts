@@ -56,10 +56,10 @@ describe("print templates (W3-ADM-10)", () => {
     await expect(admin.mutation(records.save, template({ data: { ...template().data, widthMm: 72 } }))).rejects.toThrow(/58 или 80/)
 
     // The seed publishes the organization's Sandyq templates; a restaurant's own one wins over them.
-    expect(await t.mutation(internal.domains.platform.printTemplates.seedSandyqTemplates, {})).toMatchObject({ created: 4 })
-    expect(await t.mutation(internal.domains.platform.printTemplates.seedSandyqTemplates, {})).toMatchObject({ created: 0, existing: 4 })
+    expect(await t.mutation(internal.domains.platform.printTemplates.seedDefaultTemplates, {})).toMatchObject({ created: 4 })
+    expect(await t.mutation(internal.domains.platform.printTemplates.seedDefaultTemplates, {})).toMatchObject({ created: 0, existing: 4 })
     let settings = await t.query(api.domains.pos.queries.terminalSettings, { sessionToken: cashier })
-    expect(settings.printTemplates.precheck?.name).toBe("Предчек Sandyq")
+    expect(settings.printTemplates.precheck?.name).toBe("Предчек")
     expect(settings.printTemplates.receipt?.template).toContain("Қызмет ақысы {{totals.serviceChargePercent}} % / Обслуживание")
     expect(settings.organizationName).toBe("ТОО «Sandyq Group»")
 

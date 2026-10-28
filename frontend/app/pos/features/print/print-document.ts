@@ -44,12 +44,9 @@ export const PRINT_STYLES = `
   .box { margin: 7px 0; border: 2px solid #000; padding: 4px; text-align: center; font-weight: 700; }
   .note { margin-top: 6px; padding: 5px; border: 1px solid #000; overflow-wrap: anywhere; }
   .footer { margin-top: 12px; text-align: center; }
-  .slogan { margin-top: 6px; text-align: center; font-size: 10px; letter-spacing: .12em; }
   .line { margin: 0; padding: 1px 0; overflow-wrap: anywhere; }
   .align-right { text-align: right; }
   .large { font-family: Arial, sans-serif; font-size: 16px; }
-  .logo { margin: 0 0 4px; text-align: center; }
-  .logo img { height: 18mm; filter: grayscale(1) brightness(0); }
   .divider.solid { border-top: 2px solid #000; }
   .copy { break-after: page; }
   @media screen { body { padding: 16px 0; background: #eee; } .paper { background: #fff; } }

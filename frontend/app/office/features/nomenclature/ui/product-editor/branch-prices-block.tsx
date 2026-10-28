@@ -6,7 +6,7 @@ import type { BranchPrice } from "../../data/use-nomenclature"
 type PriceSource = BranchPrice["resolvedPriceNow"]["source"]
 
 // The price in force right now and where it comes from (W1-CAT-02 resolvePrice). The iiko overlay
-// price is the card's base price edited in Sandyq, so it reads as «базовая».
+// price is the card's base price edited in OASIS Gastro, so it reads as «базовая».
 const SOURCE_LABELS: Record<PriceSource, string> = { "price-order": "приказ", branch: "филиал", base: "базовая", overlay: "базовая" }
 
 export interface BranchPricesBlockProps {

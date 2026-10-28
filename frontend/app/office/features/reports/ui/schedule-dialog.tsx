@@ -351,7 +351,7 @@ function RecipientsField({ recipients, pending, error, onPendingChange, onKeyDow
           autoComplete="off"
           aria-describedby={messageId}
           aria-invalid={error ? true : undefined}
-          placeholder={recipients.length ? "" : "name@sandyq.kz"}
+          placeholder={recipients.length ? "" : "name@company.kz"}
           value={pending}
           onChange={(event) => onPendingChange(event.target.value)}
           onKeyDown={onKeyDown}

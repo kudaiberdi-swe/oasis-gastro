@@ -4,11 +4,11 @@ import { internalMutation, query, type MutationCtx, type QueryCtx } from "../../
 import { getDomainRecord, organizationScopeId } from "../../lib/domainRecords"
 import { nextNumber } from "../../lib/numbering"
 import { requireOfficeCapability } from "../../lib/officeAccess"
-import { formatTemplateError, PRINT_DOCUMENT_TYPES, PRINT_SAMPLES, renderPrintTemplate as render, SANDYQ_PRINT_TEMPLATES, type PrintDocumentType } from "../../lib/printTemplate"
+import { formatTemplateError, PRINT_DOCUMENT_TYPES, PRINT_SAMPLES, renderPrintTemplate as render, DEFAULT_PRINT_TEMPLATES, type PrintDocumentType } from "../../lib/printTemplate"
 import { almatyBusinessDate } from "../../lib/time"
 
 // «Шаблоны печати» (W3-ADM-10): the preview render on demo data, the published template a print form
-// uses (restaurant first, then the organization), and the Sandyq seed templates (POS-DESIGN §6.6).
+// uses (restaurant first, then the organization), and the default seed templates (POS-DESIGN §6.6).
 
 const documentType = v.union(...PRINT_DOCUMENT_TYPES.map((type) => v.literal(type)))
 
@@ -58,7 +58,7 @@ export async function activePrintTemplate(ctx: QueryCtx, type: PrintDocumentType
 }
 
 /**
- * Sandyq templates for the check, pre-check, X and Z (published, organization-wide) for every organization
+ * Default templates for the check, pre-check, X and Z (published, organization-wide) for every organization
  * with a restaurant. Idempotent: a template already seeded — or edited since — is left alone.
  */
 export async function seedPrintTemplateRows(ctx: MutationCtx, dryRun = false) {
@@ -69,7 +69,7 @@ export async function seedPrintTemplateRows(ctx: MutationCtx, dryRun = false) {
   const businessDate = almatyBusinessDate(Date.now())
   for (const organization of organizations) {
     if (!restaurants.some((restaurant) => restaurant.organizationExternalId === organization.externalId)) continue
-    for (const seed of SANDYQ_PRINT_TEMPLATES) {
+    for (const seed of DEFAULT_PRINT_TEMPLATES) {
       const externalId = `print-templates-${organization.externalId}-${seed.documentType}`
       if (await ctx.db.query("platformRecords").withIndex("by_external_id", (q) => q.eq("externalId", externalId)).unique()) {
         existing += 1
@@ -101,7 +101,7 @@ export async function seedPrintTemplateRows(ctx: MutationCtx, dryRun = false) {
   return { created, existing, dryRun }
 }
 
-export const seedSandyqTemplates = internalMutation({
+export const seedDefaultTemplates = internalMutation({
   args: { dryRun: v.optional(v.boolean()) },
   handler: async (ctx, args) => seedPrintTemplateRows(ctx, args.dryRun ?? false),
 })

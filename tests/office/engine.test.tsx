@@ -107,7 +107,7 @@ describe("EditorPage (L-18)", () => {
     id: "tx",
     number: "ПР-000001",
     date: Date.parse("2026-09-20T00:00:00+05:00"),
-    restaurant: "Sandyq Алматы",
+    restaurant: "Ресторан Алматы",
     memo: "Выручка",
     status,
     lines: [

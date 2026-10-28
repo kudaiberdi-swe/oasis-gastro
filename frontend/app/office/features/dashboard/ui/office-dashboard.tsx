@@ -57,7 +57,7 @@ export function DashboardWorkspace() {
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pb-8 xl:px-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-title font-semibold text-foreground">Сеть Sandyq</h2>
+          <h2 className="text-title font-semibold text-foreground">Сеть ресторанов</h2>
           <p className="text-body-sm text-muted-foreground tabular-nums">{formatPeriod(range.from, range.to)}</p>
         </div>
         <SegmentedControl

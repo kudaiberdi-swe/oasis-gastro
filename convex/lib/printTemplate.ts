@@ -8,7 +8,7 @@
 //
 // Layout lives in the template text only, never in values: a line starting with `[center]`, `[right]`,
 // `[bold]`, `[small]`, `[large]`, `[box]` or `[total]` (combinable), `left || right` for two columns,
-// `---` / `===` for dividers and `[logo]` for the Sandyq logo. A value with «||», «[bold]» or a line
+// `---` / `===` for dividers and `[logo]` for the restaurant's name as a heading (no client logo image). A value with «||», «[bold]» or a line
 // break prints as plain text. Unknown placeholders are validation errors; the output is a list of lines
 // that the print form escapes (printLinesHtml) and the office preview renders as React text.
 
@@ -154,7 +154,7 @@ export const LAYOUT_HINTS: [syntax: string, meaning: string][] = [
   ["[box] [total]", "рамка, итоговая строка"],
   ["слева || справа", "две колонки"],
   ["--- / ===", "пунктирный / сплошной разделитель"],
-  ["[logo]", "логотип Sandyq"],
+  ["[logo]", "название ресторана крупно"],
   ["{{#список}} … {{/список}}", "повтор или условие"],
   ["{{^поле}} … {{/поле}}", "если поле пустое"],
 ]
@@ -289,7 +289,7 @@ export interface PrintData {
 }
 
 export type PrintTextLine = { kind: "text"; left: string; right?: string; align: "left" | "center" | "right"; bold: boolean; size: "small" | "normal" | "large"; box: boolean; total: boolean }
-export type PrintLine = PrintTextLine | { kind: "divider"; style: "dashed" | "solid" } | { kind: "logo" }
+export type PrintLine = PrintTextLine | { kind: "divider"; style: "dashed" | "solid" } | { kind: "logo"; name: string }
 
 type Chunk = { text: string; data: boolean }
 
@@ -341,7 +341,7 @@ function emit(nodes: Node[], stack: PrintData[], out: Chunk[]) {
 
 const MARKER = /^\s*\[(center|right|bold|small|large|box|total)\]/
 
-function layout(chunks: Chunk[]): PrintLine[] {
+function layout(chunks: Chunk[], brand: string): PrintLine[] {
   // Split into lines on template line breaks only; a value never starts a new line.
   const rows: Chunk[][] = [[]]
   for (const chunk of chunks) {
@@ -364,7 +364,7 @@ function layout(chunks: Chunk[]): PrintLine[] {
     const hasValues = row.some((chunk) => chunk.data && chunk.text)
     const templateText = row.filter((chunk) => !chunk.data).map((chunk) => chunk.text).join("")
     if (!hasValues && templateText.trim() === "[logo]") {
-      lines.push({ kind: "logo" })
+      lines.push({ kind: "logo", name: brand })
       continue
     }
     if (!hasValues && /^\s*(-{3,}|={3,})\s*$/.test(templateText)) {
@@ -416,7 +416,12 @@ export function renderPrintTemplate(template: string, documentType: PrintDocumen
   const nodes = parse(template.slice(0, MAX_TEMPLATE_LENGTH), [])
   const chunks: Chunk[] = []
   emit(nodes, [data], chunks)
-  return { lines: layout(chunks), errors }
+  // The `[logo]` heading: the restaurant's name from the data (the organization's when there is none).
+  const place = (key: string) => {
+    const value = data[key]
+    return value && typeof value === "object" && !Array.isArray(value) && typeof value.name === "string" ? value.name : ""
+  }
+  return { lines: layout(chunks, place("restaurant") || place("organization")), errors }
 }
 
 // ── Print form ───────────────────────────────────────────────────────────────
@@ -426,10 +431,10 @@ export function escapePrintText(value: string) {
 }
 
 /** The body of the print form for rendered lines; every text is escaped, classes come from a fixed set. */
-export function printLinesHtml(lines: PrintLine[], options: { logoSrc?: string } = {}) {
+export function printLinesHtml(lines: PrintLine[]) {
   return lines
     .map((line) => {
-      if (line.kind === "logo") return options.logoSrc ? `<p class="logo"><img src="${escapePrintText(options.logoSrc)}" alt="Sandyq"></p>` : `<h1 class="brand">SANDYQ</h1>`
+      if (line.kind === "logo") return line.name ? `<h1 class="brand">${escapePrintText(line.name)}</h1>` : ""
       if (line.kind === "divider") return `<hr class="divider${line.style === "solid" ? " solid" : ""}">`
       const classes = [
         line.align === "center" ? "center" : line.align === "right" ? "align-right" : "",
@@ -447,8 +452,8 @@ export function printLinesHtml(lines: PrintLine[], options: { logoSrc?: string }
 // ── Demo data for the preview ────────────────────────────────────────────────
 
 const SAMPLE_PLACE = {
-  organization: { name: "ТОО «Sandyq Group»" },
-  restaurant: { name: "Sandyq Алматы", address: "пр. Достык, 97" },
+  organization: { name: "ТОО «Ресторанная сеть»" },
+  restaurant: { name: "Ресторан Алматы", address: "пр. Достык, 97" },
   terminal: { name: "Касса 1" },
 }
 
@@ -508,7 +513,7 @@ export const PRINT_SAMPLES: Record<PrintDocumentType, PrintData> = {
   "z-report": { ...SAMPLE_SHIFT, report: { number: "Z-2026-00128" } },
 }
 
-// ── Sandyq templates (seed, POS-DESIGN §6.6) ─────────────────────────────────
+// ── Default templates (seed, POS-DESIGN §6.6) ────────────────────────────────
 
 const ORDER_HEADER = `[logo]
 [center][small]{{organization.name}}`
@@ -568,13 +573,12 @@ const SHIFT_BODY = `---
 
 export type SeedPrintTemplate = { documentType: PrintDocumentType; name: string; template: string }
 
-export const SANDYQ_PRINT_TEMPLATES: SeedPrintTemplate[] = [
+export const DEFAULT_PRINT_TEMPLATES: SeedPrintTemplate[] = [
   {
     documentType: "receipt",
-    name: "Чек продажи Sandyq",
+    name: "Чек продажи",
     template: `${ORDER_HEADER}
 [center][bold]ЧЕК ЗАКАЗА
-[center]{{restaurant.name}}
 [center][small]{{terminal.name}}
 {{#order.number}}
 [center][large]Заказ №{{order.number}}
@@ -603,15 +607,13 @@ ${ORDER_BODY}
 {{/payments}}
 {{/totals.hasPayments}}
 [box]НЕФИСКАЛЬНЫЙ ДОКУМЕНТ
-[center]Рахмет! Спасибо за визит
-[center][small]DALA AŊYZYN JAŊĞYRTU`,
+[center]Рахмет! Спасибо за визит`,
   },
   {
     documentType: "precheck",
-    name: "Предчек Sandyq",
+    name: "Предчек",
     template: `${ORDER_HEADER}
 [center][bold]ПРЕДЧЕК
-[center]{{restaurant.name}}
 [center][small]{{terminal.name}}
 {{#order.number}}
 [center][large]Заказ №{{order.number}}
@@ -623,17 +625,15 @@ ${ORDER_BODY}
 ${ORDER_BODY}
 [total]К ОПЛАТЕ || {{totals.total}}
 [box]НЕ ЯВЛЯЕТСЯ ЧЕКОМ
-[center]Проверьте заказ перед оплатой
-[center][small]DALA AŊYZYN JAŊĞYRTU`,
+[center]Проверьте заказ перед оплатой`,
   },
   {
     documentType: "x-report",
-    name: "X-отчёт Sandyq",
+    name: "X-отчёт",
     template: `[logo]
 [center][bold]X-ОТЧЁТ
 [center][small]Отчёт без гашения
 [box]НЕФИСКАЛЬНЫЙ ДОКУМЕНТ
-[center]{{restaurant.name}}
 [center][small]{{#restaurant.address}}{{restaurant.address}} · {{/restaurant.address}}{{terminal.name}}
 [center][bold]{{report.number}}
 ---
@@ -652,12 +652,11 @@ ${SHIFT_BODY}
   },
   {
     documentType: "z-report",
-    name: "Z-отчёт Sandyq",
+    name: "Z-отчёт",
     template: `[logo]
 [center][bold]Z-ОТЧЁТ
 [center][small]Отчёт с закрытием смены
 [box]НЕФИСКАЛЬНЫЙ ДОКУМЕНТ
-[center]{{restaurant.name}}
 [center][small]{{terminal.name}}
 [center][bold]{{report.number}}
 ---

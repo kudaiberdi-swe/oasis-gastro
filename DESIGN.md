@@ -307,7 +307,7 @@ is linear, not rounded: the 4px rust bar beside a title, the 2px gold bar markin
 ### Navigation
 - **Office sidebar:** night-ink frame, felt-grey 14px items, raised hover; the active item is raised, gold,
   semibold, with a 2px gold bar on its left edge; groups collapse, search filters sections.
-- **POS header:** the same dark frame with the Sandyq mark (`sandyq-group-logo.svg`, gold, 32px), terminal and
+- **POS header:** the same dark frame with the OASIS Gastro mark (`oasis-gastro-mark.svg`, 36px), terminal and
   shift state («Смена №12 · открыта 09:41»); theme, density and the RU/KK interface language switch live in the staff profile.
 
 ### Page Header (signature)

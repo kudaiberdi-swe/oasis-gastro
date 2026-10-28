@@ -236,7 +236,7 @@ export function OfficeRouter() {
   if (!item) return <NotFound />
   const group = findOfficeGroup(item.id)
   const organization = context.organization
-  const footerLine = [organization?.name ?? "Sandyq", organization?.timezone ?? "Asia/Almaty", organization?.currency ?? "KZT"].join(" · ")
+  const footerLine = [organization?.name, organization?.timezone ?? "Asia/Almaty", organization?.currency ?? "KZT"].filter(Boolean).join(" · ")
   const Workspace = WORKSPACES[item.id]
   const allowed = allowsCapability(context.capabilities, item.capability)
   // /office opens the start page; a role without it lands on its first allowed section, not on «Нет доступа».

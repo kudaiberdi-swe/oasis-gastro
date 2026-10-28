@@ -128,16 +128,16 @@ function Orders() {
   const panelId = useId()
   const [tab, setTab] = useState<OrderStatusTab>("all")
   const [searchText, setSearchText] = useState("")
-  const [source, setSource] = useState<SalesSource>("sandyq")
+  const [source, setSource] = useState<SalesSource>("own")
   const search = useDebounced(searchText)
-  const list = useOfficeOrders({ status: tab, search, restaurantExternalId: restaurants.restaurantExternalId }, !restaurants.loading && source === "sandyq")
+  const list = useOfficeOrders({ status: tab, search, restaurantExternalId: restaurants.restaurantExternalId }, !restaurants.loading && source === "own")
   const selectedId = id ?? null
   const unfiltered = tab === "all" && !search.trim()
 
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5 xl:px-8">
-        {source === "sandyq" ? <FilterTabs aria-label="Статус заказов" value={tab} onValueChange={(value) => setTab(value as OrderStatusTab)} items={ORDER_TABS} panelId={panelId} /> : null}
+        {source === "own" ? <FilterTabs aria-label="Статус заказов" value={tab} onValueChange={(value) => setTab(value as OrderStatusTab)} items={ORDER_TABS} panelId={panelId} /> : null}
         <div className="flex flex-wrap items-center gap-3">
           <Select aria-label="Источник" className="w-full sm:w-40" value={source} onValueChange={(value) => setSource(value as SalesSource)} options={SOURCE_OPTIONS} />
           {source === "iiko" ? null : (
@@ -180,7 +180,7 @@ function Orders() {
       </div>
       {selectedId ? (
         <OrderDetailPanel key={selectedId} orderId={selectedId} onClose={() => navigate(SECTION)} />
-      ) : desktop && source === "sandyq" ? (
+      ) : desktop && source === "own" ? (
         <aside aria-label="Чек заказа" className="flex w-[440px] shrink-0 flex-col items-center justify-center gap-3 border-l border-border bg-card p-6 text-center">
           <FileText aria-hidden className="size-8 text-gold" />
           <p className="text-body-sm text-muted-foreground">Выберите заказ для просмотра чека</p>

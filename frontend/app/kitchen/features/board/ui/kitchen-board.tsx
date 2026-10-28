@@ -58,7 +58,7 @@ function useNow(intervalMs = 1000) {
 
 export interface KitchenBoardProps {
   sessionToken: string
-  /** Shown next to the title: «Sandyq Алматы · Повар Айгерим». */
+  /** Shown next to the title: «Ресторан Алматы · Повар Айгерим». */
   restaurantName?: string
   employeeName?: string
   /** «Выйти» — ends the kitchen PIN session. Not shown when the board is embedded in the POS. */

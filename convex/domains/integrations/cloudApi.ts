@@ -12,12 +12,12 @@ import { sourceServes } from "../delivery/shared"
 import { WEBHOOK_URL_ENV } from "./adapters/cloudApiWebhook"
 
 // Cloud API (W3-INT-03, decision Г-9): the menu, the stop list and incoming delivery orders for the
-// website sandyq.kz. The HTTP routes (convex/http.ts) check the HMAC signature and the nonce first and
+// restaurant website. The HTTP routes (convex/http.ts) check the HMAC signature and the nonce first and
 // only then call these internal functions — there is no public function that takes a secret.
 // Prices come only from resolvePrice, availability only from the branch stop list, orders only through
 // the delivery domain's writeDeliveryOrder, so the API can never disagree with the POS.
 
-/** The seeded «Сайт sandyq.kz» source (W2-DLV-08): the default channel of every API call. */
+/** The seeded «Сайт» source (W2-DLV-08): the default channel of every API call. */
 export const CLOUD_API_SOURCE = "source-website"
 const API_SOURCE_KINDS: Doc<"deliverySources">["kind"][] = ["website", "app", "aggregator"]
 export const MENU_CHANNELS = ["website", "mobile-app", "aggregators", "all"] as const
@@ -161,7 +161,7 @@ export const cloudStopList = internalQuery({
 const orderLine = v.object({ productExternalId: v.string(), quantity: v.number(), sizeExternalId: v.optional(v.string()), modifierSelections: v.optional(v.array(v.object({ modifierExternalId: v.string(), quantity: v.number() }))) })
 
 /**
- * POST /api/v1/delivery/orders → the delivery domain (W2-DLV-02) with the «Сайт sandyq.kz» source.
+ * POST /api/v1/delivery/orders → the delivery domain (W2-DLV-02) with the «Сайт» source.
  * Idempotent by the channel's orderId: a repeat returns the order already created, never a second one.
  */
 export const ingestDeliveryOrder = internalMutation({

@@ -8,7 +8,7 @@ import { TerminalPicker } from "@/pos/features/session/ui/terminal-picker"
 import { Banner } from "@/shared/components/ui"
 import { errorMessage } from "@/shared/lib/error-message"
 
-/** «Экран кухни · Sandyq Алматы · Главная касса»; a kitchen (kds) terminal opened by link has no picker entry. */
+/** «Экран кухни · Ресторан Алматы · Главная касса»; a kitchen (kds) terminal opened by link has no picker entry. */
 export function kitchenTerminalLabel(restaurantName?: string, terminalName?: string) {
   const terminal = restaurantName && terminalName?.startsWith(restaurantName) ? terminalName.slice(restaurantName.length).replace(/^\s*[·—-]\s*/, "") : terminalName
   return ["Экран кухни", restaurantName, terminal].filter(Boolean).join(" · ")

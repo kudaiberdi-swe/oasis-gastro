@@ -38,20 +38,20 @@ function CashShifts() {
   const [tab, setTab] = useState<ShiftStatusTab>("all")
   const [note, setNote] = useState("")
   const [accepting, setAccepting] = useState<ShiftCard | null>(null)
-  const [source, setSource] = useState<SalesSource>("sandyq")
-  const list = useOfficeShifts({ status: tab, restaurantExternalId: restaurants.restaurantExternalId }, !restaurants.loading && source === "sandyq")
+  const [source, setSource] = useState<SalesSource>("own")
+  const list = useOfficeShifts({ status: tab, restaurantExternalId: restaurants.restaurantExternalId }, !restaurants.loading && source === "own")
   // Across several restaurants the server returns the latest shifts of each in one page.
   const bounded = restaurants.restaurantExternalId === undefined && restaurants.options.length > 2
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5 xl:px-8">
-      {source === "sandyq" ? <FilterTabs aria-label="Статус смен" value={tab} onValueChange={(value) => setTab(value as ShiftStatusTab)} items={SHIFT_TABS} panelId={panelId} /> : null}
+      {source === "own" ? <FilterTabs aria-label="Статус смен" value={tab} onValueChange={(value) => setTab(value as ShiftStatusTab)} items={SHIFT_TABS} panelId={panelId} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
           <Select aria-label="Источник" className="w-full sm:w-40" value={source} onValueChange={(value) => setSource(value as SalesSource)} options={SOURCE_OPTIONS} />
           {restaurants.visible ? <Select aria-label="Ресторан" className="w-full sm:w-56" value={restaurants.value} onValueChange={restaurants.setValue} options={restaurants.options} /> : null}
         </div>
-        {canAccept && source === "sandyq" ? (
+        {canAccept && source === "own" ? (
           <Input aria-label="Комментарий при принятии" placeholder="Комментарий при принятии" className="w-full sm:w-[360px]" value={note} onChange={(event) => setNote(event.target.value)} />
         ) : null}
       </div>

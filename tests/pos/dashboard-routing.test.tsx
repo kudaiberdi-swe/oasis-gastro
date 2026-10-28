@@ -43,7 +43,7 @@ describe("start page route (W1-ADM-05)", () => {
     expect(await screen.findByText("DashboardWorkspace")).toBeTruthy()
     expect(router.state.location.pathname).toBe("/office/dashboard")
     expect(screen.getByRole("heading", { level: 1, name: "Стартовая страница" })).toBeTruthy()
-    expect(screen.getByText("Оперативное состояние сети Sandyq и задачи на сегодня")).toBeTruthy()
+    expect(screen.getByText("Оперативное состояние сети и задачи на сегодня")).toBeTruthy()
   })
 
   it("sends a role without the start page to its first allowed section", async () => {

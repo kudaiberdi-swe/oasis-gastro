@@ -4,7 +4,9 @@
 // iiko — see lib.mjs's IikoClient, which only ever exposes GET.
 //
 //   npm run iiko:extract -- [--with-stock-master] [--with-products] [--with-balances] [--with-prices]
-//                           [--with-sales --from=YYYY-MM-DD --to=YYYY-MM-DD] [--brand=<term>]
+//                           [--with-sales --from=YYYY-MM-DD --to=YYYY-MM-DD] [--brand=<alias,alias>]
+//
+// The brand scope is a setting: IIKO_BRAND_ALIASES in .env (or --brand), a comma list of name fragments.
 
 import path from "node:path"
 
@@ -12,16 +14,25 @@ import { IikoClient, contentHash, ensureDirectory, parseArgs, parseResponse, par
 import { ENDPOINTS, endpointByKey } from "./endpoint-registry.mjs"
 
 const args = parseArgs(process.argv.slice(2))
+
+// An iiko account may hold several brands sharing one corporate structure. The deployment is scoped to
+// one brand: departments, employees, stores, terminals, products and sales of other brands never reach the
+// staging file. The brand is a setting, never a default: IIKO_BRAND_ALIASES (or --brand) lists the
+// spellings of its name, comma-separated (Latin and Cyrillic), each matched case-insensitively as a part
+// of a department or product group name.
+const BRAND_ALIASES = String(typeof args.brand === "string" ? args.brand : (process.env.IIKO_BRAND_ALIASES ?? ""))
+  .split(",")
+  .map((alias) => alias.trim())
+  .filter(Boolean)
+if (!args.discoverOnly && !BRAND_ALIASES.length) {
+  console.error("✖ No iiko brand scope. Set IIKO_BRAND_ALIASES=<name,другое написание> in .env (or pass --brand=<name,…>): a comma list of spellings of the brand name in iiko department and product group names. Without it the extract would pull every brand of the account.")
+  process.exit(1)
+}
+
 const config = readIikoConfig({ credentialsFile: args.credentialsFile })
 const runExternalId = String(args.runId ?? `run-${new Date().toISOString().replace(/[:.]/g, "-")}`)
 const outputRoot = path.resolve(args.output ?? ".iiko-cache", runExternalId)
 
-// The iiko account behind these credentials is a holding of 8 brands sharing one corporate structure
-// (verified: ~30 branches, ~2716 employees). This project is scoped to Sandyq only — see BRD.md §5 and
-// CLAUDE.md. Other brands' departments, employees, stores, terminals, products and sales never reach the
-// staging file. Default aliases cover the observed spellings (including the Cyrillic «Сандык») — pass
-// --brand to match a single exact term instead.
-const BRAND_ALIASES = args.brand ? [String(args.brand)] : ["sandyq", "sandyk", "сандык", "сандық"]
 const matchesBrand = (name) => {
   const lower = String(name ?? "").toLocaleLowerCase()
   return BRAND_ALIASES.some((alias) => lower.includes(alias.toLocaleLowerCase()))
@@ -92,7 +103,7 @@ try {
       stage(endpoint, records, all.length)
     })
 
-    // Restaurant sections and cash registers of Sandyq departments: terminals and cash shifts map through them.
+    // Restaurant sections and cash registers of the brand's departments: terminals and cash shifts map through them.
     const pointOfSaleDepartment = new Map()
     const pointsOfSale = []
     const storeIds = new Set()
@@ -108,7 +119,7 @@ try {
             pointsOfSale.push({ id: String(pointOfSale.id), name: String(pointOfSale.name ?? "Касса"), departmentId })
           }
         }
-        console.log(`  Sandyq cash registers: ${pointsOfSale.length}`)
+        console.log(`  Brand cash registers: ${pointsOfSale.length}`)
       })
     }
 
@@ -142,7 +153,7 @@ try {
       })
     }
 
-    // Balances first: what lies in Sandyq stores belongs to the Sandyq scope even from a shared group.
+    // Balances first: what lies in the brand's stores belongs to its scope even from a shared group.
     let balances = []
     const balanceAt = new Date()
     if (args.withBalances) {
@@ -151,7 +162,7 @@ try {
         const { payload } = await fetchRecords("v2/reports/balance/stores", `?timestamp=${timestamp}`)
         const all = recordsFromPayload(payload)
         balances = all.filter((record) => storeIds.has(String(record.store)))
-        console.log(`  Sandyq store balances: ${balances.length} of ${all.length}`)
+        console.log(`  Brand store balances: ${balances.length} of ${all.length}`)
       })
     }
 
@@ -177,19 +188,19 @@ try {
         return group
       }
       // A chart item applies to a department unless its store specification excludes it.
-      const appliesToSandyq = (item) => {
+      const appliesToBrand = (item) => {
         const spec = item.storeSpecification
         const listed = asArray(spec?.departments).map(String)
         if (!listed.length) return true
         return [...departmentIds].some((id) => (spec.inverse ? !listed.includes(id) : listed.includes(id)))
       }
-      // The chart in force today per product (the latest dateFrom), with the items Sandyq departments use.
+      // The chart in force today per product (the latest dateFrom), with the items the brand's departments use.
       const chartByProduct = new Map()
       for (const chart of charts) {
         const current = chartByProduct.get(String(chart.assembledProductId))
         if (!current || String(chart.dateFrom) > String(current.dateFrom)) chartByProduct.set(String(chart.assembledProductId), chart)
       }
-      // Scope: products of Sandyq groups, whatever lies in Sandyq stores, and everything their charts use.
+      // Scope: products of the brand's groups, whatever lies in its stores, and everything their charts use.
       for (const product of products) if (matchesBrand(topGroupOf(product.parent)?.name)) scope.add(String(product.id))
       for (const balance of balances) scope.add(String(balance.product))
       const queue = [...scope]
@@ -197,7 +208,7 @@ try {
         const chart = chartByProduct.get(queue.pop())
         for (const item of asArray(chart?.items)) {
           const id = String(item.productId)
-          if (appliesToSandyq(item) && !scope.has(id)) {
+          if (appliesToBrand(item) && !scope.has(id)) {
             scope.add(id)
             queue.push(id)
           }
@@ -219,7 +230,7 @@ try {
       stage(endpointByKey("v2/entities/products/group/list"), groups.filter((group) => groupScope.has(String(group.id))), groups.length)
       stage(endpointByKey("v2/entities/products/list"), scopedProducts, products.length, (product) => ({ unitName: unitNames.get(String(product.mainUnit)) ?? "", prepArea: barGroup(product.parent) ? "bar" : "hot" }))
       const scopedCharts = [...chartByProduct.values()].filter((chart) => scope.has(String(chart.assembledProductId)))
-      // A line may be a per-branch variant (its store specification): keep which Sandyq departments it serves.
+      // A line may be a per-branch variant (its store specification): keep which of the brand's departments it serves.
       const lineDepartments = (item) => {
         const spec = item.storeSpecification
         const listed = asArray(spec?.departments).map(String)
@@ -227,7 +238,7 @@ try {
         const served = [...departmentIds].filter((id) => (spec.inverse ? !listed.includes(id) : listed.includes(id)))
         return served.length === departmentIds.size ? undefined : served
       }
-      const items = (chart) => asArray(chart.items).filter(appliesToSandyq).map(({ storeSpecification, ...item }) => ({ ...item, departmentExternalIds: lineDepartments({ storeSpecification }) }))
+      const items = (chart) => asArray(chart.items).filter(appliesToBrand).map(({ storeSpecification, ...item }) => ({ ...item, departmentExternalIds: lineDepartments({ storeSpecification }) }))
       stage(endpointByKey("v2/assemblyCharts/getAll"), scopedCharts.map((chart) => ({ ...chart, items: items(chart) })), charts.length)
     }
 

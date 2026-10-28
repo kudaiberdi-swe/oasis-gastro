@@ -2,7 +2,7 @@
 // find the columns by a bank preset or by the mapping saved for the account, and turn every line into
 // what convex/domains/finance/bankStatements importStatement takes. Nothing is sent until the preview is clean.
 //
-// Sandyq works with Kaspi Business, Halyk and other banks (owner decision Б-6). No sample statement of either
+// The restaurants work with Kaspi Business, Halyk and other banks (owner decision Б-6). No sample statement of either
 // bank has been seen yet: the Kaspi Business and Halyk presets below guess the column names and are marked
 // «формат не проверен на образце» (`verified: false`) until a real file confirms them; any other bank uses
 // the manual mapping, saved per bank account.
@@ -66,7 +66,7 @@ const OUTGOING_VALUES = ["outgoing", "расход", "списание", "деб
 export const BANK_PRESETS: BankPreset[] = [
   {
     id: "sandyq",
-    label: "Формат Sandyq (как в подсказке)",
+    label: "Формат по умолчанию (как в подсказке)",
     verified: true,
     mapping: {
       bank: "sandyq",

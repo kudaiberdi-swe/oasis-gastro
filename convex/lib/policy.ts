@@ -4,7 +4,7 @@ export const DISCOUNT_APPROVAL_PERCENT = 10
 /** Manager-approval threshold for a shift-close cash variance (tenge). */
 export const VARIANCE_APPROVAL_KZT = 1000
 
-/** Restaurant-wide service charge, printed on every Sandyq menu as "Қызмет ақысы 15%". */
+/** Restaurant-wide service charge, printed on the menu and receipts as "Қызмет ақысы 15%". */
 export const SERVICE_CHARGE_PERCENT = 15
 
 /** Operator PIN session lifetime. */

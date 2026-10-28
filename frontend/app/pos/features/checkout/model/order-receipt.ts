@@ -72,9 +72,9 @@ ${payment.tendered != null && payment.tendered > payment.amount ? `<div class="s
   return printPage(
     title,
     `<header>
-  <h1 class="brand">SANDYQ</h1>
+  <h1 class="brand">${escapeHtml(receipt.restaurantName)}</h1>
   <p class="kind">${precheck ? "ПРЕДЧЕК" : "ЧЕК ЗАКАЗА"}</p>
-  <p class="center">${escapeHtml(receipt.restaurantName)}<br><span class="muted">${escapeHtml(receipt.terminalName)}</span></p>
+  <p class="center muted">${escapeHtml(receipt.terminalName)}</p>
   ${receipt.orderNumber !== undefined ? `<p class="number">Заказ №${receipt.orderNumber}</p>` : ""}
   <p class="center muted">${[place, receipt.orderTypeName, `${count} ${itemsWord(count)}`].filter(Boolean).map(escapeHtml).join(" · ")}</p>
 </header>
@@ -93,8 +93,7 @@ ${receipt.serviceChargeAmount ? `<div class="row"><span>Қызмет ақысы 
 <div class="row total"><span>${precheck ? "К ОПЛАТЕ" : "ИТОГО"}</span><span>${printMoney(receipt.total)}</span></div>
 ${payments ? `<hr class="divider"><p class="section">Оплата</p>${payments}` : ""}
 <p class="box">${precheck ? "НЕ ЯВЛЯЕТСЯ ЧЕКОМ" : "НЕФИСКАЛЬНЫЙ ДОКУМЕНТ"}</p>
-<p class="footer">${precheck ? "Проверьте заказ перед оплатой" : "Рахмет! Спасибо за визит"}</p>
-<p class="slogan">DALA AŊYZYN JAŊĞYRTU</p>`,
+<p class="footer">${precheck ? "Проверьте заказ перед оплатой" : "Рахмет! Спасибо за визит"}</p>`,
   )
 }
 
