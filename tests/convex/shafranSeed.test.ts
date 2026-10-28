@@ -91,6 +91,8 @@ describe("[shafran-demo-seed] seed", () => {
     expect(first.receipts).toBeGreaterThan(0)
     expect(first.stockMovements).toBeGreaterThan(first.receipts)
     expect(first.dailySalesFacts).toBeGreaterThan(0)
+    // Every write-off is in time order: no balance waits for a backdated re-chain.
+    expect((await t.run((ctx) => ctx.db.query("stockBalances").collect())).filter((balance) => balance.recalculating)).toEqual([])
 
     await seedOnce()
     expect(await counts(t)).toEqual(first)

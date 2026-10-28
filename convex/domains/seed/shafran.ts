@@ -417,7 +417,9 @@ export function planDay(restaurantExternalId: string, businessDate: string, base
   }
   minutes.sort((a, b) => a - b)
   const dayStart = almatyDayStart(businessDate)
-  return minutes.map((minute, index) => {
+  const paidAt = (order: { at: number; payMinutes: number }) => order.at + order.payMinutes * 60_000
+  // Numbered in payment order: sale write-offs must never be backdated against an earlier-paid check.
+  return minutes.map((minute): PlannedOrder => {
     const roll = random()
     const type: OrderKind = roll < 0.12 ? "delivery" : roll < 0.42 ? "takeaway" : "dine-in"
     const guests = type === "dine-in" ? pick(random, [1, 2, 3, 4], (n) => [5, 4, 2, 1][n - 1]) : type === "takeaway" ? pick(random, [1, 2], (n) => (n === 1 ? 3 : 1)) : pick(random, [1, 2, 3], (n) => [3, 2, 1][n - 1])
@@ -437,7 +439,7 @@ export function planDay(restaurantExternalId: string, businessDate: string, base
     const methodRoll = random()
     const method = type === "delivery" && source !== "shafran-delivery-own" ? "card" : methodRoll < 0.45 ? "qr" : methodRoll < 0.8 ? "card" : "cash"
     return {
-      index,
+      index: 0,
       at: dayStart + Math.round(minute) * 60_000,
       type,
       guests,
@@ -450,6 +452,8 @@ export function planDay(restaurantExternalId: string, businessDate: string, base
       cookMinutes: 8 + Math.floor(random() * 14),
     }
   })
+    .sort((a, b) => paidAt(a) - paidAt(b))
+    .map((order, index) => ({ ...order, index }))
 }
 
 const addDays = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10)
