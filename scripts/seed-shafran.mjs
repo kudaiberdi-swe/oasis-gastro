@@ -12,7 +12,7 @@
 // 4. Re-creates the demo sign-ins (scripts/seed-demo-logins.mjs) and prints row counts.
 // A full re-run starts from the wipe, so it is safe; the push of convex/ (`npx convex dev --once`) comes first.
 
-import { spawn, spawnSync } from "node:child_process"
+import { spawnSync } from "node:child_process"
 
 import { DEMO_OFFICE_LOGINS } from "../frontend/app/shared/demo/demo-logins.ts"
 import { SHAFRAN_BRANCHES } from "../convex/domains/seed/shafranData.ts"
@@ -29,18 +29,6 @@ requireDevTarget()
 
 const run = (name, args = {}) => JSON.parse(convex(["run", `domains/seed/shafran:${name}`, JSON.stringify(args), "--typecheck", "disable"]))
 
-// Branches are independent (own till, warehouse, shift); four at a time.
-function runAsync(name, args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["convex", "run", `domains/seed/shafran:${name}`, JSON.stringify(args), "--typecheck", "disable"], { stdio: ["ignore", "pipe", "pipe"] })
-    let out = ""
-    let err = ""
-    child.stdout.on("data", (chunk) => (out += chunk))
-    child.stderr.on("data", (chunk) => (err += chunk))
-    child.on("close", (code) => (code === 0 ? resolve(JSON.parse(out)) : reject(new Error(err.trim().split("\n").slice(-3).join(" ")))))
-  })
-}
-
 console.log("1/4 Wiping the previous dev data…")
 const wiped = run("wipeAll")
 console.log(Object.entries(wiped).map(([table, count]) => `  ${table.padEnd(26)} ${count}`).join("\n") || "  nothing to wipe")
@@ -49,17 +37,14 @@ console.log("2/4 Seeding the chain «Шафран»…")
 console.log(JSON.stringify(run("seedChain", { demoEmails: DEMO_OFFICE_LOGINS.map((login) => login.email) }), null, 2))
 
 console.log(`3/4 Sales history: ${options.days} days, base ${options.orders} checks a day…`)
-const queue = SHAFRAN_BRANCHES.map((branch) => branch.externalId)
+// One branch at a time: branches share counters (delivery, receipt and obligation numbers) and guests, so parallel
+// runs collide in optimistic concurrency.
 let total = 0
-await Promise.all(
-  Array.from({ length: 4 }, async () => {
-    for (let id = queue.shift(); id; id = queue.shift()) {
-      const result = await runAsync("seedHistory", { restaurantExternalId: id, days: options.days, baseOrders: options.orders }).catch((error) => fail(`${id}: ${error.message}`))
-      total += result.orders
-      console.log(`  ${id}: ${result.orders} checks`)
-    }
-  }),
-)
+for (const branch of SHAFRAN_BRANCHES) {
+  const result = run("seedHistory", { restaurantExternalId: branch.externalId, days: options.days, baseOrders: options.orders })
+  total += result.orders
+  console.log(`  ${branch.externalId}: ${result.orders} checks`)
+}
 console.log(`  total: ${total} checks`)
 
 console.log("4/4 Demo sign-ins…")
