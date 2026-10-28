@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// LEGACY — runs scripts/seed-sandyq.mjs (the first client's real menu); see its header before using it on dev.
 // e2e seed (W0-CI-03): dev deployments only — never production, there is no override flag.
 // Runs the regular dev seed (org, 3 branches with a terminal each, the real menu, cashier/manager/
 // administrator with PINs generated locally) and writes the cashier's login for the e2e sale smoke

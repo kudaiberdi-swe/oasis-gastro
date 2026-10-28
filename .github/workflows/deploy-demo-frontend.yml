@@ -40,7 +40,7 @@ jobs:
         env:
           VITE_CONVEX_URL: https://dapper-lobster-404.convex.cloud
           VITE_DEMO_MODE: "true"
-          VITE_POS_TERMINAL_ID: sandyq-almaty-01
+          VITE_POS_TERMINAL_ID: shafran-09-01
         run: npm run build
 
       - name: Copy SWA config and check the target

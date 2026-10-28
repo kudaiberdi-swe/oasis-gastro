@@ -48,13 +48,13 @@ describe("demo sign-in buttons", () => {
     expect(onLogin).toHaveBeenCalledWith(DEMO_POS_LOGINS[0].code, DEMO_POS_LOGINS[0].pin)
   })
 
-  it("POS session: a demo build defaults to the Almaty register and logs in through the existing login action", async () => {
+  it("POS session: a demo build defaults to the demo branch register and logs in through the existing login action", async () => {
     vi.stubEnv("VITE_DEMO_MODE", "true")
     login.mockResolvedValue({ sessionToken: "s", expiresAt: Date.now() + 60_000, employee: {}, terminal: {}, restaurant: {} })
     const { result } = renderHook(() => usePosSession())
-    expect(result.current.terminalExternalId).toBe("sandyq-almaty-01")
+    expect(result.current.terminalExternalId).toBe("shafran-09-01")
     await result.current.signIn(DEMO_POS_LOGINS[0].code, DEMO_POS_LOGINS[0].pin)
-    expect(login).toHaveBeenCalledWith({ employeeCode: DEMO_POS_LOGINS[0].code, pin: DEMO_POS_LOGINS[0].pin, terminalExternalId: "sandyq-almaty-01", purpose: "operator" })
+    expect(login).toHaveBeenCalledWith({ employeeCode: DEMO_POS_LOGINS[0].code, pin: DEMO_POS_LOGINS[0].pin, terminalExternalId: "shafran-09-01", purpose: "operator" })
   })
 
   it("kitchen: one «Кухня» button with the kitchen employee", async () => {

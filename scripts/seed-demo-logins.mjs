@@ -5,49 +5,22 @@
 //
 // Codes, PINs, e-mails and the password live in frontend/app/shared/demo/demo-logins.ts (the demo buttons
 // read the same file). No backend changes: POS employees go through the same internal seedAll mutation and
-// PBKDF2 PIN hashing as scripts/seed-sandyq.mjs (with the live org/Almaty rows passed back unchanged, so
+// PBKDF2 PIN hashing as scripts/seed-sandyq.mjs (with the live org and demo-branch rows passed back unchanged, so
 // nothing else is touched); office users are appended with `convex import --append` only when their
 // e-mail is missing (there is no internal office-user creation path), then setOfficePassword sets the
 // password. Re-running is safe. Refuses any deployment except dapper-lobster-404, and never takes --prod.
 
 import { pbkdf2Sync, randomBytes } from "node:crypto"
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs"
+import { writeFileSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { spawnSync } from "node:child_process"
 
 import { DEMO_KITCHEN_LOGIN, DEMO_OFFICE_LOGINS, DEMO_OFFICE_PASSWORD, DEMO_POS_LOGINS, DEMO_RESTAURANT } from "../frontend/app/shared/demo/demo-logins.ts"
+import { convex, fail, requireDevTarget } from "./dev-target.mjs"
 
-const DEV = "dapper-lobster-404"
-
-function fail(message) {
-  console.error(`✖ ${message}`)
-  process.exit(1)
-}
-
-// --- Target guard: the inverse of seed-sandyq.mjs — dev only, by name, with no override.
+// --- Target guard: dev only, by name, with no override (scripts/dev-target.mjs).
 if (process.argv.slice(2).length) fail("No arguments accepted (there is no --prod for demo logins)")
-if (process.env.CONVEX_DEPLOY_KEY) fail("CONVEX_DEPLOY_KEY is set — it would redirect the CLI; unset it")
-if (process.env.CONVEX_URL || process.env.CONVEX_SELF_HOSTED_URL) fail("CONVEX_URL / CONVEX_SELF_HOSTED_URL is set — unset it")
-function deploymentFromEnvLocal() {
-  try {
-    return readFileSync(".env.local", "utf8").match(/^CONVEX_DEPLOYMENT=(\S+)/m)?.[1] ?? ""
-  } catch {
-    return ""
-  }
-}
-const deployment = process.env.CONVEX_DEPLOYMENT ?? deploymentFromEnvLocal()
-if (deployment !== `dev:${DEV}`) fail(`Refusing: deployment is "${deployment || "not configured"}", expected dev:${DEV}`)
-
-function convex(args, { quiet = false } = {}) {
-  const result = spawnSync("npx", ["convex", ...args], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
-  if (result.status !== 0) fail(`convex ${args[0]} failed${quiet ? "" : `: ${(result.stderr || result.stdout).trim().split("\n").slice(-3).join(" ")}`}`)
-  return result.stdout
-}
-// What the CLI actually resolves to, not just what the env file says.
-const resolved = convex(["dashboard", "--no-open"]).trim()
-if (!resolved.endsWith(`/d/${DEV}`)) fail(`Refusing: the Convex CLI resolves to ${resolved}, expected ${DEV}`)
-console.log(`Target: ${DEV} (dev)`)
+requireDevTarget()
 
 const table = (name) =>
   convex(["data", name, "--limit", "10000", "--format", "jsonLines"])

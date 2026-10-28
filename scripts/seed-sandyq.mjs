@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+// LEGACY — the first client's real menu. Do not run it on the demo dev deployment: dev now holds the synthetic
+// chain «Шафран» (npm run seed:shafran) and this would put the client's menu back next to it.
 // Seeds Phase 1 catalog + org/restaurants/terminals + three employee accounts from the
-// parsed menu JSON in frontend/public/menu-data/. Idempotent — safe to re-run (see convex/domains/seed/mutations.ts).
+// parsed menu JSON in scripts/legacy-sandyq/menu-data/ (not served by the frontend). Idempotent — safe to re-run (see convex/domains/seed/mutations.ts).
 
 import { pbkdf2Sync, randomBytes, randomInt } from "node:crypto"
 import { readFileSync } from "node:fs"
@@ -84,7 +86,7 @@ const RESTAURANTS = [
 ]
 
 const menuByBranch = new Map(
-  RESTAURANTS.map((r) => [r.key, JSON.parse(readFileSync(path.resolve("frontend/public/menu-data", `${r.key}.json`), "utf8"))]),
+  RESTAURANTS.map((r) => [r.key, JSON.parse(readFileSync(path.resolve("scripts/legacy-sandyq/menu-data", `${r.key}.json`), "utf8"))]),
 )
 
 // name_ru -> canonical category, built from Shymkent+Turkistan (they already use it).

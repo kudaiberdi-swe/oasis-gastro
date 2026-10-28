@@ -12,7 +12,7 @@ Everything prefixed VITE_ ships to the browser inside the bundle. Secrets do not
 | --- | --- | --- | --- |
 | `VITE_CONVEX_URL` | backend address for the front (`frontend/app/main.tsx`) | `.env.local` (written by `npx convex dev`); `deploy-frontend.yml` (prod), `deploy-demo-frontend.yml` and `scripts/deploy-demo-frontend.sh` (demo) | set |
 | `VITE_DEMO_MODE` | `true` builds the demo frontend: role buttons on the sign-in screens, demo banner | `deploy-demo-frontend.yml`, `scripts/deploy-demo-frontend.sh`; not set for prod | set (demo only) |
-| `VITE_POS_TERMINAL_ID` | POS terminal the build opens by default (`sandyq-almaty-01` on demo) | `deploy-demo-frontend.yml`, `scripts/deploy-demo-frontend.sh` | set (demo only) |
+| `VITE_POS_TERMINAL_ID` | POS terminal the build opens by default (`shafran-09-01` on demo) | `deploy-demo-frontend.yml`, `scripts/deploy-demo-frontend.sh` | set (demo only) |
 
 ## Backend
 
@@ -25,6 +25,7 @@ Set with `npx convex env set NAME value` (dev) or with `--prod` under the mint �
 | `JWT_PRIVATE_KEY` | signs Convex Auth session tokens; read by the `@convex-dev/auth` library, not by project code | Convex env dev and prod | yes | unknown |
 | `JWKS` | public key set for Convex Auth tokens; read by `@convex-dev/auth` | Convex env dev and prod | yes | unknown |
 | `CONVEX_SITE_URL` | issuer domain in `convex/auth.config.ts` | provided by Convex automatically, never set by hand | — | built-in |
+| `CONVEX_CLOUD_URL` | the deployment's own address; the demo seed (`convex/domains/seed/shafran.ts`) refuses to run unless it is the dev `dapper-lobster-404` | provided by Convex automatically, never set by hand | — | built-in |
 | `CLOUD_API_SECRET` | HMAC secret of the Cloud API for sandyq.kz (`convex/lib/hmac.ts`); without it every route answers 503 | Convex env; the same value goes to the sandyq.kz developer. Create with `scripts/rotate-cloud-api-secret.sh [--prod]` | for the site integration | unknown (`TODO.md` §1: code ready) |
 | `CLOUD_API_WEBHOOK_URL` | where order-status webhooks go (`convex/domains/integrations/adapters/cloudApiWebhook.ts`) | Convex env | for the site integration | unknown |
 

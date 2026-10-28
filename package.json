@@ -12,6 +12,7 @@
     "convex:check": "convex dev --once --typecheck enable",
     "seed": "node scripts/seed-sandyq.mjs",
     "demo:logins": "node scripts/seed-demo-logins.mjs",
+    "seed:shafran": "node scripts/seed-shafran.mjs",
     "iiko:discover": "node --env-file=.env scripts/iiko/extract.mjs --discover-only",
     "iiko:extract": "node --env-file=.env scripts/iiko/extract.mjs",
     "iiko:import": "node --env-file=.env scripts/iiko/import-convex.mjs",
