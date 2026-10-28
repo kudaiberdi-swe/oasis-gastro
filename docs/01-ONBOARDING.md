@@ -62,7 +62,7 @@ sandyq/
 | `scripts/iiko/` | Синхронизация с iiko только на чтение: `extract` → `import-convex` → `reconcile`; клиент в `lib.mjs` умеет только `GET` |
 | `e2e/` | Playwright: `smoke/`, `a11y/`, `regressions/`, `screens/` (скриншоты для сверки с bahandi) |
 | `tests/` | Все unit/integration-тесты: `convex/`, `pos/`, `kitchen/`, `office/`, `scripts/` |
-| `frontend/public/` | Меню (`menu-pdfs/`, разобранные `menu-data/*.json`), логотипы и орнаменты (`branding/`), фото (`images/`) |
+| `frontend/public/` | Логотипы и орнаменты (`branding/`), фото (`images/`). Меню первого клиента (PDF и разобранные JSON) — в `scripts/legacy-sandyq/`, фронтенд их не раздаёт |
 | `docs/` | Эта документация — только `.md`, по порядку чтения |
 | `reference/` | Справочные материалы, в работе не участвуют: скриншоты bahandi и сайтов, исходники сайтов-образцов, недоделанная копия маркетингового сайта (`site-rebuild/`), архив старых планов (см. `reference/README.md`) |
 | `.github/workflows/` | CI/CD: `deploy-frontend.yml`, `deploy-backend.yml`, `deploy-demo-frontend.yml` (демо) |

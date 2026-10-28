@@ -136,6 +136,8 @@ import type * as domains_retail_office from "../domains/retail/office.js";
 import type * as domains_retail_queries from "../domains/retail/queries.js";
 import type * as domains_retail_validators from "../domains/retail/validators.js";
 import type * as domains_seed_mutations from "../domains/seed/mutations.js";
+import type * as domains_seed_shafran from "../domains/seed/shafran.js";
+import type * as domains_seed_shafranData from "../domains/seed/shafranData.js";
 import type * as domains_shifts_mutations from "../domains/shifts/mutations.js";
 import type * as domains_shifts_queries from "../domains/shifts/queries.js";
 import type * as domains_sizeScales_mutations from "../domains/sizeScales/mutations.js";
@@ -357,6 +359,8 @@ declare const fullApi: ApiFromModules<{
   "domains/retail/queries": typeof domains_retail_queries;
   "domains/retail/validators": typeof domains_retail_validators;
   "domains/seed/mutations": typeof domains_seed_mutations;
+  "domains/seed/shafran": typeof domains_seed_shafran;
+  "domains/seed/shafranData": typeof domains_seed_shafranData;
   "domains/shifts/mutations": typeof domains_shifts_mutations;
   "domains/shifts/queries": typeof domains_shifts_queries;
   "domains/sizeScales/mutations": typeof domains_sizeScales_mutations;

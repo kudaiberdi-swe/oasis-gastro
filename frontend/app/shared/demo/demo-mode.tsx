@@ -9,8 +9,8 @@ import { errorMessage } from "@/shared/lib/error-message"
 
 export const isDemoMode = () => import.meta.env.VITE_DEMO_MODE === "true"
 
-/** The only branch shown in demos (Almaty): a demo build opens its cash register without the terminal picker. */
-export const DEMO_TERMINAL_ID = "sandyq-almaty-01"
+/** The only branch shown in demos (DEMO_RESTAURANT): a demo build opens its cash register without the terminal picker. */
+export const DEMO_TERMINAL_ID = "shafran-09-01"
 
 type DemoLogins = typeof import("./demo-logins")
 

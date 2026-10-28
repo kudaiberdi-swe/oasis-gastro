@@ -32,7 +32,7 @@ echo "Building demo of $COMMIT against $CONVEX_URL"
 
 # 2. Build (explicit env wins over any .env.local value).
 rm -rf dist
-VITE_CONVEX_URL="$CONVEX_URL" VITE_DEMO_MODE=true VITE_POS_TERMINAL_ID=sandyq-almaty-01 npm run build
+VITE_CONVEX_URL="$CONVEX_URL" VITE_DEMO_MODE=true VITE_POS_TERMINAL_ID=shafran-09-01 npm run build
 cp staticwebapp.config.json dist/staticwebapp.config.json
 grep -rqs "dapper-lobster-404" dist/assets || fail "Build does not point at the dev Convex deployment"
 if grep -rqs "clear-flamingo-97" dist; then fail "Build references the PROD Convex deployment"; fi

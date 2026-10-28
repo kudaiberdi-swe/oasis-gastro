@@ -42,7 +42,7 @@ The "Reference role" column names the image that plays the same role on the refe
 | `branding/sandyq-kz-hidden-menu-logo.svg` (black) | Not used | Reserved for a future light menu variant |
 | `branding/sandyq-group-favicon.webp` | Not used | 140×186 variant; the square 140 one is the favicon |
 
-## Menus (`frontend/public/menu-pdfs/`)
+## Menus (`scripts/legacy-sandyq/menu-pdfs/`, not served by the frontend)
 
 | File | Used on |
 |---|---|
